@@ -1,0 +1,402 @@
+/* ============================================================
+   ProductPage.css   prefix: pp-
+   ============================================================ */
+
+.pp-page {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--xp-silver-1);
+  font-family: var(--xp-font);
+  font-size: var(--xp-fs-sm);
+}
+.pp-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 8px 10px;
+  gap: 8px;
+}
+
+/* ── TWO-COLUMN TOP ─────────────────────────── */
+.pp-top {
+  display: grid;
+  grid-template-columns: 330px 1fr;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.pp-left-col {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  position: relative;
+  z-index: 10;
+}
+.pp-right-col {
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  z-index: 1;
+}
+
+/* ── FIELDSET ────────────────────────────────── */
+.pp-fieldset {
+  border: var(--bevel-dark);
+  padding: 0 8px 8px;
+  background: var(--xp-silver-1);
+}
+.pp-legend {
+  padding: 0 6px;
+  font-size: var(--xp-fs-xs);
+  font-weight: 700;
+  color: var(--xp-blue-dark);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  background: var(--xp-silver-1);
+  margin-left: 6px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+/* ── FORM ROWS ───────────────────────────────── */
+.pp-frow {
+  display: grid;
+  grid-template-columns: 86px 1fr;
+  align-items: center;
+  gap: 5px;
+  margin-bottom: 3px;
+}
+.pp-frow label {
+  font-size: var(--xp-fs-xs);
+  font-weight: 700;
+  color: #222;
+  text-align: right;
+  white-space: nowrap;
+}
+.pp-id-row {
+  display: grid;
+  grid-template-columns: 86px 70px 70px 64px;
+  align-items: center;
+  gap: 5px;
+  margin-bottom: 3px;
+  padding-top: 4px;
+}
+.pp-id-row label {
+  font-size: var(--xp-fs-xs);
+  font-weight: 700;
+  color: #222;
+  text-align: right;
+}
+
+/* ── COMBO ───────────────────────────────────── */
+.pp-combo-wrap {
+  display: flex;
+  align-items: stretch;
+  position: relative;
+  width: 100%;
+}
+.pp-combo-input {
+  width: 100%;
+  padding-right: 22px !important;
+  box-sizing: border-box;
+}
+.pp-combo-btn {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 20px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 9px;
+  color: #666;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+.pp-combo-btn:hover {
+  color: #222;
+}
+
+/* ── COMMANDS ────────────────────────────────── */
+.pp-cmd-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  padding-top: 5px;
+}
+
+/* ── PACKING INFO HEADERS ────────────────────── */
+.pp-pk-hdr-row {
+  display: grid;
+  grid-template-columns: 32px 1fr 90px 90px 80px;
+  gap: 2px;
+  align-items: center;
+  background: var(--xp-silver-3);
+  border-bottom: var(--bevel-dark);
+  padding: 3px 4px;
+  margin: 4px 0 2px;
+}
+.pp-pk-hdr-row span {
+  font-size: 10px;
+  font-weight: 700;
+  color: #222;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+.pp-pk-input-row1 {
+  display: grid;
+  grid-template-columns: 32px 1fr 90px 90px 80px;
+  gap: 2px;
+  align-items: center;
+  margin-bottom: 3px;
+}
+.pp-pk-hdr-row2 {
+  display: grid;
+  grid-template-columns: 1fr 80px 80px 90px;
+  gap: 2px;
+  align-items: center;
+  background: var(--xp-silver-3);
+  border-bottom: var(--bevel-dark);
+  padding: 3px 4px;
+  margin-bottom: 2px;
+}
+.pp-pk-hdr-row2 span {
+  font-size: 10px;
+  font-weight: 700;
+  color: #222;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  text-align: right;
+}
+.pp-pk-input-row2 {
+  display: grid;
+  grid-template-columns: 1fr 80px 80px 90px;
+  gap: 2px;
+  align-items: center;
+  margin-bottom: 4px;
+}
+.pp-pk-btns {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 0;
+  border-top: var(--bevel-mid);
+  border-bottom: var(--bevel-mid);
+  margin-bottom: 4px;
+  flex-wrap: wrap;
+}
+.pp-stock-check {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--xp-fs-xs);
+  font-weight: 700;
+  color: #222;
+  cursor: pointer;
+  margin-left: 4px;
+}
+.pp-pk-id {
+  width: 28px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--xp-silver-1);
+  color: #222;
+  font-size: var(--xp-fs-xs);
+  font-weight: 700;
+  border: var(--bevel-dark);
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+.pp-meas-combo-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.pp-meas-combo-wrap .xp-input {
+  flex: 1;
+  padding-right: 22px !important;
+}
+
+/* ── PACKING TABLE ───────────────────────────── */
+.pp-pack-table-wrap {
+  border: var(--bevel-dark);
+  overflow: auto;
+  background: var(--xp-silver-1);
+  flex: 1;
+  min-height: 80px;
+}
+table.pp-pack-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--xp-fs-xs);
+  font-family: var(--xp-font);
+}
+table.pp-pack-table thead tr {
+  background: var(--xp-silver-3);
+  position: sticky;
+  top: 0;
+}
+table.pp-pack-table thead th {
+  padding: 4px 5px;
+  font-size: 10px;
+  font-weight: 700;
+  color: #222;
+  text-align: left;
+  border-right: var(--bevel-mid);
+  border-bottom: var(--bevel-dark);
+  white-space: nowrap;
+}
+table.pp-pack-table thead th.r {
+  text-align: right;
+}
+table.pp-pack-table thead th:last-child {
+  border-right: none;
+}
+table.pp-pack-table tbody tr {
+  border-bottom: var(--bevel-mid);
+  cursor: pointer;
+  background: var(--xp-silver-1);
+}
+table.pp-pack-table tbody tr:hover {
+  background: var(--xp-silver-3);
+}
+table.pp-pack-table tbody tr.pp-sel-pack {
+  background: var(--xp-silver-2) !important;
+}
+table.pp-pack-table tbody tr.pp-sel-pack td {
+  color: #222 !important;
+}
+table.pp-pack-table tbody td {
+  padding: 4px 5px;
+  vertical-align: middle;
+}
+table.pp-pack-table tbody td.r {
+  text-align: right;
+}
+.pp-stock-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--xp-silver-5);
+  border: 1px solid var(--xp-silver-5);
+}
+
+/* ── PRODUCT LIST ────────────────────────────── */
+.pp-list-section {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+}
+.pp-list-table-wrap {
+  overflow-y: auto;
+  background: var(--xp-silver-1);
+  max-height: 260px;
+  border: var(--bevel-dark);
+}
+table.pp-list-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--xp-fs-sm);
+  font-family: var(--xp-font);
+}
+table.pp-list-table thead tr {
+  background: var(--xp-silver-3);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+table.pp-list-table thead th {
+  padding: 5px 6px;
+  font-size: var(--xp-fs-xs);
+  font-weight: 700;
+  color: #222;
+  text-align: left;
+  border-right: var(--bevel-mid);
+  border-bottom: var(--bevel-dark);
+  white-space: nowrap;
+}
+table.pp-list-table thead th:last-child {
+  border-right: none;
+}
+table.pp-list-table thead th.r {
+  text-align: right;
+}
+table.pp-list-table tbody tr {
+  border-bottom: var(--bevel-mid);
+  cursor: pointer;
+  height: 22px;
+  background: var(--xp-silver-1);
+}
+table.pp-list-table tbody tr:hover {
+  background: var(--xp-silver-3);
+}
+table.pp-list-table tbody tr.pp-sel-row {
+  background: var(--xp-silver-2) !important;
+}
+table.pp-list-table tbody tr.pp-sel-row td {
+  color: #222 !important;
+}
+table.pp-list-table tbody tr.pp-highlighted {
+  background: var(--xp-silver-3) !important;
+}
+table.pp-list-table tbody td {
+  padding: 3px 6px;
+  vertical-align: middle;
+  border-right: var(--bevel-mid);
+}
+table.pp-list-table tbody td:last-child {
+  border-right: none;
+}
+table.pp-list-table tbody td.r {
+  text-align: right;
+}
+
+/* ── MISC ────────────────────────────────────── */
+.pp-upload-check {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: var(--xp-fs-xs);
+  font-weight: 700;
+  color: #222;
+  padding: 4px 0 2px;
+  cursor: pointer;
+}
+.pp-edit-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 8px;
+  background: var(--xp-silver-1);
+  border: var(--bevel-dark);
+  color: #222;
+  font-size: var(--xp-fs-xs);
+  font-weight: 700;
+  border-radius: 2px;
+}
+.pp-close-btn {
+  background: var(--xp-silver-1) !important;
+  border-color: var(--xp-silver-5) !important;
+  color: #222 !important;
+  font-weight: 700;
+}
+.pp-close-btn:hover {
+  background: var(--xp-silver-3) !important;
+}
+
+@media (max-width: 900px) {
+  .pp-top {
+    grid-template-columns: 1fr;
+  }
+}

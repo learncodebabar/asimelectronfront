@@ -1,0 +1,822 @@
+/* ============================================================
+   CreditSalePage.css
+   Page-specific styles only.
+   Shared atoms → theme.css  |  prefix: cs-
+   ============================================================ */
+
+/* ══════════════════════════════════════════════════════════
+   PAGE SHELL
+   ══════════════════════════════════════════════════════════ */
+.cs-page {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--xp-silver-1);
+  font-family: var(--xp-font);
+  font-size: var(--xp-fs-sm);
+}
+
+/* ── Shortcut hint bar ── */
+.cs-hint-bar {
+  background: #d4d0c8;
+  border-bottom: 1px solid var(--xp-silver-5);
+  box-shadow: inset 0 -1px 0 #fff;
+  padding: 2px 10px;
+  font-size: var(--xp-fs-xs);
+  color: #333;
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+.cs-hint-bar kbd {
+  background: var(--xp-silver-3);
+  border-top: 1px solid #fff;
+  border-left: 1px solid #fff;
+  border-right: 1px solid var(--xp-silver-5);
+  border-bottom: 1px solid var(--xp-silver-5);
+  padding: 0 5px;
+  font-family: var(--xp-mono);
+  font-size: var(--xp-fs-xs);
+  font-weight: 700;
+  color: var(--xp-blue-dark);
+}
+
+/* ══════════════════════════════════════════════════════════
+   MAIN TWO-COLUMN LAYOUT
+   ══════════════════════════════════════════════════════════ */
+.cs-body {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr 300px;
+  gap: 0;
+  overflow: hidden;
+  min-height: 0;
+}
+
+/* ── Left panel ── */
+.cs-left {
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  border-right: 2px solid var(--xp-silver-5);
+  box-shadow: 2px 0 0 #fff;
+  padding: 8px 10px;
+  gap: 8px;
+}
+
+/* ── Right panel (history) ── */
+.cs-right {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--xp-silver-1);
+}
+
+/* ══════════════════════════════════════════════════════════
+   HEADER ROW  (invoice # + date)
+   ══════════════════════════════════════════════════════════ */
+.cs-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: linear-gradient(180deg, #d7e4f2 0%, #c0d4ec 100%);
+  border-top: 1px solid #fff;
+  border-left: 1px solid #fff;
+  border-right: 1px solid var(--xp-silver-5);
+  border-bottom: 1px solid var(--xp-silver-5);
+  padding: 5px 10px;
+}
+.cs-header-title {
+  font-size: var(--xp-fs-lg);
+  font-weight: 700;
+  color: var(--xp-blue-dark);
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.cs-field-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: var(--xp-fs-xs);
+}
+.cs-field-row label {
+  font-weight: 700;
+  color: #444;
+  white-space: nowrap;
+}
+.cs-input-sm {
+  height: 22px;
+  padding: 0 5px;
+  font-family: var(--xp-font);
+  font-size: var(--xp-fs-xs);
+  color: #000;
+  background: #fff;
+  border-top: 1px solid var(--xp-silver-5);
+  border-left: 1px solid var(--xp-silver-5);
+  border-right: 1px solid #fff;
+  border-bottom: 1px solid #fff;
+  outline: none;
+}
+.cs-input-sm:focus {
+  outline: 2px solid #3b80f0;
+}
+.cs-input-sm[readonly] {
+  background: #f0ede4;
+  color: #555;
+}
+
+/* ══════════════════════════════════════════════════════════
+   CUSTOMER ROW
+   ══════════════════════════════════════════════════════════ */
+.cs-customer-strip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+  background: var(--xp-silver-3);
+  border-top: 1px solid #fff;
+  border-left: 1px solid #fff;
+  border-right: 1px solid var(--xp-silver-5);
+  border-bottom: 1px solid var(--xp-silver-5);
+  flex-wrap: wrap;
+}
+.cs-customer-strip label {
+  font-size: var(--xp-fs-xs);
+  font-weight: 700;
+  color: #444;
+  white-space: nowrap;
+}
+.cs-phone-input {
+  flex: 1;
+  min-width: 160px;
+  height: 24px;
+  padding: 0 6px;
+  font-family: var(--xp-font);
+  font-size: var(--xp-fs-sm);
+  color: #000;
+  background: #fff;
+  border-top: 1px solid var(--xp-silver-5);
+  border-left: 1px solid var(--xp-silver-5);
+  border-right: 1px solid #fff;
+  border-bottom: 1px solid #fff;
+  outline: none;
+}
+.cs-phone-input:focus {
+  outline: 2px solid #3b80f0;
+}
+
+.cs-customer-tag {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--xp-green-bg);
+  border: 1px solid var(--xp-green-bdr);
+  padding: 2px 8px;
+  font-size: var(--xp-fs-xs);
+  font-weight: 700;
+  color: var(--xp-green);
+}
+.cs-customer-tag .due {
+  color: var(--xp-red);
+  font-family: var(--xp-mono);
+}
+.cs-no-customer {
+  font-size: var(--xp-fs-xs);
+  color: var(--xp-amber);
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* hold pills */
+.cs-hold-pills {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.cs-hold-pill {
+  height: 20px;
+  padding: 0 7px;
+  font-size: var(--xp-fs-xs);
+  font-family: var(--xp-font);
+  background: var(--xp-amber-bg);
+  border: 1px solid var(--xp-amber-bdr);
+  color: var(--xp-amber);
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+.cs-hold-pill:hover {
+  background: var(--xp-amber);
+  color: #fff;
+}
+
+/* product search row */
+.cs-product-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  background: var(--xp-silver-1);
+  border-bottom: 1px solid var(--xp-silver-2);
+}
+.cs-product-row label {
+  font-size: var(--xp-fs-xs);
+  font-weight: 700;
+  color: #444;
+  white-space: nowrap;
+}
+.cs-product-input {
+  flex: 1;
+  height: 24px;
+  padding: 0 6px;
+  font-family: var(--xp-font);
+  font-size: var(--xp-fs-sm);
+  background: #fff;
+  border-top: 1px solid var(--xp-silver-5);
+  border-left: 1px solid var(--xp-silver-5);
+  border-right: 1px solid #fff;
+  border-bottom: 1px solid #fff;
+  outline: none;
+  cursor: pointer;
+  color: #000;
+}
+.cs-product-input:focus {
+  outline: 2px solid #3b80f0;
+}
+
+/* ══════════════════════════════════════════════════════════
+   ITEMS TABLE
+   ══════════════════════════════════════════════════════════ */
+.cs-items-panel {
+  border-top: 1px solid var(--xp-silver-5);
+  border-left: 1px solid var(--xp-silver-5);
+  border-right: 1px solid #fff;
+  border-bottom: 1px solid #fff;
+  background: #fff;
+  overflow: auto;
+  flex-shrink: 0;
+}
+
+table.cs-items-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--xp-fs-sm);
+  font-family: var(--xp-font);
+}
+table.cs-items-table thead tr {
+  background: linear-gradient(180deg, #d7e4f2 0%, #b8d0ec 100%);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+table.cs-items-table thead th {
+  padding: 5px 7px;
+  font-size: var(--xp-fs-xs);
+  font-weight: 700;
+  color: #000;
+  text-align: left;
+  border-right: 1px solid #c8d8ec;
+  border-bottom: 2px solid #7aabda;
+  white-space: nowrap;
+}
+table.cs-items-table thead th:last-child {
+  border-right: none;
+}
+table.cs-items-table thead th.r {
+  text-align: right;
+}
+
+table.cs-items-table tbody tr {
+  border-bottom: 1px solid #e8e4dc;
+}
+table.cs-items-table tbody tr:nth-child(even) {
+  background: #f5f3ee;
+}
+table.cs-items-table tbody tr.active-row {
+  background: #c3d9f5;
+}
+table.cs-items-table tbody td {
+  padding: 2px 4px;
+  vertical-align: middle;
+}
+table.cs-items-table tbody td.r {
+  text-align: right;
+}
+table.cs-items-table tbody td.amt {
+  font-family: var(--xp-mono);
+  font-weight: 700;
+  text-align: right;
+  padding-right: 8px;
+}
+
+/* inline table inputs */
+.cs-cell-input {
+  height: 22px;
+  padding: 0 4px;
+  font-family: var(--xp-font);
+  font-size: var(--xp-fs-sm);
+  color: #000;
+  background: transparent;
+  border: 1px solid transparent;
+  outline: none;
+  width: 100%;
+}
+.cs-cell-input:focus {
+  background: #fff;
+  border: 1px solid #3b80f0;
+  outline: none;
+}
+.cs-cell-input.w-code {
+  width: 70px;
+}
+.cs-cell-input.w-desc {
+  width: 180px;
+}
+.cs-cell-input.w-meas {
+  width: 60px;
+}
+.cs-cell-input.w-num {
+  width: 60px;
+  text-align: right;
+}
+
+/* ══════════════════════════════════════════════════════════
+   BOTTOM BAR  (remarks + totals + buttons)
+   ══════════════════════════════════════════════════════════ */
+.cs-bottom {
+  display: grid;
+  grid-template-columns: 1fr 220px;
+  gap: 8px;
+  padding: 6px 0 2px;
+  flex-shrink: 0;
+}
+
+/* ── left side: remarks + action buttons ── */
+.cs-actions-col {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.cs-remarks-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--xp-fs-xs);
+}
+.cs-remarks-row label {
+  font-weight: 700;
+  color: #444;
+  white-space: nowrap;
+}
+.cs-remarks-input {
+  flex: 1;
+  height: 22px;
+  padding: 0 5px;
+  font-family: var(--xp-font);
+  font-size: var(--xp-fs-sm);
+  background: #fff;
+  border-top: 1px solid var(--xp-silver-5);
+  border-left: 1px solid var(--xp-silver-5);
+  border-right: 1px solid #fff;
+  border-bottom: 1px solid #fff;
+  outline: none;
+  color: #000;
+}
+.cs-remarks-input:focus {
+  outline: 2px solid #3b80f0;
+}
+
+.cs-btn-row {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+
+/* ── right side: totals box ── */
+.cs-totals-box {
+  background: var(--xp-silver-3);
+  border-top: 1px solid #fff;
+  border-left: 1px solid #fff;
+  border-right: 1px solid var(--xp-silver-5);
+  border-bottom: 1px solid var(--xp-silver-5);
+  padding: 6px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: var(--xp-fs-sm);
+  min-width: 0;
+}
+.cs-total-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  padding: 1px 0;
+  border-bottom: 1px dotted #d4d0c8;
+}
+.cs-total-row:last-child {
+  border-bottom: none;
+}
+.cs-total-row label {
+  color: #555;
+  font-size: var(--xp-fs-xs);
+  font-weight: 700;
+  white-space: nowrap;
+}
+.cs-total-row .val {
+  font-family: var(--xp-mono);
+  font-weight: 700;
+  font-size: var(--xp-fs-sm);
+  color: #000;
+}
+.cs-total-row .val.danger {
+  color: var(--xp-red);
+}
+.cs-total-row .val.success {
+  color: var(--xp-green);
+}
+.cs-total-row.highlight {
+  background: #d7e4f2;
+  margin: 0 -10px;
+  padding: 3px 10px;
+  border-bottom: 1px solid #7aabda;
+}
+.cs-total-row.highlight .val {
+  font-size: var(--xp-fs-lg);
+}
+
+/* paid input inside totals */
+.cs-paid-input {
+  width: 90px;
+  height: 22px;
+  padding: 0 5px;
+  font-family: var(--xp-mono);
+  font-size: var(--xp-fs-sm);
+  font-weight: 700;
+  color: var(--xp-green);
+  background: #fff;
+  border-top: 1px solid var(--xp-silver-5);
+  border-left: 1px solid var(--xp-silver-5);
+  border-right: 1px solid #fff;
+  border-bottom: 1px solid #fff;
+  outline: none;
+  text-align: right;
+}
+.cs-paid-input:focus {
+  outline: 2px solid #3b80f0;
+}
+.cs-disc-input {
+  width: 50px;
+  height: 22px;
+  padding: 0 4px;
+  font-family: var(--xp-mono);
+  font-size: var(--xp-fs-sm);
+  font-weight: 700;
+  background: #fff;
+  border-top: 1px solid var(--xp-silver-5);
+  border-left: 1px solid var(--xp-silver-5);
+  border-right: 1px solid #fff;
+  border-bottom: 1px solid #fff;
+  outline: none;
+  text-align: right;
+}
+.cs-disc-input:focus {
+  outline: 2px solid #3b80f0;
+}
+
+/* ══════════════════════════════════════════════════════════
+   HISTORY PANEL  (right column)
+   ══════════════════════════════════════════════════════════ */
+.cs-history-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* empty state */
+.cs-history-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: #999;
+  font-size: var(--xp-fs-sm);
+  padding: 20px;
+  text-align: center;
+}
+.cs-history-empty-icon {
+  font-size: 32px;
+  opacity: 0.35;
+}
+
+/* customer header inside history */
+.cs-hist-customer {
+  background: linear-gradient(180deg, #d7e4f2 0%, #c0d4ec 100%);
+  border-bottom: 2px solid #7aabda;
+  padding: 7px 10px;
+  flex-shrink: 0;
+}
+.cs-hist-name {
+  font-size: var(--xp-fs-md);
+  font-weight: 700;
+  color: var(--xp-blue-dark);
+}
+.cs-hist-sub {
+  font-size: var(--xp-fs-xs);
+  color: #555;
+  margin-top: 1px;
+}
+.cs-hist-actions {
+  display: flex;
+  gap: 4px;
+  margin-top: 5px;
+}
+
+/* summary mini-stats */
+.cs-hist-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  padding: 6px 8px;
+  background: var(--xp-silver-1);
+  border-bottom: 1px solid var(--xp-silver-2);
+  flex-shrink: 0;
+}
+.cs-hstat {
+  background: var(--xp-silver-3);
+  border-top: 1px solid #fff;
+  border-left: 1px solid #fff;
+  border-right: 1px solid var(--xp-silver-5);
+  border-bottom: 1px solid var(--xp-silver-5);
+  padding: 4px 7px;
+}
+.cs-hstat-lbl {
+  font-size: 9px;
+  font-weight: 700;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 1px;
+}
+.cs-hstat-val {
+  font-size: 12px;
+  font-weight: 700;
+  font-family: var(--xp-mono);
+  color: #000;
+}
+.cs-hstat-val.danger {
+  color: var(--xp-red);
+}
+.cs-hstat-val.success {
+  color: var(--xp-green);
+}
+.cs-hstat-val.warning {
+  color: var(--xp-amber);
+}
+
+/* history section title */
+.cs-hist-section-title {
+  padding: 4px 8px 2px;
+  font-size: var(--xp-fs-xs);
+  font-weight: 700;
+  color: var(--xp-blue-dark);
+  background: var(--xp-silver-1);
+  border-bottom: 1px solid var(--xp-silver-2);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+}
+
+/* history table wrapper */
+.cs-hist-table-wrap {
+  flex: 1;
+  overflow-y: auto;
+  background: #fff;
+  border-top: 1px solid var(--xp-silver-5);
+}
+
+table.cs-hist-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--xp-fs-xs);
+  font-family: var(--xp-font);
+}
+table.cs-hist-table thead tr {
+  background: linear-gradient(180deg, #d7e4f2 0%, #b8d0ec 100%);
+}
+table.cs-hist-table thead th {
+  padding: 4px 6px;
+  font-size: 9px;
+  font-weight: 700;
+  color: #000;
+  text-align: left;
+  border-right: 1px solid #c8d8ec;
+  border-bottom: 2px solid #7aabda;
+  white-space: nowrap;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+table.cs-hist-table thead th.r {
+  text-align: right;
+}
+table.cs-hist-table tbody tr {
+  border-bottom: 1px solid #e8e4dc;
+  cursor: pointer;
+}
+table.cs-hist-table tbody tr:nth-child(even) {
+  background: #f5f3ee;
+}
+table.cs-hist-table tbody tr:hover {
+  background: #c3d9f5;
+}
+table.cs-hist-table tbody td {
+  padding: 4px 6px;
+  vertical-align: middle;
+  font-size: var(--xp-fs-xs);
+}
+table.cs-hist-table tbody td.r {
+  text-align: right;
+}
+table.cs-hist-table tbody td.mono {
+  font-family: var(--xp-mono);
+  font-weight: 700;
+}
+
+/* ══════════════════════════════════════════════════════════
+   MODALS  (customer search, product search, invoice, payment)
+   All use xp-overlay + xp-modal from theme.css
+   cs- classes for inner content only
+   ══════════════════════════════════════════════════════════ */
+
+/* modal search inputs */
+.cs-modal-filters {
+  display: flex;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--xp-silver-1);
+  border-bottom: 1px solid var(--xp-silver-2);
+  flex-wrap: wrap;
+  align-items: flex-end;
+  flex-shrink: 0;
+}
+.cs-modal-filter-grp {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 120px;
+}
+.cs-modal-filter-grp label {
+  font-size: var(--xp-fs-xs);
+  font-weight: 700;
+  color: #444;
+}
+
+/* modal footer hint */
+.cs-modal-hint {
+  padding: 4px 12px;
+  background: #d7e4f2;
+  border-top: 1px solid #7aabda;
+  font-size: 10px;
+  color: #333;
+  flex-shrink: 0;
+}
+
+/* invoice preview modal */
+.cs-inv-preview {
+  padding: 10px 14px;
+  font-size: var(--xp-fs-sm);
+}
+.cs-inv-shop {
+  text-align: center;
+  font-size: var(--xp-fs-lg);
+  font-weight: 700;
+  color: var(--xp-blue-dark);
+}
+.cs-inv-sub {
+  text-align: center;
+  font-size: var(--xp-fs-xs);
+  color: #666;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+.cs-inv-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 5px 8px;
+  margin-bottom: 8px;
+  background: var(--xp-silver-3);
+  border-top: 1px solid #fff;
+  border-left: 1px solid #fff;
+  border-right: 1px solid var(--xp-silver-5);
+  border-bottom: 1px solid var(--xp-silver-5);
+  font-size: var(--xp-fs-xs);
+}
+.cs-inv-totals {
+  background: var(--xp-silver-3);
+  border-top: 1px solid #fff;
+  border-left: 1px solid #fff;
+  border-right: 1px solid var(--xp-silver-5);
+  border-bottom: 1px solid var(--xp-silver-5);
+  padding: 6px 10px;
+  margin-top: 8px;
+  float: right;
+  min-width: 220px;
+}
+.cs-inv-total-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--xp-fs-sm);
+  padding: 2px 0;
+  border-bottom: 1px dotted #d4d0c8;
+}
+.cs-inv-total-row:last-child {
+  border-bottom: none;
+}
+.cs-inv-total-row.bold {
+  font-weight: 700;
+}
+.cs-inv-total-row.danger {
+  color: var(--xp-red);
+}
+.cs-inv-total-row.success {
+  color: var(--xp-green);
+}
+.cs-inv-thanks {
+  text-align: center;
+  font-size: var(--xp-fs-xs);
+  color: #888;
+  clear: both;
+  border-top: 1px dashed #ccc;
+  margin-top: 12px;
+  padding-top: 8px;
+}
+
+/* payment detail modal */
+.cs-pay-two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  padding: 10px 14px;
+}
+.cs-pay-section-title {
+  font-size: var(--xp-fs-xs);
+  font-weight: 700;
+  color: var(--xp-blue-dark);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 2px solid var(--xp-blue-mid);
+  padding-bottom: 3px;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.cs-pay-outstanding {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 5px 8px;
+  margin-bottom: 8px;
+  background: var(--xp-red-bg);
+  border-top: 1px solid var(--xp-red-bdr);
+  border-left: 1px solid var(--xp-red-bdr);
+  border-right: 1px solid #ffd7d0;
+  border-bottom: 1px solid #ffd7d0;
+  font-size: var(--xp-fs-xs);
+  color: var(--xp-red);
+}
+.cs-pay-outstanding strong {
+  font-family: var(--xp-mono);
+  font-size: 13px;
+}
+
+/* ══════════════════════════════════════════════════════════
+   RESPONSIVE
+   ══════════════════════════════════════════════════════════ */
+@media (max-width: 900px) {
+  .cs-body {
+    grid-template-columns: 1fr;
+  }
+  .cs-right {
+    border-top: 2px solid var(--xp-silver-5);
+    max-height: 280px;
+  }
+  .cs-bottom {
+    grid-template-columns: 1fr;
+  }
+}

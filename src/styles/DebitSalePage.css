@@ -1,0 +1,376 @@
+/* ============================================================
+   DebitSalePage.css
+   Page-specific styles only.  prefix: ds-
+   Shared atoms  → theme.css
+   Sale layout   → reuses cs- classes from CreditSalePage.css
+   ============================================================ */
+
+/* ══════════════════════════════════════════════════════════
+   PAYMENT MODE PANEL  (unique to debit)
+   ══════════════════════════════════════════════════════════ */
+.ds-pay-section {
+  background: var(--xp-silver-3);
+  border-top: 1px solid #fff;
+  border-left: 1px solid #fff;
+  border-right: 1px solid var(--xp-silver-5);
+  border-bottom: 1px solid var(--xp-silver-5);
+  padding: 7px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.ds-pay-title {
+  font-size: var(--xp-fs-xs);
+  font-weight: 700;
+  color: var(--xp-blue-dark);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid var(--xp-silver-2);
+  padding-bottom: 3px;
+  margin-bottom: 2px;
+}
+
+/* Quick-pay buttons row */
+.ds-qpay-row {
+  display: flex;
+  gap: 5px;
+}
+
+.ds-qpay-btn {
+  flex: 1;
+  height: 24px;
+  font-size: var(--xp-fs-xs);
+  font-family: var(--xp-font);
+  font-weight: 700;
+  cursor: pointer;
+  border-radius: 2px;
+  border: 1px solid var(--xp-silver-5);
+  box-shadow: var(--xp-shadow-btn);
+  background: linear-gradient(180deg, #f4f1e8 0%, #dedad0 50%, #c8c4ba 100%);
+  color: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+.ds-qpay-btn:hover {
+  background: linear-gradient(180deg, #fafaf0 0%, #e8e4d8 100%);
+}
+.ds-qpay-btn:active {
+  box-shadow: var(--xp-shadow-btn-dn);
+}
+
+.ds-qpay-btn.full-cash {
+  background: linear-gradient(180deg, #f0fdf4 0%, #86efac 100%);
+  color: #14532d;
+  border-color: #22c55e;
+}
+.ds-qpay-btn.full-cash:hover {
+  filter: brightness(1.05);
+}
+
+.ds-qpay-btn.full-credit {
+  background: linear-gradient(180deg, #fff5f5 0%, #fca5a5 100%);
+  color: #7f1d1d;
+  border-color: #ef4444;
+}
+.ds-qpay-btn.full-credit:hover {
+  filter: brightness(1.05);
+}
+
+.ds-qpay-btn.partial {
+  background: linear-gradient(180deg, #fefce8 0%, #fde68a 100%);
+  color: #78350f;
+  border-color: #f59e0b;
+}
+.ds-qpay-btn.partial:hover {
+  filter: brightness(1.05);
+}
+
+/* Cash input row */
+.ds-cash-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.ds-cash-row label {
+  font-size: var(--xp-fs-xs);
+  font-weight: 700;
+  color: #444;
+  white-space: nowrap;
+}
+.ds-cash-input {
+  flex: 1;
+  height: 24px;
+  padding: 0 6px;
+  font-family: var(--xp-mono);
+  font-size: var(--xp-fs-sm);
+  font-weight: 700;
+  color: var(--xp-green);
+  background: #fff;
+  border-top: 1px solid var(--xp-silver-5);
+  border-left: 1px solid var(--xp-silver-5);
+  border-right: 1px solid #fff;
+  border-bottom: 1px solid #fff;
+  outline: none;
+  text-align: right;
+}
+.ds-cash-input:focus {
+  outline: 2px solid #3b80f0;
+}
+
+/* Credit badge */
+.ds-credit-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 8px;
+  font-size: var(--xp-fs-xs);
+  font-weight: 700;
+  background: #fee2e2;
+  color: #7f1d1d;
+  border: 1px solid #fca5a5;
+  border-radius: 2px;
+  white-space: nowrap;
+  font-family: var(--xp-mono);
+}
+
+/* ══════════════════════════════════════════════════════════
+   CUSTOMER HISTORY PANEL  (right column — debit version)
+   ══════════════════════════════════════════════════════════ */
+.ds-hist-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.ds-hist-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: #999;
+  font-size: var(--xp-fs-sm);
+  padding: 20px;
+  text-align: center;
+}
+
+.ds-hist-customer-hdr {
+  background: linear-gradient(180deg, #d7e4f2 0%, #c0d4ec 100%);
+  border-bottom: 2px solid #7aabda;
+  padding: 7px 10px;
+  flex-shrink: 0;
+}
+.ds-hist-name {
+  font-size: var(--xp-fs-md);
+  font-weight: 700;
+  color: var(--xp-blue-dark);
+}
+.ds-hist-sub {
+  font-size: var(--xp-fs-xs);
+  color: #555;
+  margin-top: 1px;
+}
+.ds-hist-actions {
+  display: flex;
+  gap: 4px;
+  margin-top: 5px;
+}
+
+/* mini stats 2-col grid */
+.ds-hist-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  padding: 6px 8px;
+  background: var(--xp-silver-1);
+  border-bottom: 1px solid var(--xp-silver-2);
+  flex-shrink: 0;
+}
+.ds-hstat {
+  background: var(--xp-silver-3);
+  border-top: 1px solid #fff;
+  border-left: 1px solid #fff;
+  border-right: 1px solid var(--xp-silver-5);
+  border-bottom: 1px solid var(--xp-silver-5);
+  padding: 4px 7px;
+}
+.ds-hstat.danger {
+  background: var(--xp-red-bg);
+}
+.ds-hstat.amber {
+  background: var(--xp-amber-bg);
+}
+.ds-hstat-lbl {
+  font-size: 9px;
+  font-weight: 700;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 1px;
+}
+.ds-hstat-val {
+  font-size: 12px;
+  font-weight: 700;
+  font-family: var(--xp-mono);
+  color: #000;
+}
+.ds-hstat-val.danger {
+  color: var(--xp-red);
+}
+.ds-hstat-val.success {
+  color: var(--xp-green);
+}
+.ds-hstat-val.warning {
+  color: var(--xp-amber);
+}
+
+/* section title */
+.ds-hist-section {
+  padding: 4px 8px 2px;
+  font-size: var(--xp-fs-xs);
+  font-weight: 700;
+  color: var(--xp-blue-dark);
+  background: var(--xp-silver-1);
+  border-bottom: 1px solid var(--xp-silver-2);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+}
+
+/* history cards list */
+.ds-hist-list-wrap {
+  flex: 1;
+  overflow-y: auto;
+  background: #fff;
+  border-top: 1px solid var(--xp-silver-5);
+}
+
+.ds-hist-card {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 2px;
+  padding: 5px 8px;
+  border-bottom: 1px solid #e8e4dc;
+  cursor: pointer;
+  font-size: var(--xp-fs-xs);
+}
+.ds-hist-card:hover {
+  background: #c3d9f5;
+}
+.ds-hist-card:nth-child(even) {
+  background: #f5f3ee;
+}
+.ds-hist-card:nth-child(even):hover {
+  background: #c3d9f5;
+}
+
+.ds-hist-card-inv {
+  font-family: var(--xp-mono);
+  font-weight: 700;
+  font-size: var(--xp-fs-xs);
+  color: var(--xp-blue-dark);
+}
+.ds-hist-card-date {
+  color: #777;
+  font-size: 10px;
+}
+.ds-hist-card-total {
+  font-family: var(--xp-mono);
+  font-weight: 700;
+  text-align: right;
+}
+.ds-hist-card-bal {
+  font-family: var(--xp-mono);
+  font-weight: 700;
+  text-align: right;
+  font-size: 11px;
+}
+.ds-hist-card-bal.danger {
+  color: var(--xp-red);
+}
+.ds-hist-card-bal.success {
+  color: var(--xp-green);
+}
+
+/* ══════════════════════════════════════════════════════════
+   CUSTOMER SELECT MODAL
+   ══════════════════════════════════════════════════════════ */
+.ds-cust-sel-hint {
+  padding: 4px 12px;
+  background: #d7e4f2;
+  border-top: 1px solid #7aabda;
+  font-size: 10px;
+  color: #333;
+  flex-shrink: 0;
+}
+
+/* ══════════════════════════════════════════════════════════
+   INVOICE MODAL (debit version)
+   ══════════════════════════════════════════════════════════ */
+.ds-inv-mode-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  font-size: var(--xp-fs-xs);
+  font-weight: 700;
+  border-radius: 2px;
+  font-family: var(--xp-font);
+}
+.ds-inv-mode-cash {
+  background: #dcfce7;
+  color: #14532d;
+  border: 1px solid #86efac;
+}
+.ds-inv-mode-credit {
+  background: #fee2e2;
+  color: #7f1d1d;
+  border: 1px solid #fca5a5;
+}
+.ds-inv-mode-partial {
+  background: #fef3c7;
+  color: #78350f;
+  border: 1px solid #fcd34d;
+}
+
+/* ══════════════════════════════════════════════════════════
+   CUSTOMER DETAIL MODAL (payment tabs inside)
+   Same structure as CreditSale — reuse cc- classes
+   ══════════════════════════════════════════════════════════ */
+
+/* ══════════════════════════════════════════════════════════
+   BOTTOM LAYOUT OVERRIDE
+   Debit has payment-mode section + totals in a different order
+   ══════════════════════════════════════════════════════════ */
+.ds-bottom {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  padding: 6px 0 2px;
+  flex-shrink: 0;
+}
+
+.ds-left-col {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* ══════════════════════════════════════════════════════════
+   RESPONSIVE
+   ══════════════════════════════════════════════════════════ */
+@media (max-width: 900px) {
+  .ds-bottom {
+    grid-template-columns: 1fr;
+  }
+  .ds-hist-stats {
+    grid-template-columns: 1fr 1fr;
+  }
+}
