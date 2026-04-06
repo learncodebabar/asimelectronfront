@@ -57,6 +57,7 @@ function AppRoutes() {
 export default function App() {
   return (
     <BrowserRouter>
+      <a href="/sales">Sale</a>
       <Layout>
         <AppRoutes />
       </Layout>

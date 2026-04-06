@@ -368,7 +368,6 @@ function PrintOptionsModal({
   const phoneRef = useRef(null);
   const nameRef = useRef(null);
 
-  // Sirf cash/walkin/counter customers
   const cashCustomers = allCustomers.filter((c) => {
     const t = (c.customerType || c.type || "").toLowerCase();
     return (
@@ -420,7 +419,6 @@ function PrintOptionsModal({
     let finalName = custName.trim() || "COUNTER SALE";
     let finalPhone = custPhone.trim();
 
-    // Phone hai to customer save/find karo
     if (finalPhone) {
       const clean = finalPhone.replace(/\D/g, "");
       const existing = cashCustomers.find(
@@ -430,7 +428,6 @@ function PrintOptionsModal({
       );
 
       if (!existing && finalName !== "COUNTER SALE") {
-        // Naya customer save karo
         try {
           const { data } = await api.post(EP.CUSTOMERS.CREATE, {
             name: finalName,
@@ -441,7 +438,6 @@ function PrintOptionsModal({
             finalName = data.data.name;
           }
         } catch {
-          // Save fail ho to bhi print chala jaye
         }
       } else if (existing) {
         finalName = existing.name;
@@ -481,10 +477,9 @@ function PrintOptionsModal({
             gap: 12,
           }}
         >
-          {/* Phone Number */}
           {!hideCustomerFields && (
             <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-              <label className="xp-label">Phone Number (optional)</label>
+              <label className="xp-label">Phone Number</label>
               <input
                 ref={phoneRef}
                 className="xp-input"
@@ -497,17 +492,15 @@ function PrintOptionsModal({
                     nameRef.current?.focus();
                   }
                 }}
-                placeholder="e.g. 0300-1234567"
                 autoComplete="off"
               />
             </div>
           )}
 
-          {/* Customer Name */}
           {!hideCustomerFields && (
             <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
               <label className="xp-label">
-                Customer Name (optional)
+                Customer Name
                 {custName && custPhone && (
                   <span
                     style={{
@@ -544,12 +537,10 @@ function PrintOptionsModal({
                     handlePrint();
                   }
                 }}
-                placeholder="Customer ka naam…"
               />
             </div>
           )}
 
-          {/* Print type */}
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             <label className="xp-label">Print Format</label>
             <div style={{ display: "flex", gap: 8 }}>
@@ -605,7 +596,7 @@ function PrintOptionsModal({
           </button>
         </div>
         <div className="scm-hint">
-          Enter (name field) = Print &nbsp;|&nbsp; Esc = Cancel
+          Enter = Print &nbsp;|&nbsp; Esc = Cancel
         </div>
       </div>
     </div>
@@ -680,7 +671,6 @@ function SaveConfirmModal({
   return (
     <div className="scm-overlay">
       <div className="scm-window">
-        {/* Titlebar */}
         <div className="scm-tb">
           <svg
             width="13"
@@ -699,7 +689,6 @@ function SaveConfirmModal({
           </button>
         </div>
 
-        {/* Meta strip */}
         <div className="scm-meta">
           <span>
             <b>Invoice:</b> {salePayload.invoiceNo}
@@ -718,9 +707,7 @@ function SaveConfirmModal({
           </span>
         </div>
 
-        {/* 3 Big boxes */}
         <div className="scm-amounts">
-          {/* Bill Amount */}
           <div className="scm-box">
             <div className="scm-box-label">Bill Amount</div>
             <div className="scm-box-val">
@@ -728,7 +715,6 @@ function SaveConfirmModal({
             </div>
           </div>
 
-          {/* Received — editable, default 0 */}
           <div className="scm-box" style={{ borderLeft: "none" }}>
             <div className="scm-box-label">Received</div>
             <input
@@ -741,7 +727,6 @@ function SaveConfirmModal({
             />
           </div>
 
-          {/* Change or Balance Due */}
           <div
             className={`scm-box ${change >= 0 ? "scm-box-change" : "scm-box-due"}`}
             style={{ borderLeft: "none" }}
@@ -758,7 +743,6 @@ function SaveConfirmModal({
           </div>
         </div>
 
-        {/* Print type row */}
         <div className="scm-print-row">
           <span style={{ color: "#555", marginRight: 4, fontWeight: 700 }}>
             Print:
@@ -778,7 +762,6 @@ function SaveConfirmModal({
 
         <div className="scm-sep" />
 
-        {/* Action buttons */}
         <div className="scm-actions">
           <button
             className="xp-btn xp-btn-primary"
@@ -805,10 +788,8 @@ function SaveConfirmModal({
           </button>
         </div>
 
-        {/* Hint */}
         <div className="scm-hint">
-          ↵ Enter (in Received field) = Save &amp; Print &nbsp;|&nbsp; Esc =
-          Return to Invoice
+          ↵ Enter = Save &amp; Print &nbsp;|&nbsp; Esc = Return to Invoice
         </div>
       </div>
     </div>
@@ -949,7 +930,6 @@ function SearchModal({ allProducts, onSelect, onClose }) {
               value={desc}
               onChange={(e) => setDesc(e.target.value)}
               onKeyDown={(e) => fk(e, rCat)}
-              placeholder="Name / code…"
               autoComplete="off"
             />
           </div>
@@ -962,7 +942,6 @@ function SearchModal({ allProducts, onSelect, onClose }) {
               value={cat}
               onChange={(e) => setCat(e.target.value)}
               onKeyDown={(e) => fk(e, rCompany)}
-              placeholder="e.g. SMALL"
               autoComplete="off"
             />
           </div>
@@ -975,7 +954,6 @@ function SearchModal({ allProducts, onSelect, onClose }) {
               value={company}
               onChange={(e) => setCompany(e.target.value)}
               onKeyDown={(e) => fk(e, null)}
-              placeholder="e.g. LUX"
               autoComplete="off"
             />
           </div>
@@ -1406,7 +1384,6 @@ function CustomerDropdown({
               padding: "4px",
             }}
             value={value ? query || displayName : query}
-            placeholder="Counter Sale"
             onChange={handleChange}
             onKeyDown={handleKeyDown}
             onFocus={() => setIsFocused(true)}
@@ -1558,12 +1535,10 @@ export default function SalePage() {
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [pendingPayload, setPendingPayload] = useState(null);
 
-  // Product suggestions for autocomplete
   const [productSuggestions, setProductSuggestions] = useState([]);
   const [showProductSuggestions, setShowProductSuggestions] = useState(false);
   const [selectedProductSuggestionIdx, setSelectedProductSuggestionIdx] = useState(-1);
 
-  // Credit warning
   const [creditWarning, setCreditWarning] = useState(false);
   const [creditStatement, setCreditStatement] = useState("");
   const [showCustomerPanel, setShowCustomerPanel] = useState(false);
@@ -1584,14 +1559,13 @@ export default function SalePage() {
   }, []);
   
   useEffect(() => {
-    fetchData();
+        fetchData();
   }, []);
   
   useEffect(() => {
     saveHolds(holdBills);
   }, [holdBills]);
 
-  // Product suggestions filter
   useEffect(() => {
     if (!searchText.trim()) {
       setProductSuggestions([]);
@@ -2197,13 +2171,24 @@ export default function SalePage() {
 
         <div className="sl-body">
           <div className="sl-left">
-            {/* Invoice info */}
+            {/* Invoice info with big input and nav buttons */}
             <div className="sl-top-bar">
               <div className="sl-sale-title-box">Sale</div>
+              
+              {/* Prev button */}
+              <button
+                className="xp-btn xp-btn-sm sl-nav-btn"
+                onClick={() => navInvoice("prev")}
+                title="Previous Invoice (↑)"
+                style={{ fontSize: 16, padding: "4px 10px" }}
+              >
+                ◀ Prev
+              </button>
+              
               <div className="sl-inv-field-grp">
                 <label>Invoice #</label>
                 <input
-                  className="xp-input xp-input-sm sl-inv-input"
+                  className="xp-input xp-input-sm sl-inv-input-large"
                   value={invoiceNo}
                   onChange={(e) => setInvoiceNo(e.target.value)}
                   onKeyDown={async (e) => {
@@ -2242,10 +2227,26 @@ export default function SalePage() {
                     }
                   }}
                   onFocus={(e) => e.target.select()}
-                  placeholder="Invoice # ya ↑↓"
-                  style={{ background: editId ? "#fffbe6" : undefined }}
+                  style={{ 
+                    background: editId ? "#fffbe6" : "#fffde7",
+                    fontSize: "18px",
+                    fontWeight: "bold",
+                    width: "160px",
+                    textAlign: "center"
+                  }}
                 />
               </div>
+              
+              {/* Next button */}
+              <button
+                className="xp-btn xp-btn-sm sl-nav-btn"
+                onClick={() => navInvoice("next")}
+                title="Next Invoice (↓)"
+                style={{ fontSize: 16, padding: "4px 10px" }}
+              >
+                Next ▶
+              </button>
+              
               <div className="sl-inv-field-grp">
                 <label>Date</label>
                 <input
@@ -2277,7 +2278,7 @@ export default function SalePage() {
                     ref={searchRef}
                     type="text"
                     className="sl-product-input"
-                    style={{ width: "100%" }}
+                    style={{ width: "100%", background: "#fffde7" }}
                     value={searchText}
                     onKeyDown={(e) => {
                       if (e.key === "ArrowDown") {
@@ -2349,12 +2350,11 @@ export default function SalePage() {
                         setPackingOptions([]);
                       }
                     }}
-                    placeholder="Type code or name → Enter to select | ↓ for suggestions | F2 for full search"
                     autoFocus
                   />
                   
                   {/* Product Suggestions Dropdown */}
-                  {showProductSuggestions && productSuggestions.length > 0 && (
+                  {/* {showProductSuggestions && productSuggestions.length > 0 && (
                     <div
                       style={{
                         position: "absolute",
@@ -2405,7 +2405,7 @@ export default function SalePage() {
                         </div>
                       ))}
                     </div>
-                  )}
+                  )} */}
                 </div>
               </div>
               <div className="sl-entry-cell" style={{ position: "relative" }}>
@@ -2414,7 +2414,7 @@ export default function SalePage() {
                   ref={packingRef}
                   type="text"
                   className="xp-input sl-num-input"
-                  style={{ width: 65 }}
+                  style={{ width: 65, background: "#fffde7" }}
                   value={curRow.uom}
                   onChange={(e) =>
                     setCurRow((p) => ({ ...p, uom: e.target.value }))
@@ -2472,7 +2472,7 @@ export default function SalePage() {
                   ref={pcsRef}
                   type="text"
                   className="sl-num-input"
-                  style={{ width: 60 }}
+                  style={{ width: 60, background: "#fffde7" }}
                   value={curRow.pcs}
                   min={1}
                   onChange={(e) => updateCurRow("pcs", e.target.value)}
@@ -2488,7 +2488,7 @@ export default function SalePage() {
                   ref={rateRef}
                   type="text"
                   className="sl-num-input"
-                  style={{ width: 75 }}
+                  style={{ width: 75, background: "#fffde7" }}
                   value={curRow.rate}
                   min={0}
                   onChange={(e) => updateCurRow("rate", e.target.value)}
@@ -2528,7 +2528,7 @@ export default function SalePage() {
                   ref={amountRef}
                   type="text"
                   className="sl-num-input"
-                  style={{ width: 80 }}
+                  style={{ width: 80, background: "#fffde7" }}
                   value={curRow.amount || 0}
                   onChange={(e) =>
                     setCurRow((p) => ({
@@ -2695,6 +2695,7 @@ export default function SalePage() {
                   ref={discRef}
                   type="text"
                   className="sl-sum-input"
+                  style={{ background: "#fffde7" }}
                   value={extraDiscount}
                   min={0}
                   onChange={(e) => setExtraDiscount(e.target.value)}
@@ -2710,7 +2711,7 @@ export default function SalePage() {
                   ref={receivedRef}
                   type="text"
                   className="sl-sum-input"
-                  style={{ color: "var(--xp-green)", fontWeight: 700 }}
+                  style={{ color: "var(--xp-green)", fontWeight: 700, background: "#fffde7" }}
                   value={received}
                   min={0}
                   onChange={(e) => setReceived(e.target.value)}
@@ -2736,7 +2737,7 @@ export default function SalePage() {
                 <label>Code</label>
                 <input
                   className="sl-cust-input"
-                  style={{ width: 65 }}
+                  style={{ width: 65, background: "#fffde7" }}
                   value={codeSearch}
                   onChange={(e) => setCodeSearch(e.target.value)}
                   onKeyDown={(e) => {
@@ -2761,7 +2762,6 @@ export default function SalePage() {
                       }
                     }
                   }}
-                  placeholder="Code…"
                   autoComplete="off"
                 />
               </div>
@@ -2784,7 +2784,7 @@ export default function SalePage() {
                 <input
                   type="text"
                   className="sl-cust-input"
-                  style={{ width: 85 }}
+                  style={{ width: 85, background: "#fffde7" }}
                   value={prevBalance}
                   onChange={(e) => setPrevBalance(e.target.value)}
                   onFocus={(e) => e.target.select()}
@@ -2880,6 +2880,7 @@ export default function SalePage() {
                   ref={statementRef}
                   type="text"
                   className="sl-credit-statement-input"
+                  style={{ background: "#fffde7" }}
                   placeholder={
                     creditWarning
                       ? "Enter reason / authorization statement to allow sale…"
@@ -2934,7 +2935,7 @@ export default function SalePage() {
                     {holdBills.length === 0
                       ? Array.from({ length: 8 }).map((_, i) => (
                           <tr key={i}>
-                            <td colSpan={5} style={{ height: 22 }} /> </tr>
+                            <td colSpan={5} style={{ height: 22 }} />  </tr>
                            
                          
                         ))
@@ -3155,6 +3156,22 @@ export default function SalePage() {
       }
       .xp-link-btn {
         text-decoration: none;
+      }
+      .sl-inv-input-large {
+        font-size: 18px !important;
+        font-weight: bold !important;
+        width: 160px !important;
+        text-align: center !important;
+        background: #fffde7 !important;
+      }
+      .sl-nav-btn {
+        font-size: 14px !important;
+        padding: 4px 12px !important;
+        font-weight: 600 !important;
+      }
+      input, .xp-input, .sl-product-input, .sl-num-input, .sl-sum-input, 
+      .sl-cust-input, .sl-credit-statement-input {
+        background-color: #fffde7 !important;
       }
       `}</style>
     </>

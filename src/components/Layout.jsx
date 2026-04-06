@@ -111,7 +111,10 @@ function MenuBar() {
   return (
     <div
       ref={ref}
-      onKeyDown={(e) => e.stopPropagation()}
+      onKeyDown={(e) => {
+        // Allow keyboard shortcuts to pass through to pages
+        e.stopPropagation();
+      }}
       style={{
         display: "flex",
         background: "linear-gradient(180deg,#f0ede4 0%,#dedad0 100%)",
@@ -350,7 +353,10 @@ function ToolBar() {
 
   return (
     <div
-      onKeyDown={(e) => e.stopPropagation()}
+      onKeyDown={(e) => {
+        // Allow keyboard shortcuts to pass through to pages
+        e.stopPropagation();
+      }}
       style={{
         display: "flex",
         alignItems: "center",
@@ -376,7 +382,7 @@ export default function Layout({ children }) {
   return (
     <div
       onKeyDown={(e) => {
-        // Don't prevent default for menu shortcuts
+        // Don't prevent default for menu shortcuts, let them bubble
         if (e.target.closest?.('.xp-nav, .xp-dropdown-menu, .xp-toolbar')) {
           return;
         }
