@@ -98,7 +98,7 @@ const buildPrintHtml = (sale, type, overrides = {}) => {
         <td style="font-size:9px;vertical-align:top;text-align:right">${it.pcs} ${it.uom || ""}</td>
         <td style="font-size:9px;vertical-align:top;text-align:right">${Number(it.rate).toLocaleString()}</td>
         <td style="font-size:9px;vertical-align:top;text-align:right"><b>${Number(it.amount).toLocaleString()}</b></td>
-      </tr>`,
+      `,
       )
       .join("");
 
@@ -234,7 +234,7 @@ const buildPrintHtml = (sale, type, overrides = {}) => {
         <td style="text-align:right">${it.pcs}</td>
         <td style="text-align:right">${Number(it.rate).toLocaleString()}</td>
         <td style="text-align:right"><b>${Number(it.amount).toLocaleString()}</b></td>
-      </tr>`,
+      `,
       )
       .join("");
 
@@ -1158,9 +1158,6 @@ function HoldPreviewModal({ bill, onResume, onClose }) {
 /* ══════════════════════════════════════════════════════════
    CUSTOMER DROPDOWN
 ══════════════════════════════════════════════════════════ */
-/* ══════════════════════════════════════════════════════════
-   CUSTOMER DROPDOWN - Parent Div Background on Focus
-══════════════════════════════════════════════════════════ */
 function CustomerDropdown({
   allCustomers,
   value,
@@ -1171,7 +1168,7 @@ function CustomerDropdown({
   allowedTypes,
 }) {
   const [query, setQuery] = useState("");
-  const [originalQuery, setOriginalQuery] = useState(""); // Store original typed words
+  const [originalQuery, setOriginalQuery] = useState("");
   const [ghost, setGhost] = useState("");
   const [suggestions, setSuggestions] = useState([]);
   const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(-1);
@@ -1181,7 +1178,6 @@ function CustomerDropdown({
   const inputRef = useRef(null);
   const parentRef = useRef(null);
 
-  // Get credit customers only
   const creditCustomers = allCustomers.filter((c) => {
     const t = (c.customerType || c.type || "").toLowerCase();
     const allowed = allowedTypes || ["credit"];
@@ -1190,7 +1186,6 @@ function CustomerDropdown({
     );
   });
 
-  // Get suggestions based on original query (the words user typed)
   const getSuggestions = (searchTerm) => {
     if (!searchTerm.trim()) return [];
     const searchLower = searchTerm.toLowerCase();
@@ -1199,7 +1194,6 @@ function CustomerDropdown({
     );
   };
 
-  // Update suggestions when original query changes
   useEffect(() => {
     if (!originalQuery.trim()) {
       setSuggestions([]);
@@ -1212,7 +1206,6 @@ function CustomerDropdown({
     setSuggestions(matches);
     setShowDropdown(matches.length > 0);
     
-    // Set ghost suggestion only when not navigating
     if (!isNavigating && matches.length > 0 && matches[0].name) {
       const remaining = matches[0].name.slice(originalQuery.length);
       setGhost(remaining);
@@ -1233,7 +1226,6 @@ function CustomerDropdown({
   };
 
   const handleKeyDown = (e) => {
-    // Complete ghost suggestion with Right Arrow or Tab
     if (ghost && (e.key === "ArrowRight" || e.key === "Tab") && !isNavigating) {
       e.preventDefault();
       const fullName = originalQuery + ghost;
@@ -1242,7 +1234,6 @@ function CustomerDropdown({
       setGhost("");
       setIsNavigating(false);
       
-      // Auto-select the matched customer
       const matchedCustomer = suggestions[0];
       if (matchedCustomer) {
         selectCustomer(matchedCustomer);
@@ -1250,7 +1241,6 @@ function CustomerDropdown({
       return;
     }
     
-    // Arrow Down - show next customer starting with original words
     if (e.key === "ArrowDown") {
       e.preventDefault();
       
@@ -1259,30 +1249,26 @@ function CustomerDropdown({
       setIsNavigating(true);
       setShowDropdown(true);
       
-      // Calculate next index
       let newIndex;
       if (selectedSuggestionIndex === -1) {
         newIndex = 0;
       } else {
         newIndex = selectedSuggestionIndex + 1;
         if (newIndex >= suggestions.length) {
-          newIndex = 0; // Wrap to first
+          newIndex = 0;
         }
       }
       
       setSelectedSuggestionIndex(newIndex);
       
-      // Update query with selected customer name but KEEP originalQuery same
       const selectedCustomer = suggestions[newIndex];
       if (selectedCustomer) {
         setQuery(selectedCustomer.name);
-        // DON'T change originalQuery - keep user's typed words
         setGhost("");
       }
       return;
     }
     
-    // Arrow Up - show previous customer starting with original words
     if (e.key === "ArrowUp") {
       e.preventDefault();
       
@@ -1291,20 +1277,18 @@ function CustomerDropdown({
       setIsNavigating(true);
       setShowDropdown(true);
       
-      // Calculate previous index
       let newIndex;
       if (selectedSuggestionIndex === -1) {
-        newIndex = suggestions.length - 1; // Go to last
+        newIndex = suggestions.length - 1;
       } else {
         newIndex = selectedSuggestionIndex - 1;
         if (newIndex < 0) {
-          newIndex = suggestions.length - 1; // Wrap to last
+          newIndex = suggestions.length - 1;
         }
       }
       
       setSelectedSuggestionIndex(newIndex);
       
-      // Update query with selected customer name but KEEP originalQuery same
       const selectedCustomer = suggestions[newIndex];
       if (selectedCustomer) {
         setQuery(selectedCustomer.name);
@@ -1313,7 +1297,6 @@ function CustomerDropdown({
       return;
     }
     
-    // Enter - select current customer
     if (e.key === "Enter") {
       e.preventDefault();
       
@@ -1325,7 +1308,6 @@ function CustomerDropdown({
       return;
     }
     
-    // Escape - clear everything
     if (e.key === "Escape") {
       e.preventDefault();
       setQuery("");
@@ -1343,7 +1325,7 @@ function CustomerDropdown({
   const handleChange = (e) => {
     const newValue = e.target.value;
     setQuery(newValue);
-    setOriginalQuery(newValue); // Store what user typed
+    setOriginalQuery(newValue);
     if (value && newValue !== displayName) onClear();
     setSelectedSuggestionIndex(-1);
     setShowDropdown(true);
@@ -1374,7 +1356,6 @@ function CustomerDropdown({
           </span>
         )}
 
-        {/* Parent div with background color change on focus */}
         <div 
           ref={parentRef}
           style={{ 
@@ -1385,7 +1366,6 @@ function CustomerDropdown({
             transition: "background 0.15s ease",
           }}
         >
-          {/* Ghost text overlay - only show when not navigating */}
           {ghost && !isNavigating && (
             <div
               style={{
@@ -1464,7 +1444,6 @@ function CustomerDropdown({
         )}
       </div>
 
-      {/* Suggestions dropdown */}
       {showDropdown && suggestions.length > 0 && (
         <div
           style={{
@@ -1518,7 +1497,6 @@ function CustomerDropdown({
         </div>
       )}
       
-      {/* Help text */}
       {originalQuery && suggestions.length === 0 && (
         <div
           style={{
@@ -1537,6 +1515,7 @@ function CustomerDropdown({
     </div>
   );
 }
+
 /* ══════════════════════════════════════════════════════════
    MAIN PAGE
 ══════════════════════════════════════════════════════════ */
@@ -1579,6 +1558,11 @@ export default function SalePage() {
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [pendingPayload, setPendingPayload] = useState(null);
 
+  // Product suggestions for autocomplete
+  const [productSuggestions, setProductSuggestions] = useState([]);
+  const [showProductSuggestions, setShowProductSuggestions] = useState(false);
+  const [selectedProductSuggestionIdx, setSelectedProductSuggestionIdx] = useState(-1);
+
   // Credit warning
   const [creditWarning, setCreditWarning] = useState(false);
   const [creditStatement, setCreditStatement] = useState("");
@@ -1598,12 +1582,35 @@ export default function SalePage() {
     const t = setInterval(() => setTime(timeNow()), 1000);
     return () => clearInterval(t);
   }, []);
+  
   useEffect(() => {
     fetchData();
   }, []);
+  
   useEffect(() => {
     saveHolds(holdBills);
   }, [holdBills]);
+
+  // Product suggestions filter
+  useEffect(() => {
+    if (!searchText.trim()) {
+      setProductSuggestions([]);
+      setShowProductSuggestions(false);
+      return;
+    }
+    
+    const q = searchText.trim().toLowerCase();
+    const matches = allProducts.filter(p => 
+      p.code?.toLowerCase().includes(q) ||
+      p.description?.toLowerCase().includes(q) ||
+      p.category?.toLowerCase().includes(q) ||
+      p.company?.toLowerCase().includes(q)
+    ).slice(0, 10);
+    
+    setProductSuggestions(matches);
+    setShowProductSuggestions(matches.length > 0 && !curRow.name);
+    setSelectedProductSuggestionIdx(-1);
+  }, [searchText, allProducts, curRow.name]);
 
   const subTotal = items.reduce((s, r) => s + (parseFloat(r.amount) || 0), 0);
   const billAmount = subTotal - (parseFloat(extraDiscount) || 0);
@@ -1674,17 +1681,16 @@ export default function SalePage() {
     setCreditStatement("");
     setShowCustomerPanel(true);
 
-    // Credit customer — note pe focus
     if (type === "credit") {
       setTimeout(() => statementRef.current?.focus(), 80);
     } else {
       setTimeout(() => searchRef.current?.focus(), 30);
     }
   };
+  
   const handleCustomerClear = () => {
     setCustomerId("");
     setBuyerName("COUNTER SALE");
-    // setBuyerCode("");
     setCustomerType("");
     setPrevBalance(0);
     setPaymentMode("Cash");
@@ -1721,6 +1727,7 @@ export default function SalePage() {
     }
     setTimeout(() => searchRef.current?.focus(), 30);
   };
+  
   const pickProduct = (product) => {
     if (!product._id) {
       showMsg("Product ID missing", "error");
@@ -1739,6 +1746,7 @@ export default function SalePage() {
     });
     setSearchText(product.code || "");
     setShowProductModal(false);
+    setShowProductSuggestions(false);
     setTimeout(() => packingRef.current?.focus(), 30);
   };
 
@@ -1781,6 +1789,7 @@ export default function SalePage() {
     setSearchText("");
     setPackingOptions([]);
     setSelItemIdx(null);
+    setShowProductSuggestions(false);
     setTimeout(() => searchRef.current?.focus(), 30);
   };
 
@@ -1819,7 +1828,6 @@ export default function SalePage() {
         items: [...items],
         customerId,
         buyerName,
-
         customerType,
         prevBalance,
         extraDiscount,
@@ -1872,19 +1880,20 @@ export default function SalePage() {
     setMsg({ text: "", type: "" });
     setCreditWarning(false);
     setCreditStatement("");
+    setShowCustomerPanel(false);
+    setShowProductSuggestions(false);
     setTimeout(() => searchRef.current?.focus(), 50);
   };
+  
   const loadSaleForEdit = (sale) => {
     setEditId(sale._id);
     setInvoiceNo(sale.invoiceNo);
     setInvoiceDate(sale.invoiceDate || isoDate());
 
-    // Customer
     const cust = allCustomers.find((c) => c._id === sale.customerId);
     if (cust) {
       setCustomerId(cust._id);
       setBuyerName(cust.name);
-      setBuyerCode(cust.code || "");
       setCustomerType(cust.customerType || cust.type || "");
       setPrevBalance(sale.prevBalance || 0);
       setPaymentMode(sale.paymentMode || "Cash");
@@ -1892,14 +1901,12 @@ export default function SalePage() {
     } else {
       setCustomerId("");
       setBuyerName(sale.customerName || "COUNTER SALE");
-      // setBuyerCode("");
       setCustomerType("");
       setPrevBalance(sale.prevBalance || 0);
       setPaymentMode(sale.paymentMode || "Cash");
       setSaleSource(sale.saleSource || "cash");
     }
 
-    // Items
     const loadedItems = (sale.items || []).map((it) => ({
       productId: it.productId || it.product || "",
       code: it.code || "",
@@ -1912,7 +1919,6 @@ export default function SalePage() {
     }));
     setItems(loadedItems);
 
-    // Amounts
     setExtraDiscount(sale.extraDisc || 0);
     setReceived(sale.paidAmount || 0);
 
@@ -1972,7 +1978,7 @@ export default function SalePage() {
     remarks: creditStatement || "",
     saleType: "sale",
   });
-  /* ── Open confirm modal   */
+  
   const openSaleConfirm = () => {
     if (!items.length) {
       alert("Add at least one item");
@@ -1986,7 +1992,6 @@ export default function SalePage() {
         return;
       }
       const payload = buildPayload();
-      // setPendingPayload wait nahi karta — seedha payload pass karo
       setPendingPayload(payload);
       confirmSaveWithPayload(payload, {
         extraDisc: payload.extraDisc,
@@ -2003,7 +2008,7 @@ export default function SalePage() {
     setPendingPayload(payload);
     setShowSaveModal(true);
   };
-  /* ── Actual API save — called from modal ── */
+  
   const confirmSaveWithPayload = async (payload, overrides) => {
     if (!payload) return;
     setLoading(true);
@@ -2056,6 +2061,7 @@ export default function SalePage() {
   const confirmSave = async (overrides) => {
     confirmSaveWithPayload(pendingPayload, overrides);
   };
+  
   useEffect(() => {
     const handler = (e) => {
       if (
@@ -2223,7 +2229,6 @@ export default function SalePage() {
                           await refreshInvoiceNo();
                           return;
                         }
-                        // Pehle reset karo phir load
                         setItems([]);
                         setEditId(null);
                         loadSaleForEdit(exact);
@@ -2261,67 +2266,147 @@ export default function SalePage() {
               </div>
             </div>
 
-            {/* Entry strip */}
+            {/* Entry strip with product autocomplete */}
             <div className="sl-entry-strip">
               <div className="sl-entry-cell sl-entry-product">
                 <label>
                   Select Product <kbd>F2</kbd>
                 </label>
-                <input
-                  ref={searchRef}
-                  type="text"
-                  className="sl-product-input"
-                  value={searchText}
-                  // onChange={(e) => setSearchText(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "ArrowDown") {
-                      e.preventDefault();
-                      setShowProductModal(true);
-                    }
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      if (!searchText.trim()) {
-                        setShowProductModal(true);
-                        return;
+                <div style={{ position: "relative", flex: 1 }}>
+                  <input
+                    ref={searchRef}
+                    type="text"
+                    className="sl-product-input"
+                    style={{ width: "100%" }}
+                    value={searchText}
+                    onKeyDown={(e) => {
+                      if (e.key === "ArrowDown") {
+                        e.preventDefault();
+                        if (productSuggestions.length > 0) {
+                          setSelectedProductSuggestionIdx(prev => 
+                            prev < productSuggestions.length - 1 ? prev + 1 : prev
+                          );
+                          setShowProductSuggestions(true);
+                        } else {
+                          setShowProductModal(true);
+                        }
                       }
-                      // Barcode/code se dhundo
-                      const q = searchText.trim().toLowerCase();
-                      const found = allProducts.find(
-                        (p) => p.code?.toLowerCase() === q,
-                      );
-                      if (found) {
-                        const pk = found.packingInfo?.[0];
-                        pickProduct({
-                          ...found,
-                          _pi: 0,
-                          _meas: pk?.measurement || "",
-                          _rate: pk?.saleRate || 0,
-                          _pack: pk?.packing || 1,
-                          _stock: pk?.openingQty || 0,
-                          _name: [
-                            found.category,
-                            found.description,
-                            found.company,
-                          ]
-                            .filter(Boolean)
-                            .join(" "),
-                        });
-                      } else {
-                        alert(`"${searchText}" — Product not found`);
-                        searchRef.current?.select();
+                      if (e.key === "ArrowUp") {
+                        e.preventDefault();
+                        setSelectedProductSuggestionIdx(prev => prev > 0 ? prev - 1 : -1);
                       }
-                    }
-                  }}
-                  placeholder="Enter / F2 to search…"
-                  onChange={(e) => {
-                    setSearchText(e.target.value);
-                    if (curRow.name) {
-                      setCurRow({ ...EMPTY_ROW });
-                      setPackingOptions([]);
-                    }
-                  }}
-                  autoFocus
-                />
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        if (selectedProductSuggestionIdx >= 0 && productSuggestions[selectedProductSuggestionIdx]) {
+                          const found = productSuggestions[selectedProductSuggestionIdx];
+                          const pk = found.packingInfo?.[0];
+                          pickProduct({
+                            ...found,
+                            _pi: 0,
+                            _meas: pk?.measurement || "",
+                            _rate: pk?.saleRate || 0,
+                            _pack: pk?.packing || 1,
+                            _stock: pk?.openingQty || 0,
+                            _name: [found.category, found.description, found.company].filter(Boolean).join(" "),
+                          });
+                          setProductSuggestions([]);
+                          setShowProductSuggestions(false);
+                        } else if (searchText.trim()) {
+                          const q = searchText.trim().toLowerCase();
+                          let found = allProducts.find(p => p.code?.toLowerCase() === q);
+                          if (!found) {
+                            found = allProducts.find(p => 
+                              p.description?.toLowerCase().includes(q) ||
+                              p.name?.toLowerCase().includes(q)
+                            );
+                          }
+                          if (found) {
+                            const pk = found.packingInfo?.[0];
+                            pickProduct({
+                              ...found,
+                              _pi: 0,
+                              _meas: pk?.measurement || "",
+                              _rate: pk?.saleRate || 0,
+                              _pack: pk?.packing || 1,
+                              _stock: pk?.openingQty || 0,
+                              _name: [found.category, found.description, found.company].filter(Boolean).join(" "),
+                            });
+                          } else {
+                            setShowProductModal(true);
+                          }
+                        } else {
+                          setShowProductModal(true);
+                        }
+                      }
+                      if (e.key === "Escape") {
+                        setShowProductSuggestions(false);
+                      }
+                    }}
+                    onChange={(e) => {
+                      setSearchText(e.target.value);
+                      if (curRow.name) {
+                        setCurRow({ ...EMPTY_ROW });
+                        setPackingOptions([]);
+                      }
+                    }}
+                    placeholder="Type code or name → Enter to select | ↓ for suggestions | F2 for full search"
+                    autoFocus
+                  />
+                  
+                  {/* Product Suggestions Dropdown */}
+                  {showProductSuggestions && productSuggestions.length > 0 && (
+                    <div
+                      style={{
+                        position: "absolute",
+                        top: "100%",
+                        left: 0,
+                        right: 0,
+                        backgroundColor: "white",
+                        border: "1px solid #e5e7eb",
+                        borderRadius: 4,
+                        maxHeight: 250,
+                        overflowY: "auto",
+                        zIndex: 1000,
+                        boxShadow: "0 4px 6px -1px rgba(0,0,0,0.1)",
+                        marginTop: 2,
+                      }}
+                    >
+                      {productSuggestions.map((product, idx) => (
+                        <div
+                          key={product._id}
+                          onClick={() => {
+                            const pk = product.packingInfo?.[0];
+                            pickProduct({
+                              ...product,
+                              _pi: 0,
+                              _meas: pk?.measurement || "",
+                              _rate: pk?.saleRate || 0,
+                              _pack: pk?.packing || 1,
+                              _stock: pk?.openingQty || 0,
+                              _name: [product.category, product.description, product.company].filter(Boolean).join(" "),
+                            });
+                            setProductSuggestions([]);
+                            setShowProductSuggestions(false);
+                          }}
+                          style={{
+                            padding: "8px 12px",
+                            cursor: "pointer",
+                            backgroundColor: idx === selectedProductSuggestionIdx ? "#e5f0ff" : "white",
+                            borderBottom: "1px solid #f3f4f6",
+                          }}
+                          onMouseEnter={() => setSelectedProductSuggestionIdx(idx)}
+                        >
+                          <div style={{ fontWeight: 500 }}>
+                            {product.code} - {product.description || product.name}
+                          </div>
+                          <div style={{ fontSize: 11, color: "#6b7280", marginTop: 2 }}>
+                            {product.category} | {product.company} | Stock: {product.packingInfo?.[0]?.openingQty || 0}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
               <div className="sl-entry-cell" style={{ position: "relative" }}>
                 <label>Packing</label>
@@ -2357,7 +2442,6 @@ export default function SalePage() {
                             packingOptions.length;
                       const newUom = packingOptions[next];
 
-                      // Product ki packingInfo se rate aur pcs update karo
                       const product = allProducts.find(
                         (p) => p._id === curRow.productId,
                       );
@@ -2648,7 +2732,6 @@ export default function SalePage() {
 
             {/* Customer bar */}
             <div className="sl-customer-bar">
-              {/* Code search field */}
               <div className="sl-cust-cell">
                 <label>Code</label>
                 <input
@@ -2683,7 +2766,6 @@ export default function SalePage() {
                 />
               </div>
 
-              {/* Buyer name dropdown */}
               <div className="sl-cust-cell sl-cust-buyer">
                 <label>Buyer Name</label>
                 <CustomerDropdown
@@ -2742,7 +2824,6 @@ export default function SalePage() {
                 className={`sl-credit-warning-bar${creditWarning ? "" : " sl-credit-normal"}`}
               >
                 <div className="sl-credit-warning-left">
-                  {/* Image */}
                   {(() => {
                     const cust = allCustomers.find((c) => c._id === customerId);
                     return cust?.imageFront ? (
@@ -2806,6 +2887,13 @@ export default function SalePage() {
                   }
                   value={creditStatement}
                   onChange={(e) => setCreditStatement(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      openSaleConfirm();
+                    }
+                  }}
                 />
               </div>
             )}
@@ -2846,8 +2934,9 @@ export default function SalePage() {
                     {holdBills.length === 0
                       ? Array.from({ length: 8 }).map((_, i) => (
                           <tr key={i}>
-                            <td colSpan={5} style={{ height: 22 }} />
-                          </tr>
+                            <td colSpan={5} style={{ height: 22 }} /> </tr>
+                           
+                         
                         ))
                       : holdBills.map((b, i) => (
                           <tr
@@ -2919,7 +3008,7 @@ export default function SalePage() {
                 </button>
               </div>
             </div>
-            {/* Customer Photo — Hold Bills ke neeche */}
+            {/* Customer Photo */}
             {customerId &&
               (() => {
                 const cust = allCustomers.find((c) => c._id === customerId);
@@ -3053,23 +3142,20 @@ export default function SalePage() {
 
       <style>{`
       @font-face {
-  font-family: 'UrduFont';
-  src: local('Jameel Noori Nastaleeq'),
-       local('Noto Nastaliq Urdu'),
-       local('Urdu Typesetting'),
-       local('Arial Unicode MS');
-}
-
-.urdu, .shop-urdu, .shop-addr, .banner, .terms-box, .terms {
-  font-family: 'UrduFont', 'Jameel Noori Nastaleeq', 'Noto Nastaliq Urdu', 
-               'Urdu Typesetting', Arial, sans-serif !important;
-  direction: rtl;
-}
-        .table.xp-table tbody td{
-        border-right: 1px solid red !important;
-        }
-        .xp-link-btn{
-        text-decoration: none;}
+        font-family: 'UrduFont';
+        src: local('Jameel Noori Nastaleeq'),
+             local('Noto Nastaliq Urdu'),
+             local('Urdu Typesetting'),
+             local('Arial Unicode MS');
+      }
+      .urdu, .shop-urdu, .shop-addr, .banner, .terms-box, .terms {
+        font-family: 'UrduFont', 'Jameel Noori Nastaleeq', 'Noto Nastaliq Urdu', 
+                     'Urdu Typesetting', Arial, sans-serif !important;
+        direction: rtl;
+      }
+      .xp-link-btn {
+        text-decoration: none;
+      }
       `}</style>
     </>
   );
