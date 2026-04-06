@@ -1,6 +1,6 @@
 // components/Layout.jsx
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate, useLocation, Link } from "react-router-dom";
 import MENU_CONFIG from "./menuConfig.js";
 import TOOLBAR_CONFIG from "./toolbarConfig.js";
 
@@ -100,7 +100,6 @@ function MenuBar() {
   const handleMenuClick = useCallback((route) => {
     setOpenIdx(null);
     if (route) {
-      // Force reload if clicking on the same route
       if (location.pathname === route) {
         window.location.reload();
       } else {
@@ -112,6 +111,7 @@ function MenuBar() {
   return (
     <div
       ref={ref}
+      onKeyDown={(e) => e.stopPropagation()}
       style={{
         display: "flex",
         background: "linear-gradient(180deg,#f0ede4 0%,#dedad0 100%)",
@@ -128,10 +128,15 @@ function MenuBar() {
     >
       {MENU_CONFIG.map((menu, idx) => (
         <div key={menu.label} style={{ position: "relative" }}>
-          <button
-            onClick={() => setOpenIdx(openIdx === idx ? null : idx)}
+          <a
+            href="#"
+            onClick={(e) => {
+              e.preventDefault();
+              setOpenIdx(openIdx === idx ? null : idx);
+            }}
             onMouseEnter={() => openIdx !== null && setOpenIdx(idx)}
             style={{
+              display: "inline-block",
               background: openIdx === idx ? "#316ac5" : "transparent",
               color: openIdx === idx ? "#fff" : "#000",
               border: "1px solid transparent",
@@ -141,10 +146,12 @@ function MenuBar() {
               cursor: "pointer",
               height: 22,
               borderRadius: 2,
+              textDecoration: "none",
+              lineHeight: "16px",
             }}
           >
             {menu.label}
-          </button>
+          </a>
           
           {openIdx === idx && (
             <div
@@ -174,8 +181,9 @@ function MenuBar() {
                   );
                 const isActive = item.route && location.pathname === item.route;
                 return (
-                  <div
+                  <Link
                     key={i}
+                    to={item.route || "#"}
                     onClick={() => handleMenuClick(item.route)}
                     style={{
                       display: "flex",
@@ -186,6 +194,7 @@ function MenuBar() {
                       background: isActive ? "#316ac5" : "transparent",
                       color: isActive ? "#fff" : "#000",
                       whiteSpace: "nowrap",
+                      textDecoration: "none",
                     }}
                     onMouseEnter={(e) => {
                       if (!isActive) {
@@ -208,7 +217,7 @@ function MenuBar() {
                         {item.shortcut}
                       </span>
                     )}
-                  </div>
+                  </Link>
                 );
               })}
             </div>
@@ -228,9 +237,9 @@ function ToolBar() {
     return TOOLBAR_CONFIG[location.pathname] || TOOLBAR_CONFIG.DEFAULT;
   }, [location.pathname]);
 
-  const handleButtonClick = useCallback((btn) => {
+  const handleButtonClick = useCallback((btn, e) => {
+    if (e) e.preventDefault();
     if (btn.route) {
-      // Force reload if clicking on the current page
       if (location.pathname === btn.route) {
         window.location.reload();
       } else {
@@ -265,10 +274,10 @@ function ToolBar() {
         : ICON_COLORS[btn.icon] || "#333";
 
       return (
-        <button
+        <Link
           key={btn.route || btn.label || i}
-          title={btn.label}
-          onClick={() => handleButtonClick(btn)}
+          to={btn.route || "#"}
+          onClick={(e) => handleButtonClick(btn, e)}
           style={{
             display: "flex",
             flexDirection: "column",
@@ -291,6 +300,7 @@ function ToolBar() {
             boxShadow: isActive
               ? "inset 1px 1px 0 rgba(255,255,255,0.8), inset -1px -1px 0 rgba(0,0,100,0.1)"
               : "none",
+            textDecoration: "none",
           }}
           onMouseEnter={(e) => {
             if (!isActive) {
@@ -333,13 +343,14 @@ function ToolBar() {
           >
             {btn.label}
           </span>
-        </button>
+        </Link>
       );
     });
   }, [buttons, location.pathname, handleButtonClick]);
 
   return (
     <div
+      onKeyDown={(e) => e.stopPropagation()}
       style={{
         display: "flex",
         alignItems: "center",
@@ -364,6 +375,12 @@ export default function Layout({ children }) {
   
   return (
     <div
+      onKeyDown={(e) => {
+        // Don't prevent default for menu shortcuts
+        if (e.target.closest?.('.xp-nav, .xp-dropdown-menu, .xp-toolbar')) {
+          return;
+        }
+      }}
       style={{
         height: "100vh",
         display: "flex",
@@ -375,7 +392,7 @@ export default function Layout({ children }) {
       <MenuBar />
       <ToolBar />
       <div
-        key={location.pathname} // This forces remount when route changes
+        key={location.pathname}
         style={{
           flex: 1,
           overflowY: "auto",
