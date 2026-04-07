@@ -111,7 +111,7 @@ const buildPrintHtml = (purchase, type, overrides = {}) => {
       <div style="font-size:10px;font-weight:bold;margin-bottom:1px">${buyerName}</div>
       ${buyerPhone ? `<div style="font-size:9px;color:#555">${buyerPhone}</div>` : ""}
       <hr class="divider-solid">
-      <table>
+      </table>
         <thead><tr><th style="width:20px">#</th><th>Product</th><th class="r">Qty.</th><th class="r">Rate</th><th class="r">Amount</th></tr></thead>
         <tbody>${itemRows}</tbody>
       </table>
@@ -130,7 +130,7 @@ const buildPrintHtml = (purchase, type, overrides = {}) => {
     </body></html>`;
   }
 
-  // A4/A5 format (simplified)
+  // A4/A5 format
   const a5 = type === "A5";
   const LINES_PER_PAGE = a5 ? 22 : 28;
   const pages = [];
@@ -265,15 +265,14 @@ function SupplierDropdown({ allSuppliers, value, onSelect, onClear, onAddNew }) 
   const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(-1);
   const [showDropdown, setShowDropdown] = useState(false);
   const [isNavigating, setIsNavigating] = useState(false);
-  const [isFocused, setIsFocused] = useState(false);
   const inputRef = useRef(null);
-  const parentRef = useRef(null);
 
   const getSuggestions = (searchTerm) => {
     if (!searchTerm.trim()) return [];
     const searchLower = searchTerm.toLowerCase();
     return allSuppliers.filter(s => 
-      s.name?.toLowerCase().includes(searchLower)
+      s.name?.toLowerCase().includes(searchLower) ||
+      s.code?.toLowerCase().includes(searchLower)
     ).slice(0, 10);
   };
 
@@ -414,21 +413,12 @@ function SupplierDropdown({ allSuppliers, value, onSelect, onClear, onAddNew }) 
   return (
     <div style={{ position: "relative", flex: 1 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 4, position: "relative" }}>
-        <div 
-          ref={parentRef}
-          style={{ 
-            position: "relative", 
-            flex: 1,
-            background: isFocused ? "#fffbe6" : "transparent",
-            borderRadius: "4px",
-            transition: "background 0.15s ease",
-          }}
-        >
+        <div style={{ position: "relative", flex: 1 }}>
           {ghost && !isNavigating && (
             <div
               style={{
                 position: "absolute",
-                left: 0,
+                left: 8,
                 top: "50%",
                 transform: "translateY(-50%)",
                 pointerEvents: "none",
@@ -438,7 +428,6 @@ function SupplierDropdown({ allSuppliers, value, onSelect, onClear, onAddNew }) 
                 display: "flex",
                 zIndex: 2,
                 color: "#a0aec0",
-                paddingLeft: "4px",
               }}
             >
               <span style={{ visibility: "hidden" }}>{originalQuery}</span>
@@ -457,16 +446,25 @@ function SupplierDropdown({ allSuppliers, value, onSelect, onClear, onAddNew }) 
               position: "relative",
               zIndex: 1,
               width: "100%",
-              border: "none",
+              border: "1px solid #d1d5db",
+              borderRadius: "4px",
               outline: "none",
-              padding: "4px",
+              padding: "6px 8px",
+              fontSize: "13px",
+              transition: "all 0.15s ease",
             }}
             value={value ? query || value : query}
-            placeholder="Type supplier name..."
+            placeholder="Cash Purchase..."
             onChange={handleChange}
             onKeyDown={handleKeyDown}
-            onFocus={() => setIsFocused(true)}
-            onBlur={() => setIsFocused(false)}
+            onFocus={(e) => {
+              e.target.style.borderColor = "#3b82f6";
+              e.target.style.boxShadow = "0 0 0 2px rgba(59,130,246,0.1)";
+            }}
+            onBlur={(e) => {
+              e.target.style.borderColor = "#d1d5db";
+              e.target.style.boxShadow = "none";
+            }}
             autoComplete="off"
             spellCheck={false}
           />
@@ -530,7 +528,9 @@ function SupplierDropdown({ allSuppliers, value, onSelect, onClear, onAddNew }) 
                 setGhost("");
               }}
             >
-              <div style={{ fontWeight: 500 }}>{supplier.name}</div>
+              <div style={{ fontWeight: 500 }}>
+                {supplier.code && <span style={{ color: "#6b7280", fontSize: 11 }}>[{supplier.code}]</span>} {supplier.name}
+              </div>
               {supplier.phone && (
                 <div style={{ fontSize: 10, color: "#6b7280" }}>📞 {supplier.phone}</div>
               )}
@@ -543,134 +543,7 @@ function SupplierDropdown({ allSuppliers, value, onSelect, onClear, onAddNew }) 
 }
 
 /* ══════════════════════════════════════════════════════════
-   OPTIONAL SUPPLIER MODAL (when * pressed with no supplier)
-══════════════════════════════════════════════════════════ */
-function OptionalSupplierModal({ onConfirm, onSkip, existingSuppliers }) {
-  const [supplierName, setSupplierName] = useState("");
-  const [selectedSupplier, setSelectedSupplier] = useState(null);
-  const [showSuggestions, setShowSuggestions] = useState(false);
-  const inputRef = useRef(null);
-
-  useEffect(() => {
-    inputRef.current?.focus();
-  }, []);
-
-  const handleKeyDown = (e) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      if (selectedSupplier) {
-        onConfirm(selectedSupplier.name);
-      } else if (supplierName.trim()) {
-        onConfirm(supplierName.trim());
-      } else {
-        onSkip();
-      }
-    }
-    if (e.key === "Escape") {
-      onSkip();
-    }
-  };
-
-  const handleInputChange = (e) => {
-    const value = e.target.value;
-    setSupplierName(value);
-    setSelectedSupplier(null);
-    
-    if (value.trim() && existingSuppliers?.length) {
-      const matches = existingSuppliers.filter(s => 
-        s.name?.toLowerCase().includes(value.toLowerCase())
-      );
-      if (matches.length > 0) {
-        setShowSuggestions(true);
-      } else {
-        setShowSuggestions(false);
-      }
-    } else {
-      setShowSuggestions(false);
-    }
-  };
-
-  const selectSupplier = (supplier) => {
-    setSelectedSupplier(supplier);
-    setSupplierName(supplier.name);
-    setShowSuggestions(false);
-    setTimeout(() => onConfirm(supplier.name), 100);
-  };
-
-  return (
-    <div className="xp-overlay" onClick={(e) => e.target === e.currentTarget && onSkip()}>
-      <div className="xp-modal" style={{ width: 450 }}>
-        <div className="xp-modal-tb">
-          <svg width="13" height="13" viewBox="0 0 16 16" fill="rgba(255,255,255,0.85)">
-            <path d="M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6m2-3a2 2 0 1 1-4 0 2 2 0 0 1 4 0m4 8c0 1-1 1-1 1H3s-1 0-1-1 1-4 6-4 6 3 6 4m-1-.004c-.001-.246-.154-.986-.832-1.664C11.516 10.68 10.289 10 8 10c-2.29 0-3.516.68-4.168 1.332-.678.678-.83 1.418-.832 1.664z"/>
-          </svg>
-          <span className="xp-modal-title">Supplier Name (Optional)</span>
-          <button className="xp-cap-btn xp-cap-close" onClick={onSkip}>✕</button>
-        </div>
-        <div className="xp-modal-body" style={{ padding: "16px 20px" }}>
-          <div style={{ marginBottom: 16 }}>
-            <label className="xp-label" style={{ marginBottom: 6, display: "block" }}>Enter Supplier Name</label>
-            <input
-              ref={inputRef}
-              type="text"
-              className="xp-input"
-              style={{ fontSize: 16, padding: "10px 12px" }}
-              value={supplierName}
-              onChange={handleInputChange}
-              onKeyDown={handleKeyDown}
-              placeholder="Type supplier name or leave empty for 'Cash Purchase'..."
-              autoComplete="off"
-            />
-            {showSuggestions && (
-              <div style={{ 
-                border: "1px solid #e5e7eb", 
-                borderRadius: 4, 
-                maxHeight: 200, 
-                overflowY: "auto",
-                marginTop: 4,
-                background: "white"
-              }}>
-                {existingSuppliers?.filter(s => 
-                  s.name?.toLowerCase().includes(supplierName.toLowerCase())
-                ).slice(0, 8).map((supplier, idx) => (
-                  <div
-                    key={idx}
-                    onClick={() => selectSupplier(supplier)}
-                    style={{
-                      padding: "8px 12px",
-                      cursor: "pointer",
-                      borderBottom: "1px solid #f3f4f6",
-                      fontSize: 13
-                    }}
-                    onMouseEnter={(e) => e.target.style.background = "#e5f0ff"}
-                    onMouseLeave={(e) => e.target.style.background = "white"}
-                  >
-                    {supplier.name}
-                    {supplier.phone && <span style={{ fontSize: 10, color: "#6b7280", marginLeft: 8 }}>📞 {supplier.phone}</span>}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-          <div className="scm-hint" style={{ textAlign: "center", marginTop: 8 }}>
-            Press <kbd>Enter</kbd> to confirm · <kbd>Esc</kbd> to skip (use Cash Purchase)
-          </div>
-        </div>
-        <div className="scm-actions" style={{ padding: "10px 20px", borderTop: "1px solid var(--xp-silver-5)" }}>
-          <button className="xp-btn xp-btn-primary" onClick={() => {
-            if (selectedSupplier) onConfirm(selectedSupplier.name);
-            else if (supplierName.trim()) onConfirm(supplierName.trim());
-            else onSkip();
-          }}>✓ Confirm & Print</button>
-          <button className="xp-btn" onClick={onSkip}>Skip (Cash Purchase)</button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* ══════════════════════════════════════════════════════════
-   PRODUCT SEARCH MODAL (unchanged)
+   PRODUCT SEARCH MODAL
 ══════════════════════════════════════════════════════════ */
 function SearchModal({ allProducts, onSelect, onClose }) {
   const [desc, setDesc] = useState("");
@@ -777,7 +650,14 @@ function SearchModal({ allProducts, onSelect, onClose }) {
           <div className="xp-table-panel" style={{ border: "none" }}>
             <div className="xp-table-scroll">
               <table className="xp-table">
-                <thead><tr><th style={{ width: 36 }}>Sr.#</th><th>Barcode</th><th>Name</th><th>Meas.</th><th className="r">Purchase Rate</th><th className="r">Stock</th><th className="r">Pack</th><th>Rack#</th></tr></thead>
+                <thead><tr>
+                <th style={{ width: 36 }}>Sr.#</th>
+                <th>Barcode</th><th>Name</th>
+                <th>Meas.</th>
+                <th className="r">Purchase Rate</th>
+                {/* <th className="r">Stock</th>
+                <th className="r">Pack</th> */}
+                <th>Rack#</th></tr></thead>
                 <tbody ref={tbodyRef} tabIndex={0} onKeyDown={tk}>
                   {rows.length === 0 && <tr><td colSpan={7} className="xp-empty">No products found</td></tr>}
                   {rows.map((r, i) => (
@@ -787,8 +667,8 @@ function SearchModal({ allProducts, onSelect, onClose }) {
                       <td><button className="xp-link-btn">{r._name}</button></td>
                       <td className="text-muted">{r._meas}</td>
                       <td className="r xp-amt">{Number(r._rate).toLocaleString("en-PK")}</td>
-                      <td className="r">{r._stock}</td>
-                      <td className="r">{r._pack}</td>
+                      {/* <td className="r">{r._stock}</td>
+                      <td className="r">{r._pack}</td> */}
                       <td className="text-muted">{r.rackNo || "—"}</td>
                     </tr>
                   ))}
@@ -811,7 +691,6 @@ export default function PurchasePage() {
   const [allProducts, setAllProducts] = useState([]);
   const [allSuppliers, setAllSuppliers] = useState([]);
   const [showProductModal, setShowProductModal] = useState(false);
-  const [showSupplierModal, setShowSupplierModal] = useState(false);
   const [searchText, setSearchText] = useState("");
   const [curRow, setCurRow] = useState({ ...EMPTY_ROW });
   const [items, setItems] = useState([]);
@@ -821,7 +700,9 @@ export default function PurchasePage() {
 
   const [supplierName, setSupplierName] = useState("Cash Purchase");
   const [supplierId, setSupplierId] = useState("");
+  const [supplierCode, setSupplierCode] = useState("");
   const [printType, setPrintType] = useState("Thermal");
+  const [editId, setEditId] = useState(null);
 
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState({ text: "", type: "" });
@@ -831,6 +712,7 @@ export default function PurchasePage() {
   const pcsRef = useRef(null);
   const rateRef = useRef(null);
   const addRef = useRef(null);
+  const codeSearchRef = useRef(null);
 
   useEffect(() => {
     const t = setInterval(() => setTime(timeNow()), 1000);
@@ -843,7 +725,7 @@ export default function PurchasePage() {
 
   // Keyboard handler for * (asterisk) to print
   useEffect(() => {
-    const handler = (e) => {
+    const handler = async (e) => {
       if (showProductModal) return;
       if (e.key === "*") {
         e.preventDefault();
@@ -851,12 +733,7 @@ export default function PurchasePage() {
           showMsg("Add at least one item first", "error");
           return;
         }
-        // If supplier is not selected (i.e., still "Cash Purchase" and no custom supplier)
-        if (supplierId === "" && supplierName === "Cash Purchase") {
-          setShowSupplierModal(true);
-        } else {
-          handlePrint();
-        }
+        await handlePrintAndSave();
       }
     };
     window.addEventListener("keydown", handler);
@@ -864,7 +741,7 @@ export default function PurchasePage() {
   }, [items, supplierName, supplierId]);
 
   const subTotal = items.reduce((s, r) => s + (parseFloat(r.amount) || 0), 0);
-  const billAmount = subTotal;
+  const totalQty = items.reduce((s, r) => s + (parseFloat(r.pcs) || 0), 0);
 
   const fetchData = async () => {
     setLoading(true);
@@ -893,6 +770,22 @@ export default function PurchasePage() {
   const showMsg = (text, type = "success") => {
     setMsg({ text, type });
     setTimeout(() => setMsg({ text: "", type: "" }), 3000);
+  };
+
+  // Complete reset function - clears everything for new invoice
+  const resetToNewInvoice = async () => {
+    setItems([]);
+    setCurRow({ ...EMPTY_ROW });
+    setSearchText("");
+    setSupplierName("Cash Purchase");
+    setSupplierId("");
+    setSupplierCode("");
+    setEditId(null);
+    setMsg({ text: "", type: "" });
+    if (codeSearchRef.current) codeSearchRef.current.value = "";
+    await refreshInvoiceNo();
+    setTimeout(() => searchRef.current?.focus(), 100);
+    showMsg("Screen refreshed - Ready for new invoice", "success");
   };
 
   const pickProduct = (product) => {
@@ -950,16 +843,16 @@ export default function PurchasePage() {
     setItems((p) => p.filter((_, i) => i !== index));
   };
 
-  const totalQty = items.reduce((s, r) => s + (parseFloat(r.pcs) || 0), 0);
-
   const handleSupplierSelect = (supplier) => {
     setSupplierId(supplier._id);
     setSupplierName(supplier.name);
+    setSupplierCode(supplier.code || "");
   };
 
   const handleSupplierClear = () => {
     setSupplierId("");
     setSupplierName("Cash Purchase");
+    setSupplierCode("");
   };
 
   const handleAddNewSupplier = async (name) => {
@@ -973,6 +866,7 @@ export default function PurchasePage() {
         await fetchData();
         setSupplierId(data.data._id);
         setSupplierName(data.data.name);
+        setSupplierCode(data.data.code || "");
         showMsg(`"${name}" saved as new supplier`, "success");
       }
     } catch {
@@ -980,7 +874,21 @@ export default function PurchasePage() {
     }
   };
 
-  const handlePrint = async () => {
+  const handleCodeSearch = async () => {
+    const code = codeSearchRef.current?.value.trim();
+    if (!code) return;
+    
+    const found = allSuppliers.find(s => s.code?.toLowerCase() === code.toLowerCase());
+    if (found) {
+      handleSupplierSelect(found);
+      codeSearchRef.current.value = "";
+      showMsg(`Supplier found: ${found.name}`, "success");
+    } else {
+      showMsg(`No supplier found with code: ${code}`, "error");
+    }
+  };
+
+  const handlePrintAndSave = async () => {
     if (isPrinting) return;
     if (items.length === 0) {
       showMsg("No items to print", "error");
@@ -996,12 +904,13 @@ export default function PurchasePage() {
       items: items,
       subTotal,
       extraDisc: 0,
-      netTotal: billAmount,
+      netTotal: subTotal,
       prevBalance: 0,
-      paidAmount: billAmount,
+      paidAmount: subTotal,
       balance: 0,
     };
     
+    // Print first
     doPrint(purchaseObj, printType, { buyerName: supplierName });
     
     // Save to database
@@ -1011,8 +920,9 @@ export default function PurchasePage() {
         invoiceDate,
         supplierId: supplierId || null,
         supplierName: supplierName,
+        supplierCode: supplierCode,
         supplierPhone: "",
-        items: items.map((r) => ({
+        items: items.map((r, idx) => ({
           productId: r.productId || undefined,
           code: r.code,
           name: r.name,
@@ -1025,46 +935,85 @@ export default function PurchasePage() {
           rate: parseFloat(r.rate) || 0,
           disc: 0,
           amount: parseFloat(r.amount) || 0,
+          srNo: idx + 1,
         })),
         subTotal,
         extraDisc: 0,
         discAmount: 0,
-        netTotal: billAmount,
+        netTotal: subTotal,
         prevBalance: 0,
-        paidAmount: billAmount,
+        paidAmount: subTotal,
         balance: 0,
         printType,
         saleType: "purchase",
       };
       
-      await api.post(EP.PURCHASES.CREATE, payload);
-      showMsg(`Invoice saved & printed: ${invoiceNo}`);
-      await refreshInvoiceNo();
+      let response;
+      if (editId) {
+        response = await api.put(EP.PURCHASES.UPDATE(editId), payload);
+      } else {
+        response = await api.post(EP.PURCHASES.CREATE, payload);
+      }
       
-      // Reset form after successful print
-      setItems([]);
-      setSupplierName("Cash Purchase");
-      setSupplierId("");
-      resetCurRow();
+      if (response.data.success) {
+        showMsg(editId ? `✓ Invoice ${invoiceNo} updated & printed` : `✓ Invoice ${invoiceNo} saved & printed successfully`);
+        if (!editId) await refreshInvoiceNo();
+        
+        // Reset form after successful save
+        await resetToNewInvoice();
+        
+      } else {
+        showMsg(response.data.message || "Save failed", "error");
+      }
       
     } catch (error) {
       console.error("Save failed:", error);
-      showMsg("Print done but save failed", "error");
+      showMsg("Print done but save failed: " + (error.response?.data?.message || error.message), "error");
     }
     
     setIsPrinting(false);
   };
 
-  const handleOptionalSupplierConfirm = (name) => {
-    setSupplierName(name);
-    setSupplierId("");
-    setShowSupplierModal(false);
-    setTimeout(() => handlePrint(), 100);
+  const loadPurchaseForEdit = (purchase) => {
+    setEditId(purchase._id);
+    setInvoiceNo(purchase.invoiceNo);
+    setInvoiceDate(purchase.invoiceDate || isoDate());
+    setSupplierName(purchase.supplierName || "Cash Purchase");
+    setSupplierId(purchase.supplierId || "");
+    setSupplierCode(purchase.supplierCode || "");
+    
+    const loadedItems = (purchase.items || []).map((it) => ({
+      productId: it.productId || it.product || "",
+      code: it.code || "",
+      name: it.name || it.description || "",
+      uom: it.uom || it.measurement || "",
+      rack: it.rack || "",
+      pcs: it.pcs || it.qty || 1,
+      rate: it.rate || 0,
+      amount: it.amount || 0,
+    }));
+    setItems(loadedItems);
+    
+    resetCurRow();
+    showMsg(`✏ Editing Purchase Invoice ${purchase.invoiceNo}`, "success");
+    setTimeout(() => searchRef.current?.focus(), 50);
   };
 
-  const handleOptionalSupplierSkip = () => {
-    setShowSupplierModal(false);
-    setTimeout(() => handlePrint(), 100);
+  const navInvoice = async (dir) => {
+    try {
+      const { data } = await api.get(EP.PURCHASES.GET_ALL);
+      if (!data.success || !data.data?.length) return;
+      const allPurchases = data.data;
+      const curIdx = allPurchases.findIndex((s) =>
+        editId ? s._id === editId : s.invoiceNo === invoiceNo
+      );
+      let nextIdx = dir === "prev" ? curIdx - 1 : curIdx + 1;
+      nextIdx = Math.max(0, Math.min(nextIdx, allPurchases.length - 1));
+      if (nextIdx === curIdx) return;
+      loadPurchaseForEdit(allPurchases[nextIdx]);
+    } catch {
+      showMsg("Navigation failed", "error");
+    }
   };
 
   const EMPTY_ROWS = Math.max(0, 12 - items.length);
@@ -1074,14 +1023,6 @@ export default function PurchasePage() {
       <div className="sl-page">
         {showProductModal && (
           <SearchModal allProducts={allProducts} onSelect={pickProduct} onClose={() => { setShowProductModal(false); setTimeout(() => searchRef.current?.focus(), 30); }} />
-        )}
-        
-        {showSupplierModal && (
-          <OptionalSupplierModal 
-            onConfirm={handleOptionalSupplierConfirm}
-            onSkip={handleOptionalSupplierSkip}
-            existingSuppliers={allSuppliers}
-          />
         )}
 
         <div className="xp-titlebar">
@@ -1104,10 +1045,77 @@ export default function PurchasePage() {
           <div className="sl-left" style={{ width: "100%" }}>
             <div className="sl-top-bar">
               <div className="sl-sale-title-box" style={{ background: "green", border: "1px solid green" }}>Purchase</div>
+              
+              {/* Prev button */}
+              <button
+                className="xp-btn xp-btn-sm sl-nav-btn"
+                onClick={() => navInvoice("prev")}
+                title="Previous Invoice (↑)"
+                style={{ fontSize: 16, padding: "4px 10px" }}
+              >
+                ◀ Prev
+              </button>
+              
               <div className="sl-inv-field-grp">
                 <label>Invoice #</label>
-                <input className="xp-input xp-input-sm sl-inv-input" value={invoiceNo} readOnly style={{ background: "#f5f5f5" }} />
+                <input 
+                  className="xp-input xp-input-sm sl-inv-input-large" 
+                  value={invoiceNo} 
+                  onChange={(e) => setInvoiceNo(e.target.value)}
+                  onKeyDown={async (e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      const val = invoiceNo.trim();
+                      if (!val) return;
+                      try {
+                        const { data } = await api.get(EP.PURCHASES.GET_ALL + `?invoiceNo=${val}`);
+                        const purchases = data.data;
+                        if (!purchases || purchases.length === 0) {
+                          showMsg(`Invoice "${val}" not found`, "error");
+                          await refreshInvoiceNo();
+                          return;
+                        }
+                        const exact = purchases.find(
+                          (s) => s.invoiceNo?.toString() === val.toString()
+                        );
+                        if (!exact) {
+                          showMsg(`Invoice "${val}" not found`, "error");
+                          await refreshInvoiceNo();
+                          return;
+                        }
+                        setItems([]);
+                        setEditId(null);
+                        loadPurchaseForEdit(exact);
+                      } catch {
+                        showMsg("Search failed", "error");
+                      }
+                    }
+                    if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+                      e.preventDefault();
+                      await navInvoice(e.key === "ArrowUp" ? "prev" : "next");
+                    }
+                  }}
+                  onFocus={(e) => e.target.select()}
+                  style={{ 
+                    background: editId ? "#fffbe6" : "#fffde7",
+                    fontSize: "18px",
+                    fontWeight: "bold",
+                    width: "160px",
+                    textAlign: "center"
+                  }}
+                />
               </div>
+              
+              {/* Next button */}
+              <button
+                className="xp-btn xp-btn-sm sl-nav-btn"
+                onClick={() => navInvoice("next")}
+                title="Next Invoice (↓)"
+                style={{ fontSize: 16, padding: "4px 10px" }}
+              >
+                Next ▶
+              </button>
+              
               <div className="sl-inv-field-grp">
                 <label>Date</label>
                 <input type="date" className="xp-input xp-input-sm sl-date-input" value={invoiceDate} readOnly style={{ background: "#f5f5f5", cursor: "not-allowed", color: "#888" }} />
@@ -1158,7 +1166,7 @@ export default function PurchasePage() {
 
             <div className="sl-table-header-bar">
               <span className="sl-table-lbl">{curRow.name ? <span className="sl-cur-name-inline">{curRow.name}</span> : "Select Product"}</span>
-              <span className="sl-table-qty">{totalQty.toLocaleString("en-PK")}</span>
+              <span className="sl-table-qty">Total Qty: {totalQty.toLocaleString("en-PK")}</span>
             </div>
 
             <div className="sl-items-wrap">
@@ -1186,7 +1194,27 @@ export default function PurchasePage() {
             <div className="sl-summary-bar">
               <div className="sl-sum-cell"><label>Total Qty</label><input className="sl-sum-val" value={totalQty.toLocaleString("en-PK")} readOnly /></div>
               <div className="sl-sum-cell"><label>Total Amount</label><input className="sl-sum-val" value={Number(subTotal).toLocaleString("en-PK")} readOnly /></div>
-              <div className="sl-cust-cell" style={{ flex: 1 }}>
+              
+              {/* Supplier Code Search */}
+              <div className="sl-cust-cell" style={{ width: 120 }}>
+                <label>Supplier Code</label>
+                <input
+                  ref={codeSearchRef}
+                  type="text"
+                  className="sl-cust-input"
+                  style={{ width: 100, background: "#fffde7" }}
+                  placeholder="Enter code"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      handleCodeSearch();
+                    }
+                  }}
+                  autoComplete="off"
+                />
+              </div>
+              
+              <div className="sl-cust-cell" style={{ flex: 2 }}>
                 <label>Supplier Name</label>
                 <SupplierDropdown
                   allSuppliers={allSuppliers}
@@ -1197,20 +1225,18 @@ export default function PurchasePage() {
                   onAddNew={handleAddNewSupplier}
                 />
               </div>
+              
+              {supplierCode && (
+                <div className="sl-cust-cell" style={{ width: 100 }}>
+                  <label>Supplier Code</label>
+                  <input className="sl-cust-input" value={supplierCode} readOnly style={{ background: "#f5f5f5" }} />
+                </div>
+              )}
+              
               <div className="sl-sum-cell">
                 <button 
                   className="xp-btn xp-btn-primary" 
-                  onClick={() => {
-                    if (items.length === 0) {
-                      showMsg("Add at least one item first", "error");
-                      return;
-                    }
-                    if (supplierId === "" && supplierName === "Cash Purchase") {
-                      setShowSupplierModal(true);
-                    } else {
-                      handlePrint();
-                    }
-                  }} 
+                  onClick={handlePrintAndSave} 
                   disabled={isPrinting || items.length === 0}
                   style={{ padding: "6px 20px", fontSize: 14 }}
                 >
@@ -1222,16 +1248,92 @@ export default function PurchasePage() {
         </div>
 
         <div className="sl-cmd-bar">
-          <button className="xp-btn xp-btn-sm" onClick={fetchData} disabled={loading}>Refresh</button>
+          {/* Refresh Button - Clears everything for new invoice */}
+          <button 
+            className="xp-btn xp-btn-success xp-btn-sm" 
+            onClick={resetToNewInvoice}
+            disabled={loading}
+            style={{ background: "#10b981", borderColor: "#10b981" }}
+          >
+            🔄 Refresh / New Invoice
+          </button>
+          <button className="xp-btn xp-btn-sm" onClick={fetchData} disabled={loading}>Reload Data</button>
+          <button 
+            className="xp-btn xp-btn-danger xp-btn-sm" 
+            disabled={!editId} 
+            onClick={async () => {
+              if (!editId || !window.confirm("Delete this purchase invoice?")) return;
+              try {
+                await api.delete(EP.PURCHASES.DELETE(editId));
+                showMsg("Purchase invoice deleted");
+                await resetToNewInvoice();
+              } catch {
+                showMsg("Delete failed", "error");
+              }
+            }}
+          >
+            Delete Record
+          </button>
           <div className="xp-toolbar-divider" />
           <div className="sl-print-types">
             {["Thermal", "A4", "A5"].map((pt) => (<label key={pt} className="sl-check-label"><input type="radio" name="pt" checked={printType === pt} onChange={() => setPrintType(pt)} /> {pt}</label>))}
           </div>
           <div className="xp-toolbar-divider" />
-          <span className="sl-inv-info">{invoiceNo} | Items: {items.length} | Total: {Number(subTotal).toLocaleString("en-PK")}</span>
-          <button className="xp-btn xp-btn-sm" style={{ marginLeft: "auto" }} onClick={() => { setItems([]); setSupplierName("Cash Purchase"); setSupplierId(""); resetCurRow(); }}>New Invoice</button>
+          <span className="sl-inv-info">
+            {editId ? "✏ Editing purchase record" : `${invoiceNo} | Items: ${items.length} | Total Qty: ${totalQty} | Amount: ${Number(subTotal).toLocaleString("en-PK")}`}
+          </span>
         </div>
       </div>
+
+      <style>{`
+        .sl-cust-input {
+          border: 1px solid #d1d5db !important;
+          border-radius: 4px !important;
+          padding: 6px 8px !important;
+          font-size: 13px !important;
+          transition: all 0.15s ease !important;
+          background-color: #fffde7 !important;
+        }
+        
+        .sl-cust-input:focus {
+          border-color: #3b82f6 !important;
+          box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1) !important;
+          outline: none !important;
+        }
+        
+        .sl-cust-input:hover {
+          border-color: #9ca3af !important;
+        }
+        
+        .sl-inv-input-large {
+          font-size: 18px !important;
+          font-weight: bold !important;
+          width: 160px !important;
+          text-align: center !important;
+          background: #fffde7 !important;
+        }
+        
+        .sl-nav-btn {
+          font-size: 14px !important;
+          padding: 4px 12px !important;
+          font-weight: 600 !important;
+        }
+        
+        input, .xp-input, .sl-product-input, .sl-num-input, .sl-sum-input, .sl-cust-input {
+          background-color: #fffde7 !important;
+        }
+        
+        .xp-btn-success {
+          background-color: #10b981 !important;
+          border-color: #10b981 !important;
+          color: white !important;
+        }
+        
+        .xp-btn-success:hover {
+          background-color: #059669 !important;
+          border-color: #059669 !important;
+        }
+      `}</style>
     </>
   );
 }

@@ -67,12 +67,12 @@ const buildPrintHtml = (ret, type) => {
       .map(
         (it) =>
           `<tr>
-        <td>${it.sr}</td>
-        <td style="max-width:92px;word-break:break-word">${it.name}${it.uom ? ` (${it.uom})` : ""}</td>
-        <td class="r">${it.pcs}</td>
-        <td class="r">${Number(it.rate).toLocaleString()}</td>
-        <td class="r"><b>${Number(it.amount).toLocaleString()}</b></td>
-      </tr>`,
+            <td style="text-align:center">${it.sr}</td>
+            <td style="max-width:92px;word-break:break-word">${it.name}${it.uom ? ` (${it.uom})` : ""}</td>
+            <td class="r">${it.pcs}</td>
+            <td class="r">${Number(it.rate).toLocaleString()}</td>
+            <td class="r"><b>${Number(it.amount).toLocaleString()}</b></td>
+          </tr>`,
       )
       .join("");
     return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>
@@ -140,11 +140,13 @@ const buildPrintHtml = (ret, type) => {
     .map(
       (it, i) =>
         `<tr style="background:${i % 2 === 0 ? "#fff" : "#fff5f5"}">
-      <td>${it.sr}</td><td><strong>${it.name}</strong></td><td>${it.uom || "—"}</td>
-      <td align="right">${it.pcs}</td>
-      <td align="right">${Number(it.rate).toLocaleString()}</td>
-      <td align="right"><strong>${Number(it.amount).toLocaleString()}</strong></td>
-    </tr>`,
+          <td style="text-align:center">${it.sr}</td>
+          <td><strong>${it.name}</strong></td>
+          <td>${it.uom || "—"}</td>
+          <td align="right">${it.pcs}</td>
+          <td align="right">${Number(it.rate).toLocaleString()}</td>
+          <td align="right"><strong>${Number(it.amount).toLocaleString()}</strong></td>
+        </tr>`,
     )
     .join("");
 
@@ -289,7 +291,7 @@ function SaveConfirmModal({
             viewBox="0 0 16 16"
             fill="rgba(255,255,255,0.85)"
           >
-            <path d="M2.146 2.854a.5.5 0 1 1 .708-.708L8 7.293l5.146-5.147a.5.5 0 0 1 .708.708L8.707 8l5.147 5.146a.5.5 0 0 1-.708.708L8 8.707l-5.146 5.147a.5.5 0 0 1-.708-.708L7.293 8z" />
+            <path d="M2.146 2.854a.5.5 0 1 1 .708-.708L8 7.293l5.146-5.147a.5.5 0 0 1 .708.708L8.707 8l5.147 5.146a.5.5 0 0 1-.708.708L8 8.707l-5.146 5.147a.5.5 0 0 1-.708-.708z" />
           </svg>
           <span className="scm-tb-title">
             Return Confirm — {returnPayload.returnNo} &nbsp;|&nbsp;{" "}
@@ -646,6 +648,410 @@ function SearchModal({ allProducts, onSelect, onClose }) {
         <div className="cs-modal-hint">
           ↑↓ navigate &nbsp;|&nbsp; Enter / Double-click = select &nbsp;|&nbsp;
           Esc = close &nbsp;|&nbsp; Tab = filters
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════
+   SALE INVOICE SEARCH MODAL (IMPROVED KEYBOARD NAVIGATION)
+══════════════════════════════════════════════════════════ */
+function SearchSaleModal({ onSelect, onClose, onNext, onPrev, hasNext, hasPrev }) {
+  const [searchId, setSearchId] = useState("");
+  const [searchPhone, setSearchPhone] = useState("");
+  const [searchPrice, setSearchPrice] = useState("");
+  const [priceOperator, setPriceOperator] = useState("eq");
+  const [invoices, setInvoices] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [hiIdx, setHiIdx] = useState(0);
+  const [currentPage, setCurrentPage] = useState(0);
+  const [totalInvoices, setTotalInvoices] = useState(0);
+  
+  const searchIdRef = useRef(null);
+  const searchPhoneRef = useRef(null);
+  const searchPriceRef = useRef(null);
+  const listRef = useRef(null);
+
+  useEffect(() => {
+    fetchInvoices();
+  }, [currentPage, searchId, searchPhone, searchPrice, priceOperator]);
+
+  useEffect(() => {
+    setTimeout(() => searchIdRef.current?.focus(), 50);
+  }, []);
+
+  const fetchInvoices = async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (searchId) params.append("search", searchId);
+      if (searchPhone) params.append("phone", searchPhone);
+      if (searchPrice) {
+        params.append("price", searchPrice);
+        params.append("priceOperator", priceOperator);
+      }
+      params.append("page", currentPage);
+      params.append("limit", 20);
+      params.append("type", "sale");
+      
+      const response = await api.get(`${EP.SALES.GET_ALL}?${params}`);
+      if (response.data.success) {
+        let sales = response.data.data;
+        if (Array.isArray(sales)) {
+          if (searchId) {
+            const searchIdLower = searchId.toLowerCase();
+            sales = sales.filter(sale => 
+              sale.invoiceNo?.toLowerCase().includes(searchIdLower) ||
+              sale._id?.toLowerCase().includes(searchIdLower) ||
+              sale.returnNo?.toLowerCase().includes(searchIdLower)
+            );
+          }
+          
+          if (searchPhone) {
+            const searchPhoneClean = searchPhone.replace(/\D/g, '');
+            sales = sales.filter(sale => {
+              const customerPhone = sale.customerPhone || sale.customer?.phone || "";
+              const phoneClean = customerPhone.replace(/\D/g, '');
+              return phoneClean.includes(searchPhoneClean);
+            });
+          }
+          
+          if (searchPrice) {
+            const priceValue = parseFloat(searchPrice);
+            sales = sales.filter(sale => {
+              const total = sale.netTotal || sale.total || 0;
+              switch(priceOperator) {
+                case "eq": return total === priceValue;
+                case "gt": return total > priceValue;
+                case "lt": return total < priceValue;
+                case "gte": return total >= priceValue;
+                case "lte": return total <= priceValue;
+                default: return true;
+              }
+            });
+          }
+          
+          sales = sales.filter(
+            (sale) =>
+              sale.saleType === "sale" ||
+              sale.type === "sale" ||
+              (!sale.saleType && !sale.type) ||
+              sale.invoiceNo?.startsWith("INV-")
+          );
+        }
+        setInvoices(sales);
+        setTotalInvoices(response.data.total || sales.length);
+        setHiIdx(sales.length > 0 ? 0 : -1);
+      }
+    } catch (error) {
+      console.error("Failed to fetch invoices:", error);
+    }
+    setLoading(false);
+  };
+
+  // Handle Enter key to navigate between fields
+  const handleFieldKeyDown = (e, fieldType) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      
+      if (fieldType === "id") {
+        // From Invoice ID → go to Phone field
+        searchPhoneRef.current?.focus();
+      } 
+      else if (fieldType === "phone") {
+        // From Phone → go to Amount field
+        searchPriceRef.current?.focus();
+      }
+      else if (fieldType === "amount") {
+        // From Amount → fetch results and focus list
+        fetchInvoices();
+        setTimeout(() => {
+          listRef.current?.focus();
+          setHiIdx(0);
+        }, 100);
+      }
+    }
+  };
+
+  // Handle keyboard navigation in results list
+  const handleListKeyDown = (e) => {
+    if (e.key === "Escape") {
+      onClose();
+      return;
+    }
+    
+    // Arrow Down
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setHiIdx((prev) => {
+        const newIdx = Math.min(prev + 1, invoices.length - 1);
+        setTimeout(() => {
+          const selectedRow = listRef.current?.children[newIdx];
+          selectedRow?.scrollIntoView({ block: "nearest" });
+        }, 50);
+        return newIdx;
+      });
+      return;
+    }
+    
+    // Arrow Up
+    if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setHiIdx((prev) => {
+        const newIdx = Math.max(prev - 1, 0);
+        setTimeout(() => {
+          const selectedRow = listRef.current?.children[newIdx];
+          selectedRow?.scrollIntoView({ block: "nearest" });
+        }, 50);
+        return newIdx;
+      });
+      return;
+    }
+    
+    // Enter on selected row
+    if (e.key === "Enter") {
+      e.preventDefault();
+      if (invoices[hiIdx]) {
+        onSelect(invoices[hiIdx]);
+      }
+      return;
+    }
+  };
+
+  const handlePrevPage = () => {
+    if (currentPage > 0) {
+      setCurrentPage(currentPage - 1);
+    } else if (onPrev) {
+      onPrev();
+    }
+  };
+
+  const handleNextPage = () => {
+    if (invoices.length === 20) {
+      setCurrentPage(currentPage + 1);
+    } else if (onNext) {
+      onNext();
+    }
+  };
+
+  const clearFilters = () => {
+    setSearchId("");
+    setSearchPhone("");
+    setSearchPrice("");
+    setPriceOperator("eq");
+    setCurrentPage(0);
+    setTimeout(() => searchIdRef.current?.focus(), 50);
+  };
+
+  return (
+    <div
+      className="xp-overlay"
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    >
+      <div className="xp-modal xp-modal-lg" style={{ width: 900 }}>
+        <div className="xp-modal-tb">
+          <svg
+            width="13"
+            height="13"
+            viewBox="0 0 16 16"
+            fill="rgba(255,255,255,0.8)"
+          >
+            <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.044.06.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1 1 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0" />
+          </svg>
+          <span className="xp-modal-title">Search Sale Invoice</span>
+          <button className="xp-cap-btn xp-cap-close" onClick={onClose}>
+            ✕
+          </button>
+        </div>
+        
+        <div className="cs-modal-filters" style={{ padding: "12px" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 12 }}>
+            {/* Invoice # / ID Field */}
+            <div className="cs-modal-filter-grp">
+              <label className="xp-label">Invoice # / ID</label>
+              <input
+                ref={searchIdRef}
+                type="text"
+                className="xp-input"
+                value={searchId}
+                onChange={(e) => setSearchId(e.target.value)}
+                onKeyDown={(e) => handleFieldKeyDown(e, "id")}
+                placeholder="Invoice number or ID..."
+                autoComplete="off"
+              />
+            </div>
+            
+            {/* Customer Phone Field */}
+            <div className="cs-modal-filter-grp">
+              <label className="xp-label">Customer Phone</label>
+              <input
+                ref={searchPhoneRef}
+                type="tel"
+                className="xp-input"
+                value={searchPhone}
+                onChange={(e) => setSearchPhone(e.target.value)}
+                onKeyDown={(e) => handleFieldKeyDown(e, "phone")}
+                placeholder="Phone number..."
+                autoComplete="off"
+              />
+            </div>
+            
+            {/* Amount / Price Field - Last field, triggers search on Enter */}
+            <div className="cs-modal-filter-grp">
+              <label className="xp-label">Amount / Price</label>
+              <div style={{ display: "flex", gap: 6 }}>
+                <select
+                  className="xp-input"
+                  value={priceOperator}
+                  onChange={(e) => setPriceOperator(e.target.value)}
+                  style={{ width: 70 }}
+                >
+                  <option value="eq">=</option>
+                  <option value="gt">&gt;</option>
+                  <option value="lt">&lt;</option>
+                  <option value="gte">≥</option>
+                  <option value="lte">≤</option>
+                </select>
+                <input
+                  ref={searchPriceRef}
+                  type="text"
+                  className="xp-input"
+                  value={searchPrice}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    if (value === '' || /^\d*\.?\d*$/.test(value)) {
+                      setSearchPrice(value);
+                    }
+                  }}
+                  onKeyDown={(e) => handleFieldKeyDown(e, "amount")}
+                  placeholder="Amount..."
+                  style={{ flex: 1 }}
+                />
+              </div>
+            </div>
+          </div>
+          
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button className="xp-btn xp-btn-sm" onClick={clearFilters}>
+                Clear Filters
+              </button>
+              <button className="xp-btn xp-btn-sm" onClick={fetchInvoices}>
+                Search
+              </button>
+              <span style={{ fontSize: "var(--xp-fs-xs)", color: "#555", alignSelf: "center" }}>
+                {totalInvoices} invoice(s) found
+              </span>
+            </div>
+            <button className="xp-btn xp-btn-sm" onClick={onClose}>
+              Close
+            </button>
+          </div>
+        </div>
+        
+        <div className="xp-modal-body" style={{ padding: 0 }}>
+          <div className="xp-table-panel" style={{ border: "none" }}>
+            <div className="xp-table-scroll" style={{ maxHeight: 400 }}>
+              <table className="xp-table">
+                <thead>
+                  <tr>
+                    <th style={{ width: 40 }}>#</th>
+                    <th>Invoice #</th>
+                    <th>Date</th>
+                    <th>Customer Name</th>
+                    <th>Phone</th>
+                    <th className="r">Total Amount</th>
+                    <th className="r">Items</th>
+                  </tr>
+                </thead>
+                <tbody 
+                  ref={listRef} 
+                  tabIndex={0}
+                  onKeyDown={handleListKeyDown}
+                >
+                  {loading && (
+                    <tr>
+                      <td colSpan={7} className="xp-empty">
+                        Loading...
+                      </td>
+                    </tr>
+                  )}
+                  {!loading && invoices.length === 0 && (
+                    <tr>
+                      <td colSpan={7} className="xp-empty">
+                        No sale invoices found. Press Enter in Amount field to search.
+                      </td>
+                    </tr>
+                  )}
+                  {invoices.map((inv, i) => (
+                    <tr
+                      key={inv._id}
+                      style={{
+                        background: i === hiIdx ? "#c3d9f5" : undefined,
+                        cursor: "pointer",
+                      }}
+                      onClick={() => setHiIdx(i)}
+                      onDoubleClick={() => onSelect(inv)}
+                    >
+                      <td className="text-muted">{i + 1 + (currentPage * 20)}</td>
+                      <td style={{ fontFamily: "var(--xp-mono)", fontWeight: 500 }}>
+                        {inv.invoiceNo || inv.returnNo || "N/A"}
+                      </td>
+                      <td>{inv.invoiceDate?.split("T")[0] || inv.date?.split("T")[0] || "-"}</td>
+                      <td style={{ fontWeight: 500 }}>
+                        {inv.customerName || inv.customer?.name || "COUNTER SALE"}
+                      </td>
+                      <td className="text-muted">
+                        {inv.customerPhone || inv.customer?.phone || "-"}
+                      </td>
+                      <td className="r" style={{ color: "var(--xp-red)", fontWeight: 700 }}>
+                        {Number(inv.netTotal || inv.total || 0).toLocaleString("en-PK")}
+                      </td>
+                      <td className="r">{inv.items?.length || 0}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        
+        <div style={{ 
+          display: "flex", 
+          justifyContent: "space-between", 
+          alignItems: "center",
+          padding: "8px 12px",
+          borderTop: "1px solid #e5e7eb"
+        }}>
+          <div className="cs-modal-hint" style={{ margin: 0 }}>
+            ⬆⬇ = navigate results &nbsp;|&nbsp; Enter = select invoice &nbsp;|&nbsp; Tab between fields &nbsp;|&nbsp; Esc = close
+            <br />
+            <span style={{ fontSize: 10, color: "#666" }}>
+              ✓ Enter in Invoice ID → goes to Phone | Enter in Phone → goes to Amount | Enter in Amount → searches
+            </span>
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button
+              className="xp-btn xp-btn-sm"
+              onClick={handlePrevPage}
+              disabled={currentPage === 0 && !hasPrev}
+              style={{ display: "flex", alignItems: "center", gap: 4 }}
+            >
+              ◀ Previous
+            </button>
+            <span style={{ fontSize: 12, padding: "4px 8px", background: "#f3f4f6", borderRadius: 4 }}>
+              Page {currentPage + 1}
+            </span>
+            <button
+              className="xp-btn xp-btn-sm"
+              onClick={handleNextPage}
+              disabled={invoices.length < 20 && !hasNext}
+              style={{ display: "flex", alignItems: "center", gap: 4 }}
+            >
+              Next ▶
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -1097,12 +1503,15 @@ export default function SaleReturnPage() {
   const [allCustomers, setAllCustomers] = useState([]);
   const [showProductModal, setShowProductModal] = useState(false);
   const [showHoldPreview, setShowHoldPreview] = useState(null);
+  const [showSaleSearchModal, setShowSaleSearchModal] = useState(false);
   const [searchText, setSearchText] = useState("");
   const [curRow, setCurRow] = useState({ ...EMPTY_ROW });
   const [items, setItems] = useState([]);
   const [returnDate, setReturnDate] = useState(isoDate());
   const [returnNo, setReturnNo] = useState("RTN-00001");
   const [saleInvNo, setSaleInvNo] = useState("");
+  const [allSaleInvoices, setAllSaleInvoices] = useState([]);
+  const [currentInvoiceIndex, setCurrentInvoiceIndex] = useState(-1);
 
   const [customerId, setCustomerId] = useState("");
   const [buyerName, setBuyerName] = useState("COUNTER SALE");
@@ -1135,6 +1544,7 @@ export default function SaleReturnPage() {
   }, []);
   useEffect(() => {
     fetchData();
+    fetchAllSaleInvoices();
   }, []);
   useEffect(() => {
     saveHolds(holdBills);
@@ -1166,6 +1576,27 @@ export default function SaleReturnPage() {
     setLoading(false);
   };
 
+  const fetchAllSaleInvoices = async () => {
+    try {
+      const response = await api.get(EP.SALES.GET_ALL);
+      if (response.data.success) {
+        let sales = response.data.data;
+        if (Array.isArray(sales)) {
+          sales = sales.filter(
+            (sale) =>
+              sale.saleType === "sale" ||
+              sale.type === "sale" ||
+              (!sale.saleType && !sale.type) ||
+              sale.invoiceNo?.startsWith("INV-")
+          );
+        }
+        setAllSaleInvoices(sales);
+      }
+    } catch (error) {
+      console.error("Failed to fetch sale invoices:", error);
+    }
+  };
+
   const refreshReturnNo = async () => {
     try {
       const r = await api.get(EP.SALES.NEXT_RETURN_NO || EP.SALES.NEXT_INVOICE);
@@ -1176,12 +1607,52 @@ export default function SaleReturnPage() {
     } catch {}
   };
 
-  /* Load sale by invoice number */
-  const loadSaleByInv = async () => {
-    if (!saleInvNo.trim()) return;
+  const loadSaleByInv = async (saleData = null) => {
+    if (saleData) {
+      try {
+        if (saleData.customerId) {
+          setCustomerId(saleData.customerId._id || saleData.customerId);
+          setBuyerName(saleData.customerName || "COUNTER SALE");
+          setPrevBalance(saleData.prevBalance || 0);
+        }
+        const loadedItems = (saleData.items || []).map((it) => ({
+          productId: it.productId || it._id || "",
+          code: it.code || "",
+          name: it.description || it.name || "",
+          uom: it.measurement || it.uom || "",
+          rack: it.rack || "",
+          pcs: it.qty || it.pcs || 1,
+          rate: it.rate || 0,
+          amount: it.amount || 0,
+        }));
+        setItems(loadedItems);
+        setSaleInvNo(saleData.invoiceNo || saleData.returnNo || "");
+        
+        const index = allSaleInvoices.findIndex(
+          inv => (inv.invoiceNo || inv.returnNo) === (saleData.invoiceNo || saleData.returnNo)
+        );
+        setCurrentInvoiceIndex(index);
+        
+        showMsg(
+          `Loaded ${loadedItems.length} items from ${saleData.invoiceNo || saleData.returnNo}`,
+          "success"
+        );
+        setShowSaleSearchModal(false);
+        setTimeout(() => searchRef.current?.focus(), 50);
+      } catch (error) {
+        showMsg("Failed to load sale invoice", "error");
+      }
+      return;
+    }
+
+    if (!saleInvNo.trim()) {
+      setShowSaleSearchModal(true);
+      return;
+    }
+    
     try {
       const r = await api.get(
-        `${EP.SALES.GET_BY_INV || EP.SALES.GET_ALL}?invoiceNo=${saleInvNo.trim()}`,
+        `${EP.SALES.GET_BY_INV || EP.SALES.GET_ALL}?invoiceNo=${saleInvNo.trim()}`
       );
       if (r.data.success && r.data.data) {
         const sale = Array.isArray(r.data.data) ? r.data.data[0] : r.data.data;
@@ -1207,14 +1678,38 @@ export default function SaleReturnPage() {
         setItems(loadedItems);
         showMsg(
           `Loaded ${loadedItems.length} items from ${saleInvNo}`,
-          "success",
+          "success"
         );
+        
+        const index = allSaleInvoices.findIndex(
+          inv => (inv.invoiceNo || inv.returnNo) === saleInvNo.trim()
+        );
+        setCurrentInvoiceIndex(index);
+        
         setTimeout(() => searchRef.current?.focus(), 50);
       } else {
         showMsg("Invoice not found", "error");
       }
     } catch {
       showMsg("Could not load sale invoice", "error");
+    }
+  };
+
+  const loadNextInvoice = () => {
+    if (currentInvoiceIndex < allSaleInvoices.length - 1) {
+      const nextInvoice = allSaleInvoices[currentInvoiceIndex + 1];
+      loadSaleByInv(nextInvoice);
+    } else {
+      showMsg("No more invoices", "info");
+    }
+  };
+
+  const loadPrevInvoice = () => {
+    if (currentInvoiceIndex > 0) {
+      const prevInvoice = allSaleInvoices[currentInvoiceIndex - 1];
+      loadSaleByInv(prevInvoice);
+    } else {
+      showMsg("No previous invoices", "info");
     }
   };
 
@@ -1375,6 +1870,7 @@ export default function SaleReturnPage() {
     setSaleInvNo("");
     setEditId(null);
     setSelItemIdx(null);
+    setCurrentInvoiceIndex(-1);
     setMsg({ text: "", type: "" });
     setTimeout(() => searchRef.current?.focus(), 50);
   };
@@ -1429,8 +1925,6 @@ export default function SaleReturnPage() {
         balance: overrides.balance,
         printType: overrides.printType,
       };
-      console.log("POST to:", EP.SALES.RETURN_CREATE || EP.SALES.CREATE);
-      console.log("Payload:", JSON.stringify(finalPayload, null, 2));
       const { data } = editId
         ? await api.put(EP.SALES.UPDATE(editId), finalPayload)
         : await api.post(
@@ -1527,6 +2021,16 @@ export default function SaleReturnPage() {
           }}
         />
       )}
+      {showSaleSearchModal && (
+        <SearchSaleModal
+          onSelect={(sale) => loadSaleByInv(sale)}
+          onClose={() => setShowSaleSearchModal(false)}
+          onNext={loadNextInvoice}
+          onPrev={loadPrevInvoice}
+          hasNext={currentInvoiceIndex < allSaleInvoices.length - 1}
+          hasPrev={currentInvoiceIndex > 0}
+        />
+      )}
 
       {/* TITLEBAR */}
       <div className="xp-titlebar sr-titlebar">
@@ -1536,7 +2040,7 @@ export default function SaleReturnPage() {
           viewBox="0 0 16 16"
           fill="rgba(255,255,255,0.85)"
         >
-          <path d="M2.146 2.854a.5.5 0 1 1 .708-.708L8 7.293l5.146-5.147a.5.5 0 0 1 .708.708L8.707 8l5.147 5.146a.5.5 0 0 1-.708.708L8 8.707l-5.146 5.147a.5.5 0 0 1-.708-.708L7.293 8z" />
+          <path d="M2.146 2.854a.5.5 0 1 1 .708-.708L8 7.293l5.146-5.147a.5.5 0 0 1 .708.708L8.707 8l5.147 5.146a.5.5 0 0 1-.708.708L8 8.707l-5.146 5.147a.5.5 0 0 1-.708-.708z" />
         </svg>
         <span className="xp-tb-title">
           Sale Return — Asim Electric &amp; Electronic Store
@@ -1572,22 +2076,43 @@ export default function SaleReturnPage() {
             <div className="sr-title-box">Sale Return</div>
             <div className="sr-inv-field-grp">
               <label>Sale Inv. #</label>
-              <div style={{ display: "flex", gap: 4 }}>
+              <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+                <button
+                  className="xp-btn xp-btn-sm"
+                  onClick={loadPrevInvoice}
+                  disabled={currentInvoiceIndex <= 0}
+                  title="Previous Invoice"
+                  style={{ padding: "0 8px" }}
+                >
+                  ◀ Prev
+                </button>
                 <input
                   ref={saleInvRef}
                   className="xp-input xp-input-sm sr-inv-input"
                   value={saleInvNo}
                   onChange={(e) => setSaleInvNo(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && loadSaleByInv()}
-                  placeholder="e.g. INV-00123"
-                  title="Enter original sale invoice number and press Enter to load items"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      if (saleInvNo.trim()) {
+                        loadSaleByInv();
+                      } else {
+                        setShowSaleSearchModal(true);
+                      }
+                    }
+                  }}
+                  placeholder="Enter invoice # and press Enter"
+                  title="Enter invoice number and press Enter to load"
+                  style={{ minWidth: "200px" }}
                 />
                 <button
-                  className="xp-btn xp-btn-sm sr-load-btn"
-                  onClick={loadSaleByInv}
-                  title="Load sale items"
+                  className="xp-btn xp-btn-sm"
+                  onClick={loadNextInvoice}
+                  disabled={currentInvoiceIndex >= allSaleInvoices.length - 1}
+                  title="Next Invoice"
+                  style={{ padding: "0 8px" }}
                 >
-                  Load
+                  Next ▶
                 </button>
               </div>
             </div>

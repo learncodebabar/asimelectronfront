@@ -1,7 +1,5 @@
 // pages/SalePage.jsx
 
-import { useNavigate } from "react-router-dom"
-
 import { useState, useEffect, useRef, useCallback } from "react";
 import api from "../api/api.js";
 import EP from "../api/apiEndpoints.js";
@@ -78,26 +76,118 @@ const saveHolds = (bills) => {
 /* ══════════════════════════════════════════════════════════
    PRINT HTML BUILDER — Professional
 ══════════════════════════════════════════════════════════ */
+
 const buildPrintHtml = (sale, type, overrides = {}) => {
   const customerName = overrides.customerName ?? sale.customerName;
   const customerPhone = overrides.customerPhone ?? "";
+  const hidePrices = overrides.hidePrices || false;
   const rows = sale.items.map((it, i) => ({ ...it, sr: i + 1 }));
   const totalQty = rows.reduce((s, r) => s + (r.pcs || 0), 0);
 
   const URDU_FONT = `'Noto Nastaliq Urdu','Mehr Nastaliq','Jameel Noori Nastaleeq','Urdu Typesetting',serif`;
   const GOOGLE_FONT_LINK = `<link href="https://fonts.googleapis.com/css2?family=Noto+Nastaliq+Urdu:wght@400;700&display=swap" rel="stylesheet">`;
 
+  /* ── GATEPASS ── */
+  if (type === "Gatepass") {
+    const itemRows = rows
+      .map(
+        (it) => `
+        <tr>
+          <td style="font-size:10px;vertical-align:top;padding:6px 4px">${it.sr}</td>
+          <td style="font-size:10px;vertical-align:top;padding:6px 4px;word-break:break-word">${it.code}</td>
+          <td style="font-size:10px;vertical-align:top;padding:6px 4px;word-break:break-word">${it.name}</td>
+          <td style="font-size:10px;vertical-align:top;padding:6px 4px;text-align:center">${it.pcs} ${it.uom || ""}</td>
+        </tr>
+      `,
+      )
+      .join("");
+
+    return `<!DOCTYPE html><html><head><meta charset="utf-8">${GOOGLE_FONT_LINK}<style>
+      *{box-sizing:border-box;margin:0;padding:0}
+      body{font-family:Arial,Helvetica,sans-serif;font-size:10px;width:80mm;margin:0 auto;padding:3mm;color:#000}
+      .urdu{font-family:${URDU_FONT};direction:rtl;text-align:center}
+      .shop-urdu{font-size:16px;font-weight:bold;text-align:center;margin-bottom:3px;font-family:${URDU_FONT};direction:rtl}
+      .shop-addr{font-size:8.5px;text-align:center;margin-bottom:2px;font-family:${URDU_FONT};direction:rtl}
+      .shop-phones{font-size:8px;text-align:center;font-weight:bold;margin-bottom:4px}
+      .banner{background:#555;color:#fff;font-size:7.5px;text-align:center;padding:3px;margin:3px 0;font-family:${URDU_FONT};direction:rtl}
+      .header{text-align:center;border-bottom:2px solid #000;padding-bottom:5px;margin-bottom:8px}
+      .gatepass-title{font-size:18px;font-weight:bold;margin:5px 0;letter-spacing:2px}
+      .meta-row{display:flex;justify-content:space-between;margin:4px 0;font-size:9px}
+      .divider-dash{border:none;border-top:1px dashed #666;margin:4px 0}
+      .divider-solid{border:none;border-top:1px solid #000;margin:4px 0}
+      table{width:100%;border-collapse:collapse}
+      thead tr{border-bottom:1px solid #000}
+      th{font-size:9px;font-weight:bold;padding:5px 4px;text-align:left}
+      th.r{text-align:right}
+      td{padding:4px;font-size:9.5px;vertical-align:top;border-bottom:1px solid #ddd}
+      .footer{text-align:center;font-size:8px;color:#777;margin-top:10px;border-top:1px dashed #ccc;padding-top:5px}
+      .signature{display:flex;justify-content:space-between;margin-top:12px;padding-top:8px}
+      .sign-line{text-align:center;font-size:8px}
+      .sign-line span{display:inline-block;border-top:1px solid #000;min-width:100px;margin-top:20px;padding-top:3px}
+      @media print{@page{size:80mm auto;margin:2mm}body{width:76mm}}
+    </style></head><body>
+
+      <div class="header">
+        <div class="shop-urdu">${SHOP_INFO.name}</div>
+        <div class="shop-addr">${SHOP_INFO.address}</div>
+        <div class="shop-phones">${SHOP_INFO.phone1} | ${SHOP_INFO.phone2}</div>
+        <div class="gatepass-title">📋 GATE PASS</div>
+        <div class="banner">${SHOP_INFO.urduBanner}</div>
+      </div>
+
+      <div class="meta-row">
+        <span><b>Invoice No:</b> ${sale.invoiceNo}</span>
+        <span><b>Date:</b> ${sale.invoiceDate}</span>
+      </div>
+      <div class="meta-row">
+        <span><b>Customer:</b> ${customerName}</span>
+        ${customerPhone ? `<span><b>Phone:</b> ${customerPhone}</span>` : ""}
+      </div>
+      <hr class="divider-dash">
+
+      <table>
+        <thead>
+          <tr>
+            <th style="width:30px">#</th>
+            <th style="width:80px">Code</th>
+            <th>Product Description</th>
+            <th style="width:70px;text-align:center">Qty</th>
+          </tr>
+        </thead>
+        <tbody>${itemRows}</tbody>
+      </table>
+
+      <hr class="divider-solid">
+      
+      <div class="meta-row">
+        <span><b>Total Items:</b> ${rows.length}</span>
+        <span><b>Total Quantity:</b> ${totalQty}</span>
+      </div>
+
+      <div class="signature">
+        <div class="sign-line">Issued By<span></span></div>
+        <div class="sign-line">Received By<span></span></div>
+      </div>
+
+      <div class="footer">
+        ${SHOP_INFO.devBy}
+      </div>
+
+    </body></html>`;
+  }
+
   /* ── THERMAL ── */
   if (type === "Thermal") {
     const itemRows = rows
       .map(
-        (it) =>
-          `<tr>
-        <td style="font-size:9px;vertical-align:top">${it.sr}</td>
-        <td style="font-size:9.5px;vertical-align:top;word-break:break-word;max-width:100px">${it.name}</td>
-        <td style="font-size:9px;vertical-align:top;text-align:right">${it.pcs} ${it.uom || ""}</td>
-        <td style="font-size:9px;vertical-align:top;text-align:right">${Number(it.rate).toLocaleString()}</td>
-        <td style="font-size:9px;vertical-align:top;text-align:right"><b>${Number(it.amount).toLocaleString()}</b></td>
+        (it) => `
+        <tr>
+          <td style="font-size:9px;vertical-align:top">${it.sr}</td>
+          <td style="font-size:9.5px;vertical-align:top;word-break:break-word;max-width:100px">${it.name}</td>
+          <td style="font-size:9px;vertical-align:top;text-align:right">${it.pcs} ${it.uom || ""}</td>
+          <td style="font-size:9px;vertical-align:top;text-align:right">${Number(it.rate).toLocaleString()}</td>
+          <td style="font-size:9px;vertical-align:top;text-align:right"><b>${Number(it.amount).toLocaleString()}</b></td>
+        </tr>
       `,
       )
       .join("");
@@ -232,8 +322,8 @@ const buildPrintHtml = (sale, type, overrides = {}) => {
         <td>${it.name}</td>
         <td>${it.uom || "—"}</td>
         <td style="text-align:right">${it.pcs}</td>
-        <td style="text-align:right">${Number(it.rate).toLocaleString()}</td>
-        <td style="text-align:right"><b>${Number(it.amount).toLocaleString()}</b></td>
+        ${!hidePrices ? `<td style="text-align:right">${Number(it.rate).toLocaleString()}</td>
+        <td style="text-align:right"><b>${Number(it.amount).toLocaleString()}</b></td>` : '<td colspan="2" style="text-align:center;color:#888">[Price Hidden]</td>'}
       `,
       )
       .join("");
@@ -267,7 +357,7 @@ const buildPrintHtml = (sale, type, overrides = {}) => {
           <span>Invoice # ${sale.invoiceNo}</span>
         </div>`;
 
-    const footerHtml = isLastPage
+    const footerHtml = isLastPage && !hidePrices
       ? `<div class="footer-wrap">
           <div class="footer-left">
             <div class="footer-stat">Total No. of Items: <b>${rows.length}</b></div>
@@ -280,6 +370,19 @@ const buildPrintHtml = (sale, type, overrides = {}) => {
             ${sale.prevBalance > 0 ? `<div class="sum-row red"><span>(+) Prev. Balance</span><span>PKR ${Number(sale.prevBalance).toLocaleString()}</span></div>` : ""}
             <div class="sum-row green"><span>Received:</span><span>PKR ${Number(sale.paidAmount).toLocaleString()}</span></div>
             <div class="sum-row bold ${sale.balance > 0 ? "red" : "green"} sep"><span>Balance Due:</span><span>PKR ${Number(sale.balance).toLocaleString()}</span></div>
+          </div>
+        </div>
+        <div class="devby">${SHOP_INFO.devBy}</div>`
+      : isLastPage && hidePrices
+      ? `<div class="footer-wrap">
+          <div class="footer-left">
+            <div class="footer-stat">Total No. of Items: <b>${rows.length}</b></div>
+            <div class="footer-stat">Total Quantity: <b>${totalQty}</b></div>
+            <div class="terms-box">${SHOP_INFO.urduTerms.replace(/\n/g, "<br>")}</div>
+            <div class="sig-line">Signature</div>
+          </div>
+          <div class="footer-right" style="text-align:center">
+            <div class="sum-row" style="justify-content:center;color:#888">GATE PASS - Prices Hidden</div>
           </div>
         </div>
         <div class="devby">${SHOP_INFO.devBy}</div>`
@@ -296,8 +399,7 @@ const buildPrintHtml = (sale, type, overrides = {}) => {
               <th>Product</th>
               <th style="width:50px">Unit</th>
               <th style="width:42px;text-align:right">Qty</th>
-              <th style="width:70px;text-align:right">Rate</th>
-              <th style="width:80px;text-align:right">Amount</th>
+              ${!hidePrices ? '<th style="width:70px;text-align:right">Rate</th><th style="width:80px;text-align:right">Amount</th>' : '<th colspan="2" style="text-align:center">Gate Pass Copy</th>'}
             </tr>
           </thead>
           <tbody>${itemRows}</tbody>
@@ -448,6 +550,7 @@ function PrintOptionsModal({
     onPrint(selPrintType, {
       customerName: finalName,
       customerPhone: finalPhone,
+      hidePrices: selPrintType === "Gatepass",
     });
   };
 
@@ -543,8 +646,8 @@ function PrintOptionsModal({
 
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             <label className="xp-label">Print Format</label>
-            <div style={{ display: "flex", gap: 8 }}>
-              {["Thermal", "A5", "A4"].map((pt) => (
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              {["Thermal", "A5", "A4", "Gatepass"].map((pt) => (
                 <label
                   key={pt}
                   style={{
@@ -569,7 +672,7 @@ function PrintOptionsModal({
                     onChange={() => setSelPrintType(pt)}
                     style={{ display: "none" }}
                   />
-                  {pt === "Thermal" ? "🖨" : pt === "A5" ? "📄" : "📋"} {pt}
+                  {pt === "Thermal" ? "🖨" : pt === "A5" ? "📄" : pt === "A4" ? "📋" : "🎫"} {pt}
                 </label>
               ))}
             </div>
@@ -602,16 +705,18 @@ function PrintOptionsModal({
     </div>
   );
 }
+
 const doPrint = (sale, type, overrides = {}) => {
   const w = window.open(
     "",
     "_blank",
-    type === "Thermal" ? "width=420,height=640" : "width=900,height=700",
+    type === "Thermal" || type === "Gatepass" ? "width=420,height=640" : "width=900,height=700",
   );
   w.document.write(buildPrintHtml(sale, type, overrides));
   w.document.close();
   setTimeout(() => w.print(), 400);
 };
+
 /* ══════════════════════════════════════════════════════════
    SAVE CONFIRM MODAL — XP Theme
 ══════════════════════════════════════════════════════════ */
@@ -624,6 +729,7 @@ function SaveConfirmModal({
   const [paidAmount, setPaidAmount] = useState(0);
   const [selPrintType, setSelPrintType] = useState(defaultPrintType);
   const [saving, setSaving] = useState(false);
+  const [gatepassChecked, setGatepassChecked] = useState(false);
   const paidRef = useRef(null);
 
   useEffect(() => {
@@ -664,6 +770,7 @@ function SaveConfirmModal({
       balance: billTotal - paid,
       printType: selPrintType,
       withPrint,
+      gatepass: gatepassChecked,
     });
     setSaving(false);
   };
@@ -747,7 +854,7 @@ function SaveConfirmModal({
           <span style={{ color: "#555", marginRight: 4, fontWeight: 700 }}>
             Print:
           </span>
-          {["Thermal", "A5", "A4"].map((pt) => (
+          {["Thermal", "A5", "A4", "Gatepass"].map((pt) => (
             <label key={pt}>
               <input
                 type="radio"
@@ -1190,7 +1297,7 @@ function CustomerDropdown({
     } else {
       setGhost("");
     }
-  }, [originalQuery, creditCustomers, isNavigating]);
+  }, [originalQuery, isNavigating]);
 
   const selectCustomer = (customer) => {
     onSelect(customer);
@@ -1497,7 +1604,7 @@ function CustomerDropdown({
    MAIN PAGE
 ══════════════════════════════════════════════════════════ */
 export default function SalePage() {
-  const navigate = useNavigate();
+
   const [time, setTime] = useState(timeNow());
   const [allProducts, setAllProducts] = useState([]);
   const [allCustomers, setAllCustomers] = useState([]);
@@ -1552,6 +1659,7 @@ export default function SalePage() {
   const discRef = useRef(null);
   const saveRef = useRef(null);
   const statementRef = useRef(null);
+  const [gatepassPrint, setGatepassPrint] = useState(false);
 
   useEffect(() => {
     const t = setInterval(() => setTime(timeNow()), 1000);
@@ -2015,6 +2123,13 @@ export default function SalePage() {
           paidAmount: overrides.paidAmount,
           balance: overrides.balance,
         };
+        
+        // Print gatepass if checkbox was checked
+        if (gatepassPrint) {
+          doPrint(saleObj, "Gatepass", { customerName: finalPayload.customerName, hidePrices: true });
+          setGatepassPrint(false);
+        }
+        
         if (overrides.withPrint) {
           setPendingPrintSale(saleObj);
           setShowPrintModal(true);
@@ -2352,60 +2467,6 @@ export default function SalePage() {
                     }}
                     autoFocus
                   />
-                  
-                  {/* Product Suggestions Dropdown */}
-                  {/* {showProductSuggestions && productSuggestions.length > 0 && (
-                    <div
-                      style={{
-                        position: "absolute",
-                        top: "100%",
-                        left: 0,
-                        right: 0,
-                        backgroundColor: "white",
-                        border: "1px solid #e5e7eb",
-                        borderRadius: 4,
-                        maxHeight: 250,
-                        overflowY: "auto",
-                        zIndex: 1000,
-                        boxShadow: "0 4px 6px -1px rgba(0,0,0,0.1)",
-                        marginTop: 2,
-                      }}
-                    >
-                      {productSuggestions.map((product, idx) => (
-                        <div
-                          key={product._id}
-                          onClick={() => {
-                            const pk = product.packingInfo?.[0];
-                            pickProduct({
-                              ...product,
-                              _pi: 0,
-                              _meas: pk?.measurement || "",
-                              _rate: pk?.saleRate || 0,
-                              _pack: pk?.packing || 1,
-                              _stock: pk?.openingQty || 0,
-                              _name: [product.category, product.description, product.company].filter(Boolean).join(" "),
-                            });
-                            setProductSuggestions([]);
-                            setShowProductSuggestions(false);
-                          }}
-                          style={{
-                            padding: "8px 12px",
-                            cursor: "pointer",
-                            backgroundColor: idx === selectedProductSuggestionIdx ? "#e5f0ff" : "white",
-                            borderBottom: "1px solid #f3f4f6",
-                          }}
-                          onMouseEnter={() => setSelectedProductSuggestionIdx(idx)}
-                        >
-                          <div style={{ fontWeight: 500 }}>
-                            {product.code} - {product.description || product.name}
-                          </div>
-                          <div style={{ fontSize: 11, color: "#6b7280", marginTop: 2 }}>
-                            {product.category} | {product.company} | Stock: {product.packingInfo?.[0]?.openingQty || 0}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )} */}
                 </div>
               </div>
               <div className="sl-entry-cell" style={{ position: "relative" }}>
@@ -2818,6 +2879,22 @@ export default function SalePage() {
               </div>
             </div>
 
+            {/* Gatepass Checkbox */}
+            <div className="sl-gatepass-bar" style={{ display: "flex", alignItems: "center", gap: 12, padding: "6px 8px", background: "var(--xp-silver-4)", borderRadius: 4, marginTop: 6 }}>
+              <label className="sl-check-label" style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <input
+                  type="checkbox"
+                  checked={gatepassPrint}
+                  onChange={(e) => setGatepassPrint(e.target.checked)}
+                  style={{ width: 16, height: 16 }}
+                />
+                <span style={{ fontSize: "var(--xp-fs-sm)", fontWeight: 500 }}>🎫 Print Gatepass (No Prices)</span>
+              </label>
+              <span style={{ fontSize: "var(--xp-fs-xs)", color: "#666" }}>
+                Gatepass will show items without rates and amounts
+              </span>
+            </div>
+
             {/* Credit Warning Bar */}
             {showCustomerPanel && customerId && (
               <div
@@ -2932,65 +3009,66 @@ export default function SalePage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {holdBills.length === 0
-                      ? Array.from({ length: 8 }).map((_, i) => (
-                          <tr key={i}>
-                            <td colSpan={5} style={{ height: 22 }} />  </tr>
-                           
-                         
-                        ))
-                      : holdBills.map((b, i) => (
-                          <tr
-                            key={b.id}
-                            onClick={() => setShowHoldPreview(b)}
-                            onDoubleClick={() => resumeHold(b.id)}
-                            title="Click = preview · Double-click = resume"
+                    {holdBills.length === 0 ? (
+                      Array.from({ length: 8 }).map((_, i) => (
+                        <tr key={i}>
+                          <td colSpan={5} style={{ height: 22 }} />
+                        </tr>
+                      ))
+                    ) : (
+                      holdBills.map((b, i) => (
+                        <tr
+                          key={b.id}
+                          onClick={() => setShowHoldPreview(b)}
+                          onDoubleClick={() => resumeHold(b.id)}
+                          title="Click = preview · Double-click = resume"
+                        >
+                          <td
+                            className="muted"
+                            style={{
+                              textAlign: "center",
+                              fontSize: "var(--xp-fs-xs)",
+                            }}
                           >
-                            <td
-                              className="muted"
+                            {i + 1}
+                          </td>
+                          <td
+                            style={{
+                              fontFamily: "var(--xp-mono)",
+                              fontSize: "var(--xp-fs-xs)",
+                            }}
+                          >
+                            {b.invoiceNo}
+                          </td>
+                          <td
+                            className="r"
+                            style={{ color: "var(--xp-blue-dark)" }}
+                          >
+                            {Number(b.amount).toLocaleString("en-PK")}
+                          </td>
+                          <td
+                            className="muted"
+                            style={{ fontSize: "var(--xp-fs-xs)" }}
+                          >
+                            {b.buyerName}
+                          </td>
+                          <td style={{ textAlign: "center" }}>
+                            <button
+                              className="xp-btn xp-btn-sm xp-btn-ico"
                               style={{
-                                textAlign: "center",
-                                fontSize: "var(--xp-fs-xs)",
+                                width: 18,
+                                height: 18,
+                                fontSize: 9,
+                                color: "var(--xp-red)",
                               }}
+                              onClick={(e) => deleteHold(b.id, e)}
                             >
-                              {i + 1}
-                            </td>
-                            <td
-                              style={{
-                                fontFamily: "var(--xp-mono)",
-                                fontSize: "var(--xp-fs-xs)",
-                              }}
-                            >
-                              {b.invoiceNo}
-                            </td>
-                            <td
-                              className="r"
-                              style={{ color: "var(--xp-blue-dark)" }}
-                            >
-                              {Number(b.amount).toLocaleString("en-PK")}
-                            </td>
-                            <td
-                              className="muted"
-                              style={{ fontSize: "var(--xp-fs-xs)" }}
-                            >
-                              {b.buyerName}
-                            </td>
-                            <td style={{ textAlign: "center" }}>
-                              <button
-                                className="xp-btn xp-btn-sm xp-btn-ico"
-                                style={{
-                                  width: 18,
-                                  height: 18,
-                                  fontSize: 9,
-                                  color: "var(--xp-red)",
-                                }}
-                                onClick={(e) => deleteHold(b.id, e)}
-                              >
-                                ✕
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
+                              ✕
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -3107,13 +3185,10 @@ export default function SalePage() {
             <label className="sl-check-label">
               <input type="checkbox" /> Print P.Bal
             </label>
-            <label className="sl-check-label">
-              <input type="checkbox" /> Gate Pass
-            </label>
           </div>
           <div className="xp-toolbar-divider" />
           <div className="sl-print-types">
-            {["Thermal", "A4", "A5"].map((pt) => (
+            {["Thermal", "A4", "A5", "Gatepass"].map((pt) => (
               <label key={pt} className="sl-check-label">
                 <input
                   type="radio"
@@ -3172,6 +3247,135 @@ export default function SalePage() {
       input, .xp-input, .sl-product-input, .sl-num-input, .sl-sum-input, 
       .sl-cust-input, .sl-credit-statement-input {
         background-color: #fffde7 !important;
+      }
+
+      /* --- CREDIT LIMIT EXCEEDED WARNING STYLES --- */
+      .sl-page.sl-credit-mode .sl-right {
+        background-color: #dc2626 !important;
+        border-left: 3px solid #991b1b;
+        transition: background-color 0.2s ease;
+      }
+
+      .sl-page.sl-credit-mode .sl-items-wrap {
+        background-color: #dc2626 !important;
+        border-radius: 6px;
+      }
+
+      .sl-page.sl-credit-mode .sl-items-table {
+        background-color: #dc2626 !important;
+      }
+
+      .sl-page.sl-credit-mode .sl-items-table thead th {
+        background-color: #991b1b !important;
+        color: #ffffff !important;
+        border-bottom: 2px solid #7f1d1d;
+      }
+
+      .sl-page.sl-credit-mode .sl-items-table tbody td {
+        color: #ffffff !important;
+        border-bottom-color: #b91c1c;
+      }
+
+      .sl-page.sl-credit-mode .sl-items-table td.muted,
+      .sl-page.sl-credit-mode .sl-items-table .muted {
+        color: #fecaca !important;
+      }
+
+      .sl-page.sl-credit-mode .sl-items-table tr.sl-sel-row td {
+        background-color: #b91c1c !important;
+        box-shadow: inset 0 0 0 2px #fef08a;
+      }
+
+      .sl-page.sl-credit-mode .sl-items-table tbody tr:hover td {
+        background-color: #ef4444 !important;
+        cursor: pointer;
+      }
+
+      .sl-page.sl-credit-mode .sl-items-table .sl-empty-row td {
+        background-color: transparent;
+      }
+
+      .sl-page.sl-credit-mode .sl-items-table .xp-empty {
+        color: #fef08a !important;
+        background-color: transparent;
+      }
+
+      .sl-page.sl-credit-mode .sl-items-table td[style*="color: var(--xp-blue-dark)"] {
+        color: #fef08a !important;
+        font-weight: bold;
+      }
+
+      .sl-page.sl-credit-mode .sl-hold-panel {
+        background-color: rgba(0, 0, 0, 0.1);
+        border-color: #991b1b;
+      }
+
+      .sl-page.sl-credit-mode .sl-hold-table thead th {
+        background-color: #991b1b;
+        color: #ffffff;
+      }
+
+      .sl-page.sl-credit-mode .sl-hold-table tbody td {
+        color: #ffffff;
+      }
+
+      .sl-page.sl-credit-mode .sl-hold-table td.muted {
+        color: #fecaca;
+      }
+
+      .sl-page.sl-credit-mode .sl-hold-title {
+        background-color: #991b1b;
+        color: #ffffff;
+      }
+
+      .sl-page.sl-credit-mode .sl-summary-bar {
+        background-color: rgba(0, 0, 0, 0.15);
+        border-radius: 6px;
+      }
+
+      .sl-page.sl-credit-mode .sl-customer-bar {
+        background-color: rgba(0, 0, 0, 0.1);
+        border-radius: 6px;
+      }
+
+      .sl-page.sl-credit-mode input,
+      .sl-page.sl-credit-mode .xp-input,
+      .sl-page.sl-credit-mode .sl-product-input,
+      .sl-page.sl-credit-mode .sl-num-input,
+      .sl-page.sl-credit-mode .sl-sum-input,
+      .sl-page.sl-credit-mode .sl-cust-input {
+        background-color: #fffde7 !important;
+        color: #1f2937 !important;
+        border-color: #9ca3af;
+      }
+
+      .sl-page.sl-credit-mode input:read-only,
+      .sl-page.sl-credit-mode .sl-sum-val {
+        background-color: #fef3c7 !important;
+        color: #1f2937 !important;
+      }
+
+      .sl-page.sl-credit-mode .sl-sum-val.sl-bal.danger {
+        color: #fef08a !important;
+        font-weight: bold;
+        text-shadow: 0 0 2px rgba(0,0,0,0.3);
+      }
+
+      .sl-page.sl-credit-mode .sl-items-wrap::-webkit-scrollbar-track {
+        background: #991b1b;
+      }
+
+      .sl-page.sl-credit-mode .sl-hold-table {
+        background: #991b1b;
+      }
+
+      .sl-page.sl-credit-mode .sl-items-wrap::-webkit-scrollbar-thumb {
+        background: #fecaca;
+        border-radius: 4px;
+      }
+
+      .sl-page.sl-credit-mode .sl-items-wrap::-webkit-scrollbar-thumb:hover {
+        background: #ffffff;
       }
       `}</style>
     </>
