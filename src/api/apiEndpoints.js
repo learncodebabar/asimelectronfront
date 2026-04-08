@@ -4,9 +4,11 @@ const EP = {
   PRODUCTS: {
     GET_ALL: "/products",
     GET_ONE: (id) => `/products/${id}`,
+    GET_BY_ID: (id) => `/products/${id}`,
     CREATE: "/products",
     UPDATE: (id) => `/products/${id}`,
     DELETE: (id) => `/products/${id}`,
+    STOCK_BULK: "/products/stock/bulk",
   },
 
   // ── Sales ─────────────────────────────────────────────────────────────────
@@ -16,11 +18,14 @@ const EP = {
     GET_ONE: (id) => `/sales/${id}`,
     GET_BY_ID: (id) => `/sales/${id}`,
     NEXT_INVOICE: "/sales/next-invoice",
+    NEXT_RETURN_NO: "/sales/next-return-no",
     CREATE: "/sales",
     UPDATE: (id) => `/sales/${id}`,
     DELETE: (id) => `/sales/${id}`,
     RETURN_CREATE: "/sales/return",
   },
+  
+  // ── Purchases ─────────────────────────────────────────────────────────────
   PURCHASES: {
     GET_ALL: "/purchases",
     GET_ONE: (id) => `/purchases/${id}`,
@@ -29,6 +34,8 @@ const EP = {
     UPDATE: (id) => `/purchases/${id}`,
     DELETE: (id) => `/purchases/${id}`,
   },
+  
+  // ── Raw Purchases ─────────────────────────────────────────────────────────
   RAW_PURCHASES: {
     NEXT_INVOICE: "/raw-purchases/next-invoice",
     CREATE: "/raw-purchases",
@@ -37,6 +44,8 @@ const EP = {
     UPDATE: (id) => `/raw-purchases/${id}`,
     DELETE: (id) => `/raw-purchases/${id}`,
   },
+  
+  // ── Raw Sales ─────────────────────────────────────────────────────────────
   RAW_SALES: {
     NEXT_INVOICE: "/raw-sales/next-invoice",
     CREATE: "/raw-sales",
@@ -45,6 +54,7 @@ const EP = {
     UPDATE: (id) => `/raw-sales/${id}`,
     DELETE: (id) => `/raw-sales/${id}`,
   },
+  
   HOLD_BILLS: {
     GET_ALL: "/hold-bills",
     CREATE: "/hold-bills",
@@ -83,6 +93,7 @@ const EP = {
     CREATE: "/quotations",
     DELETE: (id) => `/quotations/${id}`,
   },
+  
   DAMAGE: {
     GET_ALL: "/damage",
     GET_IN: (search = "") =>
@@ -94,6 +105,7 @@ const EP = {
     CREATE: "/damage",
     DELETE: (id) => `/damage/${id}`,
   },
+  
   CPV: {
     GET_ALL: "/cpv",
     GET_ALL_SEARCH: (search = "") =>

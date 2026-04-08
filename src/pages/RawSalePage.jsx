@@ -79,6 +79,35 @@ const saveHolds = (bills) => {
 };
 
 /* ══════════════════════════════════════════════════════════
+   STOCK UPDATE FUNCTION (for sale - subtract stock)
+══════════════════════════════════════════════════════════ */
+const updateProductStockBulk = async (items, operation) => {
+  try {
+    const stockItems = items.map(item => ({
+      productId: item.productId,
+      measurement: item.uom,
+      quantity: parseFloat(item.pcs) || 1
+    }));
+    
+    const response = await api.post(EP.PRODUCTS.STOCK_BULK, {
+      items: stockItems,
+      operation: operation // "add" or "subtract"
+    });
+    
+    if (response.data.success) {
+      console.log("Stock updated successfully:", response.data.results);
+      return true;
+    } else {
+      console.error("Stock update failed:", response.data.message);
+      return false;
+    }
+  } catch (error) {
+    console.error("Failed to update stock:", error);
+    return false;
+  }
+};
+
+/* ══════════════════════════════════════════════════════════
    PRINT HTML BUILDER — Raw Sale Invoice
 ══════════════════════════════════════════════════════════ */
 const buildPrintHtml = (sale, type, overrides = {}) => {
@@ -151,7 +180,7 @@ const buildPrintHtml = (sale, type, overrides = {}) => {
       ${customerPhone ? `<div style="font-size:9px;color:#555">${customerPhone}</div>` : ""}
       <div class="meta-row"><span style="font-size:9px;color:#555">Items: ${rows.length}</span></div>
       <hr class="divider-solid">
-      <table>
+      <tr>
         <thead>
           <tr>
             <th style="width:20px">#</th>
@@ -620,15 +649,62 @@ function SearchModal({ allProducts, onSelect, onClose }) {
           <div className="xp-table-panel" style={{ border: "none" }}>
             <div className="xp-table-scroll">
               <table className="xp-table">
-                <thead><tr><th style={{ width: 36 }}>Sr.#</th><th>Barcode</th><th>Name</th><th>Meas.</th><th className="r">Sale Rate</th><th className="r">Stock</th><th className="r">Pack</th><th>Rack#</th></tr></thead>
-                <tbody ref={tbodyRef} tabIndex={0} onKeyDown={tk}>
-                  {rows.length === 0 && <tr><td colSpan={8} className="xp-empty">⚠️ No products found with company name "RAW". Please check your product data.</td></tr>}
-                  {rows.map((r, i) => (
-                    <tr key={`${r._id}-${r._pi}`} style={{ background: i === hiIdx ? "#c3d9f5" : undefined }} onClick={() => setHiIdx(i)} onDoubleClick={() => onSelect(r)}>
-                      <td className="text-muted">{i + 1}</td><td><span className="xp-code">{r.code}</span></td><td><button className="xp-link-btn">{r._name}</button></td><td className="text-muted">{r._meas}</td><td className="r xp-amt">{Number(r._rate).toLocaleString("en-PK")}</td><td className="r">{r._stock}</td><td className="r">{r._pack}</td><td className="text-muted">{r.rackNo || "—"}</td>
-                    </tr>
-                  ))}
-                </tbody>
+                <thead>
+                  <tr>
+                    <th style={{ width: 36 }}>Sr.#</th>
+                    <th>Barcode</th>
+                    <th>Name</th>
+                    <th>Meas.</th>
+                    <th className="r">Sale Rate</th>
+                    <th className="r">Stock</th>
+                    <th className="r">Pack</th>
+                    <th>Rack#</th>
+                  </tr>
+                </thead>
+             <tbody ref={tbodyRef} tabIndex={0} onKeyDown={tk}>
+  
+  {rows.length === 0 && (
+    <tr>
+      <td colSpan={8} className="xp-empty">
+        ⚠️ No products found with company name "RAW". Please check your product data.
+      </td>
+    </tr>
+  )}
+
+  {rows.map((r, i) => (
+    <tr
+      key={`${r._id}-${r._pi}`}
+      style={{ background: i === hiIdx ? "#c3d9f5" : undefined }}
+      onClick={() => setHiIdx(i)}
+      onDoubleClick={() => onSelect(r)}
+    >
+      <td className="text-muted">{i + 1}</td>
+
+      <td>
+        <span className="xp-code">{r.code}</span>
+      </td>
+
+      <td>
+        <button className="xp-link-btn">{r._name}</button>
+      </td>
+
+      <td className="text-muted">{r._meas}</td>
+
+      <td className="r xp-amt">
+        {Number(r._rate).toLocaleString("en-PK")}
+      </td>
+
+      <td className="r">{r._stock}</td>
+
+      <td className="r">{r._pack}</td>
+
+      <td className="text-muted">
+        {r.rackNo || "—"}
+      </td>
+    </tr>
+  ))}
+
+</tbody>
               </table>
             </div>
           </div>
@@ -655,9 +731,45 @@ function HoldPreviewModal({ bill, onResume, onClose }) {
           <div className="xp-table-panel" style={{ border: "none" }}>
             <div className="xp-table-scroll" style={{ maxHeight: 300 }}>
               <table className="xp-table">
-                <thead><tr><th>#</th><th>Code</th><th>Name</th><th>UOM</th><th className="r">Pcs</th><th className="r">Rate</th><th className="r">Amount</th></tr></thead>
-                <tbody>{bill.items.map((r, i) => (<tr key={i}><td className="text-muted">{i + 1}</td><td className="text-muted">{r.code}</td><td>{r.name}</td><td className="text-muted">{r.uom}</td><td className="r">{r.pcs}</td><td className="r">{Number(r.rate).toLocaleString("en-PK")}</td><td className="r" style={{ color: "var(--xp-blue-dark)", fontWeight: 700 }}>{Number(r.amount).toLocaleString("en-PK")}</td></tr>))}</tbody>
-              </table>
+  <thead>
+    <tr>
+      <th>#</th>
+      <th>Code</th>
+      <th>Name</th>
+      <th>UOM</th>
+      <th className="r">Pcs</th>
+      <th className="r">Rate</th>
+      <th className="r">Amount</th>
+    </tr>
+  </thead>
+
+  <tbody>
+    {bill.items.map((r, i) => (
+      <tr key={i}>
+        <td className="text-muted">{i + 1}</td>
+
+        <td className="text-muted">{r.code}</td>
+
+        <td>{r.name}</td>
+
+        <td className="text-muted">{r.uom}</td>
+
+        <td className="r">{r.pcs}</td>
+
+        <td className="r">
+          {Number(r.rate).toLocaleString("en-PK")}
+        </td>
+
+        <td
+          className="r"
+          style={{ color: "var(--xp-blue-dark)", fontWeight: 700 }}
+        >
+          {Number(r.amount).toLocaleString("en-PK")}
+        </td>
+      </tr>
+    ))}
+  </tbody>
+</table>
             </div>
           </div>
         </div>
@@ -685,7 +797,6 @@ function CustomerDropdown({ allCustomers, value, displayName, customerType, onSe
   const inputRef = useRef(null);
   const parentRef = useRef(null);
 
-  // Show ALL suppliers (type: raw-sale, supplier, credit)
   const filteredCustomers = allCustomers.filter((c) => {
     const t = (c.customerType || c.type || "").toLowerCase();
     const allowed = allowedTypes || ["raw-sale", "supplier", "credit"];
@@ -938,7 +1049,6 @@ export default function RawSalePage() {
       ]);
       if (pRes.data.success) setAllProducts(pRes.data.data);
       if (cRes.data.success) {
-        // Show ALL suppliers (type: raw-sale, supplier, credit)
         const customers = cRes.data.data.filter((c) => {
           const type = (c.type || c.customerType || "").toLowerCase();
           return type === "raw-sale" || type === "supplier" || type === "credit";
@@ -1302,6 +1412,9 @@ export default function RawSalePage() {
         : await api.post(EP.RAW_SALES.CREATE, finalPayload);
 
       if (data.success) {
+        // UPDATE STOCK - SUBTRACT quantities for sale
+        await updateProductStockBulk(payload.items, "subtract");
+        
         showMsg(editId ? "Sale updated!" : `Saved: ${data.data.invoiceNo}`);
         const saleObj = {
           invoiceNo: data.data.invoiceNo,
@@ -1325,6 +1438,12 @@ export default function RawSalePage() {
         setPendingPayload(null);
         fullReset();
         await refreshInvoiceNo();
+        
+        // Refresh products to show updated stock
+        const pRes = await api.get(EP.PRODUCTS.GET_ALL);
+        if (pRes.data.success) {
+          setAllProducts(pRes.data.data);
+        }
       } else {
         showMsg(data.message, "error");
       }

@@ -90,7 +90,6 @@ const buildPrintHtml = (sale, type, overrides = {}) => {
   const URDU_FONT = `'Noto Nastaliq Urdu','Mehr Nastaliq','Jameel Noori Nastaleeq','Urdu Typesetting',serif`;
   const GOOGLE_FONT_LINK = `<link href="https://fonts.googleapis.com/css2?family=Noto+Nastaliq+Urdu:wght@400;700&display=swap" rel="stylesheet">`;
 
-  /* ── THERMAL ── */
   if (type === "Thermal") {
     const itemRows = rows
       .map(
@@ -131,12 +130,10 @@ const buildPrintHtml = (sale, type, overrides = {}) => {
       .devby{text-align:center;font-size:7.5px;color:#777;margin-top:4px;border-top:1px dashed #ccc;padding-top:3px}
       @media print{@page{size:80mm auto;margin:1mm}body{width:78mm}}
     </style></head><body>
-
       <div class="shop-urdu">${SHOP_INFO.name}</div>
       <div class="shop-addr">${SHOP_INFO.address}</div>
       <div class="shop-phones">${SHOP_INFO.phone1}, ${SHOP_INFO.phone2}, ${SHOP_INFO.phone3}</div>
       <div class="banner">${SHOP_INFO.urduBanner}</div>
-
       <div class="meta-row">
         <span><b>Raw Purchase Invoice</b></span>
         <span>ADMIN</span>
@@ -154,7 +151,6 @@ const buildPrintHtml = (sale, type, overrides = {}) => {
       ${customerPhone ? `<div style="font-size:9px;color:#555">${customerPhone}</div>` : ""}
       <div class="meta-row"><span style="font-size:9px;color:#555">Items: ${rows.length}</span></div>
       <hr class="divider-solid">
-
       <table>
         <thead>
           <tr>
@@ -168,7 +164,6 @@ const buildPrintHtml = (sale, type, overrides = {}) => {
         <tbody>${itemRows}</tbody>
       </table>
       <hr class="divider-dash">
-
       <div class="totals-box">
         <div style="display:flex;justify-content:space-between;font-size:9px;margin-bottom:2px">
           <span>T.Qty: <b>${totalQty}</b></span>
@@ -180,17 +175,13 @@ const buildPrintHtml = (sale, type, overrides = {}) => {
         <div class="sum-row green"><span>Paid:</span><span>PKR ${Number(sale.paidAmount).toLocaleString()}</span></div>
         <div class="sum-row bold sep ${sale.balance > 0 ? "red" : "green"}"><span>Balance:</span><span>PKR ${Number(sale.balance).toLocaleString()}</span></div>
       </div>
-
       <div class="terms">${SHOP_INFO.urduTerms.replace(/\n/g, "<br>")}</div>
       <div class="devby">${SHOP_INFO.devBy}</div>
-
     </body></html>`;
   }
 
-  /* ── A4 / A5 ── */
   const a5 = type === "A5";
   const LINES_PER_PAGE = a5 ? 22 : 28;
-
   const pages = [];
   for (let i = 0; i < rows.length; i += LINES_PER_PAGE) {
     pages.push(rows.slice(i, i + LINES_PER_PAGE));
@@ -198,39 +189,21 @@ const buildPrintHtml = (sale, type, overrides = {}) => {
   if (pages.length === 0) pages.push([]);
 
   const sz = a5
-    ? {
-        title: 14,
-        sub: 8.5,
-        inv: 12,
-        meta: 8,
-        th: 8,
-        td: 8,
-        tot: 9,
-        totB: 10.5,
-      }
-    : {
-        title: 17,
-        sub: 9.5,
-        inv: 14,
-        meta: 9,
-        th: 9,
-        td: 9,
-        tot: 10,
-        totB: 13,
-      };
+    ? { title: 14, sub: 8.5, inv: 12, meta: 8, th: 8, td: 8, tot: 9, totB: 10.5 }
+    : { title: 17, sub: 9.5, inv: 14, meta: 9, th: 9, td: 9, tot: 10, totB: 13 };
 
   const buildPageHtml = (pageRows, pageNum, totalPages, isLastPage) => {
     const itemRows = pageRows
       .map(
         (it, i) =>
           `<tr style="background:${i % 2 === 0 ? "#fff" : "#f7faff"}">
-        <td style="text-align:center">${it.sr}</td>
-        <td>${it.name}</td>
-        <td>${it.uom || "—"}</td>
-        <td style="text-align:right">${it.pcs}</td>
-        <td style="text-align:right">${Number(it.rate).toLocaleString()}</td>
-        <td style="text-align:right"><b>${Number(it.amount).toLocaleString()}</b></td>
-      </tr>`,
+            <td style="text-align:center">${it.sr}</td>
+            <td>${it.name}</td>
+            <td>${it.uom || "—"}</td>
+            <td style="text-align:right">${it.pcs}</td>
+            <td style="text-align:right">${Number(it.rate).toLocaleString()}</td>
+            <td style="text-align:right"><b>${Number(it.amount).toLocaleString()}</b></td>
+          </td>`,
       )
       .join("");
 
@@ -244,9 +217,8 @@ const buildPrintHtml = (sale, type, overrides = {}) => {
       </div>
       <div class="banner">${SHOP_INFO.urduBanner}</div>`;
 
-    const metaHtml =
-      pageNum === 1
-        ? `<div class="meta-strip">
+    const metaHtml = pageNum === 1
+      ? `<div class="meta-strip">
           <div class="meta-left">
             <div class="meta-row"><span class="meta-lbl">Supplier:</span> <span class="meta-val">${customerName}</span></div>
             ${customerPhone ? `<div class="meta-row"><span class="meta-val">${customerPhone}</span></div>` : ""}
@@ -257,7 +229,7 @@ const buildPrintHtml = (sale, type, overrides = {}) => {
             <div class="meta-row"><span class="meta-lbl">Date &amp; Time:</span> <span class="meta-val">${sale.invoiceDate}</span></div>
           </div>
         </div>`
-        : `<div style="display:flex;justify-content:space-between;font-size:${sz.sub}pt;color:#555;margin-bottom:4px;padding:2px 0;border-bottom:1px solid #ddd">
+      : `<div style="display:flex;justify-content:space-between;font-size:${sz.sub}pt;color:#555;margin-bottom:4px;padding:2px 0;border-bottom:1px solid #ddd">
           <span>${customerName}</span>
           <span>Page ${pageNum} of ${totalPages}</span>
           <span>Invoice # ${sale.invoiceNo}</span>
@@ -317,20 +289,14 @@ const buildPrintHtml = (sale, type, overrides = {}) => {
     .banner{background:#555;color:#fff;font-size:${a5 ? "7.5" : "8.5"}pt;text-align:center;padding:${a5 ? "2px 6px" : "3px 8px"};margin:${a5 ? "3px 0" : "4px 0"};font-family:${URDU_FONT};direction:rtl;line-height:2}
     .hdr{text-align:center;border-bottom:2px solid #000;padding-bottom:${a5 ? "5px" : "8px"};margin-bottom:4px}
     .meta-strip{display:flex;justify-content:space-between;align-items:flex-start;border:1px solid #ccc;padding:${a5 ? "4px 8px" : "5px 10px"};margin:${a5 ? "4px 0" : "5px 0"};font-size:${sz.meta}pt}
-    .meta-left{flex:2}
-    .meta-mid{flex:0.5;text-align:center;font-size:${a5 ? "18px" : "22px"};font-weight:900;color:#555}
-    .meta-right{flex:2;text-align:right}
-    .meta-row{margin-bottom:1px}
-    .meta-lbl{color:#555}
-    .meta-val{font-weight:700}
+    .meta-left{flex:2}.meta-mid{flex:0.5;text-align:center;font-size:${a5 ? "18px" : "22px"};font-weight:900;color:#555}.meta-right{flex:2;text-align:right}
+    .meta-row{margin-bottom:1px}.meta-lbl{color:#555}.meta-val{font-weight:700}
     table{width:100%;border-collapse:collapse;margin:${a5 ? "4px 0" : "5px 0"}}
     thead tr{background:#333;color:#fff}
     th{padding:${a5 ? "3px 5px" : "5px 7px"};font-size:${sz.th}pt;font-weight:600;text-align:left}
     td{padding:${a5 ? "2px 5px" : "3px 7px"};font-size:${sz.td}pt;border-bottom:1px solid #e0e0e0}
-    tbody tr:last-child td{border-bottom:2px solid #999}
     .footer-wrap{display:flex;justify-content:space-between;align-items:flex-start;margin-top:${a5 ? "6px" : "10px"};gap:10px}
-    .footer-left{flex:1.5}
-    .footer-right{flex:1;border:1px solid #ccc;padding:${a5 ? "4px 8px" : "5px 10px"}}
+    .footer-left{flex:1.5}.footer-right{flex:1;border:1px solid #ccc;padding:${a5 ? "4px 8px" : "5px 10px"}}
     .footer-stat{font-size:${sz.meta}pt;font-weight:bold;margin-bottom:4px}
     .terms-box{font-family:${URDU_FONT};direction:rtl;font-size:${a5 ? "8" : "9"}pt;color:#444;border:1px dashed #aaa;padding:${a5 ? "3px 6px" : "5px 8px"};margin:${a5 ? "4px 0" : "5px 0"};line-height:2;text-align:right}
     .sig-line{font-size:${sz.sub}pt;margin-top:${a5 ? "8px" : "14px"};border-top:1px solid #999;display:inline-block;padding-top:2px;min-width:120px}
@@ -339,11 +305,7 @@ const buildPrintHtml = (sale, type, overrides = {}) => {
     .sum-row.sep{border-top:2px solid #333;margin-top:2px}
     .red{color:#c00}.green{color:#1a7a1a}
     .devby{text-align:center;font-size:${a5 ? "7" : "8"}pt;color:#888;margin-top:${a5 ? "6px" : "10px"};border-top:1px solid #ddd;padding-top:${a5 ? "4px" : "6px"}}
-    .page{margin-bottom:0}
-    @media print{
-      @page{size:${a5 ? "A5" : "A4"};margin:${a5 ? "4mm" : "8mm"}}
-      body{padding:0}
-    }
+    @media print{@page{size:${a5 ? "A5" : "A4"};margin:${a5 ? "4mm" : "8mm"}}body{padding:0}}
   </style></head><body>${allPagesHtml}</body></html>`;
 };
 
@@ -356,18 +318,15 @@ function PrintOptionsModal({
   hideCustomerFields,
   newCustomerType,
 }) {
-  const [selPrintType, setSelPrintType] = useState(
-    defaultPrintType || "Thermal",
-  );
+  const [selPrintType, setSelPrintType] = useState(defaultPrintType || "Thermal");
   const [custPhone, setCustPhone] = useState("");
   const [custName, setCustName] = useState("");
   const [saving, setSaving] = useState(false);
   const phoneRef = useRef(null);
   const nameRef = useRef(null);
 
-  const cashCustomers = allCustomers.filter(
-    (c) => c.name?.toUpperCase().trim() !== "COUNTER SALE",
-  );
+  const cashCustomers = allCustomers.filter((c) => c.name?.toUpperCase().trim() !== "COUNTER SALE");
+  
   useEffect(() => {
     setTimeout(() => phoneRef.current?.focus(), 80);
   }, []);
@@ -390,6 +349,7 @@ function PrintOptionsModal({
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
   }, [custPhone, custName, selPrintType, saving]);
+
   const handlePhoneChange = (val) => {
     setCustPhone(val);
     if (val.trim().length >= 7) {
@@ -449,165 +409,55 @@ function PrintOptionsModal({
     <div className="scm-overlay">
       <div className="scm-window" style={{ maxWidth: 420 }}>
         <div className="scm-tb">
-          <svg
-            width="13"
-            height="13"
-            viewBox="0 0 16 16"
-            fill="rgba(255,255,255,0.85)"
-          >
+          <svg width="13" height="13" viewBox="0 0 16 16" fill="rgba(255,255,255,0.85)">
             <path d="M2.5 8a.5.5 0 1 0 0-1 .5.5 0 0 0 0 1m4-3h7a1 1 0 0 1 1 1v5a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h1.172a3 3 0 0 0 2.12-.879l.83-.828A1 1 0 0 1 6.827 3h2.344a1 1 0 0 1 .707.293l.828.828A3 3 0 0 0 12.828 5H14a1 1 0 0 1 1 1zM2 4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-1.172a2 2 0 0 1-1.414-.586l-.828-.828A2 2 0 0 0 9.172 2H6.828a2 2 0 0 0-1.414.586l-.828.828A2 2 0 0 1 3.172 4z" />
           </svg>
           <span className="scm-tb-title">Print Options — {sale.invoiceNo}</span>
-          <button className="xp-cap-btn xp-cap-close" onClick={onClose}>
-            ✕
-          </button>
+          <button className="xp-cap-btn xp-cap-close" onClick={onClose}>✕</button>
         </div>
-
-        <div
-          style={{
-            padding: "14px 16px",
-            display: "flex",
-            flexDirection: "column",
-            gap: 12,
-          }}
-        >
+        <div style={{ padding: "14px 16px", display: "flex", flexDirection: "column", gap: 12 }}>
           {!hideCustomerFields && (
             <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
               <label className="xp-label">Phone Number (optional)</label>
-              <input
-                ref={phoneRef}
-                className="xp-input"
-                value={custPhone}
-                onChange={(e) => handlePhoneChange(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    nameRef.current?.focus();
-                  }
-                }}
-                placeholder="e.g. 0300-1234567"
-                autoComplete="off"
-              />
+              <input ref={phoneRef} className="xp-input" value={custPhone} onChange={(e) => handlePhoneChange(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); e.stopPropagation(); nameRef.current?.focus(); } }} placeholder="e.g. 0300-1234567" autoComplete="off" />
             </div>
           )}
-
           {!hideCustomerFields && (
             <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-              <label className="xp-label">
-                Customer Name (optional)
-                {custName && custPhone && (
-                  <span
-                    style={{
-                      marginLeft: 8,
-                      fontSize: 11,
-                      color: "#15803d",
-                      fontWeight: 600,
-                    }}
-                  >
-                    ✓ Already saved
-                  </span>
-                )}
-                {custPhone.trim().length >= 7 && !custName && (
-                  <span
-                    style={{
-                      marginLeft: 8,
-                      fontSize: 11,
-                      color: "#b45309",
-                      fontWeight: 600,
-                    }}
-                  >
-                    New — will be saved
-                  </span>
-                )}
-              </label>
-              <input
-                ref={nameRef}
-                className="xp-input"
-                value={custName}
-                onChange={(e) => setCustName(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    handlePrint();
-                  }
-                }}
-                placeholder="Customer ka naam…"
-              />
+              <label className="xp-label">Customer Name (optional){custName && custPhone && <span style={{ marginLeft: 8, fontSize: 11, color: "#15803d", fontWeight: 600 }}>✓ Already saved</span>}{custPhone.trim().length >= 7 && !custName && <span style={{ marginLeft: 8, fontSize: 11, color: "#b45309", fontWeight: 600 }}>New — will be saved</span>}</label>
+              <input ref={nameRef} className="xp-input" value={custName} onChange={(e) => setCustName(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handlePrint(); } }} placeholder="Customer ka naam…" />
             </div>
           )}
-
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             <label className="xp-label">Print Format</label>
             <div style={{ display: "flex", gap: 8 }}>
               {["Thermal", "A5", "A4"].map((pt) => (
-                <label
-                  key={pt}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 5,
-                    padding: "6px 14px",
-                    border: `2px solid ${selPrintType === pt ? "var(--xp-blue-mid)" : "var(--xp-silver-2)"}`,
-                    borderRadius: 4,
-                    background:
-                      selPrintType === pt ? "#e8f0fb" : "var(--xp-silver-3)",
-                    cursor: "pointer",
-                    fontWeight: selPrintType === pt ? 700 : 400,
-                    color: selPrintType === pt ? "var(--xp-blue-dark)" : "#444",
-                    fontSize: 13,
-                  }}
-                >
-                  <input
-                    type="radio"
-                    name="po-pt"
-                    checked={selPrintType === pt}
-                    onChange={() => setSelPrintType(pt)}
-                    style={{ display: "none" }}
-                  />
+                <label key={pt} style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 14px", border: `2px solid ${selPrintType === pt ? "var(--xp-blue-mid)" : "var(--xp-silver-2)"}`, borderRadius: 4, background: selPrintType === pt ? "#e8f0fb" : "var(--xp-silver-3)", cursor: "pointer", fontWeight: selPrintType === pt ? 700 : 400, color: selPrintType === pt ? "var(--xp-blue-dark)" : "#444", fontSize: 13 }}>
+                  <input type="radio" name="po-pt" checked={selPrintType === pt} onChange={() => setSelPrintType(pt)} style={{ display: "none" }} />
                   {pt === "Thermal" ? "🖨" : pt === "A5" ? "📄" : "📋"} {pt}
                 </label>
               ))}
             </div>
           </div>
         </div>
-
         <div className="scm-sep" />
-
         <div className="scm-actions">
-          <button
-            className="xp-btn xp-btn-primary"
-            style={{ minWidth: 130 }}
-            onClick={handlePrint}
-            disabled={saving}
-          >
-            {saving ? "Saving…" : "🖨 Print"}
-          </button>
-          <button
-            className="xp-btn"
-            style={{ minWidth: 110 }}
-            onClick={onClose}
-          >
-            ↩ Cancel
-          </button>
+          <button className="xp-btn xp-btn-primary" style={{ minWidth: 130 }} onClick={handlePrint} disabled={saving}>{saving ? "Saving…" : "🖨 Print"}</button>
+          <button className="xp-btn" style={{ minWidth: 110 }} onClick={onClose}>↩ Cancel</button>
         </div>
-        <div className="scm-hint">
-          Enter (name field) = Print &nbsp;|&nbsp; Esc = Cancel
-        </div>
+        <div className="scm-hint">Enter (name field) = Print &nbsp;|&nbsp; Esc = Cancel</div>
       </div>
     </div>
   );
 }
+
 const doPrint = (sale, type, overrides = {}) => {
-  const w = window.open(
-    "",
-    "_blank",
-    type === "Thermal" ? "width=420,height=640" : "width=900,height=700",
-  );
+  const w = window.open("", "_blank", type === "Thermal" ? "width=420,height=640" : "width=900,height=700");
   w.document.write(buildPrintHtml(sale, type, overrides));
   w.document.close();
   setTimeout(() => w.print(), 400);
 };
+
 /* ══════════════════════════════════════════════════════════
    SAVE CONFIRM MODAL — XP Theme
 ══════════════════════════════════════════════════════════ */
@@ -623,22 +473,13 @@ function SaveConfirmModal({
   const paidRef = useRef(null);
 
   useEffect(() => {
-    setTimeout(() => {
-      paidRef.current?.focus();
-      paidRef.current?.select();
-    }, 80);
+    setTimeout(() => { paidRef.current?.focus(); paidRef.current?.select(); }, 80);
   }, []);
 
   useEffect(() => {
     const h = (e) => {
-      if (e.key === "Escape") {
-        e.preventDefault();
-        onClose();
-      }
-      if (e.key === "Enter" && document.activeElement === paidRef.current) {
-        e.preventDefault();
-        handleConfirm(true);
-      }
+      if (e.key === "Escape") { e.preventDefault(); onClose(); }
+      if (e.key === "Enter" && document.activeElement === paidRef.current) { e.preventDefault(); handleConfirm(true); }
     };
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
@@ -668,126 +509,32 @@ function SaveConfirmModal({
     <div className="scm-overlay">
       <div className="scm-window">
         <div className="scm-tb">
-          <svg
-            width="13"
-            height="13"
-            viewBox="0 0 16 16"
-            fill="rgba(255,255,255,0.85)"
-          >
+          <svg width="13" height="13" viewBox="0 0 16 16" fill="rgba(255,255,255,0.85)">
             <path d="M13.854 3.646a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 1 1 .708-.708L6.5 10.293l6.646-6.647a.5.5 0 0 1 .708 0" />
           </svg>
-          <span className="scm-tb-title">
-            Raw Purchase Invoice— {salePayload.invoiceNo} &nbsp;|&nbsp;{" "}
-            {salePayload.customerName}
-          </span>
-          <button className="xp-cap-btn xp-cap-close" onClick={onClose}>
-            ✕
-          </button>
+          <span className="scm-tb-title">Raw Purchase Invoice— {salePayload.invoiceNo} &nbsp;|&nbsp; {salePayload.customerName}</span>
+          <button className="xp-cap-btn xp-cap-close" onClick={onClose}>✕</button>
         </div>
-
         <div className="scm-meta">
-          <span>
-            <b>Invoice:</b> {salePayload.invoiceNo}
-          </span>
-          <span>
-            <b>Date:</b> {salePayload.invoiceDate}
-          </span>
-          <span>
-            <b>Supplier:</b> {salePayload.customerName}
-          </span>
-          <span>
-            <b>Payment:</b> {salePayload.paymentMode}
-          </span>
-          <span>
-            <b>Items:</b> {salePayload.items.length}
-          </span>
+          <span><b>Invoice:</b> {salePayload.invoiceNo}</span>
+          <span><b>Date:</b> {salePayload.invoiceDate}</span>
+          <span><b>Supplier:</b> {salePayload.customerName}</span>
+          <span><b>Payment:</b> {salePayload.paymentMode}</span>
+          <span><b>Items:</b> {salePayload.items.length}</span>
         </div>
-
         <div className="scm-amounts">
-          <div className="scm-box">
-            <div className="scm-box-label">Bill Amount</div>
-            <div className="scm-box-val">
-              {Number(billTotal).toLocaleString("en-PK")}
-            </div>
-          </div>
-
-          <div className="scm-box" style={{ borderLeft: "none" }}>
-            <div className="scm-box-label">Paid</div>
-            <input
-              ref={paidRef}
-              type="text"
-              className="scm-recv-input"
-              value={paidAmount}
-              onChange={(e) => setPaidAmount(e.target.value)}
-              onFocus={(e) => e.target.select()}
-            />
-          </div>
-
-          <div
-            className={`scm-box ${change >= 0 ? "scm-box-change" : "scm-box-due"}`}
-            style={{ borderLeft: "none" }}
-          >
-            <div className="scm-box-label">
-              {change >= 0 ? "Change" : "Balance Due"}
-            </div>
-            <div className="scm-box-val">
-              {change < 0 && (
-                <span style={{ fontSize: 22, marginRight: 2 }}>−</span>
-              )}
-              {Math.abs(change).toLocaleString("en-PK")}
-            </div>
-          </div>
+          <div className="scm-box"><div className="scm-box-label">Bill Amount</div><div className="scm-box-val">{Number(billTotal).toLocaleString("en-PK")}</div></div>
+          <div className="scm-box" style={{ borderLeft: "none" }}><div className="scm-box-label">Paid</div><input ref={paidRef} type="text" className="scm-recv-input" value={paidAmount} onChange={(e) => setPaidAmount(e.target.value)} onFocus={(e) => e.target.select()} /></div>
+          <div className={`scm-box ${change >= 0 ? "scm-box-change" : "scm-box-due"}`} style={{ borderLeft: "none" }}><div className="scm-box-label">{change >= 0 ? "Change" : "Balance Due"}</div><div className="scm-box-val">{change < 0 && <span style={{ fontSize: 22, marginRight: 2 }}>−</span>}{Math.abs(change).toLocaleString("en-PK")}</div></div>
         </div>
-
-        <div className="scm-print-row">
-          <span style={{ color: "#555", marginRight: 4, fontWeight: 700 }}>
-            Print:
-          </span>
-          {["Thermal", "A5", "A4"].map((pt) => (
-            <label key={pt}>
-              <input
-                type="radio"
-                name="scm-pt"
-                checked={selPrintType === pt}
-                onChange={() => setSelPrintType(pt)}
-              />
-              {pt}
-            </label>
-          ))}
-        </div>
-
+        <div className="scm-print-row"><span style={{ color: "#555", marginRight: 4, fontWeight: 700 }}>Print:</span>{["Thermal", "A5", "A4"].map((pt) => (<label key={pt}><input type="radio" name="scm-pt" checked={selPrintType === pt} onChange={() => setSelPrintType(pt)} />{pt}</label>))}</div>
         <div className="scm-sep" />
-
         <div className="scm-actions">
-          <button
-            className="xp-btn xp-btn-primary"
-            style={{ minWidth: 140 }}
-            onClick={() => handleConfirm(true)}
-            disabled={saving}
-          >
-            🖨 Save and Print
-          </button>
-          <button
-            className="xp-btn xp-btn-success"
-            style={{ minWidth: 110 }}
-            onClick={() => handleConfirm(false)}
-            disabled={saving}
-          >
-            💾 Save only
-          </button>
-          <button
-            className="xp-btn"
-            style={{ minWidth: 130 }}
-            onClick={onClose}
-          >
-            ↩ Return to Invoice
-          </button>
+          <button className="xp-btn xp-btn-primary" style={{ minWidth: 140 }} onClick={() => handleConfirm(true)} disabled={saving}>🖨 Save and Print</button>
+          <button className="xp-btn xp-btn-success" style={{ minWidth: 110 }} onClick={() => handleConfirm(false)} disabled={saving}>💾 Save only</button>
+          <button className="xp-btn" style={{ minWidth: 130 }} onClick={onClose}>↩ Return to Invoice</button>
         </div>
-
-        <div className="scm-hint">
-          ↵ Enter (in Paid field) = Save &amp; Print &nbsp;|&nbsp; Esc =
-          Return to Invoice
-        </div>
+        <div className="scm-hint">↵ Enter (in Paid field) = Save &amp; Print &nbsp;|&nbsp; Esc = Return to Invoice</div>
       </div>
     </div>
   );
@@ -807,62 +554,27 @@ function SearchModal({ allProducts, onSelect, onClose }) {
   const rCompany = useRef(null);
   const tbodyRef = useRef(null);
 
-  // CRITICAL: Filter products where company name is exactly "raw" (case-insensitive)
   const filterRawCompanyProducts = useCallback((products) => {
     return products.filter((p) => {
       const companyName = (p.company || "").toLowerCase();
-      const isRaw = companyName === "raw";
-      if (isRaw) {
-        console.log("Raw product found:", p.description, "Company:", p.company);
-      }
-      return isRaw;
+      return companyName === "raw";
     });
   }, []);
 
   const buildFlat = useCallback((products, d, c, co) => {
     const res = [];
-    const ld = d.trim().toLowerCase(),
-      lc = c.trim().toLowerCase(),
-      lo = co.trim().toLowerCase();
-    
-    // ONLY use products where company = "raw"
+    const ld = d.trim().toLowerCase(), lc = c.trim().toLowerCase(), lo = co.trim().toLowerCase();
     const rawFiltered = filterRawCompanyProducts(products);
     
-    console.log("Products with company 'raw':", rawFiltered.length);
-    
     rawFiltered.forEach((p) => {
-      const ok =
-        (!ld ||
-          p.description?.toLowerCase().includes(ld) ||
-          p.code?.toLowerCase().includes(ld)) &&
-        (!lc || p.category?.toLowerCase().includes(lc)) &&
-        (!lo || p.company?.toLowerCase().includes(lo));
+      const ok = (!ld || p.description?.toLowerCase().includes(ld) || p.code?.toLowerCase().includes(ld)) && (!lc || p.category?.toLowerCase().includes(lc)) && (!lo || p.company?.toLowerCase().includes(lo));
       if (!ok) return;
-      const _name = [p.category, p.description, p.company]
-        .filter(Boolean)
-        .join(" ");
-      if (p.packingInfo?.length > 0)
-        p.packingInfo.forEach((pk, i) =>
-          res.push({
-            ...p,
-            _pi: i,
-            _meas: pk.measurement,
-            _rate: pk.purchaseRate || pk.costRate || 0,
-            _pack: pk.packing,
-            _stock: pk.openingQty || 0,
-            _name,
-          }),
-        );
-      else
-        res.push({
-          ...p,
-          _pi: 0,
-          _meas: "",
-          _rate: 0,
-          _pack: 1,
-          _stock: 0,
-          _name,
-        });
+      const _name = [p.category, p.description, p.company].filter(Boolean).join(" ");
+      if (p.packingInfo?.length > 0) {
+        p.packingInfo.forEach((pk, i) => res.push({ ...p, _pi: i, _meas: pk.measurement, _rate: pk.purchaseRate || pk.costRate || 0, _pack: pk.packing, _stock: pk.openingQty || 0, _name }));
+      } else {
+        res.push({ ...p, _pi: 0, _meas: "", _rate: 0, _pack: 1, _stock: 0, _name });
+      }
     });
     return res;
   }, [filterRawCompanyProducts]);
@@ -875,116 +587,41 @@ function SearchModal({ allProducts, onSelect, onClose }) {
 
   useEffect(() => {
     const rawOnly = filterRawCompanyProducts(allProducts);
-    const f = buildFlat(rawOnly, desc, cat, company);
-    setRows(f);
-    setHiIdx(f.length > 0 ? 0 : -1);
+    setRows(buildFlat(rawOnly, desc, cat, company));
+    setHiIdx(rows.length > 0 ? 0 : -1);
   }, [desc, cat, company, allProducts, filterRawCompanyProducts, buildFlat]);
 
   useEffect(() => {
-    if (tbodyRef.current && hiIdx >= 0)
-      tbodyRef.current.children[hiIdx]?.scrollIntoView({ block: "nearest" });
+    if (tbodyRef.current && hiIdx >= 0) tbodyRef.current.children[hiIdx]?.scrollIntoView({ block: "nearest" });
   }, [hiIdx]);
 
   const fk = (e, nr) => {
-    if (e.key === "Escape") {
-      onClose();
-      return;
-    }
-    if (e.key === "Enter" || e.key === "ArrowDown") {
-      e.preventDefault();
-      nr
-        ? nr.current?.focus()
-        : (tbodyRef.current?.focus(), setHiIdx((h) => Math.max(0, h)));
-    }
+    if (e.key === "Escape") { onClose(); return; }
+    if (e.key === "Enter" || e.key === "ArrowDown") { e.preventDefault(); nr ? nr.current?.focus() : (tbodyRef.current?.focus(), setHiIdx((h) => Math.max(0, h))); }
   };
   const tk = (e) => {
-    if (e.key === "ArrowDown") {
-      e.preventDefault();
-      setHiIdx((i) => Math.min(i + 1, rows.length - 1));
-    }
-    if (e.key === "ArrowUp") {
-      e.preventDefault();
-      setHiIdx((i) => Math.max(i - 1, 0));
-    }
-    if (e.key === "Enter") {
-      e.preventDefault();
-      if (hiIdx >= 0 && rows[hiIdx]) onSelect(rows[hiIdx]);
-    }
+    if (e.key === "ArrowDown") { e.preventDefault(); setHiIdx((i) => Math.min(i + 1, rows.length - 1)); }
+    if (e.key === "ArrowUp") { e.preventDefault(); setHiIdx((i) => Math.max(i - 1, 0)); }
+    if (e.key === "Enter") { e.preventDefault(); if (hiIdx >= 0 && rows[hiIdx]) onSelect(rows[hiIdx]); }
     if (e.key === "Escape") onClose();
-    if (e.key === "Tab") {
-      e.preventDefault();
-      rDesc.current?.focus();
-    }
+    if (e.key === "Tab") { e.preventDefault(); rDesc.current?.focus(); }
   };
 
   return (
-    <div
-      className="xp-overlay"
-      onClick={(e) => e.target === e.currentTarget && onClose()}
-    >
+    <div className="xp-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="xp-modal xp-modal-lg">
         <div className="xp-modal-tb">
-          <svg
-            width="13"
-            height="13"
-            viewBox="0 0 16 16"
-            fill="rgba(255,255,255,0.8)"
-          >
+          <svg width="13" height="13" viewBox="0 0 16 16" fill="rgba(255,255,255,0.8)">
             <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.044.06.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1 1 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0" />
           </svg>
           <span className="xp-modal-title">Search Raw Products (Company = "RAW")</span>
-          <button className="xp-cap-btn xp-cap-close" onClick={onClose}>
-            ✕
-          </button>
+          <button className="xp-cap-btn xp-cap-close" onClick={onClose}>✕</button>
         </div>
         <div className="cs-modal-filters">
-          <div className="cs-modal-filter-grp">
-            <label className="xp-label">Description / Code</label>
-            <input
-              ref={rDesc}
-              type="text"
-              className="xp-input"
-              value={desc}
-              onChange={(e) => setDesc(e.target.value)}
-              onKeyDown={(e) => fk(e, rCat)}
-              placeholder="Name / code…"
-              autoComplete="off"
-            />
-          </div>
-          <div className="cs-modal-filter-grp">
-            <label className="xp-label">Category</label>
-            <input
-              ref={rCat}
-              type="text"
-              className="xp-input"
-              value={cat}
-              onChange={(e) => setCat(e.target.value)}
-              onKeyDown={(e) => fk(e, rCompany)}
-              placeholder="e.g. ELECTRONICS"
-              autoComplete="off"
-            />
-          </div>
-          <div className="cs-modal-filter-grp">
-            <label className="xp-label">Company</label>
-            <input
-              ref={rCompany}
-              type="text"
-              className="xp-input"
-              value={company}
-              onChange={(e) => setCompany(e.target.value)}
-              onKeyDown={(e) => fk(e, null)}
-              placeholder="Filter by company..."
-              autoComplete="off"
-            />
-          </div>
-          <div style={{ display: "flex", alignItems: "flex-end", gap: 6 }}>
-            <span style={{ fontSize: "var(--xp-fs-xs)", color: "#555" }}>
-              {rows.length} product(s) with company "RAW"
-            </span>
-            <button className="xp-btn xp-btn-sm" onClick={onClose}>
-              Close
-            </button>
-          </div>
+          <div className="cs-modal-filter-grp"><label className="xp-label">Description / Code</label><input ref={rDesc} type="text" className="xp-input" value={desc} onChange={(e) => setDesc(e.target.value)} onKeyDown={(e) => fk(e, rCat)} placeholder="Name / code…" autoComplete="off" /></div>
+          <div className="cs-modal-filter-grp"><label className="xp-label">Category</label><input ref={rCat} type="text" className="xp-input" value={cat} onChange={(e) => setCat(e.target.value)} onKeyDown={(e) => fk(e, rCompany)} placeholder="e.g. ELECTRONICS" autoComplete="off" /></div>
+          <div className="cs-modal-filter-grp"><label className="xp-label">Company</label><input ref={rCompany} type="text" className="xp-input" value={company} onChange={(e) => setCompany(e.target.value)} onKeyDown={(e) => fk(e, null)} placeholder="Filter by company..." autoComplete="off" /></div>
+          <div style={{ display: "flex", alignItems: "flex-end", gap: 6 }}><span style={{ fontSize: "var(--xp-fs-xs)", color: "#555" }}>{rows.length} product(s) with company "RAW"</span><button className="xp-btn xp-btn-sm" onClick={onClose}>Close</button></div>
         </div>
         <div className="xp-modal-body" style={{ padding: 0 }}>
           <div className="xp-table-panel" style={{ border: "none" }}>
@@ -1003,48 +640,45 @@ function SearchModal({ allProducts, onSelect, onClose }) {
                   </tr>
                 </thead>
                 <tbody ref={tbodyRef} tabIndex={0} onKeyDown={tk}>
-                  {rows.length === 0 && (
-                    <tr>
-                      <td colSpan={8} className="xp-empty">
-                        ⚠️ No products found with company name "RAW". Please check your product data.
-                      </td>
-                    </tr>
-                  )}
+                  {rows.length === 0 && <tr><td colSpan={8} className="xp-empty">⚠️ No products found with company name "RAW". Please check your product data.</td></tr>}
                   {rows.map((r, i) => (
-                    <tr
-                      key={`${r._id}-${r._pi}`}
-                      style={{
-                        background: i === hiIdx ? "#c3d9f5" : undefined,
-                      }}
-                      onClick={() => setHiIdx(i)}
-                      onDoubleClick={() => onSelect(r)}
-                    >
-                      <td className="text-muted">{i + 1}</td>
-                      <td>
-                        <span className="xp-code">{r.code}</span>
-                      </td>
-                      <td>
-                        <button className="xp-link-btn">{r._name}</button>
-                      </td>
-                      <td className="text-muted">{r._meas}</td>
-                      <td className="r xp-amt">
-                        {Number(r._rate).toLocaleString("en-PK")}
-                      </td>
-                      <td className="r">{r._stock}</td>
-                      <td className="r">{r._pack}</td>
-                      <td className="text-muted">{r.rackNo || "—"}</td>
-                    </tr>
+                     
+                     <tr
+  key={`${r._id}-${r._pi}`}
+  style={{ background: i === hiIdx ? "#c3d9f5" : undefined }}
+  onClick={() => setHiIdx(i)}
+  onDoubleClick={() => onSelect(r)}
+>
+  <td className="text-muted">{i + 1}</td>
+
+  <td>
+    <span className="xp-code">{r.code}</span>
+  </td>
+
+  <td>
+    <button className="xp-link-btn">{r._name}</button>
+  </td>
+
+  <td className="text-muted">{r._meas}</td>
+
+  <td className="r xp-amt">
+    {Number(r._rate).toLocaleString("en-PK")}
+  </td>
+
+  <td className="r">{r._stock}</td>
+  <td className="r">{r._pack}</td>
+
+  <td className="text-muted">
+    {r.rackNo || "—"}
+  </td>
+</tr>
                   ))}
                 </tbody>
               </table>
             </div>
           </div>
         </div>
-        <div className="cs-modal-hint">
-          ↑↓ navigate &nbsp;|&nbsp; Enter / Double-click = select &nbsp;|&nbsp;
-          Esc = close &nbsp;|&nbsp; Tab = filters &nbsp;|&nbsp; 
-          <strong style={{color: "green"}}>🔍 Only showing products with Company = "RAW"</strong>
-        </div>
+        <div className="cs-modal-hint">↑↓ navigate &nbsp;|&nbsp; Enter / Double-click = select &nbsp;|&nbsp; Esc = close &nbsp;|&nbsp; Tab = filters &nbsp;|&nbsp; <strong style={{color: "green"}}>🔍 Only showing products with Company = "RAW"</strong></div>
       </div>
     </div>
   );
@@ -1056,98 +690,49 @@ function SearchModal({ allProducts, onSelect, onClose }) {
 function HoldPreviewModal({ bill, onResume, onClose }) {
   if (!bill) return null;
   return (
-    <div
-      className="xp-overlay"
-      onClick={(e) => e.target === e.currentTarget && onClose()}
-    >
+    <div className="xp-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="xp-modal" style={{ width: 560 }}>
-        <div className="xp-modal-tb">
-          <span className="xp-modal-title">Hold Bill — {bill.invoiceNo}</span>
-          <button className="xp-cap-btn xp-cap-close" onClick={onClose}>
-            ✕
-          </button>
-        </div>
+        <div className="xp-modal-tb"><span className="xp-modal-title">Hold Bill — {bill.invoiceNo}</span><button className="xp-cap-btn xp-cap-close" onClick={onClose}>✕</button></div>
         <div className="xp-modal-body" style={{ padding: 8 }}>
-          <div
-            style={{
-              marginBottom: 6,
-              display: "flex",
-              gap: 16,
-              fontSize: "var(--xp-fs-xs)",
-            }}
-          >
-            <span>
-              <b>Supplier:</b> {bill.buyerName}
-            </span>
-            <span>
-              <b>Items:</b> {bill.items.length}
-            </span>
-            <span>
-              <b>Amount:</b>{" "}
-              <span style={{ color: "var(--xp-blue-dark)", fontWeight: 700 }}>
-                {Number(bill.amount).toLocaleString("en-PK")}
-              </span>
-            </span>
+          <div style={{ marginBottom: 6, display: "flex", gap: 16, fontSize: "var(--xp-fs-xs)" }}>
+            <span><b>Supplier:</b> {bill.buyerName}</span><span><b>Items:</b> {bill.items.length}</span><span><b>Amount:</b> <span style={{ color: "var(--xp-blue-dark)", fontWeight: 700 }}>{Number(bill.amount).toLocaleString("en-PK")}</span></span>
           </div>
           <div className="xp-table-panel" style={{ border: "none" }}>
             <div className="xp-table-scroll" style={{ maxHeight: 300 }}>
-              <table className="xp-table">
-                <thead>
-                  <tr>
-                    <th>#</th>
-                    <th>Code</th>
-                    <th>Name</th>
-                    <th>UOM</th>
-                    <th className="r">Pcs</th>
-                    <th className="r">Rate</th>
-                    <th className="r">Amount</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {bill.items.map((r, i) => (
-                    <tr key={i}>
-                      <td className="text-muted">{i + 1}</td>
-                      <td className="text-muted">{r.code}</td>
-                      <td>{r.name}</td>
-                      <td className="text-muted">{r.uom}</td>
-                      <td className="r">{r.pcs}</td>
-                      <td className="r">
-                        {Number(r.rate).toLocaleString("en-PK")}
-                      </td>
-                      <td
-                        className="r"
-                        style={{
-                          color: "var(--xp-blue-dark)",
-                          fontWeight: 700,
-                        }}
-                      >
-                        {Number(r.amount).toLocaleString("en-PK")}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+             <tbody>
+  {bill.items.map((r, i) => (
+    <tr key={i}>
+      <td className="text-muted">{i + 1}</td>
+
+      <td className="text-muted">{r.code}</td>
+
+      <td>{r.name}</td>
+
+      <td className="text-muted">{r.uom}</td>
+
+      <td className="r">{r.pcs}</td>
+
+      <td className="r">
+        {Number(r.rate).toLocaleString("en-PK")}
+      </td>
+
+      <td
+        className="r"
+        style={{ color: "var(--xp-blue-dark)", fontWeight: 700 }}
+      >
+        {Number(r.amount).toLocaleString("en-PK")}
+      </td>
+    </tr>
+  ))}
+</tbody>
+            
+         
             </div>
           </div>
         </div>
-        <div
-          style={{
-            display: "flex",
-            gap: 6,
-            padding: "6px 10px",
-            borderTop: "1px solid var(--xp-silver-5)",
-            justifyContent: "flex-end",
-          }}
-        >
-          <button className="xp-btn xp-btn-sm" onClick={onClose}>
-            Cancel
-          </button>
-          <button
-            className="xp-btn xp-btn-primary xp-btn-sm"
-            onClick={() => onResume(bill.id)}
-          >
-            Resume This Bill
-          </button>
+        <div style={{ display: "flex", gap: 6, padding: "6px 10px", borderTop: "1px solid var(--xp-silver-5)", justifyContent: "flex-end" }}>
+          <button className="xp-btn xp-btn-sm" onClick={onClose}>Cancel</button>
+          <button className="xp-btn xp-btn-primary xp-btn-sm" onClick={() => onResume(bill.id)}>Resume This Bill</button>
         </div>
       </div>
     </div>
@@ -1169,7 +754,6 @@ function SupplierDropdown({ allSuppliers, value, displayName, supplierType, onSe
   const inputRef = useRef(null);
   const parentRef = useRef(null);
 
-  // Show ALL suppliers (filter by type if needed)
   const filteredSuppliers = allSuppliers.filter((c) => {
     const t = (c.customerType || c.type || "").toLowerCase();
     const allowed = allowedTypes || ["supplier", "raw-purchase", "credit"];
@@ -1192,11 +776,9 @@ function SupplierDropdown({ allSuppliers, value, displayName, supplierType, onSe
       setShowDropdown(false);
       return;
     }
-
     const matches = getSuggestions(originalQuery);
     setSuggestions(matches);
     setShowDropdown(matches.length > 0);
-    
     if (!isNavigating && matches.length > 0 && matches[0].name) {
       const remaining = matches[0].name.slice(originalQuery.length);
       setGhost(remaining);
@@ -1224,73 +806,37 @@ function SupplierDropdown({ allSuppliers, value, displayName, supplierType, onSe
       setOriginalQuery(fullName);
       setGhost("");
       setIsNavigating(false);
-      
       const matchedSupplier = suggestions[0];
-      if (matchedSupplier) {
-        selectSupplier(matchedSupplier);
-      }
+      if (matchedSupplier) selectSupplier(matchedSupplier);
       return;
     }
     
     if (e.key === "ArrowDown") {
       e.preventDefault();
-      
       if (suggestions.length === 0) return;
-      
       setIsNavigating(true);
       setShowDropdown(true);
-      
-      let newIndex;
-      if (selectedSuggestionIndex === -1) {
-        newIndex = 0;
-      } else {
-        newIndex = selectedSuggestionIndex + 1;
-        if (newIndex >= suggestions.length) {
-          newIndex = 0;
-        }
-      }
-      
+      let newIndex = selectedSuggestionIndex === -1 ? 0 : (selectedSuggestionIndex + 1) % suggestions.length;
       setSelectedSuggestionIndex(newIndex);
-      
       const selectedSupplier = suggestions[newIndex];
-      if (selectedSupplier) {
-        setQuery(selectedSupplier.name);
-        setGhost("");
-      }
+      if (selectedSupplier) { setQuery(selectedSupplier.name); setGhost(""); }
       return;
     }
     
     if (e.key === "ArrowUp") {
       e.preventDefault();
-      
       if (suggestions.length === 0) return;
-      
       setIsNavigating(true);
       setShowDropdown(true);
-      
-      let newIndex;
-      if (selectedSuggestionIndex === -1) {
-        newIndex = suggestions.length - 1;
-      } else {
-        newIndex = selectedSuggestionIndex - 1;
-        if (newIndex < 0) {
-          newIndex = suggestions.length - 1;
-        }
-      }
-      
+      let newIndex = selectedSuggestionIndex === -1 ? suggestions.length - 1 : (selectedSuggestionIndex - 1 + suggestions.length) % suggestions.length;
       setSelectedSuggestionIndex(newIndex);
-      
       const selectedSupplier = suggestions[newIndex];
-      if (selectedSupplier) {
-        setQuery(selectedSupplier.name);
-        setGhost("");
-      }
+      if (selectedSupplier) { setQuery(selectedSupplier.name); setGhost(""); }
       return;
     }
     
     if (e.key === "Enter") {
       e.preventDefault();
-      
       if (selectedSuggestionIndex >= 0 && suggestions[selectedSuggestionIndex]) {
         selectSupplier(suggestions[selectedSuggestionIndex]);
       } else if (suggestions.length > 0 && suggestions[0]) {
@@ -1329,196 +875,75 @@ function SupplierDropdown({ allSuppliers, value, displayName, supplierType, onSe
   };
 
   const typeStyle = supplierType && TYPE_COLORS[supplierType]
-    ? {
-        background: TYPE_COLORS[supplierType].bg,
-        color: TYPE_COLORS[supplierType].color,
-        border: `1px solid ${TYPE_COLORS[supplierType].border}`,
-      }
+    ? { background: TYPE_COLORS[supplierType].bg, color: TYPE_COLORS[supplierType].color, border: `1px solid ${TYPE_COLORS[supplierType].border}` }
     : null;
 
   return (
     <div style={{ position: "relative", flex: 1 }}>
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 4,
-          position: "relative",
-        }}
-      >
-        {typeStyle && (
-          <span className="cdd-type-badge" style={typeStyle}>
-            {supplierType}
-          </span>
-        )}
-
-        <div 
-          ref={parentRef}
-          style={{ 
-            position: "relative", 
-            flex: 1,
-            background: isFocused ? "#fffbe6" : "transparent",
-            borderRadius: "4px",
-            transition: "background 0.15s ease",
-          }}
-        >
+      <div style={{ display: "flex", alignItems: "center", gap: 4, position: "relative" }}>
+        {typeStyle && <span className="cdd-type-badge" style={typeStyle}>{supplierType}</span>}
+        <div ref={parentRef} style={{ position: "relative", flex: 1, background: isFocused ? "#fffbe6" : "transparent", borderRadius: "4px", transition: "background 0.15s ease" }}>
           {ghost && !isNavigating && (
-            <div
-              style={{
-                position: "absolute",
-                left: 0,
-                top: "50%",
-                transform: "translateY(-50%)",
-                pointerEvents: "none",
-                whiteSpace: "nowrap",
-                fontSize: "13px",
-                fontFamily: "inherit",
-                display: "flex",
-                zIndex: 2,
-                color: "#a0aec0",
-                opacity: 1,
-                backgroundColor: "transparent",
-                paddingLeft: "4px",
-              }}
-            >
+            <div style={{ position: "absolute", left: 0, top: "50%", transform: "translateY(-50%)", pointerEvents: "none", whiteSpace: "nowrap", fontSize: "13px", fontFamily: "inherit", display: "flex", zIndex: 2, color: "#a0aec0", opacity: 1, backgroundColor: "transparent", paddingLeft: "4px" }}>
               <span style={{ visibility: "hidden", opacity: 1 }}>{originalQuery}</span>
               <span style={{ opacity: 1, color: "#a0aec0" }}>{ghost}</span>
             </div>
           )}
-          
-          <input
-            ref={inputRef}
-            className="sl-cust-input cdd-input"
-            style={{
-              flex: 1,
-              minWidth: 0,
-              cursor: "text",
-              background: "transparent",
-              position: "relative",
-              zIndex: 1,
-              width: "100%",
-              border: "none",
-              outline: "none",
-              padding: "4px",
-            }}
-            value={value ? query || displayName : query}
-            onChange={handleChange}
-            onKeyDown={handleKeyDown}
-            onFocus={() => setIsFocused(true)}
-            onBlur={() => setIsFocused(false)}
-            autoComplete="off"
-            spellCheck={false}
-          />
+          <input ref={inputRef} className="sl-cust-input cdd-input" style={{ flex: 1, minWidth: 0, cursor: "text", background: "transparent", position: "relative", zIndex: 1, width: "100%", border: "none", outline: "none", padding: "4px" }} value={value ? query || displayName : query} onChange={handleChange} onKeyDown={handleKeyDown} onFocus={() => setIsFocused(true)} onBlur={() => setIsFocused(false)} autoComplete="off" spellCheck={false} />
         </div>
-
         {value && (
-          <button
-            className="xp-btn xp-btn-sm xp-btn-danger"
-            style={{
-              height: 22,
-              padding: "0 5px",
-              fontSize: 10,
-              flexShrink: 0,
-            }}
-            onMouseDown={(e) => {
-              e.preventDefault();
-              onClear();
-              setQuery("");
-              setOriginalQuery("");
-              setGhost("");
-              setSuggestions([]);
-              setSelectedSuggestionIndex(-1);
-              setShowDropdown(false);
-              setIsNavigating(false);
-              inputRef.current?.focus();
-            }}
-            title="Clear"
-          >
-            ✕
-          </button>
+          <button className="xp-btn xp-btn-sm xp-btn-danger" style={{ height: 22, padding: "0 5px", fontSize: 10, flexShrink: 0 }} onMouseDown={(e) => { e.preventDefault(); onClear(); setQuery(""); setOriginalQuery(""); setGhost(""); setSuggestions([]); setSelectedSuggestionIndex(-1); setShowDropdown(false); setIsNavigating(false); inputRef.current?.focus(); }} title="Clear">✕</button>
         )}
       </div>
-
       {showDropdown && suggestions.length > 0 && (
-        <div
-          style={{
-            position: "absolute",
-            top: "100%",
-            left: 0,
-            right: 0,
-            backgroundColor: "white",
-            border: "1px solid #e5e7eb",
-            borderRadius: 4,
-            maxHeight: 200,
-            overflowY: "auto",
-            zIndex: 1000,
-            boxShadow: "0 4px 6px -1px rgba(0,0,0,0.1)",
-            marginTop: 2,
-          }}
-        >
+        <div style={{ position: "absolute", top: "100%", left: 0, right: 0, backgroundColor: "white", border: "1px solid #e5e7eb", borderRadius: 4, maxHeight: 200, overflowY: "auto", zIndex: 1000, boxShadow: "0 4px 6px -1px rgba(0,0,0,0.1)", marginTop: 2 }}>
           {suggestions.map((supplier, idx) => {
             const t = supplier.customerType || supplier.type || "";
             const ts = TYPE_COLORS[t];
             return (
-              <div
-                key={supplier._id}
-                onClick={() => selectSupplier(supplier)}
-                style={{
-                  padding: "8px 12px",
-                  cursor: "pointer",
-                  backgroundColor: idx === selectedSuggestionIndex ? "#e5f0ff" : "white",
-                  borderBottom: "1px solid #f3f4f6",
-                  fontSize: 13,
-                }}
-                onMouseEnter={() => {
-                  setSelectedSuggestionIndex(idx);
-                  setIsNavigating(true);
-                  setQuery(supplier.name);
-                  setGhost("");
-                }}
-              >
-                <div style={{ fontWeight: 500, marginBottom: 2 }}>
-                  {supplier.code && <span style={{ color: "#6b7280", fontSize: 11 }}>[{supplier.code}]</span>} {supplier.name}
-                </div>
-                {supplier.phone && (
-                  <div style={{ fontSize: 10, color: "#6b7280" }}>
-                    📞 {supplier.phone}
-                  </div>
-                )}
-                {t && ts && (
-                  <div style={{ fontSize: 10, color: ts.color, marginTop: 2 }}>
-                    Type: {t}
-                  </div>
-                )}
-                {(supplier.currentBalance || 0) > 0 && (
-                  <div style={{ fontSize: 10, color: "#ef4444", marginTop: 2 }}>
-                    Balance: PKR {(supplier.currentBalance || 0).toLocaleString("en-PK")}
-                  </div>
-                )}
+              <div key={supplier._id} onClick={() => selectSupplier(supplier)} style={{ padding: "8px 12px", cursor: "pointer", backgroundColor: idx === selectedSuggestionIndex ? "#e5f0ff" : "white", borderBottom: "1px solid #f3f4f6", fontSize: 13 }} onMouseEnter={() => { setSelectedSuggestionIndex(idx); setIsNavigating(true); setQuery(supplier.name); setGhost(""); }}>
+                <div style={{ fontWeight: 500, marginBottom: 2 }}>{supplier.code && <span style={{ color: "#6b7280", fontSize: 11 }}>[{supplier.code}]</span>} {supplier.name}</div>
+                {supplier.phone && <div style={{ fontSize: 10, color: "#6b7280" }}>📞 {supplier.phone}</div>}
+                {t && ts && <div style={{ fontSize: 10, color: ts.color, marginTop: 2 }}>Type: {t}</div>}
+                {(supplier.currentBalance || 0) > 0 && <div style={{ fontSize: 10, color: "#ef4444", marginTop: 2 }}>Balance: PKR {(supplier.currentBalance || 0).toLocaleString("en-PK")}</div>}
               </div>
             );
           })}
         </div>
       )}
-      
-      {originalQuery && suggestions.length === 0 && (
-        <div
-          style={{
-            position: "absolute",
-            top: "100%",
-            left: 0,
-            fontSize: 10,
-            color: "#9ca3af",
-            marginTop: 2,
-            padding: "4px 8px",
-          }}
-        >
-          No supplier found matching "{originalQuery}"
-        </div>
-      )}
+      {originalQuery && suggestions.length === 0 && <div style={{ position: "absolute", top: "100%", left: 0, fontSize: 10, color: "#9ca3af", marginTop: 2, padding: "4px 8px" }}>No supplier found matching "{originalQuery}"</div>}
     </div>
   );
 }
+
+/* ══════════════════════════════════════════════════════════
+   STOCK UPDATE FUNCTION
+══════════════════════════════════════════════════════════ */
+const updateProductStockBulk = async (items, operation) => {
+  try {
+    const stockItems = items.map(item => ({
+      productId: item.productId,
+      measurement: item.uom,
+      quantity: parseFloat(item.pcs) || 1
+    }));
+    
+    const response = await api.post(EP.PRODUCTS.STOCK_BULK, {
+      items: stockItems,
+      operation: operation // "add" or "subtract"
+    });
+    
+    if (response.data.success) {
+      console.log("Stock updated successfully:", response.data.results);
+      return true;
+    } else {
+      console.error("Stock update failed:", response.data.message);
+      return false;
+    }
+  } catch (error) {
+    console.error("Failed to update stock:", error);
+    return false;
+  }
+};
 
 /* ══════════════════════════════════════════════════════════
    MAIN PAGE — Raw Purchase
@@ -1579,21 +1004,21 @@ export default function RawPurchasePage() {
     const t = setInterval(() => setTime(timeNow()), 1000);
     return () => clearInterval(t);
   }, []);
+  
   useEffect(() => {
     fetchData();
   }, []);
+  
   useEffect(() => {
     saveHolds(holdBills);
   }, [holdBills]);
 
   const subTotal = items.reduce((s, r) => s + (parseFloat(r.amount) || 0), 0);
   const billAmount = subTotal - (parseFloat(extraDiscount) || 0);
-  const balance =
-    billAmount + (parseFloat(prevBalance) || 0) - (parseFloat(paidAmount) || 0);
+  const balance = billAmount + (parseFloat(prevBalance) || 0) - (parseFloat(paidAmount) || 0);
 
   useEffect(() => {
-    if (paymentMode !== "Credit")
-      setPaidAmount(billAmount + (parseFloat(prevBalance) || 0));
+    if (paymentMode !== "Credit") setPaidAmount(billAmount + (parseFloat(prevBalance) || 0));
   }, [billAmount, prevBalance, paymentMode]);
 
   const handlePaymentMode = (mode) => {
@@ -1610,15 +1035,15 @@ export default function RawPurchasePage() {
         api.get(EP.CUSTOMERS.GET_ALL),
         api.get(EP.RAW_PURCHASES.NEXT_INVOICE),
       ]);
-      if (pRes.data.success) setAllProducts(pRes.data.data);
+      if (pRes.data.success) {
+        setAllProducts(pRes.data.data);
+        console.log("Products loaded:", pRes.data.data.length);
+      }
       if (cRes.data.success) {
-        // Show ALL suppliers (type: supplier, raw-purchase, credit)
-        const suppliers = cRes.data.data.filter(
-          (c) => {
-            const type = (c.type || c.customerType || "").toLowerCase();
-            return type === "supplier" || type === "raw-purchase" || type === "credit";
-          }
-        );
+        const suppliers = cRes.data.data.filter((c) => {
+          const type = (c.type || c.customerType || "").toLowerCase();
+          return type === "supplier" || type === "raw-purchase" || type === "credit";
+        });
         setAllSuppliers(suppliers);
         console.log("Suppliers loaded:", suppliers.length);
       }
@@ -1626,7 +1051,8 @@ export default function RawPurchasePage() {
         const num = invRes.data.data.invoiceNo.replace("INV-", "PUR-");
         setInvoiceNo(num);
       }
-    } catch {
+    } catch (error) {
+      console.error("Fetch data error:", error);
       showMsg("Failed to load data", "error");
     }
     setLoading(false);
@@ -1669,12 +1095,7 @@ export default function RawPurchasePage() {
     }
     setCreditStatement("");
     setShowSupplierPanel(true);
-
-    if (type === "raw-purchase" || type === "supplier") {
-      setTimeout(() => statementRef.current?.focus(), 80);
-    } else {
-      setTimeout(() => searchRef.current?.focus(), 30);
-    }
+    setTimeout(() => searchRef.current?.focus(), 30);
   };
   
   const handleSupplierClear = () => {
@@ -1742,9 +1163,7 @@ export default function RawPurchasePage() {
   const updateCurRow = (field, val) => {
     setCurRow((prev) => {
       const u = { ...prev, [field]: val };
-      u.amount =
-        (parseFloat(field === "pcs" ? val : u.pcs) || 0) *
-        (parseFloat(field === "rate" ? val : u.rate) || 0);
+      u.amount = (parseFloat(field === "pcs" ? val : u.pcs) || 0) * (parseFloat(field === "rate" ? val : u.rate) || 0);
       return u;
     });
   };
@@ -1786,14 +1205,12 @@ export default function RawPurchasePage() {
     const r = items[idx];
     setCurRow({ ...r });
     setSearchText(r.name);
-
     const product = allProducts.find((p) => p._id === r.productId);
     if (product?.packingInfo?.length > 0) {
       setPackingOptions(product.packingInfo.map((pk) => pk.measurement));
     } else {
       setPackingOptions([]);
     }
-
     setTimeout(() => packingRef.current?.focus(), 30);
   };
 
@@ -1845,8 +1262,7 @@ export default function RawPurchasePage() {
 
   const deleteHold = (holdId, e) => {
     e.stopPropagation();
-    if (window.confirm("Delete this held bill?"))
-      setHoldBills((p) => p.filter((b) => b.id !== holdId));
+    if (window.confirm("Delete this held bill?")) setHoldBills((p) => p.filter((b) => b.id !== holdId));
   };
 
   const fullReset = () => {
@@ -1868,6 +1284,7 @@ export default function RawPurchasePage() {
     setMsg({ text: "", type: "" });
     setCreditWarning(false);
     setCreditStatement("");
+    setShowSupplierPanel(false);
     setTimeout(() => searchRef.current?.focus(), 50);
   };
   
@@ -1904,10 +1321,8 @@ export default function RawPurchasePage() {
       amount: it.amount || 0,
     }));
     setItems(loadedItems);
-
     setExtraDiscount(purchase.extraDisc || 0);
     setPaidAmount(purchase.paidAmount || 0);
-
     resetCurRow();
     showMsg(`✏ Editing Purchase Invoice ${purchase.invoiceNo}`, "success");
     setTimeout(() => searchRef.current?.focus(), 50);
@@ -1918,9 +1333,7 @@ export default function RawPurchasePage() {
       const { data } = await api.get(EP.RAW_PURCHASES.GET_ALL);
       if (!data.success || !data.data?.length) return;
       const allPurchases = data.data;
-      const curIdx = allPurchases.findIndex((s) =>
-        editId ? s._id === editId : s.invoiceNo === invoiceNo,
-      );
+      const curIdx = allPurchases.findIndex((s) => editId ? s._id === editId : s.invoiceNo === invoiceNo);
       let nextIdx = dir === "prev" ? curIdx - 1 : curIdx + 1;
       nextIdx = Math.max(0, Math.min(nextIdx, allPurchases.length - 1));
       if (nextIdx === curIdx) return;
@@ -1971,10 +1384,7 @@ export default function RawPurchasePage() {
       return;
     }
 
-    if (
-      supplierId &&
-      (supplierType === "raw-purchase" || supplierType === "supplier")
-    ) {
+    if (supplierId && (supplierType === "raw-purchase" || supplierType === "supplier")) {
       if (!creditStatement.trim()) {
         statementRef.current?.focus();
         showMsg("Note is required", "error");
@@ -1984,16 +1394,7 @@ export default function RawPurchasePage() {
 
     const payload = buildPayload();
     setPendingPayload(payload);
-    confirmSaveWithPayload(payload, {
-      extraDisc: payload.extraDisc,
-      netTotal: payload.netTotal,
-      paidAmount: supplierId ? 0 : payload.netTotal,
-      balance: supplierId
-        ? payload.netTotal + (parseFloat(prevBalance) || 0)
-        : 0,
-      printType,
-      withPrint: true,
-    });
+    setShowSaveModal(true);
   };
   
   const confirmSaveWithPayload = async (payload, overrides) => {
@@ -2008,11 +1409,15 @@ export default function RawPurchasePage() {
         balance: overrides.balance,
         printType: overrides.printType,
       };
+      
       const { data } = editId
         ? await api.put(EP.RAW_PURCHASES.UPDATE(editId), finalPayload)
         : await api.post(EP.RAW_PURCHASES.CREATE, finalPayload);
 
       if (data.success) {
+        // UPDATE STOCK - ADD quantities for purchase
+        await updateProductStockBulk(payload.items, "add");
+        
         showMsg(editId ? "Purchase updated!" : `Saved: ${data.data.invoiceNo}`);
         const saleObj = {
           invoiceNo: data.data.invoiceNo,
@@ -2028,18 +1433,27 @@ export default function RawPurchasePage() {
           paidAmount: overrides.paidAmount,
           balance: overrides.balance,
         };
+        
         if (overrides.withPrint) {
           setPendingPrintSale(saleObj);
           setShowPrintModal(true);
         }
+        
         setShowSaveModal(false);
         setPendingPayload(null);
         fullReset();
         await refreshInvoiceNo();
+        
+        // Refresh products to show updated stock
+        const pRes = await api.get(EP.PRODUCTS.GET_ALL);
+        if (pRes.data.success) {
+          setAllProducts(pRes.data.data);
+        }
       } else {
         showMsg(data.message, "error");
       }
     } catch (e) {
+      console.error("Save error:", e);
       showMsg(e.response?.data?.message || "Save failed", "error");
     }
     setLoading(false);
@@ -2051,1009 +1465,183 @@ export default function RawPurchasePage() {
   
   useEffect(() => {
     const handler = (e) => {
-      if (
-        showProductModal ||
-        showHoldPreview ||
-        showSaveModal ||
-        showPrintModal
-      )
-        return;
-
-      if (e.key === "F2") {
-        e.preventDefault();
-        setShowProductModal(true);
-      }
-      if (e.key === "F4") {
-        e.preventDefault();
-        holdBill();
-      }
-      if (e.key === "*" || (e.ctrlKey && e.key === "s")) {
-        e.preventDefault();
-        saveRef.current?.click();
-      }
+      if (showProductModal || showHoldPreview || showSaveModal || showPrintModal) return;
+      if (e.key === "F2") { e.preventDefault(); setShowProductModal(true); }
+      if (e.key === "F4") { e.preventDefault(); holdBill(); }
+      if (e.key === "*" || (e.ctrlKey && e.key === "s")) { e.preventDefault(); saveRef.current?.click(); }
       if (e.key === "Escape") resetCurRow();
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [
-    items,
-    showProductModal,
-    showHoldPreview,
-    showSaveModal,
-    showPrintModal,
-    billAmount,
-  ]);
+  }, [items, showProductModal, showHoldPreview, showSaveModal, showPrintModal, billAmount]);
 
   const EMPTY_ROWS = Math.max(0, 8 - items.length);
 
   return (
     <>
       <div className={`sl-page${creditWarning ? " sl-credit-mode" : ""}`}>
-        {showProductModal && (
-          <SearchModal
-            allProducts={allProducts}
-            onSelect={pickProduct}
-            onClose={() => {
-              setShowProductModal(false);
-              setTimeout(() => searchRef.current?.focus(), 30);
-            }}
-          />
-        )}
-        {showHoldPreview && (
-          <HoldPreviewModal
-            bill={showHoldPreview}
-            onResume={resumeHold}
-            onClose={() => setShowHoldPreview(null)}
-          />
-        )}
-        {showSaveModal && pendingPayload && (
-          <SaveConfirmModal
-            salePayload={pendingPayload}
-            printType={printType}
-            onConfirm={confirmSave}
-            onClose={() => {
-              setShowSaveModal(false);
-              setPendingPayload(null);
-            }}
-          />
-        )}
-        {showPrintModal && pendingPrintSale && (
-          <PrintOptionsModal
-            sale={pendingPrintSale}
-            allCustomers={allSuppliers}
-            defaultPrintType={printType}
-            hideCustomerFields={pendingPrintSale.paymentMode === "Credit"}
-            newCustomerType="raw-purchase"
-            onPrint={(type, overrides) => {
-              doPrint(pendingPrintSale, type, overrides);
-              setShowPrintModal(false);
-              setPendingPrintSale(null);
-            }}
-            onClose={() => {
-              setShowPrintModal(false);
-              setPendingPrintSale(null);
-            }}
-          />
-        )}
+        {showProductModal && <SearchModal allProducts={allProducts} onSelect={pickProduct} onClose={() => { setShowProductModal(false); setTimeout(() => searchRef.current?.focus(), 30); }} />}
+        {showHoldPreview && <HoldPreviewModal bill={showHoldPreview} onResume={resumeHold} onClose={() => setShowHoldPreview(null)} />}
+        {showSaveModal && pendingPayload && <SaveConfirmModal salePayload={pendingPayload} printType={printType} onConfirm={confirmSave} onClose={() => { setShowSaveModal(false); setPendingPayload(null); }} />}
+        {showPrintModal && pendingPrintSale && <PrintOptionsModal sale={pendingPrintSale} allCustomers={allSuppliers} defaultPrintType={printType} hideCustomerFields={pendingPrintSale.paymentMode === "Credit"} newCustomerType="raw-purchase" onPrint={(type, overrides) => { doPrint(pendingPrintSale, type, overrides); setShowPrintModal(false); setPendingPrintSale(null); }} onClose={() => { setShowPrintModal(false); setPendingPrintSale(null); }} />}
         
         <div className="xp-titlebar">
-          <svg
-            width="15"
-            height="15"
-            viewBox="0 0 16 16"
-            fill="rgba(255,255,255,0.85)"
-          >
+          <svg width="15" height="15" viewBox="0 0 16 16" fill="rgba(255,255,255,0.85)">
             <path d="M0 4a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2zm2-1a1 1 0 0 0-1 1v1h14V4a1 1 0 0 0-1-1zm13 4H1v5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1zM2 10h2a1 1 0 0 1 0 2H2a1 1 0 0 1 0-2m4 0h6a1 1 0 0 1 0 2H6a1 1 0 0 1 0-2" />
           </svg>
-          <span className="xp-tb-title">
-            Raw Purchase Invoice — Asim Electric &amp; Electronic Store
-          </span>
+          <span className="xp-tb-title">Raw Purchase Invoice — Asim Electric &amp; Electronic Store</span>
           <div className="xp-tb-actions">
-            {editId && (
-              <div className="sl-edit-badge">✏ Editing Raw Purchase</div>
-            )}
+            {editId && <div className="sl-edit-badge">✏ Editing Raw Purchase</div>}
             <div className="xp-tb-divider" />
-            <div className="sl-shortcut-hints">
-              <span>F2 Product</span>
-              <span>F4 Hold</span>
-              <span>* Save</span>
-            </div>
+            <div className="sl-shortcut-hints"><span>F2 Product</span><span>F4 Hold</span><span>* Save</span></div>
             <div className="xp-tb-divider" />
             <button className="xp-cap-btn">─</button>
-            <button
-              className="xp-cap-btn"
-              onClick={() => {
-                if (!document.fullscreenElement) {
-                  document.documentElement.requestFullscreen();
-                } else {
-                  document.exitFullscreen();
-                }
-              }}
-            >
-              □
-            </button>
+            <button className="xp-cap-btn" onClick={() => { if (!document.fullscreenElement) document.documentElement.requestFullscreen(); else document.exitFullscreen(); }}>□</button>
             <button className="xp-cap-btn xp-cap-close">✕</button>
           </div>
         </div>
 
-        {msg.text && (
-          <div
-            className={`xp-alert ${msg.type === "success" ? "xp-alert-success" : "xp-alert-error"}`}
-            style={{ margin: "4px 10px 0", flexShrink: 0 }}
-          >
-            {msg.text}
-          </div>
-        )}
+        {msg.text && <div className={`xp-alert ${msg.type === "success" ? "xp-alert-success" : "xp-alert-error"}`} style={{ margin: "4px 10px 0", flexShrink: 0 }}>{msg.text}</div>}
 
         <div className="sl-body">
           <div className="sl-left">
             <div className="sl-top-bar">
-              <div
-                className="sl-sale-title-box"
-                style={{ background: "green", border: "1px solid green" }}
-              >
-                Raw Purchase
-              </div>
-              
-              <button
-                className="xp-btn xp-btn-sm sl-nav-btn"
-                onClick={() => navInvoice("prev")}
-                title="Previous Invoice (↑)"
-                style={{ fontSize: 16, padding: "4px 10px" }}
-              >
-                ◀ Prev
-              </button>
-              
+              <div className="sl-sale-title-box" style={{ background: "green", border: "1px solid green" }}>Raw Purchase</div>
+              <button className="xp-btn xp-btn-sm sl-nav-btn" onClick={() => navInvoice("prev")} title="Previous Invoice (↑)" style={{ fontSize: 16, padding: "4px 10px" }}>◀ Prev</button>
               <div className="sl-inv-field-grp">
                 <label>Invoice #</label>
-                <input
-                  className="xp-input xp-input-sm sl-inv-input"
-                  value={invoiceNo}
-                  onChange={(e) => setInvoiceNo(e.target.value)}
-                  onKeyDown={async (e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      const val = invoiceNo.trim();
-                      if (!val) return;
-                      try {
-                        const { data } = await api.get(
-                          EP.RAW_PURCHASES.GET_ALL + `?invoiceNo=${val}`,
-                        );
-                        const purchases = data.data;
-                        if (!purchases || purchases.length === 0) {
-                          showMsg(`Invoice "${val}" not found`, "error");
-                          await refreshInvoiceNo();
-                          return;
-                        }
-                        const exact = purchases.find(
-                          (s) => s.invoiceNo?.toString() === val.toString(),
-                        );
-                        if (!exact) {
-                          showMsg(`Invoice "${val}" not found`, "error");
-                          await refreshInvoiceNo();
-                          return;
-                        }
-                        setItems([]);
-                        setEditId(null);
-                        loadPurchaseForEdit(exact);
-                      } catch {
-                        showMsg("Search failed", "error");
-                      }
-                    }
-                    if (e.key === "ArrowUp" || e.key === "ArrowDown") {
-                      e.preventDefault();
-                      await navInvoice(e.key === "ArrowUp" ? "prev" : "next");
-                    }
-                  }}
-                  onFocus={(e) => e.target.select()}
-                  placeholder="Invoice # ya ↑↓"
-                  style={{ background: editId ? "#fffbe6" : undefined }}
-                />
+                <input className="xp-input xp-input-sm sl-inv-input" value={invoiceNo} onChange={(e) => setInvoiceNo(e.target.value)} onKeyDown={async (e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    const val = invoiceNo.trim();
+                    if (!val) return;
+                    try {
+                      const { data } = await api.get(EP.RAW_PURCHASES.GET_ALL + `?invoiceNo=${val}`);
+                      const purchases = data.data;
+                      if (!purchases || purchases.length === 0) { showMsg(`Invoice "${val}" not found`, "error"); await refreshInvoiceNo(); return; }
+                      const exact = purchases.find((s) => s.invoiceNo?.toString() === val.toString());
+                      if (!exact) { showMsg(`Invoice "${val}" not found`, "error"); await refreshInvoiceNo(); return; }
+                      setItems([]); setEditId(null); loadPurchaseForEdit(exact);
+                    } catch { showMsg("Search failed", "error"); }
+                  }
+                  if (e.key === "ArrowUp" || e.key === "ArrowDown") { e.preventDefault(); await navInvoice(e.key === "ArrowUp" ? "prev" : "next"); }
+                }} onFocus={(e) => e.target.select()} placeholder="Invoice # ya ↑↓" style={{ background: editId ? "#fffbe6" : undefined }} />
               </div>
-              
-              <button
-                className="xp-btn xp-btn-sm sl-nav-btn"
-                onClick={() => navInvoice("next")}
-                title="Next Invoice (↓)"
-                style={{ fontSize: 16, padding: "4px 10px" }}
-              >
-                Next ▶
-              </button>
-              
-              <div className="sl-inv-field-grp">
-                <label>Date</label>
-                <input
-                  type="date"
-                  className="xp-input xp-input-sm sl-date-input"
-                  value={invoiceDate}
-                  readOnly
-                  style={{
-                    background: "#f5f5f5",
-                    cursor: "not-allowed",
-                    color: "#888",
-                  }}
-                />
-              </div>
-              <div className="sl-inv-field-grp">
-                <label>Time</label>
-                <div className="sl-time-box">{time}</div>
-              </div>
+              <button className="xp-btn xp-btn-sm sl-nav-btn" onClick={() => navInvoice("next")} title="Next Invoice (↓)" style={{ fontSize: 16, padding: "4px 10px" }}>Next ▶</button>
+              <div className="sl-inv-field-grp"><label>Date</label><input type="date" className="xp-input xp-input-sm sl-date-input" value={invoiceDate} readOnly style={{ background: "#f5f5f5", cursor: "not-allowed", color: "#888" }} /></div>
+              <div className="sl-inv-field-grp"><label>Time</label><div className="sl-time-box">{time}</div></div>
             </div>
 
             <div className="sl-entry-strip">
-              <div className="sl-entry-cell sl-entry-product">
-                <label>
-                  Select Product <kbd>F2</kbd>
-                </label>
-                <input
-                  ref={searchRef}
-                  type="text"
-                  className="sl-product-input"
-                  value={searchText}
-                  onKeyDown={(e) => {
-                    if (e.key === "ArrowDown") {
-                      e.preventDefault();
-                      setShowProductModal(true);
-                    }
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      if (!searchText.trim()) {
-                        setShowProductModal(true);
-                        return;
-                      }
-                      const q = searchText.trim().toLowerCase();
-                      const found = allProducts.find(
-                        (p) => p.code?.toLowerCase() === q,
-                      );
-                      if (found) {
-                        const pk = found.packingInfo?.[0];
-                        pickProduct({
-                          ...found,
-                          _pi: 0,
-                          _meas: pk?.measurement || "",
-                          _rate: pk?.purchaseRate || pk?.costRate || 0,
-                          _pack: pk?.packing || 1,
-                          _stock: pk?.openingQty || 0,
-                          _name: [
-                            found.category,
-                            found.description,
-                            found.company,
-                          ]
-                            .filter(Boolean)
-                            .join(" "),
-                        });
-                      } else {
-                        alert(`"${searchText}" — Product not found`);
-                        searchRef.current?.select();
-                      }
-                    }
-                  }}
-                  onChange={(e) => {
-                    setSearchText(e.target.value);
-                    if (curRow.name) {
-                      setCurRow({ ...EMPTY_ROW });
-                      setPackingOptions([]);
-                    }
-                  }}
-                  autoFocus
-                />
-              </div>
-              <div className="sl-entry-cell" style={{ position: "relative" }}>
-                <label>Packing</label>
-                <input
-                  ref={packingRef}
-                  type="text"
-                  className="xp-input xp-input-sm"
-                  style={{ width: 65 }}
-                  value={curRow.uom}
-                  onChange={(e) =>
-                    setCurRow((p) => ({ ...p, uom: e.target.value }))
-                  }
-                  onFocus={() => {
-                    setPackingHiIdx(
-                      Math.max(0, packingOptions.indexOf(curRow.uom)),
-                    );
-                  }}
-                  onBlur={() => setTimeout(() => setPackingOpen(false), 150)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      pcsRef.current?.focus();
-                      return;
-                    }
-                    if (packingOptions.length === 0) return;
-                    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
-                      e.preventDefault();
-                      const idx = packingOptions.indexOf(curRow.uom);
-                      const next =
-                        e.key === "ArrowDown"
-                          ? (idx + 1) % packingOptions.length
-                          : (idx - 1 + packingOptions.length) %
-                            packingOptions.length;
-                      const newUom = packingOptions[next];
-
-                      const product = allProducts.find(
-                        (p) => p._id === curRow.productId,
-                      );
-                      if (product?.packingInfo) {
-                        const pk = product.packingInfo.find(
-                          (pk) => pk.measurement === newUom,
-                        );
-                        if (pk) {
-                          setCurRow((p) => ({
-                            ...p,
-                            uom: newUom,
-                            rate: pk.purchaseRate || pk.costRate || 0,
-                            pcs: pk.packing || 1,
-                            amount: (pk.packing || 1) * (pk.purchaseRate || pk.costRate || 0),
-                          }));
-                          return;
-                        }
-                      }
-                      setCurRow((p) => ({ ...p, uom: newUom }));
-                    }
-                  }}
-                  autoComplete="off"
-                />
-              </div>
-              <div className="sl-entry-cell">
-                <label>Pcs</label>
-                <input
-                  ref={pcsRef}
-                  type="text"
-                  className="sl-num-input"
-                  style={{ width: 60 }}
-                  value={curRow.pcs}
-                  min={1}
-                  onChange={(e) => updateCurRow("pcs", e.target.value)}
-                  onKeyDown={(e) =>
-                    e.key === "Enter" && rateRef.current?.focus()
-                  }
-                  onFocus={(e) => e.target.select()}
-                />
-              </div>
-              <div className="sl-entry-cell">
-                <label>Purchase Rate</label>
-                <input
-                  ref={rateRef}
-                  type="text"
-                  className="sl-num-input"
-                  style={{ width: 75 }}
-                  value={curRow.rate}
-                  min={0}
-                  onChange={(e) => updateCurRow("rate", e.target.value)}
-                  onKeyDown={(e) =>
-                    e.key === "Enter" && amountRef.current?.focus()
-                  }
-                  onFocus={(e) => e.target.select()}
-                />
-              </div>
-              <div className="sl-entry-cell">
-                <label>Amount</label>
-                <input
-                  ref={amountRef}
-                  type="text"
-                  className="sl-num-input"
-                  style={{ width: 80 }}
-                  value={curRow.amount || 0}
-                  onChange={(e) =>
-                    setCurRow((p) => ({
-                      ...p,
-                      amount: parseFloat(e.target.value) || 0,
-                    }))
-                  }
-                  onFocus={(e) => e.target.select()}
-                  onKeyDown={(e) =>
-                    e.key === "Enter" && addRef.current?.click()
-                  }
-                />
-              </div>
-              <div className="sl-entry-cell sl-entry-btns-cell">
-                <label>&nbsp;</label>
-                <div className="sl-entry-btns">
-                  <button className="xp-btn xp-btn-sm" onClick={resetCurRow}>
-                    Reset
-                  </button>
-                  <button
-                    ref={addRef}
-                    className="xp-btn xp-btn-primary xp-btn-sm"
-                    onClick={addRow}
-                  >
-                    {selItemIdx !== null ? "Update" : "Add"}
-                  </button>
-                  <button
-                    className="xp-btn xp-btn-sm"
-                    disabled={selItemIdx === null}
-                    onClick={() =>
-                      selItemIdx !== null && loadRowForEdit(selItemIdx)
-                    }
-                  >
-                    Edit
-                  </button>
-                  <button
-                    className="xp-btn xp-btn-danger xp-btn-sm"
-                    disabled={selItemIdx === null}
-                    onClick={removeRow}
-                  >
-                    Remove
-                  </button>
-                </div>
-              </div>
+              <div className="sl-entry-cell sl-entry-product"><label>Select Product <kbd>F2</kbd></label><input ref={searchRef} type="text" className="sl-product-input" value={searchText} onKeyDown={(e) => { if (e.key === "ArrowDown") { e.preventDefault(); setShowProductModal(true); } if (e.key === "Enter") { e.preventDefault(); if (!searchText.trim()) { setShowProductModal(true); return; } const q = searchText.trim().toLowerCase(); const found = allProducts.find((p) => p.code?.toLowerCase() === q); if (found) { const pk = found.packingInfo?.[0]; pickProduct({ ...found, _pi: 0, _meas: pk?.measurement || "", _rate: pk?.purchaseRate || pk?.costRate || 0, _pack: pk?.packing || 1, _stock: pk?.openingQty || 0, _name: [found.category, found.description, found.company].filter(Boolean).join(" ") }); } else { alert(`"${searchText}" — Product not found`); searchRef.current?.select(); } } }} onChange={(e) => { setSearchText(e.target.value); if (curRow.name) { setCurRow({ ...EMPTY_ROW }); setPackingOptions([]); } }} autoFocus /></div>
+              <div className="sl-entry-cell" style={{ position: "relative" }}><label>Packing</label><input ref={packingRef} type="text" className="xp-input xp-input-sm" style={{ width: 65 }} value={curRow.uom} onChange={(e) => setCurRow((p) => ({ ...p, uom: e.target.value }))} onFocus={() => { setPackingHiIdx(Math.max(0, packingOptions.indexOf(curRow.uom))); }} onBlur={() => setTimeout(() => setPackingOpen(false), 150)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); pcsRef.current?.focus(); return; } if (packingOptions.length === 0) return; if (e.key === "ArrowDown" || e.key === "ArrowUp") { e.preventDefault(); const idx = packingOptions.indexOf(curRow.uom); const next = e.key === "ArrowDown" ? (idx + 1) % packingOptions.length : (idx - 1 + packingOptions.length) % packingOptions.length; const newUom = packingOptions[next]; const product = allProducts.find((p) => p._id === curRow.productId); if (product?.packingInfo) { const pk = product.packingInfo.find((pk) => pk.measurement === newUom); if (pk) { setCurRow((p) => ({ ...p, uom: newUom, rate: pk.purchaseRate || pk.costRate || 0, pcs: pk.packing || 1, amount: (pk.packing || 1) * (pk.purchaseRate || pk.costRate || 0) })); return; } } setCurRow((p) => ({ ...p, uom: newUom })); } }} autoComplete="off" /></div>
+              <div className="sl-entry-cell"><label>Pcs</label><input ref={pcsRef} type="text" className="sl-num-input" style={{ width: 60 }} value={curRow.pcs} min={1} onChange={(e) => updateCurRow("pcs", e.target.value)} onKeyDown={(e) => e.key === "Enter" && rateRef.current?.focus()} onFocus={(e) => e.target.select()} /></div>
+              <div className="sl-entry-cell"><label>Purchase Rate</label><input ref={rateRef} type="text" className="sl-num-input" style={{ width: 75 }} value={curRow.rate} min={0} onChange={(e) => updateCurRow("rate", e.target.value)} onKeyDown={(e) => e.key === "Enter" && amountRef.current?.focus()} onFocus={(e) => e.target.select()} /></div>
+              <div className="sl-entry-cell"><label>Amount</label><input ref={amountRef} type="text" className="sl-num-input" style={{ width: 80 }} value={curRow.amount || 0} onChange={(e) => setCurRow((p) => ({ ...p, amount: parseFloat(e.target.value) || 0 }))} onFocus={(e) => e.target.select()} onKeyDown={(e) => e.key === "Enter" && addRef.current?.click()} /></div>
+              <div className="sl-entry-cell sl-entry-btns-cell"><label>&nbsp;</label><div className="sl-entry-btns"><button className="xp-btn xp-btn-sm" onClick={resetCurRow}>Reset</button><button ref={addRef} className="xp-btn xp-btn-primary xp-btn-sm" onClick={addRow}>{selItemIdx !== null ? "Update" : "Add"}</button><button className="xp-btn xp-btn-sm" disabled={selItemIdx === null} onClick={() => selItemIdx !== null && loadRowForEdit(selItemIdx)}>Edit</button><button className="xp-btn xp-btn-danger xp-btn-sm" disabled={selItemIdx === null} onClick={removeRow}>Remove</button></div></div>
             </div>
 
-            <div className="sl-table-header-bar">
-              <span className="sl-table-lbl">
-                {curRow.name ? (
-                  <span className="sl-cur-name-inline">{curRow.name}</span>
-                ) : (
-                  "Select Product"
-                )}
-              </span>
-              <span className="sl-table-qty">
-                Total Qty: {totalQty.toLocaleString("en-PK")}
-              </span>
-            </div>
+            <div className="sl-table-header-bar"><span className="sl-table-lbl">{curRow.name ? <span className="sl-cur-name-inline">{curRow.name}</span> : "Select Product"}</span><span className="sl-table-qty">Total Qty: {totalQty.toLocaleString("en-PK")}</span></div>
 
             <div className="sl-items-wrap">
               <table className="sl-items-table">
-                <thead>
-                  <tr>
-                    <th style={{ width: 32 }}>Sr.#</th>
-                    <th style={{ width: 72 }}>Code</th>
-                    <th>Product Name</th>
-                    <th style={{ width: 65 }}>UOM</th>
-                    <th style={{ width: 55 }} className="r">
-                      Qty
-                    </th>
-                    <th style={{ width: 80 }} className="r">
-                      Rate
-                    </th>
-                    <th style={{ width: 90 }} className="r">
-                      Amount
-                    </th>
-                    <th style={{ width: 50 }}>Rack</th>
-                  </tr>
-                </thead>
+                <thead><tr><th style={{ width: 32 }}>Sr.#</th><th style={{ width: 72 }}>Code</th><th>Product Name</th><th style={{ width: 65 }}>UOM</th><th style={{ width: 55 }} className="r">Qty</th><th style={{ width: 80 }} className="r">Rate</th><th style={{ width: 90 }} className="r">Amount</th><th style={{ width: 50 }}>Rack</th></tr></thead>
                 <tbody>
-                  {items.length === 0 && (
-                    <tr>
-                      <td
-                        colSpan={8}
-                        className="xp-empty"
-                        style={{ padding: 14 }}
-                      >
-                        Search and add raw products to start the purchase
-                      </td>
-                    </tr>
-                  )}
+                  {items.length === 0 && <tr><td colSpan={8} className="xp-empty" style={{ padding: 14 }}>Search and add raw products to start the purchase</td></tr>}
                   {items.map((r, i) => (
-                    <tr
-                      key={i}
-                      className={selItemIdx === i ? "sl-sel-row" : ""}
-                      onClick={() => setSelItemIdx(i === selItemIdx ? null : i)}
-                      onDoubleClick={() => loadRowForEdit(i)}
-                    >
-                      <td
-                        className="muted"
-                        style={{
-                          textAlign: "center",
-                          fontSize: "var(--xp-fs-xs)",
-                        }}
-                      >
-                        {i + 1}
-                      </td>
+                    <tr key={i} className={selItemIdx === i ? "sl-sel-row" : ""} onClick={() => setSelItemIdx(i === selItemIdx ? null : i)} onDoubleClick={() => loadRowForEdit(i)}>
+                      <td className="muted" style={{ textAlign: "center", fontSize: "var(--xp-fs-xs)" }}>{i + 1}</td>
                       <td className="muted">{r.code}</td>
                       <td style={{ fontWeight: 500 }}>{r.name}</td>
                       <td className="muted">{r.uom}</td>
                       <td className="r">{r.pcs}</td>
-                      <td className="r">
-                        {Number(r.rate).toLocaleString("en-PK")}
-                      </td>
-                      <td
-                        className="r"
-                        style={{ color: "var(--xp-blue-dark)" }}
-                      >
-                        {Number(r.amount).toLocaleString("en-PK")}
-                      </td>
+                      <td className="r">{Number(r.rate).toLocaleString("en-PK")}</td>
+                      <td className="r" style={{ color: "var(--xp-blue-dark)" }}>{Number(r.amount).toLocaleString("en-PK")}</td>
                       <td className="muted">{r.rack}</td>
                     </tr>
                   ))}
-                  {Array.from({ length: EMPTY_ROWS }).map((_, i) => (
-                    <tr key={`e${i}`} className="sl-empty-row">
-                      <td colSpan={8} />
-                    </tr>
-                  ))}
+                  {Array.from({ length: EMPTY_ROWS }).map((_, i) => <tr key={`e${i}`} className="sl-empty-row"><td colSpan={8} /></tr>)}
                 </tbody>
               </table>
             </div>
 
             <div className="sl-summary-bar">
-              <div className="sl-sum-cell">
-                <label>Total Qty</label>
-                <input
-                  className="sl-sum-val"
-                  value={totalQty.toLocaleString("en-PK")}
-                  readOnly
-                />
-              </div>
-              <div className="sl-sum-cell">
-                <label>Sub Total</label>
-                <input
-                  className="sl-sum-val"
-                  value={Number(subTotal).toLocaleString("en-PK")}
-                  readOnly
-                />
-              </div>
-              <div className="sl-sum-cell">
-                <label>Bill Amount</label>
-                <input
-                  className="sl-sum-val"
-                  value={Number(billAmount).toLocaleString("en-PK")}
-                  readOnly
-                />
-              </div>
-              <div className="sl-sum-cell">
-                <label>Extra Discount</label>
-                <input
-                  ref={discRef}
-                  type="text"
-                  className="sl-sum-input"
-                  value={extraDiscount}
-                  min={0}
-                  onChange={(e) => setExtraDiscount(e.target.value)}
-                  onKeyDown={(e) =>
-                    e.key === "Enter" && paidRef.current?.focus()
-                  }
-                  onFocus={(e) => e.target.select()}
-                />
-              </div>
-              <div className="sl-sum-cell">
-                <label>Paid</label>
-                <input
-                  ref={paidRef}
-                  type="text"
-                  className="sl-sum-input"
-                  style={{ color: "var(--xp-green)", fontWeight: 700 }}
-                  value={paidAmount}
-                  min={0}
-                  onChange={(e) => setPaidAmount(e.target.value)}
-                  onKeyDown={(e) =>
-                    e.key === "Enter" && saveRef.current?.focus()
-                  }
-                  onFocus={(e) => e.target.select()}
-                />
-              </div>
-              <div className="sl-sum-cell">
-                <label>Balance</label>
-                <input
-                  className={`sl-sum-val sl-bal${balance > 0 ? " danger" : balance < 0 ? " success" : ""}`}
-                  value={Number(balance).toLocaleString("en-PK")}
-                  readOnly
-                />
-              </div>
+              <div className="sl-sum-cell"><label>Total Qty</label><input className="sl-sum-val" value={totalQty.toLocaleString("en-PK")} readOnly /></div>
+              <div className="sl-sum-cell"><label>Sub Total</label><input className="sl-sum-val" value={Number(subTotal).toLocaleString("en-PK")} readOnly /></div>
+              <div className="sl-sum-cell"><label>Bill Amount</label><input className="sl-sum-val" value={Number(billAmount).toLocaleString("en-PK")} readOnly /></div>
+              <div className="sl-sum-cell"><label>Extra Discount</label><input ref={discRef} type="text" className="sl-sum-input" value={extraDiscount} min={0} onChange={(e) => setExtraDiscount(e.target.value)} onKeyDown={(e) => e.key === "Enter" && paidRef.current?.focus()} onFocus={(e) => e.target.select()} /></div>
+              <div className="sl-sum-cell"><label>Paid</label><input ref={paidRef} type="text" className="sl-sum-input" style={{ color: "var(--xp-green)", fontWeight: 700 }} value={paidAmount} min={0} onChange={(e) => setPaidAmount(e.target.value)} onKeyDown={(e) => e.key === "Enter" && saveRef.current?.focus()} onFocus={(e) => e.target.select()} /></div>
+              <div className="sl-sum-cell"><label>Balance</label><input className={`sl-sum-val sl-bal${balance > 0 ? " danger" : balance < 0 ? " success" : ""}`} value={Number(balance).toLocaleString("en-PK")} readOnly /></div>
             </div>
 
             <div className="sl-customer-bar">
-              <div className="sl-cust-cell">
-                <label>Code</label>
-                <input
-                  style={{ width: 65 }}
-                  value={
-                    supplierId
-                      ? allSuppliers.find((c) => c._id === supplierId)?.code ||
-                        codeSearch
-                      : codeSearch
-                  }
-                  onChange={(e) => setCodeSearch(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      const q = codeSearch.trim();
-                      if (!q) return;
-                      const found = allSuppliers.find(
-                        (c) =>
-                          String(c.code).toLowerCase() === q.toLowerCase() &&
-                          (c.customerType || c.type || "").toLowerCase() ===
-                            "raw-purchase",
-                      );
-                      if (found) {
-                        handleSupplierSelect(found);
-                        setCodeSearch("");
-                      } else {
-                        showMsg(
-                          `Code "${q}" — supplier nahi mila`,
-                          "error",
-                        );
-                      }
-                    }
-                  }}
-                  placeholder="Code…"
-                  autoComplete="off"
-                />
-              </div>
-
-              <div className="sl-cust-cell sl-cust-buyer">
-                <label>Supplier Name</label>
-                <SupplierDropdown
-                  allSuppliers={allSuppliers}
-                  value={supplierId}
-                  displayName={supplierName}
-                  supplierType={supplierType}
-                  onSelect={handleSupplierSelect}
-                  onClear={handleSupplierClear}
-                  onAddNew={handleAddNewSupplier}
-                  allowedTypes={["raw-purchase", "supplier", "credit"]}
-                />
-              </div>
-
-              <div className="sl-cust-cell">
-                <label>Prev Balance</label>
-                <input
-                  type="text"
-                  className="sl-cust-input"
-                  style={{ width: 85 }}
-                  value={prevBalance}
-                  onChange={(e) => setPrevBalance(e.target.value)}
-                  onFocus={(e) => e.target.select()}
-                />
-              </div>
-
-              <div className="sl-cust-cell">
-                <label>Net Payable</label>
-                <input
-                  className="sl-cust-input sl-net-recv"
-                  style={{
-                    color: balance > 0 ? "var(--xp-red)" : "var(--xp-green)",
-                    fontWeight: 700,
-                    width: 85,
-                  }}
-                  value={Number(balance).toLocaleString("en-PK")}
-                  readOnly
-                />
-              </div>
+              <div className="sl-cust-cell"><label>Code</label><input style={{ width: 65 }} value={supplierId ? allSuppliers.find((c) => c._id === supplierId)?.code || codeSearch : codeSearch} onChange={(e) => setCodeSearch(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); const q = codeSearch.trim(); if (!q) return; const found = allSuppliers.find((c) => String(c.code).toLowerCase() === q.toLowerCase() && (c.customerType || c.type || "").toLowerCase() === "raw-purchase"); if (found) { handleSupplierSelect(found); setCodeSearch(""); } else { showMsg(`Code "${q}" — supplier nahi mila`, "error"); } } }} placeholder="Code…" autoComplete="off" /></div>
+              <div className="sl-cust-cell sl-cust-buyer"><label>Supplier Name</label><SupplierDropdown allSuppliers={allSuppliers} value={supplierId} displayName={supplierName} supplierType={supplierType} onSelect={handleSupplierSelect} onClear={handleSupplierClear} onAddNew={handleAddNewSupplier} allowedTypes={["raw-purchase", "supplier", "credit"]} /></div>
+              <div className="sl-cust-cell"><label>Prev Balance</label><input type="text" className="sl-cust-input" style={{ width: 85 }} value={prevBalance} onChange={(e) => setPrevBalance(e.target.value)} onFocus={(e) => e.target.select()} /></div>
+              <div className="sl-cust-cell"><label>Net Payable</label><input className="sl-cust-input sl-net-recv" style={{ color: balance > 0 ? "var(--xp-red)" : "var(--xp-green)", fontWeight: 700, width: 85 }} value={Number(balance).toLocaleString("en-PK")} readOnly /></div>
             </div>
 
             {showSupplierPanel && supplierId && (
-              <div
-                className={`sl-credit-warning-bar${creditWarning ? "" : " sl-credit-normal"}`}
-              >
+              <div className={`sl-credit-warning-bar${creditWarning ? "" : " sl-credit-normal"}`}>
                 <div className="sl-credit-warning-left">
-                  {(() => {
-                    const supp = allSuppliers.find((c) => c._id === supplierId);
-                    return supp?.imageFront ? (
-                      <img
-                        src={supp.imageFront}
-                        alt={supp.name}
-                        style={{
-                          width: 48,
-                          height: 48,
-                          borderRadius: 4,
-                          objectFit: "cover",
-                          border: "2px solid #fff",
-                          flexShrink: 0,
-                        }}
-                      />
-                    ) : (
-                      <div
-                        style={{
-                          width: 48,
-                          height: 48,
-                          borderRadius: 4,
-                          background: "rgba(255,255,255,0.3)",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          fontSize: 22,
-                          flexShrink: 0,
-                        }}
-                      >
-                        🏭
-                      </div>
-                    );
-                  })()}
-                  <div>
-                    {creditWarning && (
-                      <>
-                        <div className="sl-credit-title">
-                          ⚠ CREDIT LIMIT EXCEEDED
-                        </div>
-                        <div className="sl-credit-sub">
-                          Balance: <b>{fmt(prevBalance)}</b> — Enter
-                          authorization statement to proceed
-                        </div>
-                      </>
-                    )}
-                    {!creditWarning && (
-                      <div className="sl-credit-sub" style={{ color: "#fff" }}>
-                        Balance: <b>{fmt(prevBalance)}</b>
-                      </div>
-                    )}
-                  </div>
+                  {(() => { const supp = allSuppliers.find((c) => c._id === supplierId); return supp?.imageFront ? (<img src={supp.imageFront} alt={supp.name} style={{ width: 48, height: 48, borderRadius: 4, objectFit: "cover", border: "2px solid #fff", flexShrink: 0 }} />) : (<div style={{ width: 48, height: 48, borderRadius: 4, background: "rgba(255,255,255,0.3)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, flexShrink: 0 }}>🏭</div>); })()}
+                  <div>{creditWarning ? (<><div className="sl-credit-title">⚠ CREDIT LIMIT EXCEEDED</div><div className="sl-credit-sub">Balance: <b>{fmt(prevBalance)}</b> — Enter authorization statement to proceed</div></>) : (<div className="sl-credit-sub" style={{ color: "#fff" }}>Balance: <b>{fmt(prevBalance)}</b></div>)}</div>
                 </div>
-                <input
-                  ref={statementRef}
-                  type="text"
-                  className="sl-credit-statement-input"
-                  placeholder={
-                    creditWarning
-                      ? "Enter reason / authorization statement to allow purchase…"
-                      : "Notes (optional)…"
-                  }
-                  value={creditStatement}
-                  onChange={(e) => setCreditStatement(e.target.value)}
-                />
+                <input ref={statementRef} type="text" className="sl-credit-statement-input" placeholder={creditWarning ? "Enter reason / authorization statement to allow purchase…" : "Notes (optional)…"} value={creditStatement} onChange={(e) => setCreditStatement(e.target.value)} />
               </div>
             )}
           </div>
 
           <div className="sl-right">
             <div className="sl-hold-panel">
-              <div className="sl-hold-title">
-                <span>
-                  Hold Bills{" "}
-                  <kbd
-                    style={{
-                      fontSize: 9,
-                      background: "rgba(255,255,255,0.2)",
-                      padding: "0 3px",
-                      borderRadius: 2,
-                    }}
-                  >
-                    F4
-                  </kbd>
-                </span>
-                <span className="sl-hold-cnt">{holdBills.length}</span>
-              </div>
+              <div className="sl-hold-title"><span>Hold Bills <kbd style={{ fontSize: 9, background: "rgba(255,255,255,0.2)", padding: "0 3px", borderRadius: 2 }}>F4</kbd></span><span className="sl-hold-cnt">{holdBills.length}</span></div>
               <div className="sl-hold-table-wrap">
                 <table className="sl-hold-table">
-                  <thead>
-                    <tr>
-                      <th style={{ width: 24 }}>#</th>
-                      <th>Bill #</th>
-                      <th className="r">Amount</th>
-                      <th>Supplier</th>
-                      <th style={{ width: 22 }}></th>
-                    </tr>
-                  </thead>
+                  <thead><tr><th style={{ width: 24 }}>#</th><th>Bill #</th><th className="r">Amount</th><th>Supplier</th><th style={{ width: 22 }}></th></tr></thead>
                   <tbody>
-                    {holdBills.length === 0
-                      ? Array.from({ length: 8 }).map((_, i) => (
-                          <tr key={i}>
-                            <td colSpan={5} style={{ height: 22 }} />
-                          </tr>
-                        ))
-                      : holdBills.map((b, i) => (
-                          <tr
-                            key={b.id}
-                            onClick={() => setShowHoldPreview(b)}
-                            onDoubleClick={() => resumeHold(b.id)}
-                            title="Click = preview · Double-click = resume"
-                          >
-                            <td
-                              className="muted"
-                              style={{
-                                textAlign: "center",
-                                fontSize: "var(--xp-fs-xs)",
-                              }}
-                            >
-                              {i + 1}
-                            </td>
-                            <td
-                              style={{
-                                fontFamily: "var(--xp-mono)",
-                                fontSize: "var(--xp-fs-xs)",
-                              }}
-                            >
-                              {b.invoiceNo}
-                            </td>
-                            <td
-                              className="r"
-                              style={{ color: "var(--xp-blue-dark)" }}
-                            >
-                              {Number(b.amount).toLocaleString("en-PK")}
-                            </td>
-                            <td
-                              className="muted"
-                              style={{ fontSize: "var(--xp-fs-xs)" }}
-                            >
-                              {b.buyerName}
-                            </td>
-                            <td style={{ textAlign: "center" }}>
-                              <button
-                                className="xp-btn xp-btn-sm xp-btn-ico"
-                                style={{
-                                  width: 18,
-                                  height: 18,
-                                  fontSize: 9,
-                                  color: "var(--xp-red)",
-                                }}
-                                onClick={(e) => deleteHold(b.id, e)}
-                              >
-                                ✕
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
+                    {holdBills.length === 0 ? Array.from({ length: 8 }).map((_, i) => (<tr key={i}><td colSpan={5} style={{ height: 22 }} /></tr>)) : holdBills.map((b, i) => (<tr key={b.id} onClick={() => setShowHoldPreview(b)} onDoubleClick={() => resumeHold(b.id)} title="Click = preview · Double-click = resume"><td className="muted" style={{ textAlign: "center", fontSize: "var(--xp-fs-xs)" }}>{i + 1}</td><td style={{ fontFamily: "var(--xp-mono)", fontSize: "var(--xp-fs-xs)" }}>{b.invoiceNo}</td><td className="r" style={{ color: "var(--xp-blue-dark)" }}>{Number(b.amount).toLocaleString("en-PK")}</td><td className="muted" style={{ fontSize: "var(--xp-fs-xs)" }}>{b.buyerName}</td><td style={{ textAlign: "center" }}><button className="xp-btn xp-btn-sm xp-btn-ico" style={{ width: 18, height: 18, fontSize: 9, color: "var(--xp-red)" }} onClick={(e) => deleteHold(b.id, e)}>✕</button></td></tr>))}
                   </tbody>
                 </table>
               </div>
-              <div className="sl-hold-scroll-btns">
-                <button className="xp-btn xp-btn-sm xp-btn-ico">◀</button>
-                <button className="xp-btn xp-btn-sm xp-btn-ico">▶</button>
-              </div>
-              <div style={{ padding: "4px 8px", flexShrink: 0 }}>
-                <button
-                  className="xp-btn xp-btn-sm"
-                  style={{ width: "100%" }}
-                  onClick={holdBill}
-                  disabled={!items.length}
-                >
-                  Hold Bill (F4)
-                </button>
-              </div>
+              <div className="sl-hold-scroll-btns"><button className="xp-btn xp-btn-sm xp-btn-ico">◀</button><button className="xp-btn xp-btn-sm xp-btn-ico">▶</button></div>
+              <div style={{ padding: "4px 8px", flexShrink: 0 }}><button className="xp-btn xp-btn-sm" style={{ width: "100%" }} onClick={holdBill} disabled={!items.length}>Hold Bill (F4)</button></div>
             </div>
-            {supplierId &&
-              (() => {
-                const supp = allSuppliers.find((c) => c._id === supplierId);
-                return supp ? (
-                  <div
-                    style={{
-                      width: "100%",
-                      height: 100,
-                      marginTop: 6,
-                      borderRadius: 6,
-                      overflow: "hidden",
-                      border: "2px solid var(--xp-silver-4)",
-                      flexShrink: 0,
-                      order: 2,
-                    }}
-                  >
-                    {supp.imageFront ? (
-                      <img
-                        src={supp.imageFront}
-                        alt={supp.name}
-                        style={{
-                          width: "100%",
-                          height: "100%",
-                          objectFit: "cover",
-                        }}
-                      />
-                    ) : (
-                      <div
-                        style={{
-                          width: "100%",
-                          height: "100%",
-                          background: "var(--xp-silver-3)",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          fontSize: 48,
-                        }}
-                      >
-                        🏭
-                      </div>
-                    )}
-                  </div>
-                ) : null;
-              })()}
+            {supplierId && (() => { const supp = allSuppliers.find((c) => c._id === supplierId); return supp ? (<div style={{ width: "100%", height: 100, marginTop: 6, borderRadius: 6, overflow: "hidden", border: "2px solid var(--xp-silver-4)", flexShrink: 0, order: 2 }}>{supp.imageFront ? (<img src={supp.imageFront} alt={supp.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />) : (<div style={{ width: "100%", height: "100%", background: "var(--xp-silver-3)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 48 }}>🏭</div>)}</div>) : null; })()}
           </div>
         </div>
 
         <div className="sl-cmd-bar">
-          <button
-            className="xp-btn xp-btn-sm"
-            onClick={fullReset}
-            disabled={loading}
-          >
-            Refresh
-          </button>
-          <button
-            ref={saveRef}
-            className="xp-btn xp-btn-primary xp-btn-lg"
-            onClick={openSaleConfirm}
-            disabled={loading}
-          >
-            {loading ? "Saving…" : "Save  *"}
-          </button>
-          <button className="xp-btn xp-btn-sm" onClick={() => {}}>
-            Edit Record
-          </button>
-          <button
-            className="xp-btn xp-btn-danger xp-btn-sm"
-            disabled={!editId}
-            onClick={async () => {
-              if (!editId || !window.confirm("Delete this purchase?")) return;
-              try {
-                await api.delete(EP.RAW_PURCHASES.DELETE(editId));
-                showMsg("Purchase deleted");
-                fullReset();
-                refreshInvoiceNo();
-              } catch {
-                showMsg("Delete failed", "error");
-              }
-            }}
-          >
-            Delete Record
-          </button>
+          <button className="xp-btn xp-btn-sm" onClick={fullReset} disabled={loading}>Refresh</button>
+          <button ref={saveRef} className="xp-btn xp-btn-primary xp-btn-lg" onClick={openSaleConfirm} disabled={loading}>{loading ? "Saving…" : "Save  *"}</button>
+          <button className="xp-btn xp-btn-sm" onClick={() => {}}>Edit Record</button>
+          <button className="xp-btn xp-btn-danger xp-btn-sm" disabled={!editId} onClick={async () => { if (!editId || !window.confirm("Delete this purchase?")) return; try { await api.delete(EP.RAW_PURCHASES.DELETE(editId)); showMsg("Purchase deleted"); fullReset(); refreshInvoiceNo(); } catch { showMsg("Delete failed", "error"); } }}>Delete Record</button>
           <div className="xp-toolbar-divider" />
-          <div className="sl-cmd-checks">
-            <label className="sl-check-label">
-              <input
-                type="checkbox"
-                checked={sendSms}
-                onChange={(e) => setSendSms(e.target.checked)}
-              />{" "}
-              Send SMS
-            </label>
-            <label className="sl-check-label">
-              <input type="checkbox" /> Print P.Bal
-            </label>
-            <label className="sl-check-label">
-              <input type="checkbox" /> Gate Pass
-            </label>
-          </div>
+          <div className="sl-cmd-checks"><label className="sl-check-label"><input type="checkbox" checked={sendSms} onChange={(e) => setSendSms(e.target.checked)} /> Send SMS</label><label className="sl-check-label"><input type="checkbox" /> Print P.Bal</label><label className="sl-check-label"><input type="checkbox" /> Gate Pass</label></div>
           <div className="xp-toolbar-divider" />
-          <div className="sl-print-types">
-            {["Thermal", "A4", "A5"].map((pt) => (
-              <label key={pt} className="sl-check-label">
-                <input
-                  type="radio"
-                  name="pt"
-                  checked={printType === pt}
-                  onChange={() => setPrintType(pt)}
-                />{" "}
-                {pt}
-              </label>
-            ))}
-          </div>
+          <div className="sl-print-types">{["Thermal", "A4", "A5"].map((pt) => (<label key={pt} className="sl-check-label"><input type="radio" name="pt" checked={printType === pt} onChange={() => setPrintType(pt)} /> {pt}</label>))}</div>
           <div className="xp-toolbar-divider" />
-          <span className={`sl-inv-info${editId ? " edit-mode" : ""}`}>
-            {editId
-              ? "✏ Editing purchase record"
-              : `${invoiceNo} | Items: ${items.length} | Total: ${Number(subTotal).toLocaleString("en-PK")} | ${saleSource} / ${paymentMode}`}
-          </span>
-          <button
-            className="xp-btn xp-btn-sm"
-            style={{ marginLeft: "auto" }}
-            onClick={fullReset}
-          >
-            Close
-          </button>
+          <span className={`sl-inv-info${editId ? " edit-mode" : ""}`}>{editId ? "✏ Editing purchase record" : `${invoiceNo} | Items: ${items.length} | Total: ${Number(subTotal).toLocaleString("en-PK")} | ${saleSource} / ${paymentMode}`}</span>
+          <button className="xp-btn xp-btn-sm" style={{ marginLeft: "auto" }} onClick={fullReset}>Close</button>
         </div>
       </div>
 
       <style>{`
-      @font-face {
-        font-family: 'UrduFont';
-        src: local('Jameel Noori Nastaleeq'),
-             local('Noto Nastaliq Urdu'),
-             local('Urdu Typesetting'),
-             local('Arial Unicode MS');
-      }
-
-      .urdu, .shop-urdu, .shop-addr, .banner, .terms-box, .terms {
-        font-family: 'UrduFont', 'Jameel Noori Nastaleeq', 'Noto Nastaliq Urdu', 
-                     'Urdu Typesetting', Arial, sans-serif !important;
-        direction: rtl;
-      }
-      
-      .table.xp-table tbody td {
-        border-right: 1px solid red !important;
-      }
-      
-      .xp-link-btn {
-        text-decoration: none;
-      }
-      
-      .sl-nav-btn {
-        font-size: 14px !important;
-        padding: 4px 12px !important;
-        font-weight: 600 !important;
-      }
-      
-      input, .xp-input, .sl-product-input, .sl-num-input, .sl-sum-input, .sl-cust-input {
-        background-color: #fffde7 !important;
-      }
+        @font-face { font-family: 'UrduFont'; src: local('Jameel Noori Nastaleeq'), local('Noto Nastaliq Urdu'), local('Urdu Typesetting'), local('Arial Unicode MS'); }
+        .urdu, .shop-urdu, .shop-addr, .banner, .terms-box, .terms { font-family: 'UrduFont', 'Jameel Noori Nastaleeq', 'Noto Nastaliq Urdu', 'Urdu Typesetting', Arial, sans-serif !important; direction: rtl; }
+        .table.xp-table tbody td { border-right: 1px solid red !important; }
+        .xp-link-btn { text-decoration: none; }
+        .sl-nav-btn { font-size: 14px !important; padding: 4px 12px !important; font-weight: 600 !important; }
+        input, .xp-input, .sl-product-input, .sl-num-input, .sl-sum-input, .sl-cust-input { background-color: #fffde7 !important; }
+        .sl-page { background: #ffffff; }
+        input, .xp-input, .sl-product-input, .sl-num-input, .sl-sum-input, .sl-cust-input, .sl-credit-statement-input, .sl-inv-input, .sl-date-input, .sl-sum-val { border-color: #000000 !important; border-width: 1px !important; border-style: solid !important; }
+        .sl-items-table th, .sl-items-table td, .sl-hold-table th, .sl-hold-table td { border-color: #000000 !important; border-width: 1px !important; }
+        .xp-btn, .sl-entry-btns .xp-btn { border-color: #000000 !important; border-width: 1px !important; border-style: solid !important; }
+        .sl-summary-bar, .sl-customer-bar, .sl-top-bar, .sl-entry-strip, .sl-table-header-bar, .sl-hold-panel, .sl-right, .sl-left { border-color: #e0e0e0; }
+        .sl-items-table tbody tr.sl-empty-row { display: none; }
+        .sl-inv-input { font-size: 14px !important; font-weight: bold !important; width: 140px !important; text-align: center !important; }
+        .sl-product-input { background-color: #fffde7 !important; border-color: #000000 !important; }
+        .sl-num-input, .sl-sum-input, .sl-cust-input { background-color: #fffde7 !important; }
+        .sl-sum-val, .sl-date-input[readonly] { background-color: #f5f5f5 !important; }
       `}</style>
     </>
   );
