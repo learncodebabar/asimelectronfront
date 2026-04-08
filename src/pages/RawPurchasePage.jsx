@@ -48,6 +48,7 @@ const TYPE_COLORS = {
   cash: { bg: "#86efac", color: "#14532d", border: "#22c55e" },
   "raw-sale": { bg: "#fde68a", color: "#78350f", border: "#f59e0b" },
   "raw-purchase": { bg: "#d8b4fe", color: "#3b0764", border: "#a855f7" },
+  supplier: { bg: "#d8b4fe", color: "#3b0764", border: "#a855f7" },
 };
 
 const typeToPayment = (t) => {
@@ -1154,85 +1155,186 @@ function HoldPreviewModal({ bill, onResume, onClose }) {
 }
 
 /* ══════════════════════════════════════════════════════════
-   SUPPLIER DROPDOWN (for raw-purchase type)
+   SUPPLIER DROPDOWN - Shows ALL suppliers (like Sale page)
 ══════════════════════════════════════════════════════════ */
-function SupplierDropdown({
-  allSuppliers,
-  value,
-  displayName,
-  supplierType,
-  onSelect,
-  onClear,
-  onAddNew,
-  allowedTypes,
-}) {
+function SupplierDropdown({ allSuppliers, value, displayName, supplierType, onSelect, onClear, onAddNew, allowedTypes }) {
   const [query, setQuery] = useState("");
+  const [originalQuery, setOriginalQuery] = useState("");
   const [ghost, setGhost] = useState("");
+  const [suggestions, setSuggestions] = useState([]);
+  const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(-1);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [isNavigating, setIsNavigating] = useState(false);
+  const [isFocused, setIsFocused] = useState(false);
   const inputRef = useRef(null);
+  const parentRef = useRef(null);
 
-  const creditSuppliers = allSuppliers.filter((c) => {
+  // Show ALL suppliers (filter by type if needed)
+  const filteredSuppliers = allSuppliers.filter((c) => {
     const t = (c.customerType || c.type || "").toLowerCase();
-    const allowed = allowedTypes || ["raw-purchase", "supplier"];
+    const allowed = allowedTypes || ["supplier", "raw-purchase", "credit"];
     return allowed.includes(t) && c.name?.toUpperCase().trim() !== "COUNTER SALE";
   });
 
-  useEffect(() => {
-    if (!query.trim()) {
-      setGhost("");
-      return;
-    }
-    const match = creditSuppliers.find((c) =>
-      c.name?.toLowerCase().startsWith(query.toLowerCase()),
+  const getSuggestions = (searchTerm) => {
+    if (!searchTerm.trim()) return [];
+    const searchLower = searchTerm.toLowerCase();
+    return filteredSuppliers.filter(c => 
+      c.name?.toLowerCase().startsWith(searchLower) ||
+      c.code?.toLowerCase().startsWith(searchLower)
     );
-    setGhost(match ? match.name.slice(query.length) : "");
-  }, [query, allSuppliers]);
-
-  const pick = (c) => {
-    onSelect(c);
-    setQuery("");
-    setGhost("");
   };
 
-  const handleKey = (e) => {
-    if (ghost && (e.key === "Tab" || e.key === "ArrowRight")) {
-      e.preventDefault();
-      const full = query + ghost;
-      const match = creditSuppliers.find(
-        (c) => c.name?.toLowerCase() === full.toLowerCase(),
-      );
-      if (match) pick(match);
+  useEffect(() => {
+    if (!originalQuery.trim()) {
+      setSuggestions([]);
+      setGhost("");
+      setShowDropdown(false);
       return;
     }
-    if (e.key === "Enter") {
+
+    const matches = getSuggestions(originalQuery);
+    setSuggestions(matches);
+    setShowDropdown(matches.length > 0);
+    
+    if (!isNavigating && matches.length > 0 && matches[0].name) {
+      const remaining = matches[0].name.slice(originalQuery.length);
+      setGhost(remaining);
+    } else {
+      setGhost("");
+    }
+  }, [originalQuery, isNavigating]);
+
+  const selectSupplier = (supplier) => {
+    onSelect(supplier);
+    setQuery("");
+    setOriginalQuery("");
+    setGhost("");
+    setSuggestions([]);
+    setSelectedSuggestionIndex(-1);
+    setShowDropdown(false);
+    setIsNavigating(false);
+  };
+
+  const handleKeyDown = (e) => {
+    if (ghost && (e.key === "ArrowRight" || e.key === "Tab") && !isNavigating) {
       e.preventDefault();
-      const q = query.trim().toLowerCase();
-      if (!q) return;
-      const match =
-        creditSuppliers.find((c) => c.name?.toLowerCase() === q) ||
-        creditSuppliers.find((c) => c.name?.toLowerCase().startsWith(q));
-      if (match) {
-        pick(match);
-      } else if (onAddNew) {
-        onAddNew(query.trim());
-        setQuery("");
+      const fullName = originalQuery + ghost;
+      setQuery(fullName);
+      setOriginalQuery(fullName);
+      setGhost("");
+      setIsNavigating(false);
+      
+      const matchedSupplier = suggestions[0];
+      if (matchedSupplier) {
+        selectSupplier(matchedSupplier);
+      }
+      return;
+    }
+    
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      
+      if (suggestions.length === 0) return;
+      
+      setIsNavigating(true);
+      setShowDropdown(true);
+      
+      let newIndex;
+      if (selectedSuggestionIndex === -1) {
+        newIndex = 0;
+      } else {
+        newIndex = selectedSuggestionIndex + 1;
+        if (newIndex >= suggestions.length) {
+          newIndex = 0;
+        }
+      }
+      
+      setSelectedSuggestionIndex(newIndex);
+      
+      const selectedSupplier = suggestions[newIndex];
+      if (selectedSupplier) {
+        setQuery(selectedSupplier.name);
         setGhost("");
       }
       return;
     }
+    
+    if (e.key === "ArrowUp") {
+      e.preventDefault();
+      
+      if (suggestions.length === 0) return;
+      
+      setIsNavigating(true);
+      setShowDropdown(true);
+      
+      let newIndex;
+      if (selectedSuggestionIndex === -1) {
+        newIndex = suggestions.length - 1;
+      } else {
+        newIndex = selectedSuggestionIndex - 1;
+        if (newIndex < 0) {
+          newIndex = suggestions.length - 1;
+        }
+      }
+      
+      setSelectedSuggestionIndex(newIndex);
+      
+      const selectedSupplier = suggestions[newIndex];
+      if (selectedSupplier) {
+        setQuery(selectedSupplier.name);
+        setGhost("");
+      }
+      return;
+    }
+    
+    if (e.key === "Enter") {
+      e.preventDefault();
+      
+      if (selectedSuggestionIndex >= 0 && suggestions[selectedSuggestionIndex]) {
+        selectSupplier(suggestions[selectedSuggestionIndex]);
+      } else if (suggestions.length > 0 && suggestions[0]) {
+        selectSupplier(suggestions[0]);
+      } else if (originalQuery.trim() && onAddNew) {
+        onAddNew(originalQuery.trim());
+        setQuery("");
+        setOriginalQuery("");
+        setGhost("");
+      }
+      return;
+    }
+    
     if (e.key === "Escape") {
+      e.preventDefault();
       setQuery("");
+      setOriginalQuery("");
       setGhost("");
+      setSuggestions([]);
+      setSelectedSuggestionIndex(-1);
+      setShowDropdown(false);
+      setIsNavigating(false);
+      if (value) onClear();
+      inputRef.current?.blur();
     }
   };
 
-  const typeStyle =
-    supplierType && TYPE_COLORS[supplierType]
-      ? {
-          background: TYPE_COLORS[supplierType].bg,
-          color: TYPE_COLORS[supplierType].color,
-          border: `1px solid ${TYPE_COLORS[supplierType].border}`,
-        }
-      : null;
+  const handleChange = (e) => {
+    const newValue = e.target.value;
+    setQuery(newValue);
+    setOriginalQuery(newValue);
+    if (value && newValue !== displayName) onClear();
+    setSelectedSuggestionIndex(-1);
+    setShowDropdown(true);
+    setIsNavigating(false);
+  };
+
+  const typeStyle = supplierType && TYPE_COLORS[supplierType]
+    ? {
+        background: TYPE_COLORS[supplierType].bg,
+        color: TYPE_COLORS[supplierType].color,
+        border: `1px solid ${TYPE_COLORS[supplierType].border}`,
+      }
+    : null;
 
   return (
     <div style={{ position: "relative", flex: 1 }}>
@@ -1250,47 +1352,64 @@ function SupplierDropdown({
           </span>
         )}
 
-        {ghost && (
-          <div
-            style={{
-              position: "absolute",
-              left: typeStyle ? 72 : 8,
-              top: "50%",
-              transform: "translateY(-50%)",
-              pointerEvents: "none",
-              whiteSpace: "nowrap",
-              fontSize: 13,
-              fontFamily: "inherit",
-              display: "flex",
-              zIndex: 0,
-            }}
-          >
-            <span style={{ visibility: "hidden" }}>{query}</span>
-            <span style={{ color: "blue" }}>{ghost}</span>
-          </div>
-        )}
-
-        <input
-          ref={inputRef}
-          className="sl-cust-input cdd-input"
-          style={{
+        <div 
+          ref={parentRef}
+          style={{ 
+            position: "relative", 
             flex: 1,
-            minWidth: 0,
-            cursor: "text",
-            background: "transparent",
-            position: "relative",
-            zIndex: 1,
+            background: isFocused ? "#fffbe6" : "transparent",
+            borderRadius: "4px",
+            transition: "background 0.15s ease",
           }}
-          value={value ? query || displayName : query}
-          placeholder="Supplier name..."
-          onChange={(e) => {
-            setQuery(e.target.value);
-            if (value && e.target.value !== displayName) onClear();
-          }}
-          onKeyDown={handleKey}
-          autoComplete="off"
-          spellCheck={false}
-        />
+        >
+          {ghost && !isNavigating && (
+            <div
+              style={{
+                position: "absolute",
+                left: 0,
+                top: "50%",
+                transform: "translateY(-50%)",
+                pointerEvents: "none",
+                whiteSpace: "nowrap",
+                fontSize: "13px",
+                fontFamily: "inherit",
+                display: "flex",
+                zIndex: 2,
+                color: "#a0aec0",
+                opacity: 1,
+                backgroundColor: "transparent",
+                paddingLeft: "4px",
+              }}
+            >
+              <span style={{ visibility: "hidden", opacity: 1 }}>{originalQuery}</span>
+              <span style={{ opacity: 1, color: "#a0aec0" }}>{ghost}</span>
+            </div>
+          )}
+          
+          <input
+            ref={inputRef}
+            className="sl-cust-input cdd-input"
+            style={{
+              flex: 1,
+              minWidth: 0,
+              cursor: "text",
+              background: "transparent",
+              position: "relative",
+              zIndex: 1,
+              width: "100%",
+              border: "none",
+              outline: "none",
+              padding: "4px",
+            }}
+            value={value ? query || displayName : query}
+            onChange={handleChange}
+            onKeyDown={handleKeyDown}
+            onFocus={() => setIsFocused(true)}
+            onBlur={() => setIsFocused(false)}
+            autoComplete="off"
+            spellCheck={false}
+          />
+        </div>
 
         {value && (
           <button
@@ -1305,7 +1424,13 @@ function SupplierDropdown({
               e.preventDefault();
               onClear();
               setQuery("");
+              setOriginalQuery("");
               setGhost("");
+              setSuggestions([]);
+              setSelectedSuggestionIndex(-1);
+              setShowDropdown(false);
+              setIsNavigating(false);
+              inputRef.current?.focus();
             }}
             title="Clear"
           >
@@ -1313,6 +1438,84 @@ function SupplierDropdown({
           </button>
         )}
       </div>
+
+      {showDropdown && suggestions.length > 0 && (
+        <div
+          style={{
+            position: "absolute",
+            top: "100%",
+            left: 0,
+            right: 0,
+            backgroundColor: "white",
+            border: "1px solid #e5e7eb",
+            borderRadius: 4,
+            maxHeight: 200,
+            overflowY: "auto",
+            zIndex: 1000,
+            boxShadow: "0 4px 6px -1px rgba(0,0,0,0.1)",
+            marginTop: 2,
+          }}
+        >
+          {suggestions.map((supplier, idx) => {
+            const t = supplier.customerType || supplier.type || "";
+            const ts = TYPE_COLORS[t];
+            return (
+              <div
+                key={supplier._id}
+                onClick={() => selectSupplier(supplier)}
+                style={{
+                  padding: "8px 12px",
+                  cursor: "pointer",
+                  backgroundColor: idx === selectedSuggestionIndex ? "#e5f0ff" : "white",
+                  borderBottom: "1px solid #f3f4f6",
+                  fontSize: 13,
+                }}
+                onMouseEnter={() => {
+                  setSelectedSuggestionIndex(idx);
+                  setIsNavigating(true);
+                  setQuery(supplier.name);
+                  setGhost("");
+                }}
+              >
+                <div style={{ fontWeight: 500, marginBottom: 2 }}>
+                  {supplier.code && <span style={{ color: "#6b7280", fontSize: 11 }}>[{supplier.code}]</span>} {supplier.name}
+                </div>
+                {supplier.phone && (
+                  <div style={{ fontSize: 10, color: "#6b7280" }}>
+                    📞 {supplier.phone}
+                  </div>
+                )}
+                {t && ts && (
+                  <div style={{ fontSize: 10, color: ts.color, marginTop: 2 }}>
+                    Type: {t}
+                  </div>
+                )}
+                {(supplier.currentBalance || 0) > 0 && (
+                  <div style={{ fontSize: 10, color: "#ef4444", marginTop: 2 }}>
+                    Balance: PKR {(supplier.currentBalance || 0).toLocaleString("en-PK")}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+      
+      {originalQuery && suggestions.length === 0 && (
+        <div
+          style={{
+            position: "absolute",
+            top: "100%",
+            left: 0,
+            fontSize: 10,
+            color: "#9ca3af",
+            marginTop: 2,
+            padding: "4px 8px",
+          }}
+        >
+          No supplier found matching "{originalQuery}"
+        </div>
+      )}
     </div>
   );
 }
@@ -1409,10 +1612,15 @@ export default function RawPurchasePage() {
       ]);
       if (pRes.data.success) setAllProducts(pRes.data.data);
       if (cRes.data.success) {
+        // Show ALL suppliers (type: supplier, raw-purchase, credit)
         const suppliers = cRes.data.data.filter(
-          (c) => (c.type || "").toLowerCase() === "raw-purchase" || (c.type || "").toLowerCase() === "supplier",
+          (c) => {
+            const type = (c.type || c.customerType || "").toLowerCase();
+            return type === "supplier" || type === "raw-purchase" || type === "credit";
+          }
         );
         setAllSuppliers(suppliers);
+        console.log("Suppliers loaded:", suppliers.length);
       }
       if (invRes.data.success) {
         const num = invRes.data.data.invoiceNo.replace("INV-", "PUR-");
@@ -2474,7 +2682,7 @@ export default function RawPurchasePage() {
                   onSelect={handleSupplierSelect}
                   onClear={handleSupplierClear}
                   onAddNew={handleAddNewSupplier}
-                  allowedTypes={["raw-purchase", "supplier"]}
+                  allowedTypes={["raw-purchase", "supplier", "credit"]}
                 />
               </div>
 

@@ -102,7 +102,7 @@ const buildPrintHtml = (ret, type) => {
       ${ret.saleInvNo ? `<div style="font-size:9px;color:#666">Ref Sale: ${ret.saleInvNo}</div>` : ""}
       <div style="font-size:10.5px;font-weight:bold">${ret.customerName}</div>
       <hr class="solid">
-      </table>
+      <table>
         <thead><tr><th>#</th><th>Item</th><th class="r">Qty</th><th class="r">Rate</th><th class="r">Amt</th></tr></thead>
         <tbody>${itemRows}</tbody>
       </table>
@@ -750,21 +750,17 @@ function SearchSaleModal({ onSelect, onClose, onNext, onPrev, hasNext, hasPrev }
     setLoading(false);
   };
 
-  // Handle Enter key to navigate between fields
   const handleFieldKeyDown = (e, fieldType) => {
     if (e.key === "Enter") {
       e.preventDefault();
       
       if (fieldType === "id") {
-        // From Invoice ID → go to Phone field
         searchPhoneRef.current?.focus();
       } 
       else if (fieldType === "phone") {
-        // From Phone → go to Amount field
         searchPriceRef.current?.focus();
       }
       else if (fieldType === "amount") {
-        // From Amount → fetch results and focus list
         fetchInvoices();
         setTimeout(() => {
           listRef.current?.focus();
@@ -774,14 +770,12 @@ function SearchSaleModal({ onSelect, onClose, onNext, onPrev, hasNext, hasPrev }
     }
   };
 
-  // Handle keyboard navigation in results list
   const handleListKeyDown = (e) => {
     if (e.key === "Escape") {
       onClose();
       return;
     }
     
-    // Arrow Down
     if (e.key === "ArrowDown") {
       e.preventDefault();
       setHiIdx((prev) => {
@@ -795,7 +789,6 @@ function SearchSaleModal({ onSelect, onClose, onNext, onPrev, hasNext, hasPrev }
       return;
     }
     
-    // Arrow Up
     if (e.key === "ArrowUp") {
       e.preventDefault();
       setHiIdx((prev) => {
@@ -809,7 +802,6 @@ function SearchSaleModal({ onSelect, onClose, onNext, onPrev, hasNext, hasPrev }
       return;
     }
     
-    // Enter on selected row
     if (e.key === "Enter") {
       e.preventDefault();
       if (invoices[hiIdx]) {
@@ -867,7 +859,6 @@ function SearchSaleModal({ onSelect, onClose, onNext, onPrev, hasNext, hasPrev }
         
         <div className="cs-modal-filters" style={{ padding: "12px" }}>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 12 }}>
-            {/* Invoice # / ID Field */}
             <div className="cs-modal-filter-grp">
               <label className="xp-label">Invoice # / ID</label>
               <input
@@ -882,7 +873,6 @@ function SearchSaleModal({ onSelect, onClose, onNext, onPrev, hasNext, hasPrev }
               />
             </div>
             
-            {/* Customer Phone Field */}
             <div className="cs-modal-filter-grp">
               <label className="xp-label">Customer Phone</label>
               <input
@@ -897,7 +887,6 @@ function SearchSaleModal({ onSelect, onClose, onNext, onPrev, hasNext, hasPrev }
               />
             </div>
             
-            {/* Amount / Price Field - Last field, triggers search on Enter */}
             <div className="cs-modal-filter-grp">
               <label className="xp-label">Amount / Price</label>
               <div style={{ display: "flex", gap: 6 }}>
@@ -1160,7 +1149,7 @@ function HoldPreviewModal({ bill, onResume, onClose }) {
 }
 
 /* ══════════════════════════════════════════════════════════
-   CUSTOMER DROPDOWN
+   CUSTOMER DROPDOWN - Shows ALL credit customers (like Sale page)
 ══════════════════════════════════════════════════════════ */
 function CustomerDropdown({
   allCustomers,
@@ -1171,126 +1160,180 @@ function CustomerDropdown({
   onClear,
 }) {
   const [query, setQuery] = useState("");
-  const [open, setOpen] = useState(false);
-  const [hiIdx, setHiIdx] = useState(0);
+  const [originalQuery, setOriginalQuery] = useState("");
   const [ghost, setGhost] = useState("");
-  const wrapRef = useRef(null);
+  const [suggestions, setSuggestions] = useState([]);
+  const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(-1);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [isNavigating, setIsNavigating] = useState(false);
+  const [isFocused, setIsFocused] = useState(false);
   const inputRef = useRef(null);
-  const listRef = useRef(null);
+  const parentRef = useRef(null);
 
-  const ALLOWED_TYPES = ["credit", "cash", ""];
-  const realCustomers = allCustomers.filter((c) => {
-    if (c.name?.toUpperCase().trim() === "COUNTER SALE") return false;
+  // Show ALL credit customers (same as Sale page)
+  const creditCustomers = allCustomers.filter((c) => {
     const t = (c.customerType || c.type || "").toLowerCase();
-    return ALLOWED_TYPES.includes(t);
+    return (
+      t === "credit" && c.name?.toUpperCase().trim() !== "COUNTER SALE"
+    );
   });
 
-  const filtered = query.trim()
-    ? realCustomers.filter((c) => {
-        const q = query.toLowerCase();
-        return (
-          c.name?.toLowerCase().includes(q) ||
-          c.code?.toLowerCase().includes(q) ||
-          c.phone?.toLowerCase().includes(q)
-        );
-      })
-    : realCustomers;
-
-  useEffect(() => {
-    if (!query.trim()) {
-      setGhost("");
-      return;
-    }
-    const match = realCustomers.find((c) =>
-      c.name?.toLowerCase().startsWith(query.toLowerCase()),
+  const getSuggestions = (searchTerm) => {
+    if (!searchTerm.trim()) return [];
+    const searchLower = searchTerm.toLowerCase();
+    return creditCustomers.filter(c => 
+      c.name?.toLowerCase().startsWith(searchLower)
     );
-    setGhost(match ? match.name.slice(query.length) : "");
-  }, [query, allCustomers]);
-
-  useEffect(() => {
-    const h = (e) => {
-      if (wrapRef.current && !wrapRef.current.contains(e.target))
-        setOpen(false);
-    };
-    document.addEventListener("mousedown", h);
-    return () => document.removeEventListener("mousedown", h);
-  }, []);
-
-  useEffect(() => {
-    if (!listRef.current || !open || hiIdx < 0) return;
-    listRef.current.children[hiIdx]?.scrollIntoView({ block: "nearest" });
-  }, [hiIdx, open]);
-
-  useEffect(() => {
-    setHiIdx(0);
-  }, [query]);
-
-  const pick = (c) => {
-    onSelect(c);
-    setOpen(false);
-    setQuery("");
-    setGhost("");
   };
 
-  const handleKey = (e) => {
-    if (ghost && (e.key === "Tab" || e.key === "ArrowRight")) {
+  useEffect(() => {
+    if (!originalQuery.trim()) {
+      setSuggestions([]);
+      setGhost("");
+      setShowDropdown(false);
+      return;
+    }
+
+    const matches = getSuggestions(originalQuery);
+    setSuggestions(matches);
+    setShowDropdown(matches.length > 0);
+    
+    if (!isNavigating && matches.length > 0 && matches[0].name) {
+      const remaining = matches[0].name.slice(originalQuery.length);
+      setGhost(remaining);
+    } else {
+      setGhost("");
+    }
+  }, [originalQuery, isNavigating]);
+
+  const selectCustomer = (customer) => {
+    onSelect(customer);
+    setQuery("");
+    setOriginalQuery("");
+    setGhost("");
+    setSuggestions([]);
+    setSelectedSuggestionIndex(-1);
+    setShowDropdown(false);
+    setIsNavigating(false);
+  };
+
+  const handleKeyDown = (e) => {
+    if (ghost && (e.key === "ArrowRight" || e.key === "Tab") && !isNavigating) {
       e.preventDefault();
-      const full = query + ghost;
-      const match = realCustomers.find(
-        (c) => c.name?.toLowerCase() === full.toLowerCase(),
-      );
-      if (match) pick(match);
-      else {
-        setQuery(full);
+      const fullName = originalQuery + ghost;
+      setQuery(fullName);
+      setOriginalQuery(fullName);
+      setGhost("");
+      setIsNavigating(false);
+      
+      const matchedCustomer = suggestions[0];
+      if (matchedCustomer) {
+        selectCustomer(matchedCustomer);
+      }
+      return;
+    }
+    
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      
+      if (suggestions.length === 0) return;
+      
+      setIsNavigating(true);
+      setShowDropdown(true);
+      
+      let newIndex;
+      if (selectedSuggestionIndex === -1) {
+        newIndex = 0;
+      } else {
+        newIndex = selectedSuggestionIndex + 1;
+        if (newIndex >= suggestions.length) {
+          newIndex = 0;
+        }
+      }
+      
+      setSelectedSuggestionIndex(newIndex);
+      
+      const selectedCustomer = suggestions[newIndex];
+      if (selectedCustomer) {
+        setQuery(selectedCustomer.name);
         setGhost("");
       }
       return;
     }
-    if (!open && (e.key === "ArrowDown" || e.key === "Enter")) {
-      e.preventDefault();
-      setOpen(true);
-      return;
-    }
-    if (e.key === "Escape") {
-      setOpen(false);
-      setQuery("");
-      setGhost("");
-      return;
-    }
-    if (e.key === "ArrowDown") {
-      e.preventDefault();
-      setHiIdx((i) => Math.min(i + 1, filtered.length - 1));
-      return;
-    }
+    
     if (e.key === "ArrowUp") {
       e.preventDefault();
-      setHiIdx((i) => Math.max(i - 1, 0));
+      
+      if (suggestions.length === 0) return;
+      
+      setIsNavigating(true);
+      setShowDropdown(true);
+      
+      let newIndex;
+      if (selectedSuggestionIndex === -1) {
+        newIndex = suggestions.length - 1;
+      } else {
+        newIndex = selectedSuggestionIndex - 1;
+        if (newIndex < 0) {
+          newIndex = suggestions.length - 1;
+        }
+      }
+      
+      setSelectedSuggestionIndex(newIndex);
+      
+      const selectedCustomer = suggestions[newIndex];
+      if (selectedCustomer) {
+        setQuery(selectedCustomer.name);
+        setGhost("");
+      }
       return;
     }
+    
     if (e.key === "Enter") {
       e.preventDefault();
-      if (filtered[hiIdx]) pick(filtered[hiIdx]);
+      
+      if (selectedSuggestionIndex >= 0 && suggestions[selectedSuggestionIndex]) {
+        selectCustomer(suggestions[selectedSuggestionIndex]);
+      } else if (suggestions.length > 0 && suggestions[0]) {
+        selectCustomer(suggestions[0]);
+      }
       return;
+    }
+    
+    if (e.key === "Escape") {
+      e.preventDefault();
+      setQuery("");
+      setOriginalQuery("");
+      setGhost("");
+      setSuggestions([]);
+      setSelectedSuggestionIndex(-1);
+      setShowDropdown(false);
+      setIsNavigating(false);
+      if (value) onClear();
+      inputRef.current?.blur();
     }
   };
 
-  const typeStyle =
-    customerType && TYPE_COLORS[customerType]
-      ? {
-          background: TYPE_COLORS[customerType].bg,
-          color: TYPE_COLORS[customerType].color,
-          border: `1px solid ${TYPE_COLORS[customerType].border}`,
-        }
-      : null;
+  const handleChange = (e) => {
+    const newValue = e.target.value;
+    setQuery(newValue);
+    setOriginalQuery(newValue);
+    if (value && newValue !== displayName) onClear();
+    setSelectedSuggestionIndex(-1);
+    setShowDropdown(true);
+    setIsNavigating(false);
+  };
 
-  const inputVal = open ? query : value ? displayName : "";
+  const typeStyle = customerType && TYPE_COLORS[customerType]
+    ? {
+        background: TYPE_COLORS[customerType].bg,
+        color: TYPE_COLORS[customerType].color,
+        border: `1px solid ${TYPE_COLORS[customerType].border}`,
+      }
+    : null;
 
   return (
-    <div
-      className="cdd-wrap"
-      ref={wrapRef}
-      style={{ position: "relative", flex: 1 }}
-    >
+    <div style={{ position: "relative", flex: 1 }}>
       <div
         style={{
           display: "flex",
@@ -1304,50 +1347,66 @@ function CustomerDropdown({
             {customerType}
           </span>
         )}
-        {open && ghost && (
-          <div
-            style={{
-              position: "absolute",
-              left: typeStyle ? 72 : 8,
-              top: "50%",
-              transform: "translateY(-50%)",
-              pointerEvents: "none",
-              whiteSpace: "nowrap",
-              fontSize: 13,
-              fontFamily: "inherit",
-              display: "flex",
-            }}
-          >
-            <span style={{ visibility: "hidden" }}>{query}</span>
-            <span style={{ color: "#b0bec5" }}>{ghost}</span>
-          </div>
-        )}
-        <input
-          ref={inputRef}
-          className="sr-cust-input cdd-input"
-          style={{
+
+        <div 
+          ref={parentRef}
+          style={{ 
+            position: "relative", 
             flex: 1,
-            minWidth: 0,
-            cursor: "text",
-            background: "transparent",
-            position: "relative",
-            zIndex: 1,
+            background: isFocused ? "#fffde7" : "transparent",
+            borderRadius: "4px",
+            transition: "background 0.15s ease",
           }}
-          value={inputVal}
-          placeholder={value ? "" : "Type name or press ↓ to browse…"}
-          onChange={(e) => {
-            setQuery(e.target.value);
-            if (!open) setOpen(true);
-            setHiIdx(0);
-          }}
-          onFocus={() => {
-            setOpen(true);
-            setHiIdx(0);
-          }}
-          onKeyDown={handleKey}
-          autoComplete="off"
-          spellCheck={false}
-        />
+        >
+          {ghost && !isNavigating && (
+            <div
+              style={{
+                position: "absolute",
+                left: 0,
+                top: "50%",
+                transform: "translateY(-50%)",
+                pointerEvents: "none",
+                whiteSpace: "nowrap",
+                fontSize: "13px",
+                fontFamily: "inherit",
+                display: "flex",
+                zIndex: 2,
+                color: "#a0aec0",
+                opacity: 1,
+                backgroundColor: "transparent",
+                paddingLeft: "4px",
+              }}
+            >
+              <span style={{ visibility: "hidden", opacity: 1 }}>{originalQuery}</span>
+              <span style={{ opacity: 1, color: "#a0aec0" }}>{ghost}</span>
+            </div>
+          )}
+          
+          <input
+            ref={inputRef}
+            className="sr-cust-input cdd-input"
+            style={{
+              flex: 1,
+              minWidth: 0,
+              cursor: "text",
+              background: "transparent",
+              position: "relative",
+              zIndex: 1,
+              width: "100%",
+              border: "none",
+              outline: "none",
+              padding: "4px",
+            }}
+            value={value ? query || displayName : query}
+            onChange={handleChange}
+            onKeyDown={handleKeyDown}
+            onFocus={() => setIsFocused(true)}
+            onBlur={() => setIsFocused(false)}
+            autoComplete="off"
+            spellCheck={false}
+          />
+        </div>
+
         {value && (
           <button
             className="xp-btn xp-btn-sm xp-btn-danger"
@@ -1361,8 +1420,13 @@ function CustomerDropdown({
               e.preventDefault();
               onClear();
               setQuery("");
-              setOpen(false);
+              setOriginalQuery("");
               setGhost("");
+              setSuggestions([]);
+              setSelectedSuggestionIndex(-1);
+              setShowDropdown(false);
+              setIsNavigating(false);
+              inputRef.current?.focus();
             }}
             title="Clear"
           >
@@ -1371,123 +1435,72 @@ function CustomerDropdown({
         )}
       </div>
 
-      {open && (
+      {showDropdown && suggestions.length > 0 && (
         <div
-          ref={listRef}
           style={{
             position: "absolute",
-            bottom: "100%",
+            top: "100%",
             left: 0,
             right: 0,
-            marginBottom: 2,
-            maxHeight: 280,
-            overflowY: "auto",
-            zIndex: 9999,
-            background: "#fff",
-            border: "1px solid #b0bcd8",
+            backgroundColor: "white",
+            border: "1px solid #e5e7eb",
             borderRadius: 4,
-            boxShadow: "0 -6px 20px rgba(0,0,0,0.14)",
+            maxHeight: 200,
+            overflowY: "auto",
+            zIndex: 1000,
+            boxShadow: "0 4px 6px -1px rgba(0,0,0,0.1)",
+            marginTop: 2,
           }}
         >
-          {filtered.length === 0 && (
+          {suggestions.map((customer, idx) => (
             <div
-              style={{ padding: "10px 12px", color: "#9ca3af", fontSize: 12 }}
+              key={customer._id}
+              onClick={() => selectCustomer(customer)}
+              style={{
+                padding: "8px 12px",
+                cursor: "pointer",
+                backgroundColor: idx === selectedSuggestionIndex ? "#e5f0ff" : "white",
+                borderBottom: "1px solid #f3f4f6",
+                fontSize: 13,
+              }}
+              onMouseEnter={() => {
+                setSelectedSuggestionIndex(idx);
+                setIsNavigating(true);
+                setQuery(customer.name);
+                setGhost("");
+              }}
             >
-              No customers found
-            </div>
-          )}
-          {filtered.map((c, i) => {
-            const tc = c.customerType || c.type || "";
-            const ts = TYPE_COLORS[tc];
-            const q = query.trim();
-            const nameNode = q
-              ? (() => {
-                  const idx =
-                    c.name?.toLowerCase().indexOf(q.toLowerCase()) ?? -1;
-                  if (idx === -1) return c.name;
-                  return (
-                    <>
-                      {c.name.slice(0, idx)}
-                      <mark style={{ background: "#fef08a", padding: 0 }}>
-                        {c.name.slice(idx, idx + q.length)}
-                      </mark>
-                      {c.name.slice(idx + q.length)}
-                    </>
-                  );
-                })()
-              : c.name;
-            return (
-              <div
-                key={c._id}
-                onMouseEnter={() => setHiIdx(i)}
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  pick(c);
-                }}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8,
-                  padding: "6px 12px",
-                  cursor: "pointer",
-                  background:
-                    i === hiIdx ? "#dbeafe" : i % 2 === 0 ? "#fff" : "#f9fafb",
-                  borderBottom: "1px solid #f0f0f0",
-                }}
-              >
-                <span
-                  style={{
-                    fontSize: 11,
-                    color: "#9ca3af",
-                    minWidth: 36,
-                    fontFamily: "monospace",
-                  }}
-                >
-                  {c.code || "—"}
-                </span>
-                <span style={{ flex: 1, fontWeight: 500, fontSize: 13 }}>
-                  {nameNode}
-                </span>
-                {tc && ts && (
-                  <span
-                    style={{
-                      background: ts.bg,
-                      color: ts.color,
-                      border: `1px solid ${ts.border}`,
-                      fontSize: 10,
-                      padding: "1px 5px",
-                      borderRadius: 3,
-                    }}
-                  >
-                    {tc}
-                  </span>
-                )}
-                <span
-                  style={{
-                    fontSize: 12,
-                    fontWeight: 600,
-                    color: (c.currentBalance || 0) > 0 ? "#dc2626" : "#9ca3af",
-                    minWidth: 58,
-                    textAlign: "right",
-                  }}
-                >
-                  {Number(c.currentBalance || 0).toLocaleString("en-PK")}
-                </span>
+              <div style={{ fontWeight: 500, marginBottom: 2 }}>
+                {customer.name}
               </div>
-            );
-          })}
-          <div
-            style={{
-              padding: "3px 12px",
-              fontSize: 11,
-              color: "#9ca3af",
-              borderTop: "1px solid #f0f0f0",
-              background: "#fafafa",
-            }}
-          >
-            Tab / → = accept &nbsp;|&nbsp; ↑↓ = navigate &nbsp;|&nbsp; Enter =
-            select &nbsp;|&nbsp; Esc = close
-          </div>
+              {customer.phone && (
+                <div style={{ fontSize: 10, color: "#6b7280" }}>
+                  📞 {customer.phone}
+                </div>
+              )}
+              {customer.currentBalance > 0 && (
+                <div style={{ fontSize: 10, color: "#ef4444", marginTop: 2 }}>
+                  Balance: PKR {customer.currentBalance.toLocaleString("en-PK")}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+      
+      {originalQuery && suggestions.length === 0 && (
+        <div
+          style={{
+            position: "absolute",
+            top: "100%",
+            left: 0,
+            fontSize: 10,
+            color: "#9ca3af",
+            marginTop: 2,
+            padding: "4px 8px",
+          }}
+        >
+          No customer found matching "{originalQuery}"
         </div>
       )}
     </div>
@@ -1963,7 +1976,6 @@ export default function SaleReturnPage() {
     setLoading(false);
   };
 
-  // Keyboard handler for * (asterisk) to save and print (like SalePage)
   useEffect(() => {
     const handler = (e) => {
       if (showProductModal || showHoldPreview || showSaveModal) return;
@@ -2005,9 +2017,6 @@ export default function SaleReturnPage() {
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, [items, showProductModal, showHoldPreview, showSaveModal]);
-
-  // Remove empty rows constant - no longer needed
-  // const EMPTY_ROWS = Math.max(0, 8 - items.length);
 
   return (
     <div className="sr-page">
@@ -2360,7 +2369,6 @@ export default function SaleReturnPage() {
                     </td>
                   </tr>
                 ))}
-                {/* Empty rows removed */}
               </tbody>
             </table>
           </div>

@@ -31,6 +31,7 @@ function ComboLikeInput({
           onChange={(e) => onChange(e.target.value)}
           onKeyDown={onNext}
           onFocus={onFocusField}
+          placeholder={`Enter ${label.toLowerCase()}...`}
         />
         <button
           className="pp-combo-btn"
@@ -60,6 +61,7 @@ const EMPTY_FORM = {
   orderName: "",
   remarks: "",
   uploadProduct: false,
+  productImage: "",
 };
 
 const EMPTY_PACK = {
@@ -134,6 +136,7 @@ export default function ProductPage() {
   const rMinQty = useRef();
   const rOpenQty = useRef();
   const highlightedRowRef = useRef(null);
+  
   useEffect(() => {
     fetchProducts();
   }, []);
@@ -250,6 +253,7 @@ export default function ProductPage() {
         container.scrollTop = rowBottom - container.clientHeight;
     }
   }, [highlightedIndex]);
+  
   const applyHighlight = (idx, filtered) => {
     setHighlightedIndex(idx);
     if (idx >= 0 && filtered[idx]) {
@@ -286,8 +290,6 @@ export default function ProductPage() {
     highlightedRef.current = -1;
   };
 
-  // ▼ button click — hamesha sab products show karo
-  // skipNextFocus flag: jab button click ho tu onFocus ko override na karne do
   const skipFocusRef = useRef(false);
 
   const openAllForField = (field, ref) => {
@@ -299,10 +301,9 @@ export default function ProductPage() {
     showAllRef.current = true;
     setHighlightedIndex(-1);
     highlightedRef.current = -1;
-    skipFocusRef.current = true; // onFocus ko batao: skip karo
+    skipFocusRef.current = true;
     setTimeout(() => {
       ref?.current?.focus();
-      // focus ke baad thodi der mein flag reset karo
       setTimeout(() => {
         skipFocusRef.current = false;
       }, 50);
@@ -343,6 +344,7 @@ export default function ProductPage() {
       nextRef?.current?.focus();
     }
   };
+  
   const handleListKeyDown = (e) => {
     const filtered = getFilteredFromRefs();
     const hi = highlightedRef.current;
@@ -377,7 +379,6 @@ export default function ProductPage() {
     }
   };
 
-  // ── Row click
   const handleProductClick = (product) => {
     const field = activeFieldRef.current;
     if (field === "company") setF("company", product.company || "");
@@ -387,7 +388,6 @@ export default function ProductPage() {
     else if (field === "orderName") setF("orderName", product.orderName || "");
     else if (field === "description")
       setF("description", product.description || "");
-    // ✅ YEH ADD KARO
     else if (field === "measurement")
       setPForm((p) => ({
         ...p,
@@ -423,6 +423,7 @@ export default function ProductPage() {
       nr?.current?.focus();
     }
   };
+  
   const pkGoSave = (e) => {
     if (e.key === "Enter") {
       e.preventDefault();
@@ -431,7 +432,7 @@ export default function ProductPage() {
   };
 
   const savePackRow = () => {
-    if (!packForm.measurement.trim()) return alert("Measurement required");
+    // No validation - measurement is optional now
     if (editPack !== null) {
       const u = [...packRows];
       u[editPack] = { ...packForm };
@@ -443,15 +444,28 @@ export default function ProductPage() {
     setPForm(EMPTY_PACK);
     setSelPack(null);
     setTimeout(() => document.getElementById("pk_meas")?.focus(), 30);
+    showMsg("Packing info saved", "success");
+  };
+
+  const handleImageUpload = (imageData) => {
+    setF("productImage", imageData);
+    showMsg("Image added successfully", "success");
+  };
+
+  const handleImageRemove = () => {
+    setF("productImage", "");
+    setF("webCategory", "");
+    showMsg("Image removed", "success");
   };
 
   const saveProduct = async () => {
-    if (!form.description.trim()) return alert("Description required");
-    if (!form.company.trim()) return alert("Company required");
-    if (!form.category.trim()) return alert("Category required");
+    // All fields are optional - no validation required
     setLoad(true);
     try {
-      const payload = { ...form, packingInfo: packRows };
+      const payload = { 
+        ...form, 
+        packingInfo: packRows,
+      };
       const { data } = editId
         ? await api.put(EP.PRODUCTS.UPDATE(editId), payload)
         : await api.post(EP.PRODUCTS.CREATE, payload);
@@ -460,8 +474,9 @@ export default function ProductPage() {
         refresh();
         fetchProducts();
       } else showMsg(data.message, "error");
-    } catch {
-      showMsg("Save failed", "error");
+    } catch (error) {
+      console.error("Save error:", error);
+      showMsg(error.response?.data?.message || "Save failed", "error");
     }
     setLoad(false);
   };
@@ -492,15 +507,16 @@ export default function ProductPage() {
     setForm({
       productId: p.productId,
       code: p.code,
-      company: p.company,
-      category: p.category,
+      company: p.company || "",
+      category: p.category || "",
       webCategory: p.webCategory || "",
       rackNo: p.rackNo || "",
-      description: p.description,
+      description: p.description || "",
       urduDesc: p.urduDesc || "",
       orderName: p.orderName || "",
       remarks: p.remarks || "",
       uploadProduct: p.uploadProduct || false,
+      productImage: p.productImage || "",
     });
     setPRows(p.packingInfo || []);
     setEditId(p._id);
@@ -533,6 +549,7 @@ export default function ProductPage() {
     (a, b) => new Date(a.createdAt) - new Date(b.createdAt),
   );
   const nextId = String(nextNum);
+  
   return (
     <div className="pp-page">
       {/* Titlebar */}
@@ -637,56 +654,61 @@ export default function ProductPage() {
                 onOpenAll={() => openAllForField("category", rCat)}
               />
 
-              {/* ── WEB CATEGORY + RACK # ── */}
+              {/* ── WEB CATEGORY with Image Upload ── */}
               <div className="pp-frow">
                 <label htmlFor="f_webcat">Web Cat.</label>
-                <div
-                  style={{
-                    display: "flex",
-                    gap: 4,
-                    flex: 1,
-                    alignItems: "center",
-                  }}
-                >
-                  <div
-                    className="pp-combo-wrap"
-                    style={{ position: "relative", flex: 1 }}
-                  >
-                    <input
-                      id="f_webcat"
-                      ref={rWebCat}
-                      type="text"
-                      className="xp-input pp-combo-input"
-                      value={form.webCategory}
-                      autoComplete="off"
-                      onChange={(e) =>
-                        handleFieldChange("webCategory", e.target.value)
-                      }
-                      onKeyDown={makeFieldKeyDown("webCategory", rRack)}
-                      onFocus={() =>
-                        focusField("webCategory", form.webCategory)
-                      }
-                    />
+                <div style={{ display: "flex", gap: 4, flex: 1, alignItems: "center" }}>
+                  <div className="pp-combo-wrap" style={{ position: "relative", flex: 1 }}>
+                    {form.productImage ? (
+                      <div 
+                        className="pp-image-preview-container" 
+                        onClick={() => document.getElementById("webcat_file_input")?.click()}
+                        style={{ cursor: "pointer" }}
+                      >
+                        <img src={form.productImage} alt="Web Category" className="pp-image-thumb" />
+                        <button
+                          type="button"
+                          className="pp-image-remove"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleImageRemove();
+                          }}
+                          title="Remove image"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ) : (
+                      <input
+                        id="f_webcat"
+                        ref={rWebCat}
+                        type="text"
+                        className="xp-input pp-combo-input"
+                        value={form.webCategory}
+                        autoComplete="off"
+                        onChange={(e) => handleFieldChange("webCategory", e.target.value)}
+                        onKeyDown={makeFieldKeyDown("webCategory", rRack)}
+                        onFocus={() => focusField("webCategory", form.webCategory)}
+                        placeholder="Enter web category or click ▼ to upload image"
+                      />
+                    )}
                     <button
                       className="pp-combo-btn"
                       tabIndex={-1}
                       onMouseDown={(e) => {
                         e.preventDefault();
-                        openAllForField("webCategory", rWebCat);
+                        if (form.productImage) {
+                          handleImageRemove();
+                        } else {
+                          document.getElementById("webcat_file_input")?.click();
+                        }
                       }}
+                      title={form.productImage ? "Remove image" : "Upload image"}
                     >
-                      ▼
+                      {form.productImage ? "✕" : "📷"}
                     </button>
                   </div>
-                  <label
-                    style={{
-                      whiteSpace: "nowrap",
-                      fontSize: "var(--xp-fs-xs)",
-                      fontWeight: 700,
-                    }}
-                  >
-                    Rack #
-                  </label>
+                  <label style={{ whiteSpace: "nowrap", fontSize: "var(--xp-fs-xs)", fontWeight: 700 }}>Rack #</label>
                   <input
                     ref={rRack}
                     className="xp-input xp-input-sm"
@@ -694,9 +716,7 @@ export default function ProductPage() {
                     style={{ width: 48 }}
                     value={form.rackNo}
                     onChange={(e) => setF("rackNo", e.target.value)}
-                    onKeyDown={(e) =>
-                      e.key === "Enter" && rDesc.current?.focus()
-                    }
+                    onKeyDown={(e) => e.key === "Enter" && rDesc.current?.focus()}
                     onFocus={() => {
                       setActiveField("");
                       activeFieldRef.current = "";
@@ -704,6 +724,30 @@ export default function ProductPage() {
                     }}
                   />
                 </div>
+                <input
+                  id="webcat_file_input"
+                  type="file"
+                  accept="image/*"
+                  style={{ display: 'none' }}
+                  onChange={(e) => {
+                    const file = e.target.files[0];
+                    if (!file) return;
+                    if (!file.type.startsWith('image/')) {
+                      alert('Please select an image file');
+                      return;
+                    }
+                    if (file.size > 5 * 1024 * 1024) {
+                      alert('Image size should be less than 5MB');
+                      return;
+                    }
+                    const reader = new FileReader();
+                    reader.onloadend = () => {
+                      handleImageUpload(reader.result);
+                    };
+                    reader.readAsDataURL(file);
+                    e.target.value = '';
+                  }}
+                />
               </div>
 
               <div className="pp-frow">
@@ -755,7 +799,7 @@ export default function ProductPage() {
                 />
               </div>
 
-              {/* ── ORDER NAME — ab filter/autocomplete ke saath ── */}
+              {/* ── ORDER NAME ── */}
               <ComboLikeInput
                 id="f_order"
                 label="Order Name"
@@ -827,7 +871,6 @@ export default function ProductPage() {
                   className="xp-btn xp-btn-sm pp-close-btn"
                   style={{ gridColumn: "1 / -1" }}
                   onClick={() => navigate("/")}
-                  title="Sale page par wapas jao"
                 >
                   ✕ Close
                 </button>
@@ -841,7 +884,7 @@ export default function ProductPage() {
               className="pp-fieldset"
               style={{ flex: 1, display: "flex", flexDirection: "column" }}
             >
-              <legend className="pp-legend">Packing Info</legend>
+              <legend className="pp-legend">Packing Info (Optional)</legend>
 
               <div className="pp-pk-hdr-row">
                 <span style={{ textAlign: "center" }}>ID.</span>
@@ -870,6 +913,7 @@ export default function ProductPage() {
                     onFocus={() =>
                       focusField("measurement", packForm.measurement)
                     }
+                    placeholder="Measurement (optional)"
                   />
                   <button
                     className="pp-combo-btn"
@@ -890,6 +934,7 @@ export default function ProductPage() {
                   value={packForm.purchaseRate}
                   onChange={(e) => setP("purchaseRate", e.target.value)}
                   onKeyDown={pkGo(rSaleRate)}
+                  placeholder="0"
                 />
                 <input
                   ref={rSaleRate}
@@ -899,6 +944,7 @@ export default function ProductPage() {
                   value={packForm.saleRate}
                   onChange={(e) => setP("saleRate", e.target.value)}
                   onKeyDown={pkGo(rPacking)}
+                  placeholder="0"
                 />
                 <input
                   ref={rPacking}
@@ -908,6 +954,7 @@ export default function ProductPage() {
                   value={packForm.packing}
                   onChange={(e) => setP("packing", e.target.value)}
                   onKeyDown={pkGo(rPDisc)}
+                  placeholder="0"
                 />
               </div>
 
@@ -937,6 +984,7 @@ export default function ProductPage() {
                     value={packForm.pDisc}
                     onChange={(e) => setP("pDisc", e.target.value)}
                     onKeyDown={pkGo(rReorder)}
+                    placeholder="0"
                   />
                 </div>
                 <input
@@ -947,6 +995,7 @@ export default function ProductPage() {
                   value={packForm.reorderQty}
                   onChange={(e) => setP("reorderQty", e.target.value)}
                   onKeyDown={pkGo(rMinQty)}
+                  placeholder="0"
                 />
                 <input
                   ref={rMinQty}
@@ -956,6 +1005,7 @@ export default function ProductPage() {
                   value={packForm.minQty}
                   onChange={(e) => setP("minQty", e.target.value)}
                   onKeyDown={pkGo(rOpenQty)}
+                  placeholder="0"
                 />
                 <input
                   ref={rOpenQty}
@@ -965,6 +1015,7 @@ export default function ProductPage() {
                   value={packForm.openingQty}
                   onChange={(e) => setP("openingQty", e.target.value)}
                   onKeyDown={pkGoSave}
+                  placeholder="0"
                 />
               </div>
 
@@ -1053,7 +1104,7 @@ export default function ProductPage() {
                           className="xp-empty"
                           style={{ padding: "8px 10px" }}
                         >
-                          Fill fields above → Save
+                          Add packing information (optional)
                         </td>
                       </tr>
                     )}
@@ -1066,14 +1117,14 @@ export default function ProductPage() {
                       >
                         <td className="text-muted">{i + 1}</td>
                         <td className="text-muted">{i + 1}</td>
-                        <td style={{ fontWeight: 700 }}>{r.measurement}</td>
-                        <td className="r xp-amt">{r.purchaseRate}</td>
+                        <td style={{ fontWeight: 700 }}>{r.measurement || "—"}</td>
+                        <td className="r xp-amt">{r.purchaseRate || "0"}</td>
                         <td className="r">{r.pDisc || "—"}</td>
-                        <td className="r xp-amt success">{r.saleRate}</td>
-                        <td className="r">{r.packing}</td>
-                        <td className="r">{r.minQty}</td>
-                        <td className="r">{r.reorderQty}</td>
-                        <td className="r">{r.openingQty}</td>
+                        <td className="r xp-amt success">{r.saleRate || "0"}</td>
+                        <td className="r">{r.packing || "0"}</td>
+                        <td className="r">{r.minQty || "0"}</td>
+                        <td className="r">{r.reorderQty || "0"}</td>
+                        <td className="r">{r.openingQty || "0"}</td>
                         <td style={{ textAlign: "center" }}>
                           {r.stockEnabled ? (
                             <span className="pp-stock-dot" />
@@ -1202,7 +1253,7 @@ export default function ProductPage() {
                               maxWidth: 110,
                             }}
                           >
-                            {p.company}
+                            {p.company || "—"}
                           </td>
                           <td
                             style={{
@@ -1212,7 +1263,7 @@ export default function ProductPage() {
                               maxWidth: 90,
                             }}
                           >
-                            {p.category}
+                            {p.category || "—"}
                           </td>
                           <td
                             className="text-muted"
@@ -1223,7 +1274,7 @@ export default function ProductPage() {
                               maxWidth: 100,
                             }}
                           >
-                            {p.webCategory}
+                            {p.webCategory || "—"}
                           </td>
                           <td
                             style={{
@@ -1233,7 +1284,7 @@ export default function ProductPage() {
                               maxWidth: 160,
                             }}
                           >
-                            {p.description}
+                            {p.description || "—"}
                           </td>
                           <td
                             className="text-muted"
@@ -1244,28 +1295,28 @@ export default function ProductPage() {
                               maxWidth: 90,
                             }}
                           >
-                            {p.orderName || ""}
+                            {p.orderName || "—"}
                           </td>
                           <td
                             className="text-muted"
                             style={{ whiteSpace: "nowrap" }}
                           >
-                            {pk?.measurement || ""}
+                            {pk?.measurement || "—"}
                           </td>
                           <td
                             className="r xp-amt"
                             style={{ whiteSpace: "nowrap" }}
                           >
-                            {pk?.purchaseRate || ""}
+                            {pk?.purchaseRate || "0"}
                           </td>
                           <td className="r" style={{ whiteSpace: "nowrap" }}>
-                            {pk?.pDisc || ""}
+                            {pk?.pDisc || "0"}
                           </td>
                           <td
                             className="r xp-amt success"
                             style={{ whiteSpace: "nowrap" }}
                           >
-                            {pk?.saleRate || ""}
+                            {pk?.saleRate || "0"}
                           </td>
                         </tr>
                       );
@@ -1288,6 +1339,43 @@ export default function ProductPage() {
         </div>
         <div className="xp-status-pane">Pack rows: {packRows.length}</div>
       </div>
+
+      <style>{`
+        .pp-image-preview-container {
+          position: relative;
+          display: inline-block;
+          width: 100%;
+        }
+        
+        .pp-image-thumb {
+          width: 100%;
+          height: 80px;
+          object-fit: cover;
+          border-radius: 4px;
+          border: 1px solid var(--xp-silver-4);
+        }
+        
+        .pp-image-remove {
+          position: absolute;
+          top: -8px;
+          right: -8px;
+          background: #ef4444;
+          color: white;
+          border: none;
+          border-radius: 50%;
+          width: 20px;
+          height: 20px;
+          font-size: 12px;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+        
+        .pp-image-remove:hover {
+          background: #dc2626;
+        }
+      `}</style>
     </div>
   );
 }
