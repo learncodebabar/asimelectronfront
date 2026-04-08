@@ -1963,6 +1963,23 @@ export default function SaleReturnPage() {
     setLoading(false);
   };
 
+  // Keyboard handler for * (asterisk) to save and print (like SalePage)
+  useEffect(() => {
+    const handler = (e) => {
+      if (showProductModal || showHoldPreview || showSaveModal) return;
+      if (e.key === "*") {
+        e.preventDefault();
+        if (items.length === 0) {
+          showMsg("Add at least one item first", "error");
+          return;
+        }
+        openReturnConfirm();
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [items, showProductModal, showHoldPreview, showSaveModal]);
+
   useEffect(() => {
     const handler = (e) => {
       if (e.key === "F2") {
@@ -2052,7 +2069,7 @@ export default function SaleReturnPage() {
           <div className="sl-shortcut-hints">
             <span>F2 Product</span>
             <span>F4 Hold</span>
-            <span>F10 Save</span>
+            <span>* Save</span>
           </div>
           <div className="xp-tb-divider" />
           <button className="xp-cap-btn">─</button>
@@ -2570,7 +2587,7 @@ export default function SaleReturnPage() {
           onClick={openReturnConfirm}
           disabled={loading}
         >
-          {loading ? "Saving…" : "Save Record  F10"}
+          {loading ? "Saving…" : "Save Record  *"}
         </button>
         <button className="xp-btn xp-btn-sm" onClick={() => {}}>
           Edit Record
