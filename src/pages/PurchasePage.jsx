@@ -255,7 +255,7 @@ const doPrint = (purchase, type, overrides = {}) => {
 };
 
 /* ══════════════════════════════════════════════════════════
-   SUPPLIER SEARCH DROPDOWN
+   SUPPLIER SEARCH DROPDOWN - Only Shows Suppliers
 ══════════════════════════════════════════════════════════ */
 function SupplierDropdown({ allSuppliers, value, onSelect, onClear, onAddNew }) {
   const [query, setQuery] = useState("");
@@ -650,25 +650,34 @@ function SearchModal({ allProducts, onSelect, onClose }) {
           <div className="xp-table-panel" style={{ border: "none" }}>
             <div className="xp-table-scroll">
               <table className="xp-table">
-                <thead><tr>
-                <th style={{ width: 36 }}>Sr.#</th>
-                <th>Barcode</th><th>Name</th>
-                <th>Meas.</th>
-                <th className="r">Purchase Rate</th>
-                {/* <th className="r">Stock</th>
-                <th className="r">Pack</th> */}
-                <th>Rack#</th></tr></thead>
+                <thead>
+                  <tr>
+                    <th style={{ width: 36 }}>Sr.#</th>
+                    <th>Barcode</th>
+                    <th>Name</th>
+                    <th>Meas.</th>
+                    <th className="r">Purchase Rate</th>
+                    <th>Rack#</th>
+                  </tr>
+                </thead>
                 <tbody ref={tbodyRef} tabIndex={0} onKeyDown={tk}>
-                  {rows.length === 0 && <tr><td colSpan={7} className="xp-empty">No products found</td></tr>}
+                  {rows.length === 0 && (
+                    <tr>
+                      <td colSpan={6} className="xp-empty">No products found</td>
+                    </tr>
+                  )}
                   {rows.map((r, i) => (
-                    <tr key={`${r._id}-${r._pi}`} style={{ background: i === hiIdx ? "#c3d9f5" : undefined }} onClick={() => setHiIdx(i)} onDoubleClick={() => onSelect(r)}>
+                    <tr
+                      key={`${r._id}-${r._pi}`}
+                      style={{ background: i === hiIdx ? "#c3d9f5" : undefined }}
+                      onClick={() => setHiIdx(i)}
+                      onDoubleClick={() => onSelect(r)}
+                    >
                       <td className="text-muted">{i + 1}</td>
                       <td><span className="xp-code">{r.code}</span></td>
                       <td><button className="xp-link-btn">{r._name}</button></td>
                       <td className="text-muted">{r._meas}</td>
                       <td className="r xp-amt">{Number(r._rate).toLocaleString("en-PK")}</td>
-                      {/* <td className="r">{r._stock}</td>
-                      <td className="r">{r._pack}</td> */}
                       <td className="text-muted">{r.rackNo || "—"}</td>
                     </tr>
                   ))}
@@ -746,16 +755,40 @@ export default function PurchasePage() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [pRes, invRes, sRes] = await Promise.all([
+      const [pRes, invRes] = await Promise.all([
         api.get(EP.PRODUCTS.GET_ALL),
         api.get(EP.PURCHASES.NEXT_INVOICE),
-        api.get(`${EP.CUSTOMERS.GET_ALL}`).catch(() => ({ data: { data: [] } }))
       ]);
+      
       if (pRes.data.success) setAllProducts(pRes.data.data);
       if (invRes.data.success) setInvoiceNo(invRes.data.data.invoiceNo);
-      if (sRes.data.success) setAllSuppliers(sRes.data.data);
+      
+      // Fetch suppliers - using direct URL
+      try {
+        const sRes = await api.get("/customers/suppliers/all");
+        if (sRes.data && sRes.data.success) {
+          setAllSuppliers(sRes.data.data);
+          console.log("Suppliers loaded successfully:", sRes.data.data.length);
+        } else {
+          // Fallback: filter from all customers
+          const allRes = await api.get(EP.CUSTOMERS.GET_ALL);
+          if (allRes.data && allRes.data.success) {
+            const suppliers = allRes.data.data.filter(c => 
+              c.type === "supplier" || c.customerType === "supplier"
+            );
+            setAllSuppliers(suppliers);
+            console.log("Suppliers loaded from filter:", suppliers.length);
+          }
+        }
+      } catch (err) {
+        console.error("Supplier fetch error:", err);
+        // Set empty array to avoid undefined errors
+        setAllSuppliers([]);
+      }
+      
     } catch (error) {
       console.error("Failed to load data", error);
+      showMsg("Failed to load data", "error");
     }
     setLoading(false);
   };
@@ -1016,9 +1049,6 @@ export default function PurchasePage() {
     }
   };
 
-  // Remove empty rows constant - no longer needed
-  // const EMPTY_ROWS = Math.max(0, 12 - items.length);
-
   return (
     <>
       <div className="sl-page">
@@ -1047,7 +1077,6 @@ export default function PurchasePage() {
             <div className="sl-top-bar">
               <div className="sl-sale-title-box" style={{ background: "green", border: "1px solid green" }}>Purchase</div>
               
-              {/* Prev button */}
               <button
                 className="xp-btn xp-btn-sm sl-nav-btn"
                 onClick={() => navInvoice("prev")}
@@ -1107,7 +1136,6 @@ export default function PurchasePage() {
                 />
               </div>
               
-              {/* Next button */}
               <button
                 className="xp-btn xp-btn-sm sl-nav-btn"
                 onClick={() => navInvoice("next")}
@@ -1130,31 +1158,91 @@ export default function PurchasePage() {
             <div className="sl-entry-strip">
               <div className="sl-entry-cell sl-entry-product">
                 <label>Select Product <kbd>F2</kbd></label>
-                <input ref={searchRef} type="text" className="sl-product-input" value={searchText} onKeyDown={(e) => {
-                  if (e.key === "ArrowDown") { e.preventDefault(); setShowProductModal(true); }
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    if (!searchText.trim()) { setShowProductModal(true); return; }
-                    const q = searchText.trim().toLowerCase();
-                    const found = allProducts.find((p) => p.code?.toLowerCase() === q || p.description?.toLowerCase().includes(q));
-                    if (found) {
-                      const pk = found.packingInfo?.[0];
-                      pickProduct({ ...found, _pi: 0, _meas: pk?.measurement || "", _rate: pk?.purchaseRate || pk?.costRate || 0, _pack: pk?.packing || 1, _stock: pk?.openingQty || 0, _name: [found.category, found.description, found.company].filter(Boolean).join(" ") });
-                    } else { alert(`"${searchText}" — Product not found`); searchRef.current?.select(); }
-                  }
-                }} onChange={(e) => { setSearchText(e.target.value); if (curRow.name) { setCurRow({ ...EMPTY_ROW }); } }} autoFocus />
+                <input 
+                  ref={searchRef} 
+                  type="text" 
+                  className="sl-product-input" 
+                  style={{ background: "#fffde7" }} 
+                  value={searchText} 
+                  onKeyDown={(e) => {
+                    if (e.key === "ArrowDown") { 
+                      e.preventDefault(); 
+                      setShowProductModal(true); 
+                    }
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      if (!searchText.trim()) { 
+                        setShowProductModal(true); 
+                        return; 
+                      }
+                      const q = searchText.trim().toLowerCase();
+                      const found = allProducts.find((p) => p.code?.toLowerCase() === q || p.description?.toLowerCase().includes(q));
+                      if (found) {
+                        const pk = found.packingInfo?.[0];
+                        pickProduct({ 
+                          ...found, 
+                          _pi: 0, 
+                          _meas: pk?.measurement || "", 
+                          _rate: pk?.purchaseRate || pk?.costRate || 0, 
+                          _pack: pk?.packing || 1, 
+                          _stock: pk?.openingQty || 0, 
+                          _name: [found.category, found.description, found.company].filter(Boolean).join(" ") 
+                        });
+                      } else { 
+                        alert(`"${searchText}" — Product not found`); 
+                        searchRef.current?.select(); 
+                      }
+                    }
+                  }} 
+                  onChange={(e) => { 
+                    setSearchText(e.target.value); 
+                    if (curRow.name) { 
+                      setCurRow({ ...EMPTY_ROW }); 
+                    } 
+                  }} 
+                  autoFocus 
+                />
               </div>
               <div className="sl-entry-cell">
                 <label>Qty</label>
-                <input ref={pcsRef} type="text" className="sl-num-input" style={{ width: 60 }} value={curRow.pcs} min={1} onChange={(e) => updateCurRow("pcs", e.target.value)} onKeyDown={(e) => e.key === "Enter" && rateRef.current?.focus()} onFocus={(e) => e.target.select()} />
+                <input 
+                  ref={pcsRef} 
+                  type="text" 
+                  className="sl-num-input" 
+                  style={{ width: 60, background: "#fffde7" }} 
+                  value={curRow.pcs} 
+                  min={1} 
+                  onChange={(e) => updateCurRow("pcs", e.target.value)} 
+                  onKeyDown={(e) => e.key === "Enter" && rateRef.current?.focus()} 
+                  onFocus={(e) => e.target.select()} 
+                />
               </div>
               <div className="sl-entry-cell">
                 <label>Purchase Rate</label>
-                <input ref={rateRef} type="text" className="sl-num-input" style={{ width: 75 }} value={curRow.rate} min={0} onChange={(e) => updateCurRow("rate", e.target.value)} onKeyDown={(e) => e.key === "Enter" && amountRef.current?.focus()} onFocus={(e) => e.target.select()} />
+                <input 
+                  ref={rateRef} 
+                  type="text" 
+                  className="sl-num-input" 
+                  style={{ width: 75, background: "#fffde7" }} 
+                  value={curRow.rate} 
+                  min={0} 
+                  onChange={(e) => updateCurRow("rate", e.target.value)} 
+                  onKeyDown={(e) => e.key === "Enter" && amountRef.current?.focus()} 
+                  onFocus={(e) => e.target.select()} 
+                />
               </div>
               <div className="sl-entry-cell">
                 <label>Amount</label>
-                <input ref={amountRef} type="text" className="sl-num-input" style={{ width: 80 }} value={curRow.amount || 0} onChange={(e) => setCurRow((p) => ({ ...p, amount: parseFloat(e.target.value) || 0 }))} onFocus={(e) => e.target.select()} onKeyDown={(e) => e.key === "Enter" && addRef.current?.click()} />
+                <input 
+                  ref={amountRef} 
+                  type="text" 
+                  className="sl-num-input" 
+                  style={{ width: 80, background: "#fffde7" }} 
+                  value={curRow.amount || 0} 
+                  onChange={(e) => setCurRow((p) => ({ ...p, amount: parseFloat(e.target.value) || 0 }))} 
+                  onFocus={(e) => e.target.select()} 
+                  onKeyDown={(e) => e.key === "Enter" && addRef.current?.click()} 
+                />
               </div>
               <div className="sl-entry-cell sl-entry-btns-cell">
                 <label>&nbsp;</label>
@@ -1172,9 +1260,24 @@ export default function PurchasePage() {
 
             <div className="sl-items-wrap">
               <table className="sl-items-table">
-                <thead><tr><th style={{ width: 32 }}>Sr.#</th><th style={{ width: 72 }}>Code</th><th>Product Name</th><th style={{ width: 65 }}>UOM</th><th style={{ width: 55 }} className="r">Qty</th><th style={{ width: 80 }} className="r">Rate</th><th style={{ width: 90 }} className="r">Amount</th><th style={{ width: 40 }}></th></tr></thead>
+                <thead>
+                  <tr>
+                    <th style={{ width: 32 }}>Sr.#</th>
+                    <th style={{ width: 72 }}>Code</th>
+                    <th>Product Name</th>
+                    <th style={{ width: 65 }}>UOM</th>
+                    <th style={{ width: 55 }} className="r">Qty</th>
+                    <th style={{ width: 80 }} className="r">Rate</th>
+                    <th style={{ width: 90 }} className="r">Amount</th>
+                    <th style={{ width: 40 }}></th>
+                  </tr>
+                </thead>
                 <tbody>
-                  {items.length === 0 && <tr><td colSpan={8} className="xp-empty" style={{ padding: 14 }}>Add products to create purchase invoice</td></tr>}
+                  {items.length === 0 && (
+                    <tr>
+                      <td colSpan={8} className="xp-empty" style={{ padding: 14 }}>Add products to create purchase invoice</td>
+                    </tr>
+                  )}
                   {items.map((r, i) => (
                     <tr key={i}>
                       <td className="muted" style={{ textAlign: "center" }}>{i + 1}</td>
@@ -1187,7 +1290,6 @@ export default function PurchasePage() {
                       <td><button className="xp-btn xp-btn-sm xp-btn-danger" style={{ padding: "2px 6px" }} onClick={() => removeRow(i)}>✕</button></td>
                     </tr>
                   ))}
-                  {/* Empty rows removed */}
                 </tbody>
               </table>
             </div>
@@ -1196,7 +1298,6 @@ export default function PurchasePage() {
               <div className="sl-sum-cell"><label>Total Qty</label><input className="sl-sum-val" value={totalQty.toLocaleString("en-PK")} readOnly /></div>
               <div className="sl-sum-cell"><label>Total Amount</label><input className="sl-sum-val" value={Number(subTotal).toLocaleString("en-PK")} readOnly /></div>
               
-              {/* Supplier Code Search */}
               <div className="sl-cust-cell" style={{ width: 120 }}>
                 <label>Supplier Code</label>
                 <input
@@ -1249,7 +1350,6 @@ export default function PurchasePage() {
         </div>
 
         <div className="sl-cmd-bar">
-          {/* Refresh Button - Clears everything for new invoice */}
           <button 
             className="xp-btn xp-btn-success xp-btn-sm" 
             onClick={resetToNewInvoice}
@@ -1303,14 +1403,11 @@ export default function PurchasePage() {
         
         /* Table Borders - Black */
         .sl-items-table th,
-        .sl-items-table td,
-        .sl-hold-table th,
-        .sl-hold-table td {
+        .sl-items-table td {
           border-color: #000000 !important;
           border-width: 1px !important;
         }
        
-        
         /* Button Borders - Black */
         .xp-btn, .sl-pay-btn, .sl-entry-btns .xp-btn {
           border-color: #000000 !important;
@@ -1372,25 +1469,21 @@ export default function PurchasePage() {
         }
 
         /* Yellow background for product search input to show focus area */
-.sl-product-input {
-  background-color: #fffde7 !important;
-  border-color: #000000 !important;
-}
+        .sl-product-input {
+          background-color: #fffde7 !important;
+          border-color: #000000 !important;
+        }
 
-/* Also for other inputs that should stand out */
-.sl-num-input, .sl-sum-input, .sl-cust-input {
-  background-color: #fffde7 !important;
-}
+        /* Also for other inputs that should stand out */
+        .sl-num-input, .sl-sum-input, .sl-cust-input {
+          background-color: #fffde7 !important;
+        }
 
-/* Regular white background for readonly/disabled inputs */
-.sl-sum-val, .sl-date-input[readonly] {
-  background-color: #f5f5f5 !important;
-}
+        /* Regular white background for readonly/disabled inputs */
+        .sl-sum-val, .sl-date-input[readonly] {
+          background-color: #f5f5f5 !important;
+        }
       `}</style>
-
-
-
-      
     </>
   );
 }
