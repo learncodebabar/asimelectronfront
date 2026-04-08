@@ -111,7 +111,7 @@ const buildPrintHtml = (purchase, type, overrides = {}) => {
       <div style="font-size:10px;font-weight:bold;margin-bottom:1px">${buyerName}</div>
       ${buyerPhone ? `<div style="font-size:9px;color:#555">${buyerPhone}</div>` : ""}
       <hr class="divider-solid">
-      </table>
+      <table>
         <thead><tr><th style="width:20px">#</th><th>Product</th><th class="r">Qty.</th><th class="r">Rate</th><th class="r">Amount</th></tr></thead>
         <tbody>${itemRows}</tbody>
       </table>
@@ -650,16 +650,29 @@ function SearchModal({ allProducts, onSelect, onClose }) {
           <div className="xp-table-panel" style={{ border: "none" }}>
             <div className="xp-table-scroll">
               <table className="xp-table">
-                <thead><tr>
-                <th style={{ width: 36 }}>Sr.#</th>
-                <th>Barcode</th><th>Name</th>
-                <th>Meas.</th>
-                <th className="r">Purchase Rate</th>
-                <th>Rack#</th></tr></thead>
+                <thead>
+                  <tr>
+                    <th style={{ width: 36 }}>Sr.#</th>
+                    <th>Barcode</th>
+                    <th>Name</th>
+                    <th>Meas.</th>
+                    <th className="r">Purchase Rate</th>
+                    <th>Rack#</th>
+                  </tr>
+                </thead>
                 <tbody ref={tbodyRef} tabIndex={0} onKeyDown={tk}>
-                  {rows.length === 0 && <tr><td colSpan={7} className="xp-empty">No products found</td>}</tr>}
+                  {rows.length === 0 && (
+                    <tr>
+                      <td colSpan={6} className="xp-empty">No products found</td>
+                    </tr>
+                  )}
                   {rows.map((r, i) => (
-                    <tr key={`${r._id}-${r._pi}`} style={{ background: i === hiIdx ? "#c3d9f5" : undefined }} onClick={() => setHiIdx(i)} onDoubleClick={() => onSelect(r)}>
+                    <tr
+                      key={`${r._id}-${r._pi}`}
+                      style={{ background: i === hiIdx ? "#c3d9f5" : undefined }}
+                      onClick={() => setHiIdx(i)}
+                      onDoubleClick={() => onSelect(r)}
+                    >
                       <td className="text-muted">{i + 1}</td>
                       <td><span className="xp-code">{r.code}</span></td>
                       <td><button className="xp-link-btn">{r._name}</button></td>
@@ -742,20 +755,40 @@ export default function PurchasePage() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [pRes, invRes, sRes] = await Promise.all([
+      const [pRes, invRes] = await Promise.all([
         api.get(EP.PRODUCTS.GET_ALL),
         api.get(EP.PURCHASES.NEXT_INVOICE),
-        // Use the dedicated suppliers endpoint
-        api.get(EP.CUSTOMERS.GET_SUPPLIERS)
       ]);
+      
       if (pRes.data.success) setAllProducts(pRes.data.data);
       if (invRes.data.success) setInvoiceNo(invRes.data.data.invoiceNo);
-      if (sRes.data && sRes.data.success) {
-        setAllSuppliers(sRes.data.data);
+      
+      // Fetch suppliers - using direct URL
+      try {
+        const sRes = await api.get("/customers/suppliers/all");
+        if (sRes.data && sRes.data.success) {
+          setAllSuppliers(sRes.data.data);
+          console.log("Suppliers loaded successfully:", sRes.data.data.length);
+        } else {
+          // Fallback: filter from all customers
+          const allRes = await api.get(EP.CUSTOMERS.GET_ALL);
+          if (allRes.data && allRes.data.success) {
+            const suppliers = allRes.data.data.filter(c => 
+              c.type === "supplier" || c.customerType === "supplier"
+            );
+            setAllSuppliers(suppliers);
+            console.log("Suppliers loaded from filter:", suppliers.length);
+          }
+        }
+      } catch (err) {
+        console.error("Supplier fetch error:", err);
+        // Set empty array to avoid undefined errors
+        setAllSuppliers([]);
       }
+      
     } catch (error) {
       console.error("Failed to load data", error);
-      showMsg("Failed to load suppliers", "error");
+      showMsg("Failed to load data", "error");
     }
     setLoading(false);
   };
@@ -1125,31 +1158,91 @@ export default function PurchasePage() {
             <div className="sl-entry-strip">
               <div className="sl-entry-cell sl-entry-product">
                 <label>Select Product <kbd>F2</kbd></label>
-                <input ref={searchRef} type="text" className="sl-product-input" style={{ background: "#fffde7" }} value={searchText} onKeyDown={(e) => {
-                  if (e.key === "ArrowDown") { e.preventDefault(); setShowProductModal(true); }
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    if (!searchText.trim()) { setShowProductModal(true); return; }
-                    const q = searchText.trim().toLowerCase();
-                    const found = allProducts.find((p) => p.code?.toLowerCase() === q || p.description?.toLowerCase().includes(q));
-                    if (found) {
-                      const pk = found.packingInfo?.[0];
-                      pickProduct({ ...found, _pi: 0, _meas: pk?.measurement || "", _rate: pk?.purchaseRate || pk?.costRate || 0, _pack: pk?.packing || 1, _stock: pk?.openingQty || 0, _name: [found.category, found.description, found.company].filter(Boolean).join(" ") });
-                    } else { alert(`"${searchText}" — Product not found`); searchRef.current?.select(); }
-                  }
-                }} onChange={(e) => { setSearchText(e.target.value); if (curRow.name) { setCurRow({ ...EMPTY_ROW }); } }} autoFocus />
+                <input 
+                  ref={searchRef} 
+                  type="text" 
+                  className="sl-product-input" 
+                  style={{ background: "#fffde7" }} 
+                  value={searchText} 
+                  onKeyDown={(e) => {
+                    if (e.key === "ArrowDown") { 
+                      e.preventDefault(); 
+                      setShowProductModal(true); 
+                    }
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      if (!searchText.trim()) { 
+                        setShowProductModal(true); 
+                        return; 
+                      }
+                      const q = searchText.trim().toLowerCase();
+                      const found = allProducts.find((p) => p.code?.toLowerCase() === q || p.description?.toLowerCase().includes(q));
+                      if (found) {
+                        const pk = found.packingInfo?.[0];
+                        pickProduct({ 
+                          ...found, 
+                          _pi: 0, 
+                          _meas: pk?.measurement || "", 
+                          _rate: pk?.purchaseRate || pk?.costRate || 0, 
+                          _pack: pk?.packing || 1, 
+                          _stock: pk?.openingQty || 0, 
+                          _name: [found.category, found.description, found.company].filter(Boolean).join(" ") 
+                        });
+                      } else { 
+                        alert(`"${searchText}" — Product not found`); 
+                        searchRef.current?.select(); 
+                      }
+                    }
+                  }} 
+                  onChange={(e) => { 
+                    setSearchText(e.target.value); 
+                    if (curRow.name) { 
+                      setCurRow({ ...EMPTY_ROW }); 
+                    } 
+                  }} 
+                  autoFocus 
+                />
               </div>
               <div className="sl-entry-cell">
                 <label>Qty</label>
-                <input ref={pcsRef} type="text" className="sl-num-input" style={{ width: 60, background: "#fffde7" }} value={curRow.pcs} min={1} onChange={(e) => updateCurRow("pcs", e.target.value)} onKeyDown={(e) => e.key === "Enter" && rateRef.current?.focus()} onFocus={(e) => e.target.select()} />
+                <input 
+                  ref={pcsRef} 
+                  type="text" 
+                  className="sl-num-input" 
+                  style={{ width: 60, background: "#fffde7" }} 
+                  value={curRow.pcs} 
+                  min={1} 
+                  onChange={(e) => updateCurRow("pcs", e.target.value)} 
+                  onKeyDown={(e) => e.key === "Enter" && rateRef.current?.focus()} 
+                  onFocus={(e) => e.target.select()} 
+                />
               </div>
               <div className="sl-entry-cell">
                 <label>Purchase Rate</label>
-                <input ref={rateRef} type="text" className="sl-num-input" style={{ width: 75, background: "#fffde7" }} value={curRow.rate} min={0} onChange={(e) => updateCurRow("rate", e.target.value)} onKeyDown={(e) => e.key === "Enter" && amountRef.current?.focus()} onFocus={(e) => e.target.select()} />
+                <input 
+                  ref={rateRef} 
+                  type="text" 
+                  className="sl-num-input" 
+                  style={{ width: 75, background: "#fffde7" }} 
+                  value={curRow.rate} 
+                  min={0} 
+                  onChange={(e) => updateCurRow("rate", e.target.value)} 
+                  onKeyDown={(e) => e.key === "Enter" && amountRef.current?.focus()} 
+                  onFocus={(e) => e.target.select()} 
+                />
               </div>
               <div className="sl-entry-cell">
                 <label>Amount</label>
-                <input ref={amountRef} type="text" className="sl-num-input" style={{ width: 80, background: "#fffde7" }} value={curRow.amount || 0} onChange={(e) => setCurRow((p) => ({ ...p, amount: parseFloat(e.target.value) || 0 }))} onFocus={(e) => e.target.select()} onKeyDown={(e) => e.key === "Enter" && addRef.current?.click()} />
+                <input 
+                  ref={amountRef} 
+                  type="text" 
+                  className="sl-num-input" 
+                  style={{ width: 80, background: "#fffde7" }} 
+                  value={curRow.amount || 0} 
+                  onChange={(e) => setCurRow((p) => ({ ...p, amount: parseFloat(e.target.value) || 0 }))} 
+                  onFocus={(e) => e.target.select()} 
+                  onKeyDown={(e) => e.key === "Enter" && addRef.current?.click()} 
+                />
               </div>
               <div className="sl-entry-cell sl-entry-btns-cell">
                 <label>&nbsp;</label>
