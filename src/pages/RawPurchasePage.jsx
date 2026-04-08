@@ -1,4 +1,4 @@
-// pages/RawPurchasePage.jsx
+// pages/PurchasePage.jsx
 import { useState, useEffect, useRef, useCallback } from "react";
 import api from "../api/api.js";
 import EP from "../api/apiEndpoints.js";
@@ -14,7 +14,6 @@ const timeNow = () =>
   });
 const isoDate = () => new Date().toISOString().split("T")[0];
 const fmt = (n) => Number(n || 0).toLocaleString("en-PK");
-const HOLD_KEY = "asim_hold_bills_rawpurchase_v1";
 
 const EMPTY_ROW = {
   productId: "",
@@ -42,65 +41,29 @@ const SHOP_INFO = {
     "Software developed by: AppHill / 03222292922 or visit website www.apphill.pk",
 };
 
-const TYPE_COLORS = {
-  credit: { bg: "#fca5a5", color: "#7f1d1d", border: "#ef4444" },
-  debit: { bg: "#93c5fd", color: "#1e3a8a", border: "#3b82f6" },
-  cash: { bg: "#86efac", color: "#14532d", border: "#22c55e" },
-  "raw-sale": { bg: "#fde68a", color: "#78350f", border: "#f59e0b" },
-  "raw-purchase": { bg: "#d8b4fe", color: "#3b0764", border: "#a855f7" },
-};
-
-const typeToPayment = (t) => {
-  if (
-    t === "credit" ||
-    t === "raw-sale" ||
-    t === "raw-purchase" ||
-    t === "supplier"
-  )
-    return "Credit";
-  if (t === "debit") return "Bank";
-  return "Cash";
-};
-const typeToSource = (t) => (!t ? "cash" : t);
-
-/* ── localStorage helpers ── */
-const loadHolds = () => {
-  try {
-    return JSON.parse(localStorage.getItem(HOLD_KEY) || "[]");
-  } catch {
-    return [];
-  }
-};
-const saveHolds = (bills) => {
-  try {
-    localStorage.setItem(HOLD_KEY, JSON.stringify(bills));
-  } catch {}
-};
-
 /* ══════════════════════════════════════════════════════════
-   PRINT HTML BUILDER — Raw Purchase Invoice
+   PRINT HTML BUILDER — Purchase Invoice
 ══════════════════════════════════════════════════════════ */
-const buildPrintHtml = (sale, type, overrides = {}) => {
-  const customerName = overrides.customerName ?? sale.customerName;
-  const customerPhone = overrides.customerPhone ?? "";
-  const rows = sale.items.map((it, i) => ({ ...it, sr: i + 1 }));
+const buildPrintHtml = (purchase, type, overrides = {}) => {
+  const buyerName = overrides.buyerName ?? purchase.supplierName;
+  const buyerPhone = overrides.buyerPhone ?? "";
+  const rows = purchase.items.map((it, i) => ({ ...it, sr: i + 1 }));
   const totalQty = rows.reduce((s, r) => s + (r.pcs || 0), 0);
 
   const URDU_FONT = `'Noto Nastaliq Urdu','Mehr Nastaliq','Jameel Noori Nastaleeq','Urdu Typesetting',serif`;
   const GOOGLE_FONT_LINK = `<link href="https://fonts.googleapis.com/css2?family=Noto+Nastaliq+Urdu:wght@400;700&display=swap" rel="stylesheet">`;
 
-  /* ── THERMAL ── */
   if (type === "Thermal") {
     const itemRows = rows
       .map(
-        (it) =>
-          `<tr>
-        <td style="font-size:9px;vertical-align:top">${it.sr}</td>
-        <td style="font-size:9.5px;vertical-align:top;word-break:break-word;max-width:100px">${it.name}</td>
-        <td style="font-size:9px;vertical-align:top;text-align:right">${it.pcs} ${it.uom || ""}</td>
-        <td style="font-size:9px;vertical-align:top;text-align:right">${Number(it.rate).toLocaleString()}</td>
-        <td style="font-size:9px;vertical-align:top;text-align:right"><b>${Number(it.amount).toLocaleString()}</b></td>
-      </tr>`,
+        (it) => `
+        <tr>
+          <td style="font-size:9px;vertical-align:top">${it.sr}</td>
+          <td style="font-size:9.5px;vertical-align:top;word-break:break-word;max-width:100px">${it.name}</td>
+          <td style="font-size:9px;vertical-align:top;text-align:right">${it.pcs} ${it.uom || ""}</td>
+          <td style="font-size:9px;vertical-align:top;text-align:right">${Number(it.rate).toLocaleString()}</td>
+          <td style="font-size:9px;vertical-align:top;text-align:right"><b>${Number(it.amount).toLocaleString()}</b></td>
+        </tr>`
       )
       .join("");
 
@@ -130,66 +93,46 @@ const buildPrintHtml = (sale, type, overrides = {}) => {
       .devby{text-align:center;font-size:7.5px;color:#777;margin-top:4px;border-top:1px dashed #ccc;padding-top:3px}
       @media print{@page{size:80mm auto;margin:1mm}body{width:78mm}}
     </style></head><body>
-
       <div class="shop-urdu">${SHOP_INFO.name}</div>
       <div class="shop-addr">${SHOP_INFO.address}</div>
       <div class="shop-phones">${SHOP_INFO.phone1}, ${SHOP_INFO.phone2}, ${SHOP_INFO.phone3}</div>
       <div class="banner">${SHOP_INFO.urduBanner}</div>
-
       <div class="meta-row">
-        <span><b>Raw Purchase Invoice</b></span>
+        <span><b>Purchase Invoice</b></span>
         <span>ADMIN</span>
         <span>Shop Server</span>
       </div>
       <hr class="divider-dash">
       <div class="meta-row">
-        <span class="meta-bold">${sale.invoiceNo}</span>
-        <span>${sale.invoiceDate}</span>
+        <span class="meta-bold">${purchase.invoiceNo}</span>
+        <span>${purchase.invoiceDate}</span>
       </div>
-      <div class="meta-row">
-        <span>Supplier:</span>
-      </div>
-      <div style="font-size:10px;font-weight:bold;margin-bottom:1px">${customerName}</div>
-      ${customerPhone ? `<div style="font-size:9px;color:#555">${customerPhone}</div>` : ""}
-      <div class="meta-row"><span style="font-size:9px;color:#555">Items: ${rows.length}</span></div>
+      <div class="meta-row"><span>Supplier:</span></div>
+      <div style="font-size:10px;font-weight:bold;margin-bottom:1px">${buyerName}</div>
+      ${buyerPhone ? `<div style="font-size:9px;color:#555">${buyerPhone}</div>` : ""}
       <hr class="divider-solid">
-
-      <table>
-        <thead>
-          <tr>
-            <th style="width:20px">#</th>
-            <th>Product</th>
-            <th class="r">Qty.</th>
-            <th class="r">Rate</th>
-            <th class="r">Amount</th>
-          </tr>
-        </thead>
+      </table>
+        <thead><tr><th style="width:20px">#</th><th>Product</th><th class="r">Qty.</th><th class="r">Rate</th><th class="r">Amount</th></tr></thead>
         <tbody>${itemRows}</tbody>
       </table>
       <hr class="divider-dash">
-
       <div class="totals-box">
         <div style="display:flex;justify-content:space-between;font-size:9px;margin-bottom:2px">
           <span>T.Qty: <b>${totalQty}</b></span>
           <span>T.Items: <b>${rows.length}</b></span>
         </div>
-        ${sale.extraDisc > 0 ? `<div class="sum-row red"><span>(−) Discount</span><span>${Number(sale.extraDisc).toLocaleString()}</span></div>` : ""}
-        <div class="sum-row bold sep"><span>Total Amount:</span><span>${Number(sale.netTotal).toLocaleString()}</span></div>
-        ${sale.prevBalance > 0 ? `<div class="sum-row red"><span>(+) Prev. Bal.</span><span>${Number(sale.prevBalance).toLocaleString()}</span></div>` : ""}
-        <div class="sum-row green"><span>Paid:</span><span>PKR ${Number(sale.paidAmount).toLocaleString()}</span></div>
-        <div class="sum-row bold sep ${sale.balance > 0 ? "red" : "green"}"><span>Balance:</span><span>PKR ${Number(sale.balance).toLocaleString()}</span></div>
+        <div class="sum-row bold sep"><span>Total Amount:</span><span>${Number(purchase.netTotal).toLocaleString()}</span></div>
+        <div class="sum-row green"><span>Paid:</span><span>PKR ${Number(purchase.paidAmount).toLocaleString()}</span></div>
+        <div class="sum-row bold sep green"><span>Balance Payable:</span><span>PKR 0</span></div>
       </div>
-
       <div class="terms">${SHOP_INFO.urduTerms.replace(/\n/g, "<br>")}</div>
       <div class="devby">${SHOP_INFO.devBy}</div>
-
     </body></html>`;
   }
 
-  /* ── A4 / A5 ── */
+  // A4/A5 format
   const a5 = type === "A5";
   const LINES_PER_PAGE = a5 ? 22 : 28;
-
   const pages = [];
   for (let i = 0; i < rows.length; i += LINES_PER_PAGE) {
     pages.push(rows.slice(i, i + LINES_PER_PAGE));
@@ -197,39 +140,21 @@ const buildPrintHtml = (sale, type, overrides = {}) => {
   if (pages.length === 0) pages.push([]);
 
   const sz = a5
-    ? {
-        title: 14,
-        sub: 8.5,
-        inv: 12,
-        meta: 8,
-        th: 8,
-        td: 8,
-        tot: 9,
-        totB: 10.5,
-      }
-    : {
-        title: 17,
-        sub: 9.5,
-        inv: 14,
-        meta: 9,
-        th: 9,
-        td: 9,
-        tot: 10,
-        totB: 13,
-      };
+    ? { title: 14, sub: 8.5, inv: 12, meta: 8, th: 8, td: 8, tot: 9, totB: 10.5 }
+    : { title: 17, sub: 9.5, inv: 14, meta: 9, th: 9, td: 9, tot: 10, totB: 13 };
 
   const buildPageHtml = (pageRows, pageNum, totalPages, isLastPage) => {
     const itemRows = pageRows
       .map(
-        (it, i) =>
-          `<tr style="background:${i % 2 === 0 ? "#fff" : "#f7faff"}">
-        <td style="text-align:center">${it.sr}</td>
-        <td>${it.name}</td>
-        <td>${it.uom || "—"}</td>
-        <td style="text-align:right">${it.pcs}</td>
-        <td style="text-align:right">${Number(it.rate).toLocaleString()}</td>
-        <td style="text-align:right"><b>${Number(it.amount).toLocaleString()}</b></td>
-      </tr>`,
+        (it, i) => `
+        <tr style="background:${i % 2 === 0 ? "#fff" : "#f7faff"}">
+          <td style="text-align:center">${it.sr}</td>
+          <td>${it.name}</td>
+          <td>${it.uom || "—"}</td>
+          <td style="text-align:right">${it.pcs}</td>
+          <td style="text-align:right">${Number(it.rate).toLocaleString()}</td>
+          <td style="text-align:right"><b>${Number(it.amount).toLocaleString()}</b></td>
+        </tr>`
       )
       .join("");
 
@@ -243,38 +168,35 @@ const buildPrintHtml = (sale, type, overrides = {}) => {
       </div>
       <div class="banner">${SHOP_INFO.urduBanner}</div>`;
 
-    const metaHtml =
-      pageNum === 1
-        ? `<div class="meta-strip">
+    const metaHtml = pageNum === 1
+      ? `<div class="meta-strip">
           <div class="meta-left">
-            <div class="meta-row"><span class="meta-lbl">Supplier:</span> <span class="meta-val">${customerName}</span></div>
-            ${customerPhone ? `<div class="meta-row"><span class="meta-val">${customerPhone}</span></div>` : ""}
+            <div class="meta-row"><span class="meta-lbl">Supplier:</span> <span class="meta-val">${buyerName}</span></div>
+            ${buyerPhone ? `<div class="meta-row"><span class="meta-val">${buyerPhone}</span></div>` : ""}
           </div>
           <div class="meta-mid"><span class="meta-val">${rows.length}</span></div>
           <div class="meta-right">
-            <div class="meta-row"><span class="meta-lbl">Invoice #:</span> <span class="meta-val">${sale.invoiceNo}</span></div>
-            <div class="meta-row"><span class="meta-lbl">Date &amp; Time:</span> <span class="meta-val">${sale.invoiceDate}</span></div>
+            <div class="meta-row"><span class="meta-lbl">Invoice #:</span> <span class="meta-val">${purchase.invoiceNo}</span></div>
+            <div class="meta-row"><span class="meta-lbl">Date:</span> <span class="meta-val">${purchase.invoiceDate}</span></div>
           </div>
         </div>`
-        : `<div style="display:flex;justify-content:space-between;font-size:${sz.sub}pt;color:#555;margin-bottom:4px;padding:2px 0;border-bottom:1px solid #ddd">
-          <span>${customerName}</span>
+      : `<div style="display:flex;justify-content:space-between;font-size:${sz.sub}pt;color:#555;margin-bottom:4px;padding:2px 0;border-bottom:1px solid #ddd">
+          <span>${buyerName}</span>
           <span>Page ${pageNum} of ${totalPages}</span>
-          <span>Invoice # ${sale.invoiceNo}</span>
+          <span>Invoice # ${purchase.invoiceNo}</span>
         </div>`;
 
     const footerHtml = isLastPage
       ? `<div class="footer-wrap">
           <div class="footer-left">
-            <div class="footer-stat">Total No. of Items: <b>${rows.length}</b></div>
+            <div class="footer-stat">Total Items: <b>${rows.length}</b></div>
             <div class="terms-box">${SHOP_INFO.urduTerms.replace(/\n/g, "<br>")}</div>
             <div class="sig-line">Signature</div>
           </div>
           <div class="footer-right">
-            ${sale.extraDisc > 0 ? `<div class="sum-row red"><span>(−) Discount</span><span>${Number(sale.extraDisc).toLocaleString()}</span></div>` : ""}
-            <div class="sum-row bold"><span>Total Amount:</span><span>${Number(sale.netTotal).toLocaleString()}</span></div>
-            ${sale.prevBalance > 0 ? `<div class="sum-row red"><span>(+) Prev. Balance</span><span>PKR ${Number(sale.prevBalance).toLocaleString()}</span></div>` : ""}
-            <div class="sum-row green"><span>Paid:</span><span>PKR ${Number(sale.paidAmount).toLocaleString()}</span></div>
-            <div class="sum-row bold ${sale.balance > 0 ? "red" : "green"} sep"><span>Balance Due:</span><span>PKR ${Number(sale.balance).toLocaleString()}</span></div>
+            <div class="sum-row bold"><span>Total:</span><span>${Number(purchase.netTotal).toLocaleString()}</span></div>
+            <div class="sum-row green"><span>Paid:</span><span>PKR ${Number(purchase.paidAmount).toLocaleString()}</span></div>
+            <div class="sum-row bold sep green"><span>Balance Payable:</span><span>PKR 0</span></div>
           </div>
         </div>
         <div class="devby">${SHOP_INFO.devBy}</div>`
@@ -285,27 +207,16 @@ const buildPrintHtml = (sale, type, overrides = {}) => {
         ${headerHtml}
         ${metaHtml}
         <table>
-          <thead>
-            <tr>
-              <th style="width:28px;text-align:center">Sr.#</th>
-              <th>Product</th>
-              <th style="width:50px">Unit</th>
-              <th style="width:42px;text-align:right">Qty</th>
-              <th style="width:70px;text-align:right">Rate</th>
-              <th style="width:80px;text-align:right">Amount</th>
-            </tr>
-          </thead>
+          <thead><tr><th style="width:28px;text-align:center">Sr.#</th><th>Product</th><th style="width:50px">Unit</th><th style="width:42px;text-align:right">Qty</th><th style="width:70px;text-align:right">Rate</th><th style="width:80px;text-align:right">Amount</th></tr></thead>
           <tbody>${itemRows}</tbody>
         </table>
         ${footerHtml}
       </div>`;
   };
 
-  const allPagesHtml = pages
-    .map((pageRows, idx) =>
-      buildPageHtml(pageRows, idx + 1, pages.length, idx === pages.length - 1),
-    )
-    .join("");
+  const allPagesHtml = pages.map((pageRows, idx) =>
+    buildPageHtml(pageRows, idx + 1, pages.length, idx === pages.length - 1)
+  ).join("");
 
   return `<!DOCTYPE html><html><head><meta charset="utf-8">${GOOGLE_FONT_LINK}<style>
     *{box-sizing:border-box;margin:0;padding:0}
@@ -316,20 +227,14 @@ const buildPrintHtml = (sale, type, overrides = {}) => {
     .banner{background:#555;color:#fff;font-size:${a5 ? "7.5" : "8.5"}pt;text-align:center;padding:${a5 ? "2px 6px" : "3px 8px"};margin:${a5 ? "3px 0" : "4px 0"};font-family:${URDU_FONT};direction:rtl;line-height:2}
     .hdr{text-align:center;border-bottom:2px solid #000;padding-bottom:${a5 ? "5px" : "8px"};margin-bottom:4px}
     .meta-strip{display:flex;justify-content:space-between;align-items:flex-start;border:1px solid #ccc;padding:${a5 ? "4px 8px" : "5px 10px"};margin:${a5 ? "4px 0" : "5px 0"};font-size:${sz.meta}pt}
-    .meta-left{flex:2}
-    .meta-mid{flex:0.5;text-align:center;font-size:${a5 ? "18px" : "22px"};font-weight:900;color:#555}
-    .meta-right{flex:2;text-align:right}
-    .meta-row{margin-bottom:1px}
-    .meta-lbl{color:#555}
-    .meta-val{font-weight:700}
+    .meta-left{flex:2}.meta-mid{flex:0.5;text-align:center;font-size:${a5 ? "18px" : "22px"};font-weight:900;color:#555}.meta-right{flex:2;text-align:right}
+    .meta-row{margin-bottom:1px}.meta-lbl{color:#555}.meta-val{font-weight:700}
     table{width:100%;border-collapse:collapse;margin:${a5 ? "4px 0" : "5px 0"}}
     thead tr{background:#333;color:#fff}
     th{padding:${a5 ? "3px 5px" : "5px 7px"};font-size:${sz.th}pt;font-weight:600;text-align:left}
     td{padding:${a5 ? "2px 5px" : "3px 7px"};font-size:${sz.td}pt;border-bottom:1px solid #e0e0e0}
-    tbody tr:last-child td{border-bottom:2px solid #999}
     .footer-wrap{display:flex;justify-content:space-between;align-items:flex-start;margin-top:${a5 ? "6px" : "10px"};gap:10px}
-    .footer-left{flex:1.5}
-    .footer-right{flex:1;border:1px solid #ccc;padding:${a5 ? "4px 8px" : "5px 10px"}}
+    .footer-left{flex:1.5}.footer-right{flex:1;border:1px solid #ccc;padding:${a5 ? "4px 8px" : "5px 10px"}}
     .footer-stat{font-size:${sz.meta}pt;font-weight:bold;margin-bottom:4px}
     .terms-box{font-family:${URDU_FONT};direction:rtl;font-size:${a5 ? "8" : "9"}pt;color:#444;border:1px dashed #aaa;padding:${a5 ? "3px 6px" : "5px 8px"};margin:${a5 ? "4px 0" : "5px 0"};line-height:2;text-align:right}
     .sig-line{font-size:${sz.sub}pt;margin-top:${a5 ? "8px" : "14px"};border-top:1px solid #999;display:inline-block;padding-top:2px;min-width:120px}
@@ -338,462 +243,307 @@ const buildPrintHtml = (sale, type, overrides = {}) => {
     .sum-row.sep{border-top:2px solid #333;margin-top:2px}
     .red{color:#c00}.green{color:#1a7a1a}
     .devby{text-align:center;font-size:${a5 ? "7" : "8"}pt;color:#888;margin-top:${a5 ? "6px" : "10px"};border-top:1px solid #ddd;padding-top:${a5 ? "4px" : "6px"}}
-    .page{margin-bottom:0}
-    @media print{
-      @page{size:${a5 ? "A5" : "A4"};margin:${a5 ? "4mm" : "8mm"}}
-      body{padding:0}
-    }
+    @media print{@page{size:${a5 ? "A5" : "A4"};margin:${a5 ? "4mm" : "8mm"}}body{padding:0}}
   </style></head><body>${allPagesHtml}</body></html>`;
 };
 
-function PrintOptionsModal({
-  sale,
-  allCustomers,
-  defaultPrintType,
-  onPrint,
-  onClose,
-  hideCustomerFields,
-  newCustomerType,
-}) {
-  const [selPrintType, setSelPrintType] = useState(
-    defaultPrintType || "Thermal",
-  );
-  const [custPhone, setCustPhone] = useState("");
-  const [custName, setCustName] = useState("");
-  const [saving, setSaving] = useState(false);
-  const phoneRef = useRef(null);
-  const nameRef = useRef(null);
-
-  const cashCustomers = allCustomers.filter(
-    (c) => c.name?.toUpperCase().trim() !== "COUNTER SALE",
-  );
-  useEffect(() => {
-    setTimeout(() => phoneRef.current?.focus(), 80);
-  }, []);
-
-  useEffect(() => {
-    const h = (e) => {
-      if (e.key === "Escape") {
-        e.preventDefault();
-        onClose();
-      }
-      if (e.key === "Enter") {
-        e.preventDefault();
-        if (document.activeElement === phoneRef.current) {
-          nameRef.current?.focus();
-          return;
-        }
-        handlePrint();
-      }
-    };
-    window.addEventListener("keydown", h);
-    return () => window.removeEventListener("keydown", h);
-  }, [custPhone, custName, selPrintType, saving]);
-  const handlePhoneChange = (val) => {
-    setCustPhone(val);
-    if (val.trim().length >= 7) {
-      const clean = val.replace(/\D/g, "");
-      const found = cashCustomers.find(
-        (c) =>
-          c.phone?.replace(/\D/g, "").includes(clean) ||
-          c.cell?.replace(/\D/g, "").includes(clean) ||
-          c.otherPhone?.replace(/\D/g, "").includes(clean),
-      );
-      if (found) setCustName(found.name);
-      else setCustName("");
-    } else {
-      setCustName("");
-    }
-  };
-
-  const handlePrint = async () => {
-    if (saving) return;
-    setSaving(true);
-
-    let finalName = custName.trim() || "COUNTER SALE";
-    let finalPhone = custPhone.trim();
-
-    if (finalPhone) {
-      const clean = finalPhone.replace(/\D/g, "");
-      const existing = cashCustomers.find(
-        (c) =>
-          c.phone?.replace(/\D/g, "").includes(clean) ||
-          c.cell?.replace(/\D/g, "").includes(clean),
-      );
-
-      if (!existing && finalName !== "COUNTER SALE") {
-        try {
-          const { data } = await api.post(EP.CUSTOMERS.CREATE, {
-            name: finalName,
-            type: newCustomerType || "walkin",
-            phone: finalPhone,
-          });
-          if (data.success) {
-            finalName = data.data.name;
-          }
-        } catch {}
-      } else if (existing) {
-        finalName = existing.name;
-      }
-    }
-
-    setSaving(false);
-    onPrint(selPrintType, {
-      customerName: finalName,
-      customerPhone: finalPhone,
-    });
-  };
-
-  return (
-    <div className="scm-overlay">
-      <div className="scm-window" style={{ maxWidth: 420 }}>
-        <div className="scm-tb">
-          <svg
-            width="13"
-            height="13"
-            viewBox="0 0 16 16"
-            fill="rgba(255,255,255,0.85)"
-          >
-            <path d="M2.5 8a.5.5 0 1 0 0-1 .5.5 0 0 0 0 1m4-3h7a1 1 0 0 1 1 1v5a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h1.172a3 3 0 0 0 2.12-.879l.83-.828A1 1 0 0 1 6.827 3h2.344a1 1 0 0 1 .707.293l.828.828A3 3 0 0 0 12.828 5H14a1 1 0 0 1 1 1zM2 4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-1.172a2 2 0 0 1-1.414-.586l-.828-.828A2 2 0 0 0 9.172 2H6.828a2 2 0 0 0-1.414.586l-.828.828A2 2 0 0 1 3.172 4z" />
-          </svg>
-          <span className="scm-tb-title">Print Options — {sale.invoiceNo}</span>
-          <button className="xp-cap-btn xp-cap-close" onClick={onClose}>
-            ✕
-          </button>
-        </div>
-
-        <div
-          style={{
-            padding: "14px 16px",
-            display: "flex",
-            flexDirection: "column",
-            gap: 12,
-          }}
-        >
-          {!hideCustomerFields && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-              <label className="xp-label">Phone Number (optional)</label>
-              <input
-                ref={phoneRef}
-                className="xp-input"
-                value={custPhone}
-                onChange={(e) => handlePhoneChange(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    nameRef.current?.focus();
-                  }
-                }}
-                placeholder="e.g. 0300-1234567"
-                autoComplete="off"
-              />
-            </div>
-          )}
-
-          {!hideCustomerFields && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-              <label className="xp-label">
-                Customer Name (optional)
-                {custName && custPhone && (
-                  <span
-                    style={{
-                      marginLeft: 8,
-                      fontSize: 11,
-                      color: "#15803d",
-                      fontWeight: 600,
-                    }}
-                  >
-                    ✓ Already saved
-                  </span>
-                )}
-                {custPhone.trim().length >= 7 && !custName && (
-                  <span
-                    style={{
-                      marginLeft: 8,
-                      fontSize: 11,
-                      color: "#b45309",
-                      fontWeight: 600,
-                    }}
-                  >
-                    New — will be saved
-                  </span>
-                )}
-              </label>
-              <input
-                ref={nameRef}
-                className="xp-input"
-                value={custName}
-                onChange={(e) => setCustName(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    handlePrint();
-                  }
-                }}
-                placeholder="Customer ka naam…"
-              />
-            </div>
-          )}
-
-          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            <label className="xp-label">Print Format</label>
-            <div style={{ display: "flex", gap: 8 }}>
-              {["Thermal", "A5", "A4"].map((pt) => (
-                <label
-                  key={pt}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 5,
-                    padding: "6px 14px",
-                    border: `2px solid ${selPrintType === pt ? "var(--xp-blue-mid)" : "var(--xp-silver-2)"}`,
-                    borderRadius: 4,
-                    background:
-                      selPrintType === pt ? "#e8f0fb" : "var(--xp-silver-3)",
-                    cursor: "pointer",
-                    fontWeight: selPrintType === pt ? 700 : 400,
-                    color: selPrintType === pt ? "var(--xp-blue-dark)" : "#444",
-                    fontSize: 13,
-                  }}
-                >
-                  <input
-                    type="radio"
-                    name="po-pt"
-                    checked={selPrintType === pt}
-                    onChange={() => setSelPrintType(pt)}
-                    style={{ display: "none" }}
-                  />
-                  {pt === "Thermal" ? "🖨" : pt === "A5" ? "📄" : "📋"} {pt}
-                </label>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        <div className="scm-sep" />
-
-        <div className="scm-actions">
-          <button
-            className="xp-btn xp-btn-primary"
-            style={{ minWidth: 130 }}
-            onClick={handlePrint}
-            disabled={saving}
-          >
-            {saving ? "Saving…" : "🖨 Print"}
-          </button>
-          <button
-            className="xp-btn"
-            style={{ minWidth: 110 }}
-            onClick={onClose}
-          >
-            ↩ Cancel
-          </button>
-        </div>
-        <div className="scm-hint">
-          Enter (name field) = Print &nbsp;|&nbsp; Esc = Cancel
-        </div>
-      </div>
-    </div>
-  );
-}
-const doPrint = (sale, type, overrides = {}) => {
-  const w = window.open(
-    "",
-    "_blank",
-    type === "Thermal" ? "width=420,height=640" : "width=900,height=700",
-  );
-  w.document.write(buildPrintHtml(sale, type, overrides));
+const doPrint = (purchase, type, overrides = {}) => {
+  const w = window.open("", "_blank", type === "Thermal" ? "width=420,height=640" : "width=900,height=700");
+  w.document.write(buildPrintHtml(purchase, type, overrides));
   w.document.close();
   setTimeout(() => w.print(), 400);
 };
+
 /* ══════════════════════════════════════════════════════════
-   SAVE CONFIRM MODAL — XP Theme
+   SUPPLIER SEARCH DROPDOWN - Only Shows Suppliers
 ══════════════════════════════════════════════════════════ */
-function SaveConfirmModal({
-  salePayload,
-  printType: defaultPrintType,
-  onConfirm,
-  onClose,
-}) {
-  const [paidAmount, setPaidAmount] = useState(0);
-  const [selPrintType, setSelPrintType] = useState(defaultPrintType);
-  const [saving, setSaving] = useState(false);
-  const paidRef = useRef(null);
+function SupplierDropdown({ allSuppliers, value, onSelect, onClear, onAddNew }) {
+  const [query, setQuery] = useState("");
+  const [originalQuery, setOriginalQuery] = useState("");
+  const [ghost, setGhost] = useState("");
+  const [suggestions, setSuggestions] = useState([]);
+  const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(-1);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [isNavigating, setIsNavigating] = useState(false);
+  const inputRef = useRef(null);
+
+  const getSuggestions = (searchTerm) => {
+    if (!searchTerm.trim()) return [];
+    const searchLower = searchTerm.toLowerCase();
+    return allSuppliers.filter(s => 
+      s.name?.toLowerCase().includes(searchLower) ||
+      s.code?.toLowerCase().includes(searchLower)
+    ).slice(0, 10);
+  };
 
   useEffect(() => {
-    setTimeout(() => {
-      paidRef.current?.focus();
-      paidRef.current?.select();
-    }, 80);
-  }, []);
+    if (!originalQuery.trim()) {
+      setSuggestions([]);
+      setGhost("");
+      setShowDropdown(false);
+      return;
+    }
 
-  useEffect(() => {
-    const h = (e) => {
-      if (e.key === "Escape") {
-        e.preventDefault();
-        onClose();
+    const matches = getSuggestions(originalQuery);
+    setSuggestions(matches);
+    setShowDropdown(matches.length > 0);
+    
+    if (!isNavigating && matches.length > 0 && matches[0].name) {
+      const remaining = matches[0].name.slice(originalQuery.length);
+      setGhost(remaining);
+    } else {
+      setGhost("");
+    }
+  }, [originalQuery, allSuppliers, isNavigating]);
+
+  const selectSupplier = (supplier) => {
+    onSelect(supplier);
+    setQuery("");
+    setOriginalQuery("");
+    setGhost("");
+    setSuggestions([]);
+    setSelectedSuggestionIndex(-1);
+    setShowDropdown(false);
+    setIsNavigating(false);
+  };
+
+  const handleKeyDown = (e) => {
+    if (ghost && (e.key === "ArrowRight" || e.key === "Tab") && !isNavigating) {
+      e.preventDefault();
+      const fullName = originalQuery + ghost;
+      setQuery(fullName);
+      setOriginalQuery(fullName);
+      setGhost("");
+      setIsNavigating(false);
+      
+      const matchedSupplier = suggestions[0];
+      if (matchedSupplier) {
+        selectSupplier(matchedSupplier);
       }
-      if (e.key === "Enter" && document.activeElement === paidRef.current) {
-        e.preventDefault();
-        handleConfirm(true);
+      return;
+    }
+    
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      if (suggestions.length === 0) return;
+      
+      setIsNavigating(true);
+      setShowDropdown(true);
+      
+      let newIndex;
+      if (selectedSuggestionIndex === -1) {
+        newIndex = 0;
+      } else {
+        newIndex = selectedSuggestionIndex + 1;
+        if (newIndex >= suggestions.length) newIndex = 0;
       }
-    };
-    window.addEventListener("keydown", h);
-    return () => window.removeEventListener("keydown", h);
-  }, [paidAmount, selPrintType]);
+      
+      setSelectedSuggestionIndex(newIndex);
+      const selectedSupplier = suggestions[newIndex];
+      if (selectedSupplier) {
+        setQuery(selectedSupplier.name);
+        setGhost("");
+      }
+      return;
+    }
+    
+    if (e.key === "ArrowUp") {
+      e.preventDefault();
+      if (suggestions.length === 0) return;
+      
+      setIsNavigating(true);
+      setShowDropdown(true);
+      
+      let newIndex;
+      if (selectedSuggestionIndex === -1) {
+        newIndex = suggestions.length - 1;
+      } else {
+        newIndex = selectedSuggestionIndex - 1;
+        if (newIndex < 0) newIndex = suggestions.length - 1;
+      }
+      
+      setSelectedSuggestionIndex(newIndex);
+      const selectedSupplier = suggestions[newIndex];
+      if (selectedSupplier) {
+        setQuery(selectedSupplier.name);
+        setGhost("");
+      }
+      return;
+    }
+    
+    if (e.key === "Enter") {
+      e.preventDefault();
+      if (selectedSuggestionIndex >= 0 && suggestions[selectedSuggestionIndex]) {
+        selectSupplier(suggestions[selectedSuggestionIndex]);
+      } else if (suggestions.length > 0 && suggestions[0]) {
+        selectSupplier(suggestions[0]);
+      } else if (originalQuery.trim()) {
+        onAddNew(originalQuery.trim());
+        setQuery("");
+        setOriginalQuery("");
+        setGhost("");
+      }
+      return;
+    }
+    
+    if (e.key === "Escape") {
+      e.preventDefault();
+      setQuery("");
+      setOriginalQuery("");
+      setGhost("");
+      setSuggestions([]);
+      setSelectedSuggestionIndex(-1);
+      setShowDropdown(false);
+      setIsNavigating(false);
+      if (value) onClear();
+      inputRef.current?.blur();
+    }
+  };
 
-  const netTotal = salePayload.netTotal;
-  const prevBalance = salePayload.prevBalance || 0;
-  const paid = Number(paidAmount) || 0;
-  const billTotal = netTotal + prevBalance;
-  const change = paid - billTotal;
-
-  const handleConfirm = async (withPrint) => {
-    if (saving) return;
-    setSaving(true);
-    await onConfirm({
-      extraDisc: salePayload.extraDisc || 0,
-      netTotal,
-      paidAmount: paid,
-      balance: billTotal - paid,
-      printType: selPrintType,
-      withPrint,
-    });
-    setSaving(false);
+  const handleChange = (e) => {
+    const newValue = e.target.value;
+    setQuery(newValue);
+    setOriginalQuery(newValue);
+    if (value && newValue !== value) onClear();
+    setSelectedSuggestionIndex(-1);
+    setShowDropdown(true);
+    setIsNavigating(false);
   };
 
   return (
-    <div className="scm-overlay">
-      <div className="scm-window">
-        <div className="scm-tb">
-          <svg
-            width="13"
-            height="13"
-            viewBox="0 0 16 16"
-            fill="rgba(255,255,255,0.85)"
+    <div style={{ position: "relative", flex: 1 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 4, position: "relative" }}>
+        <div style={{ position: "relative", flex: 1 }}>
+          {ghost && !isNavigating && (
+            <div
+              style={{
+                position: "absolute",
+                left: 8,
+                top: "50%",
+                transform: "translateY(-50%)",
+                pointerEvents: "none",
+                whiteSpace: "nowrap",
+                fontSize: "13px",
+                fontFamily: "inherit",
+                display: "flex",
+                zIndex: 2,
+                color: "#a0aec0",
+              }}
+            >
+              <span style={{ visibility: "hidden" }}>{originalQuery}</span>
+              <span style={{ color: "#a0aec0" }}>{ghost}</span>
+            </div>
+          )}
+          
+          <input
+            ref={inputRef}
+            className="sl-cust-input"
+            style={{
+              flex: 1,
+              minWidth: 0,
+              cursor: "text",
+              background: "transparent",
+              position: "relative",
+              zIndex: 1,
+              width: "100%",
+              border: "1px solid #d1d5db",
+              borderRadius: "4px",
+              outline: "none",
+              padding: "6px 8px",
+              fontSize: "13px",
+              transition: "all 0.15s ease",
+            }}
+            value={value ? query || value : query}
+            placeholder="Cash Purchase..."
+            onChange={handleChange}
+            onKeyDown={handleKeyDown}
+            onFocus={(e) => {
+              e.target.style.borderColor = "#3b82f6";
+              e.target.style.boxShadow = "0 0 0 2px rgba(59,130,246,0.1)";
+            }}
+            onBlur={(e) => {
+              e.target.style.borderColor = "#d1d5db";
+              e.target.style.boxShadow = "none";
+            }}
+            autoComplete="off"
+            spellCheck={false}
+          />
+        </div>
+
+        {value && value !== "Cash Purchase" && (
+          <button
+            className="xp-btn xp-btn-sm xp-btn-danger"
+            style={{ height: 22, padding: "0 5px", fontSize: 10, flexShrink: 0 }}
+            onMouseDown={(e) => {
+              e.preventDefault();
+              onClear();
+              setQuery("");
+              setOriginalQuery("");
+              setGhost("");
+              setSuggestions([]);
+              setSelectedSuggestionIndex(-1);
+              setShowDropdown(false);
+              setIsNavigating(false);
+              inputRef.current?.focus();
+            }}
+            title="Clear"
           >
-            <path d="M13.854 3.646a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 1 1 .708-.708L6.5 10.293l6.646-6.647a.5.5 0 0 1 .708 0" />
-          </svg>
-          <span className="scm-tb-title">
-            Raw Purchase Invoice— {salePayload.invoiceNo} &nbsp;|&nbsp;{" "}
-            {salePayload.customerName}
-          </span>
-          <button className="xp-cap-btn xp-cap-close" onClick={onClose}>
             ✕
           </button>
-        </div>
+        )}
+      </div>
 
-        <div className="scm-meta">
-          <span>
-            <b>Invoice:</b> {salePayload.invoiceNo}
-          </span>
-          <span>
-            <b>Date:</b> {salePayload.invoiceDate}
-          </span>
-          <span>
-            <b>Supplier:</b> {salePayload.customerName}
-          </span>
-          <span>
-            <b>Payment:</b> {salePayload.paymentMode}
-          </span>
-          <span>
-            <b>Items:</b> {salePayload.items.length}
-          </span>
-        </div>
-
-        <div className="scm-amounts">
-          <div className="scm-box">
-            <div className="scm-box-label">Bill Amount</div>
-            <div className="scm-box-val">
-              {Number(billTotal).toLocaleString("en-PK")}
-            </div>
-          </div>
-
-          <div className="scm-box" style={{ borderLeft: "none" }}>
-            <div className="scm-box-label">Paid</div>
-            <input
-              ref={paidRef}
-              type="text"
-              className="scm-recv-input"
-              value={paidAmount}
-              onChange={(e) => setPaidAmount(e.target.value)}
-              onFocus={(e) => e.target.select()}
-            />
-          </div>
-
-          <div
-            className={`scm-box ${change >= 0 ? "scm-box-change" : "scm-box-due"}`}
-            style={{ borderLeft: "none" }}
-          >
-            <div className="scm-box-label">
-              {change >= 0 ? "Change" : "Balance Due"}
-            </div>
-            <div className="scm-box-val">
-              {change < 0 && (
-                <span style={{ fontSize: 22, marginRight: 2 }}>−</span>
+      {showDropdown && suggestions.length > 0 && (
+        <div
+          style={{
+            position: "absolute",
+            top: "100%",
+            left: 0,
+            right: 0,
+            backgroundColor: "white",
+            border: "1px solid #e5e7eb",
+            borderRadius: 4,
+            maxHeight: 200,
+            overflowY: "auto",
+            zIndex: 1000,
+            boxShadow: "0 4px 6px -1px rgba(0,0,0,0.1)",
+            marginTop: 2,
+          }}
+        >
+          {suggestions.map((supplier, idx) => (
+            <div
+              key={supplier._id || idx}
+              onClick={() => selectSupplier(supplier)}
+              style={{
+                padding: "8px 12px",
+                cursor: "pointer",
+                backgroundColor: idx === selectedSuggestionIndex ? "#e5f0ff" : "white",
+                borderBottom: "1px solid #f3f4f6",
+                fontSize: 13,
+              }}
+              onMouseEnter={() => {
+                setSelectedSuggestionIndex(idx);
+                setIsNavigating(true);
+                setQuery(supplier.name);
+                setGhost("");
+              }}
+            >
+              <div style={{ fontWeight: 500 }}>
+                {supplier.code && <span style={{ color: "#6b7280", fontSize: 11 }}>[{supplier.code}]</span>} {supplier.name}
+              </div>
+              {supplier.phone && (
+                <div style={{ fontSize: 10, color: "#6b7280" }}>📞 {supplier.phone}</div>
               )}
-              {Math.abs(change).toLocaleString("en-PK")}
             </div>
-          </div>
-        </div>
-
-        <div className="scm-print-row">
-          <span style={{ color: "#555", marginRight: 4, fontWeight: 700 }}>
-            Print:
-          </span>
-          {["Thermal", "A5", "A4"].map((pt) => (
-            <label key={pt}>
-              <input
-                type="radio"
-                name="scm-pt"
-                checked={selPrintType === pt}
-                onChange={() => setSelPrintType(pt)}
-              />
-              {pt}
-            </label>
           ))}
         </div>
-
-        <div className="scm-sep" />
-
-        <div className="scm-actions">
-          <button
-            className="xp-btn xp-btn-primary"
-            style={{ minWidth: 140 }}
-            onClick={() => handleConfirm(true)}
-            disabled={saving}
-          >
-            🖨 Save and Print
-          </button>
-          <button
-            className="xp-btn xp-btn-success"
-            style={{ minWidth: 110 }}
-            onClick={() => handleConfirm(false)}
-            disabled={saving}
-          >
-            💾 Save only
-          </button>
-          <button
-            className="xp-btn"
-            style={{ minWidth: 130 }}
-            onClick={onClose}
-          >
-            ↩ Return to Invoice
-          </button>
-        </div>
-
-        <div className="scm-hint">
-          ↵ Enter (in Paid field) = Save &amp; Print &nbsp;|&nbsp; Esc =
-          Return to Invoice
-        </div>
-      </div>
+      )}
     </div>
   );
 }
 
 /* ══════════════════════════════════════════════════════════
-   PRODUCT SEARCH MODAL — Only shows products with "raw" keyword
+   PRODUCT SEARCH MODAL
 ══════════════════════════════════════════════════════════ */
 function SearchModal({ allProducts, onSelect, onClose }) {
   const [desc, setDesc] = useState("");
@@ -806,37 +556,19 @@ function SearchModal({ allProducts, onSelect, onClose }) {
   const rCompany = useRef(null);
   const tbodyRef = useRef(null);
 
-  // Filter products that contain "raw" in description, category, or company
-  const filterRawProducts = useCallback((products) => {
-    return products.filter((p) => {
-      const descLower = (p.description || "").toLowerCase();
-      const catLower = (p.category || "").toLowerCase();
-      const companyLower = (p.company || "").toLowerCase();
-      return descLower.includes("raw") || catLower.includes("raw") || companyLower.includes("raw");
-    });
-  }, []);
-
   const buildFlat = useCallback((products, d, c, co) => {
     const res = [];
     const ld = d.trim().toLowerCase(),
       lc = c.trim().toLowerCase(),
       lo = co.trim().toLowerCase();
-    
-    // First filter by "raw" keyword
-    const rawFiltered = filterRawProducts(products);
-    
-    rawFiltered.forEach((p) => {
+    products.forEach((p) => {
       const ok =
-        (!ld ||
-          p.description?.toLowerCase().includes(ld) ||
-          p.code?.toLowerCase().includes(ld)) &&
+        (!ld || p.description?.toLowerCase().includes(ld) || p.code?.toLowerCase().includes(ld)) &&
         (!lc || p.category?.toLowerCase().includes(lc)) &&
         (!lo || p.company?.toLowerCase().includes(lo));
       if (!ok) return;
-      const _name = [p.category, p.description, p.company]
-        .filter(Boolean)
-        .join(" ");
-      if (p.packingInfo?.length > 0)
+      const _name = [p.category, p.description, p.company].filter(Boolean).join(" ");
+      if (p.packingInfo?.length > 0) {
         p.packingInfo.forEach((pk, i) =>
           res.push({
             ...p,
@@ -846,21 +578,14 @@ function SearchModal({ allProducts, onSelect, onClose }) {
             _pack: pk.packing,
             _stock: pk.openingQty || 0,
             _name,
-          }),
+          })
         );
-      else
-        res.push({
-          ...p,
-          _pi: 0,
-          _meas: "",
-          _rate: 0,
-          _pack: 1,
-          _stock: 0,
-          _name,
-        });
+      } else {
+        res.push({ ...p, _pi: 0, _meas: "", _rate: 0, _pack: 1, _stock: 0, _name });
+      }
     });
     return res;
-  }, [filterRawProducts]);
+  }, []);
 
   useEffect(() => {
     rDesc.current?.focus();
@@ -879,152 +604,67 @@ function SearchModal({ allProducts, onSelect, onClose }) {
   }, [hiIdx]);
 
   const fk = (e, nr) => {
-    if (e.key === "Escape") {
-      onClose();
-      return;
-    }
+    if (e.key === "Escape") { onClose(); return; }
     if (e.key === "Enter" || e.key === "ArrowDown") {
       e.preventDefault();
-      nr
-        ? nr.current?.focus()
-        : (tbodyRef.current?.focus(), setHiIdx((h) => Math.max(0, h)));
+      nr ? nr.current?.focus() : (tbodyRef.current?.focus(), setHiIdx((h) => Math.max(0, h)));
     }
   };
   const tk = (e) => {
-    if (e.key === "ArrowDown") {
-      e.preventDefault();
-      setHiIdx((i) => Math.min(i + 1, rows.length - 1));
-    }
-    if (e.key === "ArrowUp") {
-      e.preventDefault();
-      setHiIdx((i) => Math.max(i - 1, 0));
-    }
-    if (e.key === "Enter") {
-      e.preventDefault();
-      if (hiIdx >= 0 && rows[hiIdx]) onSelect(rows[hiIdx]);
-    }
+    if (e.key === "ArrowDown") { e.preventDefault(); setHiIdx((i) => Math.min(i + 1, rows.length - 1)); }
+    if (e.key === "ArrowUp") { e.preventDefault(); setHiIdx((i) => Math.max(i - 1, 0)); }
+    if (e.key === "Enter") { e.preventDefault(); if (hiIdx >= 0 && rows[hiIdx]) onSelect(rows[hiIdx]); }
     if (e.key === "Escape") onClose();
-    if (e.key === "Tab") {
-      e.preventDefault();
-      rDesc.current?.focus();
-    }
+    if (e.key === "Tab") { e.preventDefault(); rDesc.current?.focus(); }
   };
 
   return (
-    <div
-      className="xp-overlay"
-      onClick={(e) => e.target === e.currentTarget && onClose()}
-    >
+    <div className="xp-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="xp-modal xp-modal-lg">
         <div className="xp-modal-tb">
-          <svg
-            width="13"
-            height="13"
-            viewBox="0 0 16 16"
-            fill="rgba(255,255,255,0.8)"
-          >
+          <svg width="13" height="13" viewBox="0 0 16 16" fill="rgba(255,255,255,0.8)">
             <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.044.06.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1 1 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0" />
           </svg>
-          <span className="xp-modal-title">Search Raw Products (Purchase Rate)</span>
-          <button className="xp-cap-btn xp-cap-close" onClick={onClose}>
-            ✕
-          </button>
+          <span className="xp-modal-title">Search Products (Purchase Rate)</span>
+          <button className="xp-cap-btn xp-cap-close" onClick={onClose}>✕</button>
         </div>
         <div className="cs-modal-filters">
           <div className="cs-modal-filter-grp">
             <label className="xp-label">Description / Code</label>
-            <input
-              ref={rDesc}
-              type="text"
-              className="xp-input"
-              value={desc}
-              onChange={(e) => setDesc(e.target.value)}
-              onKeyDown={(e) => fk(e, rCat)}
-              placeholder="Name / code…"
-              autoComplete="off"
-            />
+            <input ref={rDesc} type="text" className="xp-input" value={desc} onChange={(e) => setDesc(e.target.value)} onKeyDown={(e) => fk(e, rCat)} placeholder="Name / code…" autoComplete="off" />
           </div>
           <div className="cs-modal-filter-grp">
             <label className="xp-label">Category</label>
-            <input
-              ref={rCat}
-              type="text"
-              className="xp-input"
-              value={cat}
-              onChange={(e) => setCat(e.target.value)}
-              onKeyDown={(e) => fk(e, rCompany)}
-              placeholder="e.g. RAW"
-              autoComplete="off"
-            />
+            <input ref={rCat} type="text" className="xp-input" value={cat} onChange={(e) => setCat(e.target.value)} onKeyDown={(e) => fk(e, rCompany)} placeholder="e.g. SMALL" autoComplete="off" />
           </div>
           <div className="cs-modal-filter-grp">
             <label className="xp-label">Company</label>
-            <input
-              ref={rCompany}
-              type="text"
-              className="xp-input"
-              value={company}
-              onChange={(e) => setCompany(e.target.value)}
-              onKeyDown={(e) => fk(e, null)}
-              placeholder="e.g. RAW"
-              autoComplete="off"
-            />
+            <input ref={rCompany} type="text" className="xp-input" value={company} onChange={(e) => setCompany(e.target.value)} onKeyDown={(e) => fk(e, null)} placeholder="e.g. LUX" autoComplete="off" />
           </div>
           <div style={{ display: "flex", alignItems: "flex-end", gap: 6 }}>
-            <span style={{ fontSize: "var(--xp-fs-xs)", color: "#555" }}>
-              {rows.length} raw product(s)
-            </span>
-            <button className="xp-btn xp-btn-sm" onClick={onClose}>
-              Close
-            </button>
+            <span style={{ fontSize: "var(--xp-fs-xs)", color: "#555" }}>{rows.length} result(s)</span>
+            <button className="xp-btn xp-btn-sm" onClick={onClose}>Close</button>
           </div>
         </div>
         <div className="xp-modal-body" style={{ padding: 0 }}>
           <div className="xp-table-panel" style={{ border: "none" }}>
             <div className="xp-table-scroll">
               <table className="xp-table">
-                <thead>
-                  <tr>
-                    <th style={{ width: 36 }}>Sr.#</th>
-                    <th>Barcode</th>
-                    <th>Name</th>
-                    <th>Meas.</th>
-                    <th className="r">Purchase Rate</th>
-                    <th className="r">Stock</th>
-                    <th className="r">Pack</th>
-                    <th>Rack#</th>
-                  </tr>
-                </thead>
+                <thead><tr>
+                <th style={{ width: 36 }}>Sr.#</th>
+                <th>Barcode</th><th>Name</th>
+                <th>Meas.</th>
+                <th className="r">Purchase Rate</th>
+                <th>Rack#</th></tr></thead>
                 <tbody ref={tbodyRef} tabIndex={0} onKeyDown={tk}>
-                  {rows.length === 0 && (
-                    <tr>
-                      <td colSpan={8} className="xp-empty">
-                        No raw products found
-                      </td>
-                    </tr>
-                  )}
+                  {rows.length === 0 && <tr><td colSpan={7} className="xp-empty">No products found</td>}</tr>}
                   {rows.map((r, i) => (
-                    <tr
-                      key={`${r._id}-${r._pi}`}
-                      style={{
-                        background: i === hiIdx ? "#c3d9f5" : undefined,
-                      }}
-                      onClick={() => setHiIdx(i)}
-                      onDoubleClick={() => onSelect(r)}
-                    >
+                    <tr key={`${r._id}-${r._pi}`} style={{ background: i === hiIdx ? "#c3d9f5" : undefined }} onClick={() => setHiIdx(i)} onDoubleClick={() => onSelect(r)}>
                       <td className="text-muted">{i + 1}</td>
-                      <td>
-                        <span className="xp-code">{r.code}</span>
-                      </td>
-                      <td>
-                        <button className="xp-link-btn">{r._name}</button>
-                      </td>
+                      <td><span className="xp-code">{r.code}</span></td>
+                      <td><button className="xp-link-btn">{r._name}</button></td>
                       <td className="text-muted">{r._meas}</td>
-                      <td className="r xp-amt">
-                        {Number(r._rate).toLocaleString("en-PK")}
-                      </td>
-                      <td className="r">{r._stock}</td>
-                      <td className="r">{r._pack}</td>
+                      <td className="r xp-amt">{Number(r._rate).toLocaleString("en-PK")}</td>
                       <td className="text-muted">{r.rackNo || "—"}</td>
                     </tr>
                   ))}
@@ -1033,292 +673,20 @@ function SearchModal({ allProducts, onSelect, onClose }) {
             </div>
           </div>
         </div>
-        <div className="cs-modal-hint">
-          ↑↓ navigate &nbsp;|&nbsp; Enter / Double-click = select &nbsp;|&nbsp;
-          Esc = close &nbsp;|&nbsp; Tab = filters
-        </div>
+        <div className="cs-modal-hint">↑↓ navigate &nbsp;|&nbsp; Enter / Double-click = select &nbsp;|&nbsp; Esc = close &nbsp;|&nbsp; Tab = filters</div>
       </div>
     </div>
   );
 }
 
 /* ══════════════════════════════════════════════════════════
-   HOLD PREVIEW MODAL
+   MAIN PURCHASE PAGE
 ══════════════════════════════════════════════════════════ */
-function HoldPreviewModal({ bill, onResume, onClose }) {
-  if (!bill) return null;
-  return (
-    <div
-      className="xp-overlay"
-      onClick={(e) => e.target === e.currentTarget && onClose()}
-    >
-      <div className="xp-modal" style={{ width: 560 }}>
-        <div className="xp-modal-tb">
-          <span className="xp-modal-title">Hold Bill — {bill.invoiceNo}</span>
-          <button className="xp-cap-btn xp-cap-close" onClick={onClose}>
-            ✕
-          </button>
-        </div>
-        <div className="xp-modal-body" style={{ padding: 8 }}>
-          <div
-            style={{
-              marginBottom: 6,
-              display: "flex",
-              gap: 16,
-              fontSize: "var(--xp-fs-xs)",
-            }}
-          >
-            <span>
-              <b>Supplier:</b> {bill.buyerName}
-            </span>
-            <span>
-              <b>Items:</b> {bill.items.length}
-            </span>
-            <span>
-              <b>Amount:</b>{" "}
-              <span style={{ color: "var(--xp-blue-dark)", fontWeight: 700 }}>
-                {Number(bill.amount).toLocaleString("en-PK")}
-              </span>
-            </span>
-          </div>
-          <div className="xp-table-panel" style={{ border: "none" }}>
-            <div className="xp-table-scroll" style={{ maxHeight: 300 }}>
-              <table className="xp-table">
-                <thead>
-                  <tr>
-                    <th>#</th>
-                    <th>Code</th>
-                    <th>Name</th>
-                    <th>UOM</th>
-                    <th className="r">Pcs</th>
-                    <th className="r">Rate</th>
-                    <th className="r">Amount</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {bill.items.map((r, i) => (
-                    <tr key={i}>
-                      <td className="text-muted">{i + 1}</td>
-                      <td className="text-muted">{r.code}</td>
-                      <td>{r.name}</td>
-                      <td className="text-muted">{r.uom}</td>
-                      <td className="r">{r.pcs}</td>
-                      <td className="r">
-                        {Number(r.rate).toLocaleString("en-PK")}
-                      </td>
-                      <td
-                        className="r"
-                        style={{
-                          color: "var(--xp-blue-dark)",
-                          fontWeight: 700,
-                        }}
-                      >
-                        {Number(r.amount).toLocaleString("en-PK")}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-        <div
-          style={{
-            display: "flex",
-            gap: 6,
-            padding: "6px 10px",
-            borderTop: "1px solid var(--xp-silver-5)",
-            justifyContent: "flex-end",
-          }}
-        >
-          <button className="xp-btn xp-btn-sm" onClick={onClose}>
-            Cancel
-          </button>
-          <button
-            className="xp-btn xp-btn-primary xp-btn-sm"
-            onClick={() => onResume(bill.id)}
-          >
-            Resume This Bill
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* ══════════════════════════════════════════════════════════
-   SUPPLIER DROPDOWN (for raw-purchase type)
-══════════════════════════════════════════════════════════ */
-function SupplierDropdown({
-  allSuppliers,
-  value,
-  displayName,
-  supplierType,
-  onSelect,
-  onClear,
-  onAddNew,
-  allowedTypes,
-}) {
-  const [query, setQuery] = useState("");
-  const [ghost, setGhost] = useState("");
-  const inputRef = useRef(null);
-
-  const creditSuppliers = allSuppliers.filter((c) => {
-    const t = (c.customerType || c.type || "").toLowerCase();
-    const allowed = allowedTypes || ["raw-purchase", "supplier"];
-    return allowed.includes(t) && c.name?.toUpperCase().trim() !== "COUNTER SALE";
-  });
-
-  useEffect(() => {
-    if (!query.trim()) {
-      setGhost("");
-      return;
-    }
-    const match = creditSuppliers.find((c) =>
-      c.name?.toLowerCase().startsWith(query.toLowerCase()),
-    );
-    setGhost(match ? match.name.slice(query.length) : "");
-  }, [query, allSuppliers]);
-
-  const pick = (c) => {
-    onSelect(c);
-    setQuery("");
-    setGhost("");
-  };
-
-  const handleKey = (e) => {
-    if (ghost && (e.key === "Tab" || e.key === "ArrowRight")) {
-      e.preventDefault();
-      const full = query + ghost;
-      const match = creditSuppliers.find(
-        (c) => c.name?.toLowerCase() === full.toLowerCase(),
-      );
-      if (match) pick(match);
-      return;
-    }
-    if (e.key === "Enter") {
-      e.preventDefault();
-      const q = query.trim().toLowerCase();
-      if (!q) return;
-      const match =
-        creditSuppliers.find((c) => c.name?.toLowerCase() === q) ||
-        creditSuppliers.find((c) => c.name?.toLowerCase().startsWith(q));
-      if (match) {
-        pick(match);
-      } else if (onAddNew) {
-        onAddNew(query.trim());
-        setQuery("");
-        setGhost("");
-      }
-      return;
-    }
-    if (e.key === "Escape") {
-      setQuery("");
-      setGhost("");
-    }
-  };
-
-  const typeStyle =
-    supplierType && TYPE_COLORS[supplierType]
-      ? {
-          background: TYPE_COLORS[supplierType].bg,
-          color: TYPE_COLORS[supplierType].color,
-          border: `1px solid ${TYPE_COLORS[supplierType].border}`,
-        }
-      : null;
-
-  return (
-    <div style={{ position: "relative", flex: 1 }}>
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 4,
-          position: "relative",
-        }}
-      >
-        {typeStyle && (
-          <span className="cdd-type-badge" style={typeStyle}>
-            {supplierType}
-          </span>
-        )}
-
-        {ghost && (
-          <div
-            style={{
-              position: "absolute",
-              left: typeStyle ? 72 : 8,
-              top: "50%",
-              transform: "translateY(-50%)",
-              pointerEvents: "none",
-              whiteSpace: "nowrap",
-              fontSize: 13,
-              fontFamily: "inherit",
-              display: "flex",
-              zIndex: 0,
-            }}
-          >
-            <span style={{ visibility: "hidden" }}>{query}</span>
-            <span style={{ color: "blue" }}>{ghost}</span>
-          </div>
-        )}
-
-        <input
-          ref={inputRef}
-          className="sl-cust-input cdd-input"
-          style={{
-            flex: 1,
-            minWidth: 0,
-            cursor: "text",
-            background: "transparent",
-            position: "relative",
-            zIndex: 1,
-          }}
-          value={value ? query || displayName : query}
-          placeholder="Supplier name..."
-          onChange={(e) => {
-            setQuery(e.target.value);
-            if (value && e.target.value !== displayName) onClear();
-          }}
-          onKeyDown={handleKey}
-          autoComplete="off"
-          spellCheck={false}
-        />
-
-        {value && (
-          <button
-            className="xp-btn xp-btn-sm xp-btn-danger"
-            style={{
-              height: 22,
-              padding: "0 5px",
-              fontSize: 10,
-              flexShrink: 0,
-            }}
-            onMouseDown={(e) => {
-              e.preventDefault();
-              onClear();
-              setQuery("");
-              setGhost("");
-            }}
-            title="Clear"
-          >
-            ✕
-          </button>
-        )}
-      </div>
-    </div>
-  );
-}
-
-/* ══════════════════════════════════════════════════════════
-   MAIN PAGE — Raw Purchase
-══════════════════════════════════════════════════════════ */
-export default function RawPurchasePage() {
+export default function PurchasePage() {
   const [time, setTime] = useState(timeNow());
   const [allProducts, setAllProducts] = useState([]);
   const [allSuppliers, setAllSuppliers] = useState([]);
   const [showProductModal, setShowProductModal] = useState(false);
-  const [showHoldPreview, setShowHoldPreview] = useState(null);
   const [searchText, setSearchText] = useState("");
   const [curRow, setCurRow] = useState({ ...EMPTY_ROW });
   const [items, setItems] = useState([]);
@@ -1326,189 +694,105 @@ export default function RawPurchasePage() {
   const [invoiceNo, setInvoiceNo] = useState("PUR-00001");
   const amountRef = useRef(null);
 
+  const [supplierName, setSupplierName] = useState("Cash Purchase");
   const [supplierId, setSupplierId] = useState("");
-  const [supplierName, setSupplierName] = useState("COUNTER SALE");
-  const [codeSearch, setCodeSearch] = useState("");
-  const [supplierType, setSupplierType] = useState("");
-  const [prevBalance, setPrevBalance] = useState(0);
-
-  const [extraDiscount, setExtraDiscount] = useState(0);
-  const [paidAmount, setPaidAmount] = useState(0);
-  const [paymentMode, setPaymentMode] = useState("Cash");
-  const [saleSource, setSaleSource] = useState("cash");
-
-  const [holdBills, setHoldBills] = useState(() => loadHolds());
-  const [editId, setEditId] = useState(null);
-  const [selItemIdx, setSelItemIdx] = useState(null);
-  const [msg, setMsg] = useState({ text: "", type: "" });
-  const [loading, setLoading] = useState(false);
+  const [supplierCode, setSupplierCode] = useState("");
   const [printType, setPrintType] = useState("Thermal");
-  const [sendSms, setSendSms] = useState(false);
-  const [packingOptions, setPackingOptions] = useState([]);
-  const [packingOpen, setPackingOpen] = useState(false);
-  const [packingHiIdx, setPackingHiIdx] = useState(0);
-  const packingRef = useRef(null);
-  const [showSaveModal, setShowSaveModal] = useState(false);
-  const [pendingPayload, setPendingPayload] = useState(null);
+  const [editId, setEditId] = useState(null);
 
-  const [creditWarning, setCreditWarning] = useState(false);
-  const [creditStatement, setCreditStatement] = useState("");
-  const [showSupplierPanel, setShowSupplierPanel] = useState(false);
-  const [showPrintModal, setShowPrintModal] = useState(false);
-  const [pendingPrintSale, setPendingPrintSale] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [msg, setMsg] = useState({ text: "", type: "" });
+  const [isPrinting, setIsPrinting] = useState(false);
+
   const searchRef = useRef(null);
   const pcsRef = useRef(null);
   const rateRef = useRef(null);
   const addRef = useRef(null);
-  const paidRef = useRef(null);
-  const discRef = useRef(null);
-  const saveRef = useRef(null);
-  const statementRef = useRef(null);
+  const codeSearchRef = useRef(null);
 
   useEffect(() => {
     const t = setInterval(() => setTime(timeNow()), 1000);
     return () => clearInterval(t);
   }, []);
+
   useEffect(() => {
     fetchData();
   }, []);
+
+  // Keyboard handler for * (asterisk) to print
   useEffect(() => {
-    saveHolds(holdBills);
-  }, [holdBills]);
+    const handler = async (e) => {
+      if (showProductModal) return;
+      if (e.key === "*") {
+        e.preventDefault();
+        if (items.length === 0) {
+          showMsg("Add at least one item first", "error");
+          return;
+        }
+        await handlePrintAndSave();
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [items, supplierName, supplierId]);
 
   const subTotal = items.reduce((s, r) => s + (parseFloat(r.amount) || 0), 0);
-  const billAmount = subTotal - (parseFloat(extraDiscount) || 0);
-  const balance =
-    billAmount + (parseFloat(prevBalance) || 0) - (parseFloat(paidAmount) || 0);
-
-  useEffect(() => {
-    if (paymentMode !== "Credit")
-      setPaidAmount(billAmount + (parseFloat(prevBalance) || 0));
-  }, [billAmount, prevBalance, paymentMode]);
-
-  const handlePaymentMode = (mode) => {
-    setPaymentMode(mode);
-    if (mode === "Credit") setPaidAmount(0);
-    else setPaidAmount(billAmount + (parseFloat(prevBalance) || 0));
-  };
+  const totalQty = items.reduce((s, r) => s + (parseFloat(r.pcs) || 0), 0);
 
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [pRes, cRes, invRes] = await Promise.all([
+      const [pRes, invRes, sRes] = await Promise.all([
         api.get(EP.PRODUCTS.GET_ALL),
-        api.get(EP.CUSTOMERS.GET_ALL),
-        api.get(EP.RAW_PURCHASES.NEXT_INVOICE),
+        api.get(EP.PURCHASES.NEXT_INVOICE),
+        // Use the dedicated suppliers endpoint
+        api.get(EP.CUSTOMERS.GET_SUPPLIERS)
       ]);
       if (pRes.data.success) setAllProducts(pRes.data.data);
-      if (cRes.data.success) {
-        const suppliers = cRes.data.data.filter(
-          (c) => (c.type || "").toLowerCase() === "raw-purchase" || (c.type || "").toLowerCase() === "supplier",
-        );
-        setAllSuppliers(suppliers);
+      if (invRes.data.success) setInvoiceNo(invRes.data.data.invoiceNo);
+      if (sRes.data && sRes.data.success) {
+        setAllSuppliers(sRes.data.data);
       }
-      if (invRes.data.success) {
-        const num = invRes.data.data.invoiceNo.replace("INV-", "PUR-");
-        setInvoiceNo(num);
-      }
-    } catch {
-      showMsg("Failed to load data", "error");
+    } catch (error) {
+      console.error("Failed to load data", error);
+      showMsg("Failed to load suppliers", "error");
     }
     setLoading(false);
   };
 
   const refreshInvoiceNo = async () => {
     try {
-      const r = await api.get(EP.RAW_PURCHASES.NEXT_INVOICE);
-      const num = r.data.data.invoiceNo.replace("INV-", "PUR-");
-      setInvoiceNo(num);
+      const r = await api.get(EP.PURCHASES.NEXT_INVOICE);
+      if (r.data.success) setInvoiceNo(r.data.data.invoiceNo);
     } catch {}
   };
 
   const showMsg = (text, type = "success") => {
     setMsg({ text, type });
-    setTimeout(() => setMsg({ text: "", type: "" }), 3500);
+    setTimeout(() => setMsg({ text: "", type: "" }), 3000);
   };
 
-  const handleSupplierSelect = (c) => {
-    const type = c.customerType || c.type || "";
-    setSupplierId(c._id);
-    setSupplierName(c.name);
-    setCodeSearch(c.code || "");
-    setSupplierType(type);
-    setPrevBalance(c.currentBalance || 0);
-    setCodeSearch("");
-    const pm = typeToPayment(type);
-    const ss = typeToSource(type);
-    setPaymentMode(pm);
-    setSaleSource(ss);
-    if (pm === "Credit") setPaidAmount(0);
-    else setPaidAmount(billAmount + (c.currentBalance || 0));
-
-    const limit = c.creditLimit || 0;
-    const custBal = c.currentBalance || 0;
-    if ((type === "raw-purchase" || type === "supplier") && limit > 0 && custBal >= limit) {
-      setCreditWarning(true);
-    } else {
-      setCreditWarning(false);
-    }
-    setCreditStatement("");
-    setShowSupplierPanel(true);
-
-    if (type === "raw-purchase" || type === "supplier") {
-      setTimeout(() => statementRef.current?.focus(), 80);
-    } else {
-      setTimeout(() => searchRef.current?.focus(), 30);
-    }
-  };
-  
-  const handleSupplierClear = () => {
+  // Complete reset function - clears everything for new invoice
+  const resetToNewInvoice = async () => {
+    setItems([]);
+    setCurRow({ ...EMPTY_ROW });
+    setSearchText("");
+    setSupplierName("Cash Purchase");
     setSupplierId("");
-    setSupplierName("COUNTER SALE");
-    setCodeSearch("");
-    setSupplierType("");
-    setPrevBalance(0);
-    setPaymentMode("Cash");
-    setSaleSource("cash");
-    setPaidAmount(billAmount);
-    setCreditWarning(false);
-    setCreditStatement("");
-    setShowSupplierPanel(false);
+    setSupplierCode("");
+    setEditId(null);
+    setMsg({ text: "", type: "" });
+    if (codeSearchRef.current) codeSearchRef.current.value = "";
+    await refreshInvoiceNo();
+    setTimeout(() => searchRef.current?.focus(), 100);
+    showMsg("Screen refreshed - Ready for new invoice", "success");
   };
 
-  const handleAddNewSupplier = async (name) => {
-    try {
-      const { data } = await api.post(EP.CUSTOMERS.CREATE, {
-        name: name.trim(),
-        type: "raw-purchase",
-        phone: "",
-      });
-      if (data.success) {
-        const newSupp = data.data;
-        setAllSuppliers((prev) => [...prev, newSupp]);
-        handleSupplierSelect({
-          _id: newSupp._id,
-          name: newSupp.name,
-          phone: newSupp.phone || "",
-          customerType: "raw-purchase",
-          type: "raw-purchase",
-          currentBalance: 0,
-          creditLimit: newSupp.creditLimit || 0,
-        });
-        showMsg(`"${name}" saved as new supplier`, "success");
-      }
-    } catch {
-      showMsg("Supplier save failed", "error");
-    }
-    setTimeout(() => searchRef.current?.focus(), 30);
-  };
-  
   const pickProduct = (product) => {
     if (!product._id) {
       showMsg("Product ID missing", "error");
       return;
     }
-    setPackingOptions(product.packingInfo?.map((pk) => pk.measurement) || []);
     setCurRow({
       productId: product._id,
       code: product.code || "",
@@ -1521,15 +805,13 @@ export default function RawPurchasePage() {
     });
     setSearchText(product.code || "");
     setShowProductModal(false);
-    setTimeout(() => packingRef.current?.focus(), 30);
+    setTimeout(() => pcsRef.current?.focus(), 30);
   };
 
   const updateCurRow = (field, val) => {
     setCurRow((prev) => {
       const u = { ...prev, [field]: val };
-      u.amount =
-        (parseFloat(field === "pcs" ? val : u.pcs) || 0) *
-        (parseFloat(field === "rate" ? val : u.rate) || 0);
+      u.amount = (parseFloat(field === "pcs" ? val : u.pcs) || 0) * (parseFloat(field === "rate" ? val : u.rate) || 0);
       return u;
     });
   };
@@ -1547,137 +829,159 @@ export default function RawPurchasePage() {
       showMsg("Qty must be > 0", "error");
       return;
     }
-    if (selItemIdx !== null) {
-      setItems((p) => {
-        const u = [...p];
-        u[selItemIdx] = { ...curRow };
-        return u;
-      });
-      setSelItemIdx(null);
-    } else setItems((p) => [...p, { ...curRow }]);
+    setItems((p) => [...p, { ...curRow }]);
     resetCurRow();
   };
 
   const resetCurRow = () => {
     setCurRow({ ...EMPTY_ROW });
     setSearchText("");
-    setPackingOptions([]);
-    setSelItemIdx(null);
     setTimeout(() => searchRef.current?.focus(), 30);
   };
 
-  const loadRowForEdit = (idx) => {
-    setSelItemIdx(idx);
-    const r = items[idx];
-    setCurRow({ ...r });
-    setSearchText(r.name);
-
-    const product = allProducts.find((p) => p._id === r.productId);
-    if (product?.packingInfo?.length > 0) {
-      setPackingOptions(product.packingInfo.map((pk) => pk.measurement));
-    } else {
-      setPackingOptions([]);
-    }
-
-    setTimeout(() => packingRef.current?.focus(), 30);
+  const removeRow = (index) => {
+    setItems((p) => p.filter((_, i) => i !== index));
   };
 
-  const removeRow = () => {
-    if (selItemIdx === null) return;
-    setItems((p) => p.filter((_, i) => i !== selItemIdx));
-    resetCurRow();
+  const handleSupplierSelect = (supplier) => {
+    setSupplierId(supplier._id);
+    setSupplierName(supplier.name);
+    setSupplierCode(supplier.code || "");
   };
 
-  const totalQty = items.reduce((s, r) => s + (parseFloat(r.pcs) || 0), 0);
-
-  const holdBill = () => {
-    if (!items.length) return;
-    setHoldBills((p) => [
-      ...p,
-      {
-        id: Date.now(),
-        invoiceNo,
-        amount: billAmount,
-        items: [...items],
-        supplierId,
-        buyerName: supplierName,
-        supplierType,
-        prevBalance,
-        extraDiscount,
-        paymentMode,
-        saleSource,
-      },
-    ]);
-    fullReset();
-    refreshInvoiceNo();
-  };
-
-  const resumeHold = (holdId) => {
-    const bill = holdBills.find((b) => b.id === holdId);
-    if (!bill) return;
-    setItems(bill.items);
-    setSupplierId(bill.supplierId || "");
-    setSupplierName(bill.buyerName || "COUNTER SALE");
-    setSupplierType(bill.supplierType || "");
-    setPrevBalance(bill.prevBalance || 0);
-    setExtraDiscount(bill.extraDiscount || 0);
-    setPaymentMode(bill.paymentMode || "Cash");
-    setSaleSource(bill.saleSource || "cash");
-    setHoldBills((p) => p.filter((b) => b.id !== holdId));
-    setShowHoldPreview(null);
-    resetCurRow();
-  };
-
-  const deleteHold = (holdId, e) => {
-    e.stopPropagation();
-    if (window.confirm("Delete this held bill?"))
-      setHoldBills((p) => p.filter((b) => b.id !== holdId));
-  };
-
-  const fullReset = () => {
-    setItems([]);
-    setCurRow({ ...EMPTY_ROW });
-    setSearchText("");
-    setPackingOptions([]);
+  const handleSupplierClear = () => {
     setSupplierId("");
-    setSupplierName("COUNTER SALE");
-    setCodeSearch("");
-    setSupplierType("");
-    setPrevBalance(0);
-    setExtraDiscount(0);
-    setPaidAmount(0);
-    setPaymentMode("Cash");
-    setSaleSource("cash");
-    setEditId(null);
-    setSelItemIdx(null);
-    setMsg({ text: "", type: "" });
-    setCreditWarning(false);
-    setCreditStatement("");
-    setTimeout(() => searchRef.current?.focus(), 50);
+    setSupplierName("Cash Purchase");
+    setSupplierCode("");
   };
-  
+
+  const handleAddNewSupplier = async (name) => {
+    try {
+      const { data } = await api.post(EP.CUSTOMERS.CREATE, {
+        name: name.trim(),
+        type: "supplier",
+        phone: "",
+      });
+      if (data.success) {
+        await fetchData();
+        setSupplierId(data.data._id);
+        setSupplierName(data.data.name);
+        setSupplierCode(data.data.code || "");
+        showMsg(`"${name}" saved as new supplier`, "success");
+      }
+    } catch {
+      showMsg("Supplier save failed", "error");
+    }
+  };
+
+  const handleCodeSearch = async () => {
+    const code = codeSearchRef.current?.value.trim();
+    if (!code) return;
+    
+    const found = allSuppliers.find(s => s.code?.toLowerCase() === code.toLowerCase());
+    if (found) {
+      handleSupplierSelect(found);
+      codeSearchRef.current.value = "";
+      showMsg(`Supplier found: ${found.name}`, "success");
+    } else {
+      showMsg(`No supplier found with code: ${code}`, "error");
+    }
+  };
+
+  const handlePrintAndSave = async () => {
+    if (isPrinting) return;
+    if (items.length === 0) {
+      showMsg("No items to print", "error");
+      return;
+    }
+    
+    setIsPrinting(true);
+    
+    const purchaseObj = {
+      invoiceNo,
+      invoiceDate,
+      supplierName: supplierName,
+      items: items,
+      subTotal,
+      extraDisc: 0,
+      netTotal: subTotal,
+      prevBalance: 0,
+      paidAmount: subTotal,
+      balance: 0,
+    };
+    
+    // Print first
+    doPrint(purchaseObj, printType, { buyerName: supplierName });
+    
+    // Save to database
+    try {
+      const payload = {
+        invoiceNo,
+        invoiceDate,
+        supplierId: supplierId || null,
+        supplierName: supplierName,
+        supplierCode: supplierCode,
+        supplierPhone: "",
+        items: items.map((r, idx) => ({
+          productId: r.productId || undefined,
+          code: r.code,
+          name: r.name,
+          description: r.name,
+          uom: r.uom,
+          measurement: r.uom,
+          rack: r.rack,
+          pcs: parseFloat(r.pcs) || 1,
+          qty: parseFloat(r.pcs) || 1,
+          rate: parseFloat(r.rate) || 0,
+          disc: 0,
+          amount: parseFloat(r.amount) || 0,
+          srNo: idx + 1,
+        })),
+        subTotal,
+        extraDisc: 0,
+        discAmount: 0,
+        netTotal: subTotal,
+        prevBalance: 0,
+        paidAmount: subTotal,
+        balance: 0,
+        printType,
+        saleType: "purchase",
+      };
+      
+      let response;
+      if (editId) {
+        response = await api.put(EP.PURCHASES.UPDATE(editId), payload);
+      } else {
+        response = await api.post(EP.PURCHASES.CREATE, payload);
+      }
+      
+      if (response.data.success) {
+        showMsg(editId ? `✓ Invoice ${invoiceNo} updated & printed` : `✓ Invoice ${invoiceNo} saved & printed successfully`);
+        if (!editId) await refreshInvoiceNo();
+        
+        // Reset form after successful save
+        await resetToNewInvoice();
+        
+      } else {
+        showMsg(response.data.message || "Save failed", "error");
+      }
+      
+    } catch (error) {
+      console.error("Save failed:", error);
+      showMsg("Print done but save failed: " + (error.response?.data?.message || error.message), "error");
+    }
+    
+    setIsPrinting(false);
+  };
+
   const loadPurchaseForEdit = (purchase) => {
     setEditId(purchase._id);
     setInvoiceNo(purchase.invoiceNo);
     setInvoiceDate(purchase.invoiceDate || isoDate());
-
-    const supp = allSuppliers.find((c) => c._id === purchase.supplierId);
-    if (supp) {
-      setSupplierId(supp._id);
-      setSupplierName(supp.name);
-      setSupplierType(supp.customerType || supp.type || "");
-      setPrevBalance(purchase.prevBalance || 0);
-      setPaymentMode(purchase.paymentMode || "Cash");
-      setSaleSource(purchase.saleSource || "cash");
-    } else {
-      setSupplierId("");
-      setSupplierName(purchase.supplierName || "COUNTER SALE");
-      setSupplierType("");
-      setPrevBalance(purchase.prevBalance || 0);
-      setPaymentMode(purchase.paymentMode || "Cash");
-      setSaleSource(purchase.saleSource || "cash");
-    }
-
+    setSupplierName(purchase.supplierName || "Cash Purchase");
+    setSupplierId(purchase.supplierId || "");
+    setSupplierCode(purchase.supplierCode || "");
+    
     const loadedItems = (purchase.items || []).map((it) => ({
       productId: it.productId || it.product || "",
       code: it.code || "",
@@ -1689,10 +993,7 @@ export default function RawPurchasePage() {
       amount: it.amount || 0,
     }));
     setItems(loadedItems);
-
-    setExtraDiscount(purchase.extraDisc || 0);
-    setPaidAmount(purchase.paidAmount || 0);
-
+    
     resetCurRow();
     showMsg(`✏ Editing Purchase Invoice ${purchase.invoiceNo}`, "success");
     setTimeout(() => searchRef.current?.focus(), 50);
@@ -1700,11 +1001,11 @@ export default function RawPurchasePage() {
 
   const navInvoice = async (dir) => {
     try {
-      const { data } = await api.get(EP.RAW_PURCHASES.GET_ALL);
+      const { data } = await api.get(EP.PURCHASES.GET_ALL);
       if (!data.success || !data.data?.length) return;
       const allPurchases = data.data;
       const curIdx = allPurchases.findIndex((s) =>
-        editId ? s._id === editId : s.invoiceNo === invoiceNo,
+        editId ? s._id === editId : s.invoiceNo === invoiceNo
       );
       let nextIdx = dir === "prev" ? curIdx - 1 : curIdx + 1;
       nextIdx = Math.max(0, Math.min(nextIdx, allPurchases.length - 1));
@@ -1715,270 +1016,33 @@ export default function RawPurchasePage() {
     }
   };
 
-  const buildPayload = () => ({
-    invoiceNo,
-    invoiceDate,
-    supplierId: supplierId || undefined,
-    supplierName: supplierName || "COUNTER SALE",
-    supplierPhone: "",
-    items: items.map((r) => ({
-      productId: r.productId || undefined,
-      code: r.code,
-      name: r.name,
-      description: r.name,
-      uom: r.uom,
-      measurement: r.uom,
-      rack: r.rack,
-      pcs: parseFloat(r.pcs) || 1,
-      qty: parseFloat(r.pcs) || 1,
-      rate: parseFloat(r.rate) || 0,
-      disc: 0,
-      amount: parseFloat(r.amount) || 0,
-    })),
-    subTotal,
-    extraDisc: parseFloat(extraDiscount) || 0,
-    discAmount: 0,
-    netTotal: billAmount,
-    prevBalance: parseFloat(prevBalance) || 0,
-    paidAmount: parseFloat(paidAmount) || 0,
-    balance,
-    paymentMode: supplierId ? "Credit" : "Cash",
-    saleSource: "raw-purchase",
-    sendSms,
-    printType,
-    remarks: creditStatement || "",
-    saleType: "raw-purchase",
-  });
-  
-  const openSaleConfirm = () => {
-    if (!items.length) {
-      alert("Add at least one item");
-      return;
-    }
-
-    if (
-      supplierId &&
-      (supplierType === "raw-purchase" || supplierType === "supplier")
-    ) {
-      if (!creditStatement.trim()) {
-        statementRef.current?.focus();
-        showMsg("Note is required", "error");
-        return;
-      }
-    }
-
-    const payload = buildPayload();
-    setPendingPayload(payload);
-    confirmSaveWithPayload(payload, {
-      extraDisc: payload.extraDisc,
-      netTotal: payload.netTotal,
-      paidAmount: supplierId ? 0 : payload.netTotal,
-      balance: supplierId
-        ? payload.netTotal + (parseFloat(prevBalance) || 0)
-        : 0,
-      printType,
-      withPrint: true,
-    });
-  };
-  
-  const confirmSaveWithPayload = async (payload, overrides) => {
-    if (!payload) return;
-    setLoading(true);
-    try {
-      const finalPayload = {
-        ...payload,
-        extraDisc: overrides.extraDisc,
-        netTotal: overrides.netTotal,
-        paidAmount: overrides.paidAmount,
-        balance: overrides.balance,
-        printType: overrides.printType,
-      };
-      const { data } = editId
-        ? await api.put(EP.RAW_PURCHASES.UPDATE(editId), finalPayload)
-        : await api.post(EP.RAW_PURCHASES.CREATE, finalPayload);
-
-      if (data.success) {
-        showMsg(editId ? "Purchase updated!" : `Saved: ${data.data.invoiceNo}`);
-        const saleObj = {
-          invoiceNo: data.data.invoiceNo,
-          invoiceDate: finalPayload.invoiceDate,
-          customerName: finalPayload.supplierName,
-          saleSource: finalPayload.saleSource,
-          paymentMode: finalPayload.paymentMode,
-          items: payload.items,
-          subTotal: finalPayload.subTotal,
-          extraDisc: overrides.extraDisc,
-          netTotal: overrides.netTotal,
-          prevBalance: finalPayload.prevBalance,
-          paidAmount: overrides.paidAmount,
-          balance: overrides.balance,
-        };
-        if (overrides.withPrint) {
-          setPendingPrintSale(saleObj);
-          setShowPrintModal(true);
-        }
-        setShowSaveModal(false);
-        setPendingPayload(null);
-        fullReset();
-        await refreshInvoiceNo();
-      } else {
-        showMsg(data.message, "error");
-      }
-    } catch (e) {
-      showMsg(e.response?.data?.message || "Save failed", "error");
-    }
-    setLoading(false);
-  };
-
-  const confirmSave = async (overrides) => {
-    confirmSaveWithPayload(pendingPayload, overrides);
-  };
-  
-  useEffect(() => {
-    const handler = (e) => {
-      if (
-        showProductModal ||
-        showHoldPreview ||
-        showSaveModal ||
-        showPrintModal
-      )
-        return;
-
-      if (e.key === "F2") {
-        e.preventDefault();
-        setShowProductModal(true);
-      }
-      if (e.key === "F4") {
-        e.preventDefault();
-        holdBill();
-      }
-      if (e.key === "*" || (e.ctrlKey && e.key === "s")) {
-        e.preventDefault();
-        saveRef.current?.click();
-      }
-      if (e.key === "Escape") resetCurRow();
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [
-    items,
-    showProductModal,
-    showHoldPreview,
-    showSaveModal,
-    showPrintModal,
-    billAmount,
-  ]);
-
-  const EMPTY_ROWS = Math.max(0, 8 - items.length);
-
   return (
     <>
-      <div className={`sl-page${creditWarning ? " sl-credit-mode" : ""}`}>
+      <div className="sl-page">
         {showProductModal && (
-          <SearchModal
-            allProducts={allProducts}
-            onSelect={pickProduct}
-            onClose={() => {
-              setShowProductModal(false);
-              setTimeout(() => searchRef.current?.focus(), 30);
-            }}
-          />
+          <SearchModal allProducts={allProducts} onSelect={pickProduct} onClose={() => { setShowProductModal(false); setTimeout(() => searchRef.current?.focus(), 30); }} />
         )}
-        {showHoldPreview && (
-          <HoldPreviewModal
-            bill={showHoldPreview}
-            onResume={resumeHold}
-            onClose={() => setShowHoldPreview(null)}
-          />
-        )}
-        {showSaveModal && pendingPayload && (
-          <SaveConfirmModal
-            salePayload={pendingPayload}
-            printType={printType}
-            onConfirm={confirmSave}
-            onClose={() => {
-              setShowSaveModal(false);
-              setPendingPayload(null);
-            }}
-          />
-        )}
-        {showPrintModal && pendingPrintSale && (
-          <PrintOptionsModal
-            sale={pendingPrintSale}
-            allCustomers={allSuppliers}
-            defaultPrintType={printType}
-            hideCustomerFields={pendingPrintSale.paymentMode === "Credit"}
-            newCustomerType="raw-purchase"
-            onPrint={(type, overrides) => {
-              doPrint(pendingPrintSale, type, overrides);
-              setShowPrintModal(false);
-              setPendingPrintSale(null);
-            }}
-            onClose={() => {
-              setShowPrintModal(false);
-              setPendingPrintSale(null);
-            }}
-          />
-        )}
-        
+
         <div className="xp-titlebar">
-          <svg
-            width="15"
-            height="15"
-            viewBox="0 0 16 16"
-            fill="rgba(255,255,255,0.85)"
-          >
+          <svg width="15" height="15" viewBox="0 0 16 16" fill="rgba(255,255,255,0.85)">
             <path d="M0 4a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2zm2-1a1 1 0 0 0-1 1v1h14V4a1 1 0 0 0-1-1zm13 4H1v5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1zM2 10h2a1 1 0 0 1 0 2H2a1 1 0 0 1 0-2m4 0h6a1 1 0 0 1 0 2H6a1 1 0 0 1 0-2" />
           </svg>
-          <span className="xp-tb-title">
-            Raw Purchase Invoice — Asim Electric &amp; Electronic Store
-          </span>
+          <span className="xp-tb-title">Purchase Invoice — Direct Print (*)</span>
           <div className="xp-tb-actions">
-            {editId && (
-              <div className="sl-edit-badge">✏ Editing Raw Purchase</div>
-            )}
-            <div className="xp-tb-divider" />
-            <div className="sl-shortcut-hints">
-              <span>F2 Product</span>
-              <span>F4 Hold</span>
-              <span>* Save</span>
-            </div>
+            <div className="sl-shortcut-hints"><span>F2 Product</span><span>* Print</span></div>
             <div className="xp-tb-divider" />
             <button className="xp-cap-btn">─</button>
-            <button
-              className="xp-cap-btn"
-              onClick={() => {
-                if (!document.fullscreenElement) {
-                  document.documentElement.requestFullscreen();
-                } else {
-                  document.exitFullscreen();
-                }
-              }}
-            >
-              □
-            </button>
+            <button className="xp-cap-btn" onClick={() => { if (!document.fullscreenElement) document.documentElement.requestFullscreen(); else document.exitFullscreen(); }}>□</button>
             <button className="xp-cap-btn xp-cap-close">✕</button>
           </div>
         </div>
 
-        {msg.text && (
-          <div
-            className={`xp-alert ${msg.type === "success" ? "xp-alert-success" : "xp-alert-error"}`}
-            style={{ margin: "4px 10px 0", flexShrink: 0 }}
-          >
-            {msg.text}
-          </div>
-        )}
+        {msg.text && <div className={`xp-alert ${msg.type === "success" ? "xp-alert-success" : "xp-alert-error"}`} style={{ margin: "4px 10px 0", flexShrink: 0 }}>{msg.text}</div>}
 
         <div className="sl-body">
-          <div className="sl-left">
+          <div className="sl-left" style={{ width: "100%" }}>
             <div className="sl-top-bar">
-              <div
-                className="sl-sale-title-box"
-                style={{ background: "green", border: "1px solid green" }}
-              >
-                Raw Purchase
-              </div>
+              <div className="sl-sale-title-box" style={{ background: "green", border: "1px solid green" }}>Purchase</div>
               
               <button
                 className="xp-btn xp-btn-sm sl-nav-btn"
@@ -1991,9 +1055,9 @@ export default function RawPurchasePage() {
               
               <div className="sl-inv-field-grp">
                 <label>Invoice #</label>
-                <input
-                  className="xp-input xp-input-sm sl-inv-input"
-                  value={invoiceNo}
+                <input 
+                  className="xp-input xp-input-sm sl-inv-input-large" 
+                  value={invoiceNo} 
                   onChange={(e) => setInvoiceNo(e.target.value)}
                   onKeyDown={async (e) => {
                     if (e.key === "Enter") {
@@ -2001,9 +1065,7 @@ export default function RawPurchasePage() {
                       const val = invoiceNo.trim();
                       if (!val) return;
                       try {
-                        const { data } = await api.get(
-                          EP.RAW_PURCHASES.GET_ALL + `?invoiceNo=${val}`,
-                        );
+                        const { data } = await api.get(EP.PURCHASES.GET_ALL + `?invoiceNo=${val}`);
                         const purchases = data.data;
                         if (!purchases || purchases.length === 0) {
                           showMsg(`Invoice "${val}" not found`, "error");
@@ -2011,7 +1073,7 @@ export default function RawPurchasePage() {
                           return;
                         }
                         const exact = purchases.find(
-                          (s) => s.invoiceNo?.toString() === val.toString(),
+                          (s) => s.invoiceNo?.toString() === val.toString()
                         );
                         if (!exact) {
                           showMsg(`Invoice "${val}" not found`, "error");
@@ -2031,8 +1093,13 @@ export default function RawPurchasePage() {
                     }
                   }}
                   onFocus={(e) => e.target.select()}
-                  placeholder="Invoice # ya ↑↓"
-                  style={{ background: editId ? "#fffbe6" : undefined }}
+                  style={{ 
+                    background: editId ? "#fffbe6" : "#fffde7",
+                    fontSize: "18px",
+                    fontWeight: "bold",
+                    width: "160px",
+                    textAlign: "center"
+                  }}
                 />
               </div>
               
@@ -2047,17 +1114,7 @@ export default function RawPurchasePage() {
               
               <div className="sl-inv-field-grp">
                 <label>Date</label>
-                <input
-                  type="date"
-                  className="xp-input xp-input-sm sl-date-input"
-                  value={invoiceDate}
-                  readOnly
-                  style={{
-                    background: "#f5f5f5",
-                    cursor: "not-allowed",
-                    color: "#888",
-                  }}
-                />
+                <input type="date" className="xp-input xp-input-sm sl-date-input" value={invoiceDate} readOnly style={{ background: "#f5f5f5", cursor: "not-allowed", color: "#888" }} />
               </div>
               <div className="sl-inv-field-grp">
                 <label>Time</label>
@@ -2067,216 +1124,45 @@ export default function RawPurchasePage() {
 
             <div className="sl-entry-strip">
               <div className="sl-entry-cell sl-entry-product">
-                <label>
-                  Select Product <kbd>F2</kbd>
-                </label>
-                <input
-                  ref={searchRef}
-                  type="text"
-                  className="sl-product-input"
-                  value={searchText}
-                  onKeyDown={(e) => {
-                    if (e.key === "ArrowDown") {
-                      e.preventDefault();
-                      setShowProductModal(true);
-                    }
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      if (!searchText.trim()) {
-                        setShowProductModal(true);
-                        return;
-                      }
-                      const q = searchText.trim().toLowerCase();
-                      const found = allProducts.find(
-                        (p) => p.code?.toLowerCase() === q,
-                      );
-                      if (found) {
-                        const pk = found.packingInfo?.[0];
-                        pickProduct({
-                          ...found,
-                          _pi: 0,
-                          _meas: pk?.measurement || "",
-                          _rate: pk?.purchaseRate || pk?.costRate || 0,
-                          _pack: pk?.packing || 1,
-                          _stock: pk?.openingQty || 0,
-                          _name: [
-                            found.category,
-                            found.description,
-                            found.company,
-                          ]
-                            .filter(Boolean)
-                            .join(" "),
-                        });
-                      } else {
-                        alert(`"${searchText}" — Product not found`);
-                        searchRef.current?.select();
-                      }
-                    }
-                  }}
-                  onChange={(e) => {
-                    setSearchText(e.target.value);
-                    if (curRow.name) {
-                      setCurRow({ ...EMPTY_ROW });
-                      setPackingOptions([]);
-                    }
-                  }}
-                  autoFocus
-                />
-              </div>
-              <div className="sl-entry-cell" style={{ position: "relative" }}>
-                <label>Packing</label>
-                <input
-                  ref={packingRef}
-                  type="text"
-                  className="xp-input xp-input-sm"
-                  style={{ width: 65 }}
-                  value={curRow.uom}
-                  onChange={(e) =>
-                    setCurRow((p) => ({ ...p, uom: e.target.value }))
+                <label>Select Product <kbd>F2</kbd></label>
+                <input ref={searchRef} type="text" className="sl-product-input" style={{ background: "#fffde7" }} value={searchText} onKeyDown={(e) => {
+                  if (e.key === "ArrowDown") { e.preventDefault(); setShowProductModal(true); }
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    if (!searchText.trim()) { setShowProductModal(true); return; }
+                    const q = searchText.trim().toLowerCase();
+                    const found = allProducts.find((p) => p.code?.toLowerCase() === q || p.description?.toLowerCase().includes(q));
+                    if (found) {
+                      const pk = found.packingInfo?.[0];
+                      pickProduct({ ...found, _pi: 0, _meas: pk?.measurement || "", _rate: pk?.purchaseRate || pk?.costRate || 0, _pack: pk?.packing || 1, _stock: pk?.openingQty || 0, _name: [found.category, found.description, found.company].filter(Boolean).join(" ") });
+                    } else { alert(`"${searchText}" — Product not found`); searchRef.current?.select(); }
                   }
-                  onFocus={() => {
-                    setPackingHiIdx(
-                      Math.max(0, packingOptions.indexOf(curRow.uom)),
-                    );
-                  }}
-                  onBlur={() => setTimeout(() => setPackingOpen(false), 150)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      pcsRef.current?.focus();
-                      return;
-                    }
-                    if (packingOptions.length === 0) return;
-                    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
-                      e.preventDefault();
-                      const idx = packingOptions.indexOf(curRow.uom);
-                      const next =
-                        e.key === "ArrowDown"
-                          ? (idx + 1) % packingOptions.length
-                          : (idx - 1 + packingOptions.length) %
-                            packingOptions.length;
-                      const newUom = packingOptions[next];
-
-                      const product = allProducts.find(
-                        (p) => p._id === curRow.productId,
-                      );
-                      if (product?.packingInfo) {
-                        const pk = product.packingInfo.find(
-                          (pk) => pk.measurement === newUom,
-                        );
-                        if (pk) {
-                          setCurRow((p) => ({
-                            ...p,
-                            uom: newUom,
-                            rate: pk.purchaseRate || pk.costRate || 0,
-                            pcs: pk.packing || 1,
-                            amount: (pk.packing || 1) * (pk.purchaseRate || pk.costRate || 0),
-                          }));
-                          return;
-                        }
-                      }
-                      setCurRow((p) => ({ ...p, uom: newUom }));
-                    }
-                  }}
-                  autoComplete="off"
-                />
+                }} onChange={(e) => { setSearchText(e.target.value); if (curRow.name) { setCurRow({ ...EMPTY_ROW }); } }} autoFocus />
               </div>
               <div className="sl-entry-cell">
-                <label>Pcs</label>
-                <input
-                  ref={pcsRef}
-                  type="text"
-                  className="sl-num-input"
-                  style={{ width: 60 }}
-                  value={curRow.pcs}
-                  min={1}
-                  onChange={(e) => updateCurRow("pcs", e.target.value)}
-                  onKeyDown={(e) =>
-                    e.key === "Enter" && rateRef.current?.focus()
-                  }
-                  onFocus={(e) => e.target.select()}
-                />
+                <label>Qty</label>
+                <input ref={pcsRef} type="text" className="sl-num-input" style={{ width: 60, background: "#fffde7" }} value={curRow.pcs} min={1} onChange={(e) => updateCurRow("pcs", e.target.value)} onKeyDown={(e) => e.key === "Enter" && rateRef.current?.focus()} onFocus={(e) => e.target.select()} />
               </div>
               <div className="sl-entry-cell">
                 <label>Purchase Rate</label>
-                <input
-                  ref={rateRef}
-                  type="text"
-                  className="sl-num-input"
-                  style={{ width: 75 }}
-                  value={curRow.rate}
-                  min={0}
-                  onChange={(e) => updateCurRow("rate", e.target.value)}
-                  onKeyDown={(e) =>
-                    e.key === "Enter" && amountRef.current?.focus()
-                  }
-                  onFocus={(e) => e.target.select()}
-                />
+                <input ref={rateRef} type="text" className="sl-num-input" style={{ width: 75, background: "#fffde7" }} value={curRow.rate} min={0} onChange={(e) => updateCurRow("rate", e.target.value)} onKeyDown={(e) => e.key === "Enter" && amountRef.current?.focus()} onFocus={(e) => e.target.select()} />
               </div>
               <div className="sl-entry-cell">
                 <label>Amount</label>
-                <input
-                  ref={amountRef}
-                  type="text"
-                  className="sl-num-input"
-                  style={{ width: 80 }}
-                  value={curRow.amount || 0}
-                  onChange={(e) =>
-                    setCurRow((p) => ({
-                      ...p,
-                      amount: parseFloat(e.target.value) || 0,
-                    }))
-                  }
-                  onFocus={(e) => e.target.select()}
-                  onKeyDown={(e) =>
-                    e.key === "Enter" && addRef.current?.click()
-                  }
-                />
+                <input ref={amountRef} type="text" className="sl-num-input" style={{ width: 80, background: "#fffde7" }} value={curRow.amount || 0} onChange={(e) => setCurRow((p) => ({ ...p, amount: parseFloat(e.target.value) || 0 }))} onFocus={(e) => e.target.select()} onKeyDown={(e) => e.key === "Enter" && addRef.current?.click()} />
               </div>
               <div className="sl-entry-cell sl-entry-btns-cell">
                 <label>&nbsp;</label>
                 <div className="sl-entry-btns">
-                  <button className="xp-btn xp-btn-sm" onClick={resetCurRow}>
-                    Reset
-                  </button>
-                  <button
-                    ref={addRef}
-                    className="xp-btn xp-btn-primary xp-btn-sm"
-                    onClick={addRow}
-                  >
-                    {selItemIdx !== null ? "Update" : "Add"}
-                  </button>
-                  <button
-                    className="xp-btn xp-btn-sm"
-                    disabled={selItemIdx === null}
-                    onClick={() =>
-                      selItemIdx !== null && loadRowForEdit(selItemIdx)
-                    }
-                  >
-                    Edit
-                  </button>
-                  <button
-                    className="xp-btn xp-btn-danger xp-btn-sm"
-                    disabled={selItemIdx === null}
-                    onClick={removeRow}
-                  >
-                    Remove
-                  </button>
+                  <button className="xp-btn xp-btn-sm" onClick={resetCurRow}>Reset</button>
+                  <button ref={addRef} className="xp-btn xp-btn-primary xp-btn-sm" onClick={addRow}>Add Item</button>
                 </div>
               </div>
             </div>
 
             <div className="sl-table-header-bar">
-              <span className="sl-table-lbl">
-                {curRow.name ? (
-                  <span className="sl-cur-name-inline">{curRow.name}</span>
-                ) : (
-                  "Select Product"
-                )}
-              </span>
-              <span className="sl-table-qty">
-                Total Qty: {totalQty.toLocaleString("en-PK")}
-              </span>
+              <span className="sl-table-lbl">{curRow.name ? <span className="sl-cur-name-inline">{curRow.name}</span> : "Select Product"}</span>
+              <span className="sl-table-qty">Total Qty: {totalQty.toLocaleString("en-PK")}</span>
             </div>
 
             <div className="sl-items-wrap">
@@ -2287,65 +1173,28 @@ export default function RawPurchasePage() {
                     <th style={{ width: 72 }}>Code</th>
                     <th>Product Name</th>
                     <th style={{ width: 65 }}>UOM</th>
-                    <th style={{ width: 55 }} className="r">
-                      Qty
-                    </th>
-                    <th style={{ width: 80 }} className="r">
-                      Rate
-                    </th>
-                    <th style={{ width: 90 }} className="r">
-                      Amount
-                    </th>
-                    <th style={{ width: 50 }}>Rack</th>
+                    <th style={{ width: 55 }} className="r">Qty</th>
+                    <th style={{ width: 80 }} className="r">Rate</th>
+                    <th style={{ width: 90 }} className="r">Amount</th>
+                    <th style={{ width: 40 }}></th>
                   </tr>
                 </thead>
                 <tbody>
                   {items.length === 0 && (
                     <tr>
-                      <td
-                        colSpan={8}
-                        className="xp-empty"
-                        style={{ padding: 14 }}
-                      >
-                        Search and add raw products to start the purchase
-                      </td>
+                      <td colSpan={8} className="xp-empty" style={{ padding: 14 }}>Add products to create purchase invoice</td>
                     </tr>
                   )}
                   {items.map((r, i) => (
-                    <tr
-                      key={i}
-                      className={selItemIdx === i ? "sl-sel-row" : ""}
-                      onClick={() => setSelItemIdx(i === selItemIdx ? null : i)}
-                      onDoubleClick={() => loadRowForEdit(i)}
-                    >
-                      <td
-                        className="muted"
-                        style={{
-                          textAlign: "center",
-                          fontSize: "var(--xp-fs-xs)",
-                        }}
-                      >
-                        {i + 1}
-                      </td>
+                    <tr key={i}>
+                      <td className="muted" style={{ textAlign: "center" }}>{i + 1}</td>
                       <td className="muted">{r.code}</td>
                       <td style={{ fontWeight: 500 }}>{r.name}</td>
                       <td className="muted">{r.uom}</td>
                       <td className="r">{r.pcs}</td>
-                      <td className="r">
-                        {Number(r.rate).toLocaleString("en-PK")}
-                      </td>
-                      <td
-                        className="r"
-                        style={{ color: "var(--xp-blue-dark)" }}
-                      >
-                        {Number(r.amount).toLocaleString("en-PK")}
-                      </td>
-                      <td className="muted">{r.rack}</td>
-                    </tr>
-                  ))}
-                  {Array.from({ length: EMPTY_ROWS }).map((_, i) => (
-                    <tr key={`e${i}`} className="sl-empty-row">
-                      <td colSpan={8} />
+                      <td className="r">{Number(r.rate).toLocaleString("en-PK")}</td>
+                      <td className="r" style={{ color: "var(--xp-blue-dark)" }}>{Number(r.amount).toLocaleString("en-PK")}</td>
+                      <td><button className="xp-btn xp-btn-sm xp-btn-danger" style={{ padding: "2px 6px" }} onClick={() => removeRow(i)}>✕</button></td>
                     </tr>
                   ))}
                 </tbody>
@@ -2353,406 +1202,79 @@ export default function RawPurchasePage() {
             </div>
 
             <div className="sl-summary-bar">
-              <div className="sl-sum-cell">
-                <label>Total Qty</label>
+              <div className="sl-sum-cell"><label>Total Qty</label><input className="sl-sum-val" value={totalQty.toLocaleString("en-PK")} readOnly /></div>
+              <div className="sl-sum-cell"><label>Total Amount</label><input className="sl-sum-val" value={Number(subTotal).toLocaleString("en-PK")} readOnly /></div>
+              
+              <div className="sl-cust-cell" style={{ width: 120 }}>
+                <label>Supplier Code</label>
                 <input
-                  className="sl-sum-val"
-                  value={totalQty.toLocaleString("en-PK")}
-                  readOnly
-                />
-              </div>
-              <div className="sl-sum-cell">
-                <label>Sub Total</label>
-                <input
-                  className="sl-sum-val"
-                  value={Number(subTotal).toLocaleString("en-PK")}
-                  readOnly
-                />
-              </div>
-              <div className="sl-sum-cell">
-                <label>Bill Amount</label>
-                <input
-                  className="sl-sum-val"
-                  value={Number(billAmount).toLocaleString("en-PK")}
-                  readOnly
-                />
-              </div>
-              <div className="sl-sum-cell">
-                <label>Extra Discount</label>
-                <input
-                  ref={discRef}
+                  ref={codeSearchRef}
                   type="text"
-                  className="sl-sum-input"
-                  value={extraDiscount}
-                  min={0}
-                  onChange={(e) => setExtraDiscount(e.target.value)}
-                  onKeyDown={(e) =>
-                    e.key === "Enter" && paidRef.current?.focus()
-                  }
-                  onFocus={(e) => e.target.select()}
-                />
-              </div>
-              <div className="sl-sum-cell">
-                <label>Paid</label>
-                <input
-                  ref={paidRef}
-                  type="text"
-                  className="sl-sum-input"
-                  style={{ color: "var(--xp-green)", fontWeight: 700 }}
-                  value={paidAmount}
-                  min={0}
-                  onChange={(e) => setPaidAmount(e.target.value)}
-                  onKeyDown={(e) =>
-                    e.key === "Enter" && saveRef.current?.focus()
-                  }
-                  onFocus={(e) => e.target.select()}
-                />
-              </div>
-              <div className="sl-sum-cell">
-                <label>Balance</label>
-                <input
-                  className={`sl-sum-val sl-bal${balance > 0 ? " danger" : balance < 0 ? " success" : ""}`}
-                  value={Number(balance).toLocaleString("en-PK")}
-                  readOnly
-                />
-              </div>
-            </div>
-
-            <div className="sl-customer-bar">
-              <div className="sl-cust-cell">
-                <label>Code</label>
-                <input
-                  style={{ width: 65 }}
-                  value={
-                    supplierId
-                      ? allSuppliers.find((c) => c._id === supplierId)?.code ||
-                        codeSearch
-                      : codeSearch
-                  }
-                  onChange={(e) => setCodeSearch(e.target.value)}
+                  className="sl-cust-input"
+                  style={{ width: 100, background: "#fffde7" }}
+                  placeholder="Enter code"
                   onKeyDown={(e) => {
                     if (e.key === "Enter") {
                       e.preventDefault();
-                      const q = codeSearch.trim();
-                      if (!q) return;
-                      const found = allSuppliers.find(
-                        (c) =>
-                          String(c.code).toLowerCase() === q.toLowerCase() &&
-                          (c.customerType || c.type || "").toLowerCase() ===
-                            "raw-purchase",
-                      );
-                      if (found) {
-                        handleSupplierSelect(found);
-                        setCodeSearch("");
-                      } else {
-                        showMsg(
-                          `Code "${q}" — supplier nahi mila`,
-                          "error",
-                        );
-                      }
+                      handleCodeSearch();
                     }
                   }}
-                  placeholder="Code…"
                   autoComplete="off"
                 />
               </div>
-
-              <div className="sl-cust-cell sl-cust-buyer">
+              
+              <div className="sl-cust-cell" style={{ flex: 2 }}>
                 <label>Supplier Name</label>
                 <SupplierDropdown
                   allSuppliers={allSuppliers}
-                  value={supplierId}
+                  value={supplierName === "Cash Purchase" ? "" : supplierName}
                   displayName={supplierName}
-                  supplierType={supplierType}
                   onSelect={handleSupplierSelect}
                   onClear={handleSupplierClear}
                   onAddNew={handleAddNewSupplier}
-                  allowedTypes={["raw-purchase", "supplier"]}
                 />
               </div>
-
-              <div className="sl-cust-cell">
-                <label>Prev Balance</label>
-                <input
-                  type="text"
-                  className="sl-cust-input"
-                  style={{ width: 85 }}
-                  value={prevBalance}
-                  onChange={(e) => setPrevBalance(e.target.value)}
-                  onFocus={(e) => e.target.select()}
-                />
-              </div>
-
-              <div className="sl-cust-cell">
-                <label>Net Payable</label>
-                <input
-                  className="sl-cust-input sl-net-recv"
-                  style={{
-                    color: balance > 0 ? "var(--xp-red)" : "var(--xp-green)",
-                    fontWeight: 700,
-                    width: 85,
-                  }}
-                  value={Number(balance).toLocaleString("en-PK")}
-                  readOnly
-                />
-              </div>
-            </div>
-
-            {showSupplierPanel && supplierId && (
-              <div
-                className={`sl-credit-warning-bar${creditWarning ? "" : " sl-credit-normal"}`}
-              >
-                <div className="sl-credit-warning-left">
-                  {(() => {
-                    const supp = allSuppliers.find((c) => c._id === supplierId);
-                    return supp?.imageFront ? (
-                      <img
-                        src={supp.imageFront}
-                        alt={supp.name}
-                        style={{
-                          width: 48,
-                          height: 48,
-                          borderRadius: 4,
-                          objectFit: "cover",
-                          border: "2px solid #fff",
-                          flexShrink: 0,
-                        }}
-                      />
-                    ) : (
-                      <div
-                        style={{
-                          width: 48,
-                          height: 48,
-                          borderRadius: 4,
-                          background: "rgba(255,255,255,0.3)",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          fontSize: 22,
-                          flexShrink: 0,
-                        }}
-                      >
-                        🏭
-                      </div>
-                    );
-                  })()}
-                  <div>
-                    {creditWarning && (
-                      <>
-                        <div className="sl-credit-title">
-                          ⚠ CREDIT LIMIT EXCEEDED
-                        </div>
-                        <div className="sl-credit-sub">
-                          Balance: <b>{fmt(prevBalance)}</b> — Enter
-                          authorization statement to proceed
-                        </div>
-                      </>
-                    )}
-                    {!creditWarning && (
-                      <div className="sl-credit-sub" style={{ color: "#fff" }}>
-                        Balance: <b>{fmt(prevBalance)}</b>
-                      </div>
-                    )}
-                  </div>
+              
+              {supplierCode && (
+                <div className="sl-cust-cell" style={{ width: 100 }}>
+                  <label>Supplier Code</label>
+                  <input className="sl-cust-input" value={supplierCode} readOnly style={{ background: "#f5f5f5" }} />
                 </div>
-                <input
-                  ref={statementRef}
-                  type="text"
-                  className="sl-credit-statement-input"
-                  placeholder={
-                    creditWarning
-                      ? "Enter reason / authorization statement to allow purchase…"
-                      : "Notes (optional)…"
-                  }
-                  value={creditStatement}
-                  onChange={(e) => setCreditStatement(e.target.value)}
-                />
-              </div>
-            )}
-          </div>
-
-          <div className="sl-right">
-            <div className="sl-hold-panel">
-              <div className="sl-hold-title">
-                <span>
-                  Hold Bills{" "}
-                  <kbd
-                    style={{
-                      fontSize: 9,
-                      background: "rgba(255,255,255,0.2)",
-                      padding: "0 3px",
-                      borderRadius: 2,
-                    }}
-                  >
-                    F4
-                  </kbd>
-                </span>
-                <span className="sl-hold-cnt">{holdBills.length}</span>
-              </div>
-              <div className="sl-hold-table-wrap">
-                <table className="sl-hold-table">
-                  <thead>
-                    <tr>
-                      <th style={{ width: 24 }}>#</th>
-                      <th>Bill #</th>
-                      <th className="r">Amount</th>
-                      <th>Supplier</th>
-                      <th style={{ width: 22 }}></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {holdBills.length === 0
-                      ? Array.from({ length: 8 }).map((_, i) => (
-                          <tr key={i}>
-                            <td colSpan={5} style={{ height: 22 }} />
-                          </tr>
-                        ))
-                      : holdBills.map((b, i) => (
-                          <tr
-                            key={b.id}
-                            onClick={() => setShowHoldPreview(b)}
-                            onDoubleClick={() => resumeHold(b.id)}
-                            title="Click = preview · Double-click = resume"
-                          >
-                            <td
-                              className="muted"
-                              style={{
-                                textAlign: "center",
-                                fontSize: "var(--xp-fs-xs)",
-                              }}
-                            >
-                              {i + 1}
-                            </td>
-                            <td
-                              style={{
-                                fontFamily: "var(--xp-mono)",
-                                fontSize: "var(--xp-fs-xs)",
-                              }}
-                            >
-                              {b.invoiceNo}
-                            </td>
-                            <td
-                              className="r"
-                              style={{ color: "var(--xp-blue-dark)" }}
-                            >
-                              {Number(b.amount).toLocaleString("en-PK")}
-                            </td>
-                            <td
-                              className="muted"
-                              style={{ fontSize: "var(--xp-fs-xs)" }}
-                            >
-                              {b.buyerName}
-                            </td>
-                            <td style={{ textAlign: "center" }}>
-                              <button
-                                className="xp-btn xp-btn-sm xp-btn-ico"
-                                style={{
-                                  width: 18,
-                                  height: 18,
-                                  fontSize: 9,
-                                  color: "var(--xp-red)",
-                                }}
-                                onClick={(e) => deleteHold(b.id, e)}
-                              >
-                                ✕
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
-                  </tbody>
-                </table>
-              </div>
-              <div className="sl-hold-scroll-btns">
-                <button className="xp-btn xp-btn-sm xp-btn-ico">◀</button>
-                <button className="xp-btn xp-btn-sm xp-btn-ico">▶</button>
-              </div>
-              <div style={{ padding: "4px 8px", flexShrink: 0 }}>
-                <button
-                  className="xp-btn xp-btn-sm"
-                  style={{ width: "100%" }}
-                  onClick={holdBill}
-                  disabled={!items.length}
+              )}
+              
+              <div className="sl-sum-cell">
+                <button 
+                  className="xp-btn xp-btn-primary" 
+                  onClick={handlePrintAndSave} 
+                  disabled={isPrinting || items.length === 0}
+                  style={{ padding: "6px 20px", fontSize: 14 }}
                 >
-                  Hold Bill (F4)
+                  {isPrinting ? "Printing..." : "🖨 Print (*)"}
                 </button>
               </div>
             </div>
-            {supplierId &&
-              (() => {
-                const supp = allSuppliers.find((c) => c._id === supplierId);
-                return supp ? (
-                  <div
-                    style={{
-                      width: "100%",
-                      height: 100,
-                      marginTop: 6,
-                      borderRadius: 6,
-                      overflow: "hidden",
-                      border: "2px solid var(--xp-silver-4)",
-                      flexShrink: 0,
-                      order: 2,
-                    }}
-                  >
-                    {supp.imageFront ? (
-                      <img
-                        src={supp.imageFront}
-                        alt={supp.name}
-                        style={{
-                          width: "100%",
-                          height: "100%",
-                          objectFit: "cover",
-                        }}
-                      />
-                    ) : (
-                      <div
-                        style={{
-                          width: "100%",
-                          height: "100%",
-                          background: "var(--xp-silver-3)",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          fontSize: 48,
-                        }}
-                      >
-                        🏭
-                      </div>
-                    )}
-                  </div>
-                ) : null;
-              })()}
           </div>
         </div>
 
         <div className="sl-cmd-bar">
-          <button
-            className="xp-btn xp-btn-sm"
-            onClick={fullReset}
+          <button 
+            className="xp-btn xp-btn-success xp-btn-sm" 
+            onClick={resetToNewInvoice}
             disabled={loading}
+            style={{ background: "#10b981", borderColor: "#10b981" }}
           >
-            Refresh
+            🔄 Refresh / New Invoice
           </button>
-          <button
-            ref={saveRef}
-            className="xp-btn xp-btn-primary xp-btn-lg"
-            onClick={openSaleConfirm}
-            disabled={loading}
-          >
-            {loading ? "Saving…" : "Save  *"}
-          </button>
-          <button className="xp-btn xp-btn-sm" onClick={() => {}}>
-            Edit Record
-          </button>
-          <button
-            className="xp-btn xp-btn-danger xp-btn-sm"
-            disabled={!editId}
+          <button className="xp-btn xp-btn-sm" onClick={fetchData} disabled={loading}>Reload Data</button>
+          <button 
+            className="xp-btn xp-btn-danger xp-btn-sm" 
+            disabled={!editId} 
             onClick={async () => {
-              if (!editId || !window.confirm("Delete this purchase?")) return;
+              if (!editId || !window.confirm("Delete this purchase invoice?")) return;
               try {
-                await api.delete(EP.RAW_PURCHASES.DELETE(editId));
-                showMsg("Purchase deleted");
-                fullReset();
-                refreshInvoiceNo();
+                await api.delete(EP.PURCHASES.DELETE(editId));
+                showMsg("Purchase invoice deleted");
+                await resetToNewInvoice();
               } catch {
                 showMsg("Delete failed", "error");
               }
@@ -2761,71 +1283,76 @@ export default function RawPurchasePage() {
             Delete Record
           </button>
           <div className="xp-toolbar-divider" />
-          <div className="sl-cmd-checks">
-            <label className="sl-check-label">
-              <input
-                type="checkbox"
-                checked={sendSms}
-                onChange={(e) => setSendSms(e.target.checked)}
-              />{" "}
-              Send SMS
-            </label>
-            <label className="sl-check-label">
-              <input type="checkbox" /> Print P.Bal
-            </label>
-            <label className="sl-check-label">
-              <input type="checkbox" /> Gate Pass
-            </label>
-          </div>
-          <div className="xp-toolbar-divider" />
           <div className="sl-print-types">
-            {["Thermal", "A4", "A5"].map((pt) => (
-              <label key={pt} className="sl-check-label">
-                <input
-                  type="radio"
-                  name="pt"
-                  checked={printType === pt}
-                  onChange={() => setPrintType(pt)}
-                />{" "}
-                {pt}
-              </label>
-            ))}
+            {["Thermal", "A4", "A5"].map((pt) => (<label key={pt} className="sl-check-label"><input type="radio" name="pt" checked={printType === pt} onChange={() => setPrintType(pt)} /> {pt}</label>))}
           </div>
           <div className="xp-toolbar-divider" />
-          <span className={`sl-inv-info${editId ? " edit-mode" : ""}`}>
-            {editId
-              ? "✏ Editing purchase record"
-              : `${invoiceNo} | Items: ${items.length} | Total: ${Number(subTotal).toLocaleString("en-PK")} | ${saleSource} / ${paymentMode}`}
+          <span className="sl-inv-info">
+            {editId ? "✏ Editing purchase record" : `${invoiceNo} | Items: ${items.length} | Total Qty: ${totalQty} | Amount: ${Number(subTotal).toLocaleString("en-PK")}`}
           </span>
-          <button
-            className="xp-btn xp-btn-sm"
-            style={{ marginLeft: "auto" }}
-            onClick={fullReset}
-          >
-            Close
-          </button>
         </div>
       </div>
 
       <style>{`
-      @font-face {
-  font-family: 'UrduFont';
-  src: local('Jameel Noori Nastaleeq'),
-       local('Noto Nastaliq Urdu'),
-       local('Urdu Typesetting'),
-       local('Arial Unicode MS');
-}
-
-.urdu, .shop-urdu, .shop-addr, .banner, .terms-box, .terms {
-  font-family: 'UrduFont', 'Jameel Noori Nastaleeq', 'Noto Nastaliq Urdu', 
-               'Urdu Typesetting', Arial, sans-serif !important;
-  direction: rtl;
-}
-        .table.xp-table tbody td{
-        border-right: 1px solid red !important;
+        /* White background for the page */
+        .sl-page {
+          background: #ffffff;
         }
-        .xp-link-btn{
-        text-decoration: none;}
+        
+        /* Input Borders - Black */
+        input, .xp-input, .sl-product-input, .sl-num-input, .sl-sum-input, 
+        .sl-cust-input, .sl-inv-input-large, .sl-date-input, .sl-sum-val {
+          border-color: #000000 !important;
+          border-width: 1px !important;
+          border-style: solid !important;
+          background: #ffffff !important;
+        }
+        
+        /* Table Borders - Black */
+        .sl-items-table th,
+        .sl-items-table td {
+          border-color: #000000 !important;
+          border-width: 1px !important;
+        }
+       
+        /* Button Borders - Black */
+        .xp-btn, .sl-pay-btn, .sl-entry-btns .xp-btn {
+          border-color: #000000 !important;
+          border-width: 1px !important;
+          border-style: solid !important;
+        }
+        
+        /* Remove empty rows */
+        .sl-items-table tbody tr.sl-empty-row {
+          display: none;
+        }
+        
+        .sl-cust-input {
+          border: 1px solid #000000 !important;
+          border-radius: 4px !important;
+          padding: 6px 8px !important;
+          font-size: 13px !important;
+          transition: all 0.15s ease !important;
+          background-color: #ffffff !important;
+        }
+        
+        .sl-cust-input:focus {
+          border-color: #3b82f6 !important;
+          box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1) !important;
+          outline: none !important;
+        }
+        
+        .sl-cust-input:hover {
+          border-color: #000000 !important;
+        }
+        
+        .sl-inv-input-large {
+          font-size: 18px !important;
+          font-weight: bold !important;
+          width: 160px !important;
+          text-align: center !important;
+          background: #ffffff !important;
+        }
         
         .sl-nav-btn {
           font-size: 14px !important;
@@ -2834,7 +1361,34 @@ export default function RawPurchasePage() {
         }
         
         input, .xp-input, .sl-product-input, .sl-num-input, .sl-sum-input, .sl-cust-input {
+          background-color: #ffffff !important;
+        }
+        
+        .xp-btn-success {
+          background-color: #10b981 !important;
+          border-color: #10b981 !important;
+          color: white !important;
+        }
+        
+        .xp-btn-success:hover {
+          background-color: #059669 !important;
+          border-color: #059669 !important;
+        }
+
+        /* Yellow background for product search input to show focus area */
+        .sl-product-input {
           background-color: #fffde7 !important;
+          border-color: #000000 !important;
+        }
+
+        /* Also for other inputs that should stand out */
+        .sl-num-input, .sl-sum-input, .sl-cust-input {
+          background-color: #fffde7 !important;
+        }
+
+        /* Regular white background for readonly/disabled inputs */
+        .sl-sum-val, .sl-date-input[readonly] {
+          background-color: #f5f5f5 !important;
         }
       `}</style>
     </>

@@ -324,7 +324,7 @@ const buildPrintHtml = (sale, type, overrides = {}) => {
         <td style="text-align:right">${it.pcs}</td>
         ${!hidePrices ? `<td style="text-align:right">${Number(it.rate).toLocaleString()}</td>
         <td style="text-align:right"><b>${Number(it.amount).toLocaleString()}</b></td>` : '<td colspan="2" style="text-align:center;color:#888">[Price Hidden]</td>'}
-      `,
+      </tr>`,
       )
       .join("");
 
@@ -2186,7 +2186,8 @@ export default function SalePage() {
     billAmount,
   ]);
 
-  const EMPTY_ROWS = Math.max(0, 8 - items.length);
+  // Remove empty rows constant - no longer needed
+  // const EMPTY_ROWS = Math.max(0, 8 - items.length);
 
   return (
     <>
@@ -2715,11 +2716,7 @@ export default function SalePage() {
                       <td className="muted">{r.rack}</td>
                     </tr>
                   ))}
-                  {Array.from({ length: EMPTY_ROWS }).map((_, i) => (
-                    <tr key={`e${i}`} className="sl-empty-row">
-                      <td colSpan={8} />
-                    </tr>
-                  ))}
+                  {/* Empty rows removed */}
                 </tbody>
               </table>
             </div>
@@ -3217,6 +3214,49 @@ export default function SalePage() {
       </div>
 
       <style>{`
+      /* Base Styles */
+      .sl-page {
+        background: #ffffff;
+      }
+      
+      /* Input Borders - Black */
+      input, .xp-input, .sl-product-input, .sl-num-input, .sl-sum-input, 
+      .sl-cust-input, .sl-credit-statement-input, .sl-inv-input-large,
+      .sl-date-input, .sl-sum-val {
+        border-color: #000000 !important;
+        border-width: 1px !important;
+        border-style: solid !important;
+        background: #ffffff !important;
+      }
+      
+      /* Table Borders - Black */
+      .sl-items-table th,
+      .sl-items-table td,
+      .sl-hold-table th,
+      .sl-hold-table td {
+        border-color: #000000 !important;
+        border-width: 1px !important;
+      }
+      
+      /* Button Borders - Black */
+      .xp-btn, .sl-pay-btn, .sl-entry-btns .xp-btn {
+        border-color: #000000 !important;
+        border-width: 1px !important;
+        border-style: solid !important;
+      }
+      
+      /* Card Borders */
+      .sl-summary-bar, .sl-customer-bar, .sl-gatepass-bar,
+      .sl-top-bar, .sl-entry-strip, .sl-table-header-bar,
+      .sl-hold-panel, .sl-right, .sl-left {
+        border-color: #e0e0e0;
+      }
+      
+      /* Remove empty rows */
+      .sl-items-table tbody tr.sl-empty-row {
+        display: none;
+      }
+      
       @font-face {
         font-family: 'UrduFont';
         src: local('Jameel Noori Nastaleeq'),
@@ -3237,16 +3277,12 @@ export default function SalePage() {
         font-weight: bold !important;
         width: 160px !important;
         text-align: center !important;
-        background: #fffde7 !important;
+        background: #ffffff !important;
       }
       .sl-nav-btn {
         font-size: 14px !important;
         padding: 4px 12px !important;
         font-weight: 600 !important;
-      }
-      input, .xp-input, .sl-product-input, .sl-num-input, .sl-sum-input, 
-      .sl-cust-input, .sl-credit-statement-input {
-        background-color: #fffde7 !important;
       }
 
       /* --- CREDIT LIMIT EXCEEDED WARNING STYLES --- */
@@ -3377,7 +3413,27 @@ export default function SalePage() {
       .sl-page.sl-credit-mode .sl-items-wrap::-webkit-scrollbar-thumb:hover {
         background: #ffffff;
       }
+
+
+      /* Yellow background for product search input to show focus area */
+.sl-product-input {
+  background-color: #fffde7 !important;
+  border-color: #000000 !important;
+}
+
+/* Also for other inputs that should stand out */
+.sl-num-input, .sl-sum-input, .sl-cust-input {
+  background-color: #fffde7 !important;
+}
+
+/* Regular white background for readonly/disabled inputs */
+.sl-sum-val, .sl-date-input[readonly] {
+  background-color: #f5f5f5 !important;
+}
+
+
+
       `}</style>
     </>
   );
-}
+} 

@@ -111,7 +111,7 @@ const buildPrintHtml = (purchase, type, overrides = {}) => {
       <div style="font-size:10px;font-weight:bold;margin-bottom:1px">${buyerName}</div>
       ${buyerPhone ? `<div style="font-size:9px;color:#555">${buyerPhone}</div>` : ""}
       <hr class="divider-solid">
-      </table>
+      <table>
         <thead><tr><th style="width:20px">#</th><th>Product</th><th class="r">Qty.</th><th class="r">Rate</th><th class="r">Amount</th></tr></thead>
         <tbody>${itemRows}</tbody>
       </table>
@@ -1016,7 +1016,8 @@ export default function PurchasePage() {
     }
   };
 
-  const EMPTY_ROWS = Math.max(0, 12 - items.length);
+  // Remove empty rows constant - no longer needed
+  // const EMPTY_ROWS = Math.max(0, 12 - items.length);
 
   return (
     <>
@@ -1186,7 +1187,7 @@ export default function PurchasePage() {
                       <td><button className="xp-btn xp-btn-sm xp-btn-danger" style={{ padding: "2px 6px" }} onClick={() => removeRow(i)}>✕</button></td>
                     </tr>
                   ))}
-                  {Array.from({ length: EMPTY_ROWS }).map((_, i) => <tr key={`e${i}`} className="sl-empty-row"><td colSpan={8} /></tr>)}
+                  {/* Empty rows removed */}
                 </tbody>
               </table>
             </div>
@@ -1286,13 +1287,49 @@ export default function PurchasePage() {
       </div>
 
       <style>{`
+        /* White background for the page */
+        .sl-page {
+          background: #ffffff;
+        }
+        
+        /* Input Borders - Black */
+        input, .xp-input, .sl-product-input, .sl-num-input, .sl-sum-input, 
+        .sl-cust-input, .sl-inv-input-large, .sl-date-input, .sl-sum-val {
+          border-color: #000000 !important;
+          border-width: 1px !important;
+          border-style: solid !important;
+          background: #ffffff !important;
+        }
+        
+        /* Table Borders - Black */
+        .sl-items-table th,
+        .sl-items-table td,
+        .sl-hold-table th,
+        .sl-hold-table td {
+          border-color: #000000 !important;
+          border-width: 1px !important;
+        }
+       
+        
+        /* Button Borders - Black */
+        .xp-btn, .sl-pay-btn, .sl-entry-btns .xp-btn {
+          border-color: #000000 !important;
+          border-width: 1px !important;
+          border-style: solid !important;
+        }
+        
+        /* Remove empty rows */
+        .sl-items-table tbody tr.sl-empty-row {
+          display: none;
+        }
+        
         .sl-cust-input {
-          border: 1px solid #d1d5db !important;
+          border: 1px solid #000000 !important;
           border-radius: 4px !important;
           padding: 6px 8px !important;
           font-size: 13px !important;
           transition: all 0.15s ease !important;
-          background-color: #fffde7 !important;
+          background-color: #ffffff !important;
         }
         
         .sl-cust-input:focus {
@@ -1302,7 +1339,7 @@ export default function PurchasePage() {
         }
         
         .sl-cust-input:hover {
-          border-color: #9ca3af !important;
+          border-color: #000000 !important;
         }
         
         .sl-inv-input-large {
@@ -1310,7 +1347,7 @@ export default function PurchasePage() {
           font-weight: bold !important;
           width: 160px !important;
           text-align: center !important;
-          background: #fffde7 !important;
+          background: #ffffff !important;
         }
         
         .sl-nav-btn {
@@ -1320,7 +1357,7 @@ export default function PurchasePage() {
         }
         
         input, .xp-input, .sl-product-input, .sl-num-input, .sl-sum-input, .sl-cust-input {
-          background-color: #fffde7 !important;
+          background-color: #ffffff !important;
         }
         
         .xp-btn-success {
@@ -1333,7 +1370,27 @@ export default function PurchasePage() {
           background-color: #059669 !important;
           border-color: #059669 !important;
         }
+
+        /* Yellow background for product search input to show focus area */
+.sl-product-input {
+  background-color: #fffde7 !important;
+  border-color: #000000 !important;
+}
+
+/* Also for other inputs that should stand out */
+.sl-num-input, .sl-sum-input, .sl-cust-input {
+  background-color: #fffde7 !important;
+}
+
+/* Regular white background for readonly/disabled inputs */
+.sl-sum-val, .sl-date-input[readonly] {
+  background-color: #f5f5f5 !important;
+}
       `}</style>
+
+
+
+      
     </>
   );
 }

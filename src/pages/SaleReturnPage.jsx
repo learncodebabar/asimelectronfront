@@ -102,7 +102,7 @@ const buildPrintHtml = (ret, type) => {
       ${ret.saleInvNo ? `<div style="font-size:9px;color:#666">Ref Sale: ${ret.saleInvNo}</div>` : ""}
       <div style="font-size:10.5px;font-weight:bold">${ret.customerName}</div>
       <hr class="solid">
-      <table>
+      </table>
         <thead><tr><th>#</th><th>Item</th><th class="r">Qty</th><th class="r">Rate</th><th class="r">Amt</th></tr></thead>
         <tbody>${itemRows}</tbody>
       </table>
@@ -1989,7 +1989,8 @@ export default function SaleReturnPage() {
     return () => window.removeEventListener("keydown", handler);
   }, [items, showProductModal, showHoldPreview, showSaveModal]);
 
-  const EMPTY_ROWS = Math.max(0, 8 - items.length);
+  // Remove empty rows constant - no longer needed
+  // const EMPTY_ROWS = Math.max(0, 8 - items.length);
 
   return (
     <div className="sr-page">
@@ -2149,6 +2150,7 @@ export default function SaleReturnPage() {
                 ref={searchRef}
                 type="text"
                 className="sr-product-input"
+                style={{ background: "#fffde7" }}
                 value={searchText}
                 onChange={(e) => setSearchText(e.target.value)}
                 onClick={() => setShowProductModal(true)}
@@ -2341,11 +2343,7 @@ export default function SaleReturnPage() {
                     </td>
                   </tr>
                 ))}
-                {Array.from({ length: EMPTY_ROWS }).map((_, i) => (
-                  <tr key={`e${i}`} className="sr-empty-row">
-                    <td colSpan={7} />
-                  </tr>
-                ))}
+                {/* Empty rows removed */}
               </tbody>
             </table>
           </div>
@@ -2633,6 +2631,59 @@ export default function SaleReturnPage() {
           Close
         </button>
       </div>
+
+      <style>{`
+        /* White background for the page */
+        .sr-page {
+          background: #ffffff;
+        }
+        
+        /* Yellow background for product search input (focus indicator) */
+        .sr-product-input {
+          background-color: #fffde7 !important;
+          border-color: #000000 !important;
+        }
+        
+        /* Yellow background for editable numeric inputs */
+        .sr-num-input, .sr-sum-input, .sr-cust-input {
+          background-color: #fffde7 !important;
+          border-color: #000000 !important;
+        }
+        
+        /* Regular white background for readonly inputs */
+        .sr-sum-val, .sr-date-input[readonly] {
+          background-color: #f5f5f5 !important;
+          border-color: #000000 !important;
+        }
+        
+        /* Input Borders - Black for all */
+        input, .xp-input, .sr-inv-input, .sr-date-input {
+          border-color: #000000 !important;
+          border-width: 1px !important;
+          border-style: solid !important;
+        }
+        
+        /* Table Borders - Black */
+        .sr-items-table th,
+        .sr-items-table td,
+        .sr-hold-table th,
+        .sr-hold-table td {
+          border-color: #000000 !important;
+          border-width: 1px !important;
+        }
+        
+        /* Button Borders - Black */
+        .xp-btn, .sr-entry-btns .xp-btn {
+          border-color: #000000 !important;
+          border-width: 1px !important;
+          border-style: solid !important;
+        }
+        
+        /* Remove empty rows */
+        .sr-items-table tbody tr.sr-empty-row {
+          display: none;
+        }
+      `}</style>
     </div>
   );
 }
