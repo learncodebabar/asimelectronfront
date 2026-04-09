@@ -94,7 +94,7 @@ const buildPrintHtml = (sale, type, overrides = {}) => {
     const itemRows = rows
       .map(
         (it) =>
-          `<tr>
+          `<td>
         <td style="font-size:9px;vertical-align:top">${it.sr}</td>
         <td style="font-size:9.5px;vertical-align:top;word-break:break-word;max-width:100px">${it.name}</td>
         <td style="font-size:9px;vertical-align:top;text-align:right">${it.pcs} ${it.uom || ""}</td>
@@ -145,7 +145,7 @@ const buildPrintHtml = (sale, type, overrides = {}) => {
         <span>${sale.invoiceDate}</span>
       </div>
       <div class="meta-row">
-        <span>Supplier:</span>
+        <span>Customer:</span>
       </div>
       <div style="font-size:10px;font-weight:bold;margin-bottom:1px">${customerName}</div>
       ${customerPhone ? `<div style="font-size:9px;color:#555">${customerPhone}</div>` : ""}
@@ -172,8 +172,8 @@ const buildPrintHtml = (sale, type, overrides = {}) => {
         ${sale.extraDisc > 0 ? `<div class="sum-row red"><span>(−) Discount</span><span>${Number(sale.extraDisc).toLocaleString()}</span></div>` : ""}
         <div class="sum-row bold sep"><span>Total Amount:</span><span>${Number(sale.netTotal).toLocaleString()}</span></div>
         ${sale.prevBalance > 0 ? `<div class="sum-row red"><span>(+) Prev. Bal.</span><span>${Number(sale.prevBalance).toLocaleString()}</span></div>` : ""}
-        <div class="sum-row green"><span>Paid:</span><span>PKR ${Number(sale.paidAmount).toLocaleString()}</span></div>
-        <div class="sum-row bold sep ${sale.balance > 0 ? "red" : "green"}"><span>Balance:</span><span>PKR ${Number(sale.balance).toLocaleString()}</span></div>
+        <div class="sum-row green"><span>Amount Deducted:</span><span>PKR ${Number(sale.paidAmount).toLocaleString()}</span></div>
+        <div class="sum-row bold sep ${sale.balance > 0 ? "red" : "green"}"><span>Remaining Balance:</span><span>PKR ${Number(sale.balance).toLocaleString()}</span></div>
       </div>
       <div class="terms">${SHOP_INFO.urduTerms.replace(/\n/g, "<br>")}</div>
       <div class="devby">${SHOP_INFO.devBy}</div>
@@ -203,7 +203,7 @@ const buildPrintHtml = (sale, type, overrides = {}) => {
             <td style="text-align:right">${it.pcs}</td>
             <td style="text-align:right">${Number(it.rate).toLocaleString()}</td>
             <td style="text-align:right"><b>${Number(it.amount).toLocaleString()}</b></td>
-          </td>`,
+          </tr>`,
       )
       .join("");
 
@@ -220,7 +220,7 @@ const buildPrintHtml = (sale, type, overrides = {}) => {
     const metaHtml = pageNum === 1
       ? `<div class="meta-strip">
           <div class="meta-left">
-            <div class="meta-row"><span class="meta-lbl">Supplier:</span> <span class="meta-val">${customerName}</span></div>
+            <div class="meta-row"><span class="meta-lbl">Customer:</span> <span class="meta-val">${customerName}</span></div>
             ${customerPhone ? `<div class="meta-row"><span class="meta-val">${customerPhone}</span></div>` : ""}
           </div>
           <div class="meta-mid"><span class="meta-val">${rows.length}</span></div>
@@ -246,8 +246,8 @@ const buildPrintHtml = (sale, type, overrides = {}) => {
             ${sale.extraDisc > 0 ? `<div class="sum-row red"><span>(−) Discount</span><span>${Number(sale.extraDisc).toLocaleString()}</span></div>` : ""}
             <div class="sum-row bold"><span>Total Amount:</span><span>${Number(sale.netTotal).toLocaleString()}</span></div>
             ${sale.prevBalance > 0 ? `<div class="sum-row red"><span>(+) Prev. Balance</span><span>PKR ${Number(sale.prevBalance).toLocaleString()}</span></div>` : ""}
-            <div class="sum-row green"><span>Paid:</span><span>PKR ${Number(sale.paidAmount).toLocaleString()}</span></div>
-            <div class="sum-row bold ${sale.balance > 0 ? "red" : "green"} sep"><span>Balance Due:</span><span>PKR ${Number(sale.balance).toLocaleString()}</span></div>
+            <div class="sum-row green"><span>Amount Deducted:</span><span>PKR ${Number(sale.paidAmount).toLocaleString()}</span></div>
+            <div class="sum-row bold ${sale.balance > 0 ? "red" : "green"} sep"><span>Remaining Balance:</span><span>PKR ${Number(sale.balance).toLocaleString()}</span></div>
           </div>
         </div>
         <div class="devby">${SHOP_INFO.devBy}</div>`
@@ -467,29 +467,38 @@ function SaveConfirmModal({
   onConfirm,
   onClose,
 }) {
-  const [paidAmount, setPaidAmount] = useState(0);
+  const [deductAmount, setDeductAmount] = useState(salePayload.netTotal || 0);
   const [selPrintType, setSelPrintType] = useState(defaultPrintType);
   const [saving, setSaving] = useState(false);
-  const paidRef = useRef(null);
+  const deductRef = useRef(null);
 
   useEffect(() => {
-    setTimeout(() => { paidRef.current?.focus(); paidRef.current?.select(); }, 80);
+    setTimeout(() => {
+      deductRef.current?.focus();
+      deductRef.current?.select();
+    }, 80);
   }, []);
 
   useEffect(() => {
     const h = (e) => {
-      if (e.key === "Escape") { e.preventDefault(); onClose(); }
-      if (e.key === "Enter" && document.activeElement === paidRef.current) { e.preventDefault(); handleConfirm(true); }
+      if (e.key === "Escape") {
+        e.preventDefault();
+        onClose();
+      }
+      if (e.key === "Enter" && document.activeElement === deductRef.current) {
+        e.preventDefault();
+        handleConfirm(true);
+      }
     };
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
-  }, [paidAmount, selPrintType]);
+  }, [deductAmount, selPrintType]);
 
   const netTotal = salePayload.netTotal;
   const prevBalance = salePayload.prevBalance || 0;
-  const paid = Number(paidAmount) || 0;
+  const deduct = Number(deductAmount) || 0;
   const billTotal = netTotal + prevBalance;
-  const change = paid - billTotal;
+  const remainingBalance = billTotal - deduct;
 
   const handleConfirm = async (withPrint) => {
     if (saving) return;
@@ -497,8 +506,8 @@ function SaveConfirmModal({
     await onConfirm({
       extraDisc: salePayload.extraDisc || 0,
       netTotal,
-      paidAmount: paid,
-      balance: billTotal - paid,
+      paidAmount: deduct,
+      balance: remainingBalance,
       printType: selPrintType,
       withPrint,
     });
@@ -518,14 +527,13 @@ function SaveConfirmModal({
         <div className="scm-meta">
           <span><b>Invoice:</b> {salePayload.invoiceNo}</span>
           <span><b>Date:</b> {salePayload.invoiceDate}</span>
-          <span><b>Supplier:</b> {salePayload.customerName}</span>
-          <span><b>Payment:</b> {salePayload.paymentMode}</span>
+          <span><b>Customer:</b> {salePayload.customerName}</span>
           <span><b>Items:</b> {salePayload.items.length}</span>
         </div>
         <div className="scm-amounts">
           <div className="scm-box"><div className="scm-box-label">Bill Amount</div><div className="scm-box-val">{Number(billTotal).toLocaleString("en-PK")}</div></div>
-          <div className="scm-box" style={{ borderLeft: "none" }}><div className="scm-box-label">Paid</div><input ref={paidRef} type="text" className="scm-recv-input" value={paidAmount} onChange={(e) => setPaidAmount(e.target.value)} onFocus={(e) => e.target.select()} /></div>
-          <div className={`scm-box ${change >= 0 ? "scm-box-change" : "scm-box-due"}`} style={{ borderLeft: "none" }}><div className="scm-box-label">{change >= 0 ? "Change" : "Balance Due"}</div><div className="scm-box-val">{change < 0 && <span style={{ fontSize: 22, marginRight: 2 }}>−</span>}{Math.abs(change).toLocaleString("en-PK")}</div></div>
+          <div className="scm-box" style={{ borderLeft: "none" }}><div className="scm-box-label">Amount to Deduct</div><input ref={deductRef} type="text" className="scm-recv-input" value={deductAmount} onChange={(e) => setDeductAmount(e.target.value)} onFocus={(e) => e.target.select()} /></div>
+          <div className={`scm-box ${remainingBalance <= 0 ? "scm-box-change" : "scm-box-due"}`} style={{ borderLeft: "none" }}><div className="scm-box-label">{remainingBalance <= 0 ? "Over Deduction" : "Remaining Balance"}</div><div className="scm-box-val">{remainingBalance < 0 && <span style={{ fontSize: 22, marginRight: 2 }}>−</span>}{Math.abs(remainingBalance).toLocaleString("en-PK")}</div></div>
         </div>
         <div className="scm-print-row"><span style={{ color: "#555", marginRight: 4, fontWeight: 700 }}>Print:</span>{["Thermal", "A5", "A4"].map((pt) => (<label key={pt}><input type="radio" name="scm-pt" checked={selPrintType === pt} onChange={() => setSelPrintType(pt)} />{pt}</label>))}</div>
         <div className="scm-sep" />
@@ -534,7 +542,7 @@ function SaveConfirmModal({
           <button className="xp-btn xp-btn-success" style={{ minWidth: 110 }} onClick={() => handleConfirm(false)} disabled={saving}>💾 Save only</button>
           <button className="xp-btn" style={{ minWidth: 130 }} onClick={onClose}>↩ Return to Invoice</button>
         </div>
-        <div className="scm-hint">↵ Enter (in Paid field) = Save &amp; Print &nbsp;|&nbsp; Esc = Return to Invoice</div>
+        <div className="scm-hint">↵ Enter (in Amount to Deduct field) = Save &amp; Print &nbsp;|&nbsp; Esc = Return to Invoice</div>
       </div>
     </div>
   );
@@ -640,38 +648,18 @@ function SearchModal({ allProducts, onSelect, onClose }) {
                   </tr>
                 </thead>
                 <tbody ref={tbodyRef} tabIndex={0} onKeyDown={tk}>
-                  {rows.length === 0 && <tr><td colSpan={8} className="xp-empty">⚠️ No products found with company name "RAW". Please check your product data.</td></tr>}
+                  {rows.length === 0 && <tr><td colSpan={8} className="xp-empty">⚠️ No products found with company name "RAW". Please check your product data.ERC: NO_SUPPLIER</td></tr>}
                   {rows.map((r, i) => (
-                     
-                     <tr
-  key={`${r._id}-${r._pi}`}
-  style={{ background: i === hiIdx ? "#c3d9f5" : undefined }}
-  onClick={() => setHiIdx(i)}
-  onDoubleClick={() => onSelect(r)}
->
-  <td className="text-muted">{i + 1}</td>
-
-  <td>
-    <span className="xp-code">{r.code}</span>
-  </td>
-
-  <td>
-    <button className="xp-link-btn">{r._name}</button>
-  </td>
-
-  <td className="text-muted">{r._meas}</td>
-
-  <td className="r xp-amt">
-    {Number(r._rate).toLocaleString("en-PK")}
-  </td>
-
-  <td className="r">{r._stock}</td>
-  <td className="r">{r._pack}</td>
-
-  <td className="text-muted">
-    {r.rackNo || "—"}
-  </td>
-</tr>
+                    <tr key={`${r._id}-${r._pi}`} style={{ background: i === hiIdx ? "#c3d9f5" : undefined }} onClick={() => setHiIdx(i)} onDoubleClick={() => onSelect(r)}>
+                      <td className="text-muted">{i + 1}</td>
+                      <td><span className="xp-code">{r.code}</span></td>
+                      <td><button className="xp-link-btn">{r._name}</button></td>
+                      <td className="text-muted">{r._meas}</td>
+                      <td className="r xp-amt">{Number(r._rate).toLocaleString("en-PK")}</td>
+                      <td className="r">{r._stock}</td>
+                      <td className="r">{r._pack}</td>
+                      <td className="text-muted">{r.rackNo || "—"}</td>
+                    </tr>
                   ))}
                 </tbody>
               </table>
@@ -695,38 +683,26 @@ function HoldPreviewModal({ bill, onResume, onClose }) {
         <div className="xp-modal-tb"><span className="xp-modal-title">Hold Bill — {bill.invoiceNo}</span><button className="xp-cap-btn xp-cap-close" onClick={onClose}>✕</button></div>
         <div className="xp-modal-body" style={{ padding: 8 }}>
           <div style={{ marginBottom: 6, display: "flex", gap: 16, fontSize: "var(--xp-fs-xs)" }}>
-            <span><b>Supplier:</b> {bill.buyerName}</span><span><b>Items:</b> {bill.items.length}</span><span><b>Amount:</b> <span style={{ color: "var(--xp-blue-dark)", fontWeight: 700 }}>{Number(bill.amount).toLocaleString("en-PK")}</span></span>
+            <span><b>Customer:</b> {bill.buyerName}</span><span><b>Items:</b> {bill.items.length}</span><span><b>Amount:</b> <span style={{ color: "var(--xp-blue-dark)", fontWeight: 700 }}>{Number(bill.amount).toLocaleString("en-PK")}</span></span>
           </div>
           <div className="xp-table-panel" style={{ border: "none" }}>
             <div className="xp-table-scroll" style={{ maxHeight: 300 }}>
-             <tbody>
-  {bill.items.map((r, i) => (
-    <tr key={i}>
-      <td className="text-muted">{i + 1}</td>
-
-      <td className="text-muted">{r.code}</td>
-
-      <td>{r.name}</td>
-
-      <td className="text-muted">{r.uom}</td>
-
-      <td className="r">{r.pcs}</td>
-
-      <td className="r">
-        {Number(r.rate).toLocaleString("en-PK")}
-      </td>
-
-      <td
-        className="r"
-        style={{ color: "var(--xp-blue-dark)", fontWeight: 700 }}
-      >
-        {Number(r.amount).toLocaleString("en-PK")}
-      </td>
-    </tr>
-  ))}
-</tbody>
-            
-         
+              <table className="xp-table">
+                <thead><tr><th>#</th><th>Code</th><th>Name</th><th>UOM</th><th className="r">Pcs</th><th className="r">Rate</th><th className="r">Amount</th></tr></thead>
+                <tbody>
+                  {bill.items.map((r, i) => (
+                    <tr key={i}>
+                      <td className="text-muted">{i + 1}</td>
+                      <td className="text-muted">{r.code}</td>
+                      <td>{r.name}</td>
+                      <td className="text-muted">{r.uom}</td>
+                      <td className="r">{r.pcs}</td>
+                      <td className="r">{Number(r.rate).toLocaleString("en-PK")}</td>
+                      <td className="r" style={{ color: "var(--xp-blue-dark)", fontWeight: 700 }}>{Number(r.amount).toLocaleString("en-PK")}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
         </div>
@@ -740,9 +716,9 @@ function HoldPreviewModal({ bill, onResume, onClose }) {
 }
 
 /* ══════════════════════════════════════════════════════════
-   SUPPLIER DROPDOWN - Shows ALL suppliers (like Sale page)
+   CUSTOMER DROPDOWN - Shows ALL customers
 ══════════════════════════════════════════════════════════ */
-function SupplierDropdown({ allSuppliers, value, displayName, supplierType, onSelect, onClear, onAddNew, allowedTypes }) {
+function CustomerDropdown({ allCustomers, value, displayName, customerType, onSelect, onClear, onAddNew, allowedTypes }) {
   const [query, setQuery] = useState("");
   const [originalQuery, setOriginalQuery] = useState("");
   const [ghost, setGhost] = useState("");
@@ -754,16 +730,16 @@ function SupplierDropdown({ allSuppliers, value, displayName, supplierType, onSe
   const inputRef = useRef(null);
   const parentRef = useRef(null);
 
-  const filteredSuppliers = allSuppliers.filter((c) => {
+  const filteredCustomers = allCustomers.filter((c) => {
     const t = (c.customerType || c.type || "").toLowerCase();
-    const allowed = allowedTypes || ["supplier", "raw-purchase", "credit"];
+    const allowed = allowedTypes || ["credit", "walkin", "wholesale"];
     return allowed.includes(t) && c.name?.toUpperCase().trim() !== "COUNTER SALE";
   });
 
   const getSuggestions = (searchTerm) => {
     if (!searchTerm.trim()) return [];
     const searchLower = searchTerm.toLowerCase();
-    return filteredSuppliers.filter(c => 
+    return filteredCustomers.filter(c => 
       c.name?.toLowerCase().startsWith(searchLower) ||
       c.code?.toLowerCase().startsWith(searchLower)
     );
@@ -787,8 +763,8 @@ function SupplierDropdown({ allSuppliers, value, displayName, supplierType, onSe
     }
   }, [originalQuery, isNavigating]);
 
-  const selectSupplier = (supplier) => {
-    onSelect(supplier);
+  const selectCustomer = (customer) => {
+    onSelect(customer);
     setQuery("");
     setOriginalQuery("");
     setGhost("");
@@ -806,8 +782,8 @@ function SupplierDropdown({ allSuppliers, value, displayName, supplierType, onSe
       setOriginalQuery(fullName);
       setGhost("");
       setIsNavigating(false);
-      const matchedSupplier = suggestions[0];
-      if (matchedSupplier) selectSupplier(matchedSupplier);
+      const matchedCustomer = suggestions[0];
+      if (matchedCustomer) selectCustomer(matchedCustomer);
       return;
     }
     
@@ -818,8 +794,8 @@ function SupplierDropdown({ allSuppliers, value, displayName, supplierType, onSe
       setShowDropdown(true);
       let newIndex = selectedSuggestionIndex === -1 ? 0 : (selectedSuggestionIndex + 1) % suggestions.length;
       setSelectedSuggestionIndex(newIndex);
-      const selectedSupplier = suggestions[newIndex];
-      if (selectedSupplier) { setQuery(selectedSupplier.name); setGhost(""); }
+      const selectedCustomer = suggestions[newIndex];
+      if (selectedCustomer) { setQuery(selectedCustomer.name); setGhost(""); }
       return;
     }
     
@@ -830,17 +806,17 @@ function SupplierDropdown({ allSuppliers, value, displayName, supplierType, onSe
       setShowDropdown(true);
       let newIndex = selectedSuggestionIndex === -1 ? suggestions.length - 1 : (selectedSuggestionIndex - 1 + suggestions.length) % suggestions.length;
       setSelectedSuggestionIndex(newIndex);
-      const selectedSupplier = suggestions[newIndex];
-      if (selectedSupplier) { setQuery(selectedSupplier.name); setGhost(""); }
+      const selectedCustomer = suggestions[newIndex];
+      if (selectedCustomer) { setQuery(selectedCustomer.name); setGhost(""); }
       return;
     }
     
     if (e.key === "Enter") {
       e.preventDefault();
       if (selectedSuggestionIndex >= 0 && suggestions[selectedSuggestionIndex]) {
-        selectSupplier(suggestions[selectedSuggestionIndex]);
+        selectCustomer(suggestions[selectedSuggestionIndex]);
       } else if (suggestions.length > 0 && suggestions[0]) {
-        selectSupplier(suggestions[0]);
+        selectCustomer(suggestions[0]);
       } else if (originalQuery.trim() && onAddNew) {
         onAddNew(originalQuery.trim());
         setQuery("");
@@ -874,14 +850,14 @@ function SupplierDropdown({ allSuppliers, value, displayName, supplierType, onSe
     setIsNavigating(false);
   };
 
-  const typeStyle = supplierType && TYPE_COLORS[supplierType]
-    ? { background: TYPE_COLORS[supplierType].bg, color: TYPE_COLORS[supplierType].color, border: `1px solid ${TYPE_COLORS[supplierType].border}` }
+  const typeStyle = customerType && TYPE_COLORS[customerType]
+    ? { background: TYPE_COLORS[customerType].bg, color: TYPE_COLORS[customerType].color, border: `1px solid ${TYPE_COLORS[customerType].border}` }
     : null;
 
   return (
     <div style={{ position: "relative", flex: 1 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 4, position: "relative" }}>
-        {typeStyle && <span className="cdd-type-badge" style={typeStyle}>{supplierType}</span>}
+        {typeStyle && <span className="cdd-type-badge" style={typeStyle}>{customerType}</span>}
         <div ref={parentRef} style={{ position: "relative", flex: 1, background: isFocused ? "#fffbe6" : "transparent", borderRadius: "4px", transition: "background 0.15s ease" }}>
           {ghost && !isNavigating && (
             <div style={{ position: "absolute", left: 0, top: "50%", transform: "translateY(-50%)", pointerEvents: "none", whiteSpace: "nowrap", fontSize: "13px", fontFamily: "inherit", display: "flex", zIndex: 2, color: "#a0aec0", opacity: 1, backgroundColor: "transparent", paddingLeft: "4px" }}>
@@ -897,21 +873,21 @@ function SupplierDropdown({ allSuppliers, value, displayName, supplierType, onSe
       </div>
       {showDropdown && suggestions.length > 0 && (
         <div style={{ position: "absolute", top: "100%", left: 0, right: 0, backgroundColor: "white", border: "1px solid #e5e7eb", borderRadius: 4, maxHeight: 200, overflowY: "auto", zIndex: 1000, boxShadow: "0 4px 6px -1px rgba(0,0,0,0.1)", marginTop: 2 }}>
-          {suggestions.map((supplier, idx) => {
-            const t = supplier.customerType || supplier.type || "";
+          {suggestions.map((customer, idx) => {
+            const t = customer.customerType || customer.type || "";
             const ts = TYPE_COLORS[t];
             return (
-              <div key={supplier._id} onClick={() => selectSupplier(supplier)} style={{ padding: "8px 12px", cursor: "pointer", backgroundColor: idx === selectedSuggestionIndex ? "#e5f0ff" : "white", borderBottom: "1px solid #f3f4f6", fontSize: 13 }} onMouseEnter={() => { setSelectedSuggestionIndex(idx); setIsNavigating(true); setQuery(supplier.name); setGhost(""); }}>
-                <div style={{ fontWeight: 500, marginBottom: 2 }}>{supplier.code && <span style={{ color: "#6b7280", fontSize: 11 }}>[{supplier.code}]</span>} {supplier.name}</div>
-                {supplier.phone && <div style={{ fontSize: 10, color: "#6b7280" }}>📞 {supplier.phone}</div>}
+              <div key={customer._id} onClick={() => selectCustomer(customer)} style={{ padding: "8px 12px", cursor: "pointer", backgroundColor: idx === selectedSuggestionIndex ? "#e5f0ff" : "white", borderBottom: "1px solid #f3f4f6", fontSize: 13 }} onMouseEnter={() => { setSelectedSuggestionIndex(idx); setIsNavigating(true); setQuery(customer.name); setGhost(""); }}>
+                <div style={{ fontWeight: 500, marginBottom: 2 }}>{customer.code && <span style={{ color: "#6b7280", fontSize: 11 }}>[{customer.code}]</span>} {customer.name}</div>
+                {customer.phone && <div style={{ fontSize: 10, color: "#6b7280" }}>📞 {customer.phone}</div>}
                 {t && ts && <div style={{ fontSize: 10, color: ts.color, marginTop: 2 }}>Type: {t}</div>}
-                {(supplier.currentBalance || 0) > 0 && <div style={{ fontSize: 10, color: "#ef4444", marginTop: 2 }}>Balance: PKR {(supplier.currentBalance || 0).toLocaleString("en-PK")}</div>}
+                {(customer.currentBalance || 0) > 0 && <div style={{ fontSize: 10, color: "#ef4444", marginTop: 2 }}>Balance: PKR {(customer.currentBalance || 0).toLocaleString("en-PK")}</div>}
               </div>
             );
           })}
         </div>
       )}
-      {originalQuery && suggestions.length === 0 && <div style={{ position: "absolute", top: "100%", left: 0, fontSize: 10, color: "#9ca3af", marginTop: 2, padding: "4px 8px" }}>No supplier found matching "{originalQuery}"</div>}
+      {originalQuery && suggestions.length === 0 && <div style={{ position: "absolute", top: "100%", left: 0, fontSize: 10, color: "#9ca3af", marginTop: 2, padding: "4px 8px" }}>No customer found matching "{originalQuery}"</div>}
     </div>
   );
 }
@@ -929,7 +905,7 @@ const updateProductStockBulk = async (items, operation) => {
     
     const response = await api.post(EP.PRODUCTS.STOCK_BULK, {
       items: stockItems,
-      operation: operation // "add" or "subtract"
+      operation: operation
     });
     
     if (response.data.success) {
@@ -946,29 +922,60 @@ const updateProductStockBulk = async (items, operation) => {
 };
 
 /* ══════════════════════════════════════════════════════════
+   CUSTOMER BALANCE UPDATE FUNCTION
+══════════════════════════════════════════════════════════ */
+const updateCustomerBalanceDirect = async (customerId, amount, operation) => {
+  try {
+    console.log("========== FRONTEND BALANCE UPDATE ==========");
+    console.log("Customer ID:", customerId);
+    console.log("Amount:", amount);
+    console.log("Operation:", operation);
+    
+    const response = await api.patch(`/customers/${customerId}/balance`, {
+      amount: amount,
+      operation: operation
+    });
+    
+    console.log("Response:", response.data);
+    
+    if (response.data.success) {
+      console.log("Balance updated successfully:", response.data.data);
+      return true;
+    } else {
+      console.error("Balance update failed:", response.data.message);
+      return false;
+    }
+  } catch (error) {
+    console.error("Failed to update customer balance:", error);
+    console.error("Error details:", error.response?.data);
+    return false;
+  }
+};
+
+/* ══════════════════════════════════════════════════════════
    MAIN PAGE — Raw Purchase
 ══════════════════════════════════════════════════════════ */
 export default function RawPurchasePage() {
   const [time, setTime] = useState(timeNow());
   const [allProducts, setAllProducts] = useState([]);
-  const [allSuppliers, setAllSuppliers] = useState([]);
+  const [allCustomers, setAllCustomers] = useState([]);
   const [showProductModal, setShowProductModal] = useState(false);
   const [showHoldPreview, setShowHoldPreview] = useState(null);
   const [searchText, setSearchText] = useState("");
   const [curRow, setCurRow] = useState({ ...EMPTY_ROW });
   const [items, setItems] = useState([]);
   const [invoiceDate, setInvoiceDate] = useState(isoDate());
-  const [invoiceNo, setInvoiceNo] = useState("PUR-00001");
+  const [invoiceNo, setInvoiceNo] = useState("RAW-P-00001");
   const amountRef = useRef(null);
 
-  const [supplierId, setSupplierId] = useState("");
-  const [supplierName, setSupplierName] = useState("COUNTER SALE");
+  const [customerId, setCustomerId] = useState("");
+  const [customerName, setCustomerName] = useState("COUNTER SALE");
   const [codeSearch, setCodeSearch] = useState("");
-  const [supplierType, setSupplierType] = useState("");
+  const [customerType, setCustomerType] = useState("");
   const [prevBalance, setPrevBalance] = useState(0);
 
   const [extraDiscount, setExtraDiscount] = useState(0);
-  const [paidAmount, setPaidAmount] = useState(0);
+  const [deductAmount, setDeductAmount] = useState(0);
   const [paymentMode, setPaymentMode] = useState("Cash");
   const [saleSource, setSaleSource] = useState("cash");
 
@@ -988,14 +995,14 @@ export default function RawPurchasePage() {
 
   const [creditWarning, setCreditWarning] = useState(false);
   const [creditStatement, setCreditStatement] = useState("");
-  const [showSupplierPanel, setShowSupplierPanel] = useState(false);
+  const [showCustomerPanel, setShowCustomerPanel] = useState(false);
   const [showPrintModal, setShowPrintModal] = useState(false);
   const [pendingPrintSale, setPendingPrintSale] = useState(null);
   const searchRef = useRef(null);
   const pcsRef = useRef(null);
   const rateRef = useRef(null);
   const addRef = useRef(null);
-  const paidRef = useRef(null);
+  const deductRef = useRef(null);
   const discRef = useRef(null);
   const saveRef = useRef(null);
   const statementRef = useRef(null);
@@ -1015,16 +1022,27 @@ export default function RawPurchasePage() {
 
   const subTotal = items.reduce((s, r) => s + (parseFloat(r.amount) || 0), 0);
   const billAmount = subTotal - (parseFloat(extraDiscount) || 0);
-  const balance = billAmount + (parseFloat(prevBalance) || 0) - (parseFloat(paidAmount) || 0);
+  const balance = billAmount + (parseFloat(prevBalance) || 0) - (parseFloat(deductAmount) || 0);
 
   useEffect(() => {
-    if (paymentMode !== "Credit") setPaidAmount(billAmount + (parseFloat(prevBalance) || 0));
-  }, [billAmount, prevBalance, paymentMode]);
+    if (customerId && customerId !== "") {
+      setDeductAmount(billAmount);
+      setPaymentMode("Credit");
+      setSaleSource("credit");
+    } else {
+      setDeductAmount(0);
+      setPaymentMode("Cash");
+      setSaleSource("cash");
+    }
+  }, [customerId, billAmount]);
 
   const handlePaymentMode = (mode) => {
     setPaymentMode(mode);
-    if (mode === "Credit") setPaidAmount(0);
-    else setPaidAmount(billAmount + (parseFloat(prevBalance) || 0));
+    if (mode === "Credit") {
+      setDeductAmount(billAmount);
+    } else {
+      setDeductAmount(0);
+    }
   };
 
   const fetchData = async () => {
@@ -1035,22 +1053,9 @@ export default function RawPurchasePage() {
         api.get(EP.CUSTOMERS.GET_ALL),
         api.get(EP.RAW_PURCHASES.NEXT_INVOICE),
       ]);
-      if (pRes.data.success) {
-        setAllProducts(pRes.data.data);
-        console.log("Products loaded:", pRes.data.data.length);
-      }
-      if (cRes.data.success) {
-        const suppliers = cRes.data.data.filter((c) => {
-          const type = (c.type || c.customerType || "").toLowerCase();
-          return type === "supplier" || type === "raw-purchase" || type === "credit";
-        });
-        setAllSuppliers(suppliers);
-        console.log("Suppliers loaded:", suppliers.length);
-      }
-      if (invRes.data.success) {
-        const num = invRes.data.data.invoiceNo.replace("INV-", "PUR-");
-        setInvoiceNo(num);
-      }
+      if (pRes.data.success) setAllProducts(pRes.data.data);
+      if (cRes.data.success) setAllCustomers(cRes.data.data);
+      if (invRes.data.success) setInvoiceNo(invRes.data.data.invoiceNo);
     } catch (error) {
       console.error("Fetch data error:", error);
       showMsg("Failed to load data", "error");
@@ -1061,8 +1066,7 @@ export default function RawPurchasePage() {
   const refreshInvoiceNo = async () => {
     try {
       const r = await api.get(EP.RAW_PURCHASES.NEXT_INVOICE);
-      const num = r.data.data.invoiceNo.replace("INV-", "PUR-");
-      setInvoiceNo(num);
+      if (r.data.success) setInvoiceNo(r.data.data.invoiceNo);
     } catch {}
   };
 
@@ -1071,70 +1075,83 @@ export default function RawPurchasePage() {
     setTimeout(() => setMsg({ text: "", type: "" }), 3500);
   };
 
-  const handleSupplierSelect = (c) => {
-    const type = c.customerType || c.type || "";
-    setSupplierId(c._id);
-    setSupplierName(c.name);
-    setCodeSearch(c.code || "");
-    setSupplierType(type);
-    setPrevBalance(c.currentBalance || 0);
-    setCodeSearch("");
-    const pm = typeToPayment(type);
-    const ss = typeToSource(type);
-    setPaymentMode(pm);
-    setSaleSource(ss);
-    if (pm === "Credit") setPaidAmount(0);
-    else setPaidAmount(billAmount + (c.currentBalance || 0));
 
-    const limit = c.creditLimit || 0;
-    const custBal = c.currentBalance || 0;
-    if ((type === "raw-purchase" || type === "supplier") && limit > 0 && custBal >= limit) {
-      setCreditWarning(true);
-    } else {
-      setCreditWarning(false);
-    }
-    setCreditStatement("");
-    setShowSupplierPanel(true);
-    setTimeout(() => searchRef.current?.focus(), 30);
-  };
+  // In RawPurchasePage.jsx, update the handleCustomerSelect function
+const handleCustomerSelect = async (c) => {
+  // Make sure we have a valid customer object
+  if (!c || !c._id) {
+    showMsg("Invalid customer selected", "error");
+    return;
+  }
   
-  const handleSupplierClear = () => {
-    setSupplierId("");
-    setSupplierName("COUNTER SALE");
+  // ✅ Fetch fresh customer data to get current balance
+  try {
+    const freshCustomer = await api.get(EP.CUSTOMERS.GET_ONE(c._id));
+    if (freshCustomer.data.success) {
+      const customer = freshCustomer.data.data;
+      const type = customer.customerType || customer.type || "";
+      setCustomerId(customer._id);
+      setCustomerName(customer.name);
+      setCodeSearch(customer.code || "");
+      setCustomerType(type);
+      setPrevBalance(customer.currentBalance || 0);
+      setPaymentMode("Credit");
+      setSaleSource("credit");
+      setDeductAmount(billAmount);
+
+      const limit = customer.creditLimit || 0;
+      const custBal = customer.currentBalance || 0;
+      if (type === "credit" && limit > 0 && custBal >= limit) {
+        setCreditWarning(true);
+      } else {
+        setCreditWarning(false);
+      }
+      setCreditStatement("");
+      setShowCustomerPanel(true);
+      setTimeout(() => searchRef.current?.focus(), 30);
+    }
+  } catch (error) {
+    console.error("Failed to fetch customer details:", error);
+    showMsg("Failed to load customer data", "error");
+  }
+};
+  const handleCustomerClear = () => {
+    setCustomerId("");
+    setCustomerName("COUNTER SALE");
     setCodeSearch("");
-    setSupplierType("");
+    setCustomerType("");
     setPrevBalance(0);
     setPaymentMode("Cash");
     setSaleSource("cash");
-    setPaidAmount(billAmount);
+    setDeductAmount(0);
     setCreditWarning(false);
     setCreditStatement("");
-    setShowSupplierPanel(false);
+    setShowCustomerPanel(false);
   };
 
-  const handleAddNewSupplier = async (name) => {
+  const handleAddNewCustomer = async (name) => {
     try {
       const { data } = await api.post(EP.CUSTOMERS.CREATE, {
         name: name.trim(),
-        type: "raw-purchase",
+        type: "credit",
         phone: "",
       });
       if (data.success) {
-        const newSupp = data.data;
-        setAllSuppliers((prev) => [...prev, newSupp]);
-        handleSupplierSelect({
-          _id: newSupp._id,
-          name: newSupp.name,
-          phone: newSupp.phone || "",
-          customerType: "raw-purchase",
-          type: "raw-purchase",
+        await fetchData();
+        const newCust = data.data;
+        handleCustomerSelect({
+          _id: newCust._id,
+          name: newCust.name,
+          phone: newCust.phone || "",
+          customerType: "credit",
+          type: "credit",
           currentBalance: 0,
-          creditLimit: newSupp.creditLimit || 0,
+          creditLimit: newCust.creditLimit || 0,
         });
-        showMsg(`"${name}" saved as new supplier`, "success");
+        showMsg(`"${name}" saved as new customer`, "success");
       }
     } catch {
-      showMsg("Supplier save failed", "error");
+      showMsg("Customer save failed", "error");
     }
     setTimeout(() => searchRef.current?.focus(), 30);
   };
@@ -1231,11 +1248,12 @@ export default function RawPurchasePage() {
         invoiceNo,
         amount: billAmount,
         items: [...items],
-        supplierId,
-        buyerName: supplierName,
-        supplierType,
+        customerId,
+        buyerName: customerName,
+        customerType,
         prevBalance,
         extraDiscount,
+        deductAmount,
         paymentMode,
         saleSource,
       },
@@ -1248,11 +1266,12 @@ export default function RawPurchasePage() {
     const bill = holdBills.find((b) => b.id === holdId);
     if (!bill) return;
     setItems(bill.items);
-    setSupplierId(bill.supplierId || "");
-    setSupplierName(bill.buyerName || "COUNTER SALE");
-    setSupplierType(bill.supplierType || "");
+    setCustomerId(bill.customerId || "");
+    setCustomerName(bill.buyerName || "COUNTER SALE");
+    setCustomerType(bill.customerType || "");
     setPrevBalance(bill.prevBalance || 0);
     setExtraDiscount(bill.extraDiscount || 0);
+    setDeductAmount(bill.deductAmount || 0);
     setPaymentMode(bill.paymentMode || "Cash");
     setSaleSource(bill.saleSource || "cash");
     setHoldBills((p) => p.filter((b) => b.id !== holdId));
@@ -1270,13 +1289,13 @@ export default function RawPurchasePage() {
     setCurRow({ ...EMPTY_ROW });
     setSearchText("");
     setPackingOptions([]);
-    setSupplierId("");
-    setSupplierName("COUNTER SALE");
+    setCustomerId("");
+    setCustomerName("COUNTER SALE");
     setCodeSearch("");
-    setSupplierType("");
+    setCustomerType("");
     setPrevBalance(0);
     setExtraDiscount(0);
-    setPaidAmount(0);
+    setDeductAmount(0);
     setPaymentMode("Cash");
     setSaleSource("cash");
     setEditId(null);
@@ -1284,7 +1303,7 @@ export default function RawPurchasePage() {
     setMsg({ text: "", type: "" });
     setCreditWarning(false);
     setCreditStatement("");
-    setShowSupplierPanel(false);
+    setShowCustomerPanel(false);
     setTimeout(() => searchRef.current?.focus(), 50);
   };
   
@@ -1293,21 +1312,23 @@ export default function RawPurchasePage() {
     setInvoiceNo(purchase.invoiceNo);
     setInvoiceDate(purchase.invoiceDate || isoDate());
 
-    const supp = allSuppliers.find((c) => c._id === purchase.supplierId);
-    if (supp) {
-      setSupplierId(supp._id);
-      setSupplierName(supp.name);
-      setSupplierType(supp.customerType || supp.type || "");
+    const cust = allCustomers.find((c) => c._id === purchase.customerId);
+    if (cust) {
+      setCustomerId(cust._id);
+      setCustomerName(cust.name);
+      setCustomerType(cust.customerType || cust.type || "");
       setPrevBalance(purchase.prevBalance || 0);
       setPaymentMode(purchase.paymentMode || "Cash");
       setSaleSource(purchase.saleSource || "cash");
+      setDeductAmount(purchase.paidAmount || 0);
     } else {
-      setSupplierId("");
-      setSupplierName(purchase.supplierName || "COUNTER SALE");
-      setSupplierType("");
+      setCustomerId("");
+      setCustomerName(purchase.customerName || "COUNTER SALE");
+      setCustomerType("");
       setPrevBalance(purchase.prevBalance || 0);
       setPaymentMode(purchase.paymentMode || "Cash");
       setSaleSource(purchase.saleSource || "cash");
+      setDeductAmount(purchase.paidAmount || 0);
     }
 
     const loadedItems = (purchase.items || []).map((it) => ({
@@ -1322,7 +1343,6 @@ export default function RawPurchasePage() {
     }));
     setItems(loadedItems);
     setExtraDiscount(purchase.extraDisc || 0);
-    setPaidAmount(purchase.paidAmount || 0);
     resetCurRow();
     showMsg(`✏ Editing Purchase Invoice ${purchase.invoiceNo}`, "success");
     setTimeout(() => searchRef.current?.focus(), 50);
@@ -1346,9 +1366,9 @@ export default function RawPurchasePage() {
   const buildPayload = () => ({
     invoiceNo,
     invoiceDate,
-    supplierId: supplierId || undefined,
-    supplierName: supplierName || "COUNTER SALE",
-    supplierPhone: "",
+    customerId: customerId || undefined,
+    customerName: customerName || "COUNTER SALE",
+    customerPhone: "",
     items: items.map((r) => ({
       productId: r.productId || undefined,
       code: r.code,
@@ -1368,9 +1388,9 @@ export default function RawPurchasePage() {
     discAmount: 0,
     netTotal: billAmount,
     prevBalance: parseFloat(prevBalance) || 0,
-    paidAmount: parseFloat(paidAmount) || 0,
+    paidAmount: parseFloat(deductAmount) || 0,
     balance,
-    paymentMode: supplierId ? "Credit" : "Cash",
+    paymentMode: customerId ? "Credit" : "Cash",
     saleSource: "raw-purchase",
     sendSms,
     printType,
@@ -1384,10 +1404,10 @@ export default function RawPurchasePage() {
       return;
     }
 
-    if (supplierId && (supplierType === "raw-purchase" || supplierType === "supplier")) {
+    if (customerId && customerType === "credit") {
       if (!creditStatement.trim()) {
         statementRef.current?.focus();
-        showMsg("Note is required", "error");
+        showMsg("Note is required for credit deduction", "error");
         return;
       }
     }
@@ -1397,68 +1417,93 @@ export default function RawPurchasePage() {
     setShowSaveModal(true);
   };
   
-  const confirmSaveWithPayload = async (payload, overrides) => {
-    if (!payload) return;
-    setLoading(true);
-    try {
-      const finalPayload = {
-        ...payload,
+const confirmSaveWithPayload = async (payload, overrides) => {
+  if (!payload) return;
+  setLoading(true);
+  try {
+    const finalPayload = {
+      ...payload,
+      extraDisc: overrides.extraDisc,
+      netTotal: overrides.netTotal,
+      paidAmount: overrides.paidAmount,
+      balance: overrides.balance,
+      printType: overrides.printType,
+    };
+    
+    const { data } = editId
+      ? await api.put(EP.RAW_PURCHASES.UPDATE(editId), finalPayload)
+      : await api.post(EP.RAW_PURCHASES.CREATE, finalPayload);
+
+    if (data.success) {
+      console.log("Purchase saved successfully:", data.data);
+      
+      // Update stock
+      await updateProductStockBulk(payload.items, "add");
+      
+      // ✅ FIRST: Refresh customer data to get updated balance
+      let updatedCustomerBalance = finalPayload.prevBalance; // Default to old value
+      
+      if (customerId) {
+        try {
+          const customerResponse = await api.get(EP.CUSTOMERS.GET_ONE(customerId));
+          if (customerResponse.data.success) {
+            updatedCustomerBalance = customerResponse.data.data.currentBalance || 0;
+            console.log("Updated customer balance from DB:", updatedCustomerBalance);
+            setPrevBalance(updatedCustomerBalance);
+          }
+        } catch (err) {
+          console.error("Failed to refresh customer balance:", err);
+        }
+      }
+      
+      showMsg(editId ? "Purchase updated!" : `Saved: ${data.data.invoiceNo}`);
+      
+      // ✅ Prepare print object with CORRECT updated balance
+      const saleObj = {
+        invoiceNo: data.data.invoiceNo,
+        invoiceDate: finalPayload.invoiceDate,
+        customerName: finalPayload.customerName,
+        saleSource: finalPayload.saleSource,
+        paymentMode: finalPayload.paymentMode,
+        items: payload.items,
+        subTotal: finalPayload.subTotal,
         extraDisc: overrides.extraDisc,
         netTotal: overrides.netTotal,
+        prevBalance: updatedCustomerBalance, // ✅ Use updated balance from database
         paidAmount: overrides.paidAmount,
-        balance: overrides.balance,
-        printType: overrides.printType,
+        balance: updatedCustomerBalance - overrides.paidAmount, // ✅ Calculate correct remaining balance
       };
       
-      const { data } = editId
-        ? await api.put(EP.RAW_PURCHASES.UPDATE(editId), finalPayload)
-        : await api.post(EP.RAW_PURCHASES.CREATE, finalPayload);
-
-      if (data.success) {
-        // UPDATE STOCK - ADD quantities for purchase
-        await updateProductStockBulk(payload.items, "add");
-        
-        showMsg(editId ? "Purchase updated!" : `Saved: ${data.data.invoiceNo}`);
-        const saleObj = {
-          invoiceNo: data.data.invoiceNo,
-          invoiceDate: finalPayload.invoiceDate,
-          customerName: finalPayload.supplierName,
-          saleSource: finalPayload.saleSource,
-          paymentMode: finalPayload.paymentMode,
-          items: payload.items,
-          subTotal: finalPayload.subTotal,
-          extraDisc: overrides.extraDisc,
-          netTotal: overrides.netTotal,
-          prevBalance: finalPayload.prevBalance,
-          paidAmount: overrides.paidAmount,
-          balance: overrides.balance,
-        };
-        
-        if (overrides.withPrint) {
-          setPendingPrintSale(saleObj);
-          setShowPrintModal(true);
-        }
-        
-        setShowSaveModal(false);
-        setPendingPayload(null);
-        fullReset();
-        await refreshInvoiceNo();
-        
-        // Refresh products to show updated stock
-        const pRes = await api.get(EP.PRODUCTS.GET_ALL);
-        if (pRes.data.success) {
-          setAllProducts(pRes.data.data);
-        }
-      } else {
-        showMsg(data.message, "error");
+      if (overrides.withPrint) {
+        setPendingPrintSale(saleObj);
+        setShowPrintModal(true);
       }
-    } catch (e) {
-      console.error("Save error:", e);
-      showMsg(e.response?.data?.message || "Save failed", "error");
+      
+      setShowSaveModal(false);
+      setPendingPayload(null);
+      fullReset();
+      await refreshInvoiceNo();
+      
+      // Refresh products to show updated stock
+      const pRes = await api.get(EP.PRODUCTS.GET_ALL);
+      if (pRes.data.success) {
+        setAllProducts(pRes.data.data);
+      }
+      
+      // Refresh customers list
+      const cRes = await api.get(EP.CUSTOMERS.GET_ALL);
+      if (cRes.data.success) {
+        setAllCustomers(cRes.data.data);
+      }
+    } else {
+      showMsg(data.message, "error");
     }
-    setLoading(false);
-  };
-
+  } catch (e) {
+    console.error("Save error:", e);
+    showMsg(e.response?.data?.message || "Save failed", "error");
+  }
+  setLoading(false);
+};
   const confirmSave = async (overrides) => {
     confirmSaveWithPayload(pendingPayload, overrides);
   };
@@ -1483,7 +1528,7 @@ export default function RawPurchasePage() {
         {showProductModal && <SearchModal allProducts={allProducts} onSelect={pickProduct} onClose={() => { setShowProductModal(false); setTimeout(() => searchRef.current?.focus(), 30); }} />}
         {showHoldPreview && <HoldPreviewModal bill={showHoldPreview} onResume={resumeHold} onClose={() => setShowHoldPreview(null)} />}
         {showSaveModal && pendingPayload && <SaveConfirmModal salePayload={pendingPayload} printType={printType} onConfirm={confirmSave} onClose={() => { setShowSaveModal(false); setPendingPayload(null); }} />}
-        {showPrintModal && pendingPrintSale && <PrintOptionsModal sale={pendingPrintSale} allCustomers={allSuppliers} defaultPrintType={printType} hideCustomerFields={pendingPrintSale.paymentMode === "Credit"} newCustomerType="raw-purchase" onPrint={(type, overrides) => { doPrint(pendingPrintSale, type, overrides); setShowPrintModal(false); setPendingPrintSale(null); }} onClose={() => { setShowPrintModal(false); setPendingPrintSale(null); }} />}
+        {showPrintModal && pendingPrintSale && <PrintOptionsModal sale={pendingPrintSale} allCustomers={allCustomers} defaultPrintType={printType} hideCustomerFields={pendingPrintSale.paymentMode === "Credit"} newCustomerType="credit" onPrint={(type, overrides) => { doPrint(pendingPrintSale, type, overrides); setShowPrintModal(false); setPendingPrintSale(null); }} onClose={() => { setShowPrintModal(false); setPendingPrintSale(null); }} />}
         
         <div className="xp-titlebar">
           <svg width="15" height="15" viewBox="0 0 16 16" fill="rgba(255,255,255,0.85)">
@@ -1569,25 +1614,26 @@ export default function RawPurchasePage() {
               <div className="sl-sum-cell"><label>Total Qty</label><input className="sl-sum-val" value={totalQty.toLocaleString("en-PK")} readOnly /></div>
               <div className="sl-sum-cell"><label>Sub Total</label><input className="sl-sum-val" value={Number(subTotal).toLocaleString("en-PK")} readOnly /></div>
               <div className="sl-sum-cell"><label>Bill Amount</label><input className="sl-sum-val" value={Number(billAmount).toLocaleString("en-PK")} readOnly /></div>
-              <div className="sl-sum-cell"><label>Extra Discount</label><input ref={discRef} type="text" className="sl-sum-input" value={extraDiscount} min={0} onChange={(e) => setExtraDiscount(e.target.value)} onKeyDown={(e) => e.key === "Enter" && paidRef.current?.focus()} onFocus={(e) => e.target.select()} /></div>
-              <div className="sl-sum-cell"><label>Paid</label><input ref={paidRef} type="text" className="sl-sum-input" style={{ color: "var(--xp-green)", fontWeight: 700 }} value={paidAmount} min={0} onChange={(e) => setPaidAmount(e.target.value)} onKeyDown={(e) => e.key === "Enter" && saveRef.current?.focus()} onFocus={(e) => e.target.select()} /></div>
-              <div className="sl-sum-cell"><label>Balance</label><input className={`sl-sum-val sl-bal${balance > 0 ? " danger" : balance < 0 ? " success" : ""}`} value={Number(balance).toLocaleString("en-PK")} readOnly /></div>
+              <div className="sl-sum-cell"><label>Extra Discount</label><input ref={discRef} type="text" className="sl-sum-input" value={extraDiscount} min={0} onChange={(e) => setExtraDiscount(e.target.value)} onKeyDown={(e) => e.key === "Enter" && deductRef.current?.focus()} onFocus={(e) => e.target.select()} /></div>
+              <div className="sl-sum-cell"><label>Amount to Deduct</label><input ref={deductRef} type="text" className="sl-sum-input" style={{ color: "var(--xp-green)", fontWeight: 700 }} value={deductAmount} min={0} onChange={(e) => setDeductAmount(e.target.value)} onKeyDown={(e) => e.key === "Enter" && saveRef.current?.focus()} onFocus={(e) => e.target.select()} /></div>
+              <div className="sl-sum-cell"><label>Remaining Balance</label><input className={`sl-sum-val sl-bal${balance > 0 ? " danger" : balance < 0 ? " success" : ""}`} value={Number(balance).toLocaleString("en-PK")} readOnly /></div>
             </div>
 
             <div className="sl-customer-bar">
-              <div className="sl-cust-cell"><label>Code</label><input style={{ width: 65 }} value={supplierId ? allSuppliers.find((c) => c._id === supplierId)?.code || codeSearch : codeSearch} onChange={(e) => setCodeSearch(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); const q = codeSearch.trim(); if (!q) return; const found = allSuppliers.find((c) => String(c.code).toLowerCase() === q.toLowerCase() && (c.customerType || c.type || "").toLowerCase() === "raw-purchase"); if (found) { handleSupplierSelect(found); setCodeSearch(""); } else { showMsg(`Code "${q}" — supplier nahi mila`, "error"); } } }} placeholder="Code…" autoComplete="off" /></div>
-              <div className="sl-cust-cell sl-cust-buyer"><label>Supplier Name</label><SupplierDropdown allSuppliers={allSuppliers} value={supplierId} displayName={supplierName} supplierType={supplierType} onSelect={handleSupplierSelect} onClear={handleSupplierClear} onAddNew={handleAddNewSupplier} allowedTypes={["raw-purchase", "supplier", "credit"]} /></div>
+              <div className="sl-cust-cell"><label>Code</label><input style={{ width: 65 }} value={customerId ? allCustomers.find((c) => c._id === customerId)?.code || codeSearch : codeSearch} onChange={(e) => setCodeSearch(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); const q = codeSearch.trim(); if (!q) return; const found = allCustomers.find((c) => String(c.code).toLowerCase() === q.toLowerCase()); if (found) { handleCustomerSelect(found); setCodeSearch(""); } else { showMsg(`Code "${q}" — customer nahi mila`, "error"); } } }} placeholder="Code…" autoComplete="off" /></div>
+              <div className="sl-cust-cell sl-cust-buyer"><label>Customer Name</label><CustomerDropdown allCustomers={allCustomers} value={customerId} displayName={customerName} customerType={customerType} onSelect={handleCustomerSelect} onClear={handleCustomerClear} onAddNew={handleAddNewCustomer} allowedTypes={["credit", "walkin", "wholesale"]} /></div>
               <div className="sl-cust-cell"><label>Prev Balance</label><input type="text" className="sl-cust-input" style={{ width: 85 }} value={prevBalance} onChange={(e) => setPrevBalance(e.target.value)} onFocus={(e) => e.target.select()} /></div>
-              <div className="sl-cust-cell"><label>Net Payable</label><input className="sl-cust-input sl-net-recv" style={{ color: balance > 0 ? "var(--xp-red)" : "var(--xp-green)", fontWeight: 700, width: 85 }} value={Number(balance).toLocaleString("en-PK")} readOnly /></div>
+              <div className="sl-cust-cell"><label>Net Receivable</label><input className="sl-cust-input sl-net-recv" style={{ color: balance > 0 ? "var(--xp-red)" : "var(--xp-green)", fontWeight: 700, width: 85 }} value={Number(balance).toLocaleString("en-PK")} readOnly /></div>
+              <div className="sl-pay-btns">{["Cash", "Credit"].map((m) => (<button key={m} className={`sl-pay-btn${paymentMode === m ? " active-" + m.toLowerCase() : ""}`} onClick={() => handlePaymentMode(m)}>{m}</button>))}</div>
             </div>
 
-            {showSupplierPanel && supplierId && (
+            {showCustomerPanel && customerId && (
               <div className={`sl-credit-warning-bar${creditWarning ? "" : " sl-credit-normal"}`}>
                 <div className="sl-credit-warning-left">
-                  {(() => { const supp = allSuppliers.find((c) => c._id === supplierId); return supp?.imageFront ? (<img src={supp.imageFront} alt={supp.name} style={{ width: 48, height: 48, borderRadius: 4, objectFit: "cover", border: "2px solid #fff", flexShrink: 0 }} />) : (<div style={{ width: 48, height: 48, borderRadius: 4, background: "rgba(255,255,255,0.3)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, flexShrink: 0 }}>🏭</div>); })()}
+                  {(() => { const cust = allCustomers.find((c) => c._id === customerId); return cust?.imageFront ? (<img src={cust.imageFront} alt={cust.name} style={{ width: 48, height: 48, borderRadius: 4, objectFit: "cover", border: "2px solid #fff", flexShrink: 0 }} />) : (<div style={{ width: 48, height: 48, borderRadius: 4, background: "rgba(255,255,255,0.3)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, flexShrink: 0 }}>👤</div>); })()}
                   <div>{creditWarning ? (<><div className="sl-credit-title">⚠ CREDIT LIMIT EXCEEDED</div><div className="sl-credit-sub">Balance: <b>{fmt(prevBalance)}</b> — Enter authorization statement to proceed</div></>) : (<div className="sl-credit-sub" style={{ color: "#fff" }}>Balance: <b>{fmt(prevBalance)}</b></div>)}</div>
                 </div>
-                <input ref={statementRef} type="text" className="sl-credit-statement-input" placeholder={creditWarning ? "Enter reason / authorization statement to allow purchase…" : "Notes (optional)…"} value={creditStatement} onChange={(e) => setCreditStatement(e.target.value)} />
+                <input ref={statementRef} type="text" className="sl-credit-statement-input" placeholder={creditWarning ? "Enter reason / authorization statement to allow deduction…" : "Notes (optional)…"} value={creditStatement} onChange={(e) => setCreditStatement(e.target.value)} />
               </div>
             )}
           </div>
@@ -1597,7 +1643,7 @@ export default function RawPurchasePage() {
               <div className="sl-hold-title"><span>Hold Bills <kbd style={{ fontSize: 9, background: "rgba(255,255,255,0.2)", padding: "0 3px", borderRadius: 2 }}>F4</kbd></span><span className="sl-hold-cnt">{holdBills.length}</span></div>
               <div className="sl-hold-table-wrap">
                 <table className="sl-hold-table">
-                  <thead><tr><th style={{ width: 24 }}>#</th><th>Bill #</th><th className="r">Amount</th><th>Supplier</th><th style={{ width: 22 }}></th></tr></thead>
+                  <thead><tr><th style={{ width: 24 }}>#</th><th>Bill #</th><th className="r">Amount</th><th>Customer</th><th style={{ width: 22 }}></th></tr></thead>
                   <tbody>
                     {holdBills.length === 0 ? Array.from({ length: 8 }).map((_, i) => (<tr key={i}><td colSpan={5} style={{ height: 22 }} /></tr>)) : holdBills.map((b, i) => (<tr key={b.id} onClick={() => setShowHoldPreview(b)} onDoubleClick={() => resumeHold(b.id)} title="Click = preview · Double-click = resume"><td className="muted" style={{ textAlign: "center", fontSize: "var(--xp-fs-xs)" }}>{i + 1}</td><td style={{ fontFamily: "var(--xp-mono)", fontSize: "var(--xp-fs-xs)" }}>{b.invoiceNo}</td><td className="r" style={{ color: "var(--xp-blue-dark)" }}>{Number(b.amount).toLocaleString("en-PK")}</td><td className="muted" style={{ fontSize: "var(--xp-fs-xs)" }}>{b.buyerName}</td><td style={{ textAlign: "center" }}><button className="xp-btn xp-btn-sm xp-btn-ico" style={{ width: 18, height: 18, fontSize: 9, color: "var(--xp-red)" }} onClick={(e) => deleteHold(b.id, e)}>✕</button></td></tr>))}
                   </tbody>
@@ -1606,7 +1652,7 @@ export default function RawPurchasePage() {
               <div className="sl-hold-scroll-btns"><button className="xp-btn xp-btn-sm xp-btn-ico">◀</button><button className="xp-btn xp-btn-sm xp-btn-ico">▶</button></div>
               <div style={{ padding: "4px 8px", flexShrink: 0 }}><button className="xp-btn xp-btn-sm" style={{ width: "100%" }} onClick={holdBill} disabled={!items.length}>Hold Bill (F4)</button></div>
             </div>
-            {supplierId && (() => { const supp = allSuppliers.find((c) => c._id === supplierId); return supp ? (<div style={{ width: "100%", height: 100, marginTop: 6, borderRadius: 6, overflow: "hidden", border: "2px solid var(--xp-silver-4)", flexShrink: 0, order: 2 }}>{supp.imageFront ? (<img src={supp.imageFront} alt={supp.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />) : (<div style={{ width: "100%", height: "100%", background: "var(--xp-silver-3)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 48 }}>🏭</div>)}</div>) : null; })()}
+            {customerId && (() => { const cust = allCustomers.find((c) => c._id === customerId); return cust ? (<div style={{ width: "100%", height: 100, marginTop: 6, borderRadius: 6, overflow: "hidden", border: "2px solid var(--xp-silver-4)", flexShrink: 0, order: 2 }}>{cust.imageFront ? (<img src={cust.imageFront} alt={cust.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />) : (<div style={{ width: "100%", height: "100%", background: "var(--xp-silver-3)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 48 }}>👤</div>)}</div>) : null; })()}
           </div>
         </div>
 

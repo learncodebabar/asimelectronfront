@@ -1738,37 +1738,53 @@ export default function SalePage() {
     setMsg({ text, type });
     setTimeout(() => setMsg({ text: "", type: "" }), 3500);
   };
+const handleCustomerSelect = async (c) => {
+  // Make sure we have a valid customer object
+  if (!c || !c._id) {
+    showMsg("Invalid customer selected", "error");
+    return;
+  }
+  
+  // ✅ Fetch fresh customer data to get current balance
+  try {
+    const freshCustomer = await api.get(EP.CUSTOMERS.GET_ONE(c._id));
+    if (freshCustomer.data.success) {
+      const customer = freshCustomer.data.data;
+      const type = customer.customerType || customer.type || "";
+      setCustomerId(customer._id);
+      setBuyerName(customer.name);
+      setCustomerType(type);
+      setPrevBalance(customer.currentBalance || 0);
+      setCodeSearch("");
+      const pm = typeToPayment(type);
+      const ss = typeToSource(type);
+      setPaymentMode(pm);
+      setSaleSource(ss);
+      if (pm === "Credit") setReceived(0);
+      else setReceived(billAmount + (customer.currentBalance || 0));
 
-  const handleCustomerSelect = (c) => {
-    const type = c.customerType || c.type || "";
-    setCustomerId(c._id);
-    setBuyerName(c.name);
-    setCustomerType(type);
-    setPrevBalance(c.currentBalance || 0);
-    setCodeSearch("");
-    const pm = typeToPayment(type);
-    const ss = typeToSource(type);
-    setPaymentMode(pm);
-    setSaleSource(ss);
-    if (pm === "Credit") setReceived(0);
-    else setReceived(billAmount + (c.currentBalance || 0));
+      const limit = customer.creditLimit || 0;
+      const custBal = customer.currentBalance || 0;
+      if (type === "credit" && limit > 0 && custBal >= limit) {
+        setCreditWarning(true);
+      } else {
+        setCreditWarning(false);
+      }
+      setCreditStatement("");
+      setShowCustomerPanel(true);
 
-    const limit = c.creditLimit || 0;
-    const custBal = c.currentBalance || 0;
-    if (type === "credit" && limit > 0 && custBal >= limit) {
-      setCreditWarning(true);
-    } else {
-      setCreditWarning(false);
+      if (type === "credit") {
+        setTimeout(() => statementRef.current?.focus(), 80);
+      } else {
+        setTimeout(() => searchRef.current?.focus(), 30);
+      }
     }
-    setCreditStatement("");
-    setShowCustomerPanel(true);
+  } catch (error) {
+    console.error("Failed to fetch customer details:", error);
+    showMsg("Failed to load customer data", "error");
+  }
+};
 
-    if (type === "credit") {
-      setTimeout(() => statementRef.current?.focus(), 80);
-    } else {
-      setTimeout(() => searchRef.current?.focus(), 30);
-    }
-  };
   
   const handleCustomerClear = () => {
     setCustomerId("");
@@ -2091,61 +2107,77 @@ export default function SalePage() {
     setShowSaveModal(true);
   };
   
-  const confirmSaveWithPayload = async (payload, overrides) => {
-    if (!payload) return;
-    setLoading(true);
-    try {
-      const finalPayload = {
-        ...payload,
+const confirmSaveWithPayload = async (payload, overrides) => {
+  if (!payload) return;
+  setLoading(true);
+  try {
+    const finalPayload = {
+      ...payload,
+      extraDisc: overrides.extraDisc,
+      netTotal: overrides.netTotal,
+      paidAmount: overrides.paidAmount,
+      balance: overrides.balance,
+      printType: overrides.printType,
+    };
+    const { data } = editId
+      ? await api.put(EP.SALES.UPDATE(editId), finalPayload)
+      : await api.post(EP.SALES.CREATE, finalPayload);
+
+    if (data.success) {
+      showMsg(editId ? "Sale updated!" : `Saved: ${data.data.invoiceNo}`);
+      
+      // ✅ REFRESH CUSTOMER BALANCE AFTER SAVE
+      if (customerId) {
+        try {
+          // Fetch the specific customer to get updated balance
+          const customerResponse = await api.get(EP.CUSTOMERS.GET_ONE(customerId));
+          if (customerResponse.data.success) {
+            const updatedCustomer = customerResponse.data.data;
+            console.log("Updated customer balance:", updatedCustomer.currentBalance);
+            setPrevBalance(updatedCustomer.currentBalance || 0);
+          }
+        } catch (err) {
+          console.error("Failed to refresh customer balance:", err);
+        }
+      }
+      
+      const saleObj = {
+        invoiceNo: data.data.invoiceNo,
+        invoiceDate: finalPayload.invoiceDate,
+        customerName: finalPayload.customerName,
+        saleSource: finalPayload.saleSource,
+        paymentMode: finalPayload.paymentMode,
+        items: payload.items,
+        subTotal: finalPayload.subTotal,
         extraDisc: overrides.extraDisc,
         netTotal: overrides.netTotal,
+        prevBalance: finalPayload.prevBalance,
         paidAmount: overrides.paidAmount,
         balance: overrides.balance,
-        printType: overrides.printType,
       };
-      const { data } = editId
-        ? await api.put(EP.SALES.UPDATE(editId), finalPayload)
-        : await api.post(EP.SALES.CREATE, finalPayload);
-
-      if (data.success) {
-        showMsg(editId ? "Sale updated!" : `Saved: ${data.data.invoiceNo}`);
-        const saleObj = {
-          invoiceNo: data.data.invoiceNo,
-          invoiceDate: finalPayload.invoiceDate,
-          customerName: finalPayload.customerName,
-          saleSource: finalPayload.saleSource,
-          paymentMode: finalPayload.paymentMode,
-          items: payload.items,
-          subTotal: finalPayload.subTotal,
-          extraDisc: overrides.extraDisc,
-          netTotal: overrides.netTotal,
-          prevBalance: finalPayload.prevBalance,
-          paidAmount: overrides.paidAmount,
-          balance: overrides.balance,
-        };
-        
-        // Print gatepass if checkbox was checked
-        if (gatepassPrint) {
-          doPrint(saleObj, "Gatepass", { customerName: finalPayload.customerName, hidePrices: true });
-          setGatepassPrint(false);
-        }
-        
-        if (overrides.withPrint) {
-          setPendingPrintSale(saleObj);
-          setShowPrintModal(true);
-        }
-        setShowSaveModal(false);
-        setPendingPayload(null);
-        fullReset();
-        await refreshInvoiceNo();
-      } else {
-        showMsg(data.message, "error");
+      
+      // Print gatepass if checkbox was checked
+      if (gatepassPrint) {
+        doPrint(saleObj, "Gatepass", { customerName: finalPayload.customerName, hidePrices: true });
+        setGatepassPrint(false);
       }
-    } catch (e) {
-      showMsg(e.response?.data?.message || "Save failed", "error");
+      
+      if (overrides.withPrint) {
+        setPendingPrintSale(saleObj);
+        setShowPrintModal(true);
+      }
+      setShowSaveModal(false);
+      setPendingPayload(null);
+      fullReset();
+      await refreshInvoiceNo();
+    } else {
+      showMsg(data.message, "error");
     }
-    setLoading(false);
-  };
+  } catch (e) {
+    showMsg(e.response?.data?.message || "Save failed", "error");
+  }
+  setLoading(false);
+};
 
   const confirmSave = async (overrides) => {
     confirmSaveWithPayload(pendingPayload, overrides);

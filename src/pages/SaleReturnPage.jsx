@@ -72,7 +72,7 @@ const buildPrintHtml = (ret, type) => {
             <td class="r">${it.pcs}</td>
             <td class="r">${Number(it.rate).toLocaleString()}</td>
             <td class="r"><b>${Number(it.amount).toLocaleString()}</b></td>
-          </tr>`,
+          <tr>`,
       )
       .join("");
     return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>
@@ -608,39 +608,48 @@ function SearchModal({ allProducts, onSelect, onClose }) {
                     <th className="r">Pack</th>
                   </tr>
                 </thead>
-                <tbody ref={tbodyRef} tabIndex={0} onKeyDown={tk}>
-                  {rows.length === 0 && (
-                    <tr>
-                      <td colSpan={7} className="xp-empty">
-                        No products found
-                      </td>
-                    </tr>
-                  )}
-                  {rows.map((r, i) => (
-                    <tr
-                      key={`${r._id}-${r._pi}`}
-                      style={{
-                        background: i === hiIdx ? "#c3d9f5" : undefined,
-                      }}
-                      onClick={() => setHiIdx(i)}
-                      onDoubleClick={() => onSelect(r)}
-                    >
-                      <td className="text-muted">{i + 1}</td>
-                      <td>
-                        <span className="xp-code">{r.code}</span>
-                      </td>
-                      <td>
-                        <button className="xp-link-btn">{r._name}</button>
-                      </td>
-                      <td className="text-muted">{r._meas}</td>
-                      <td className="r xp-amt">
-                        {Number(r._rate).toLocaleString("en-PK")}
-                      </td>
-                      <td className="r">{r._stock}</td>
-                      <td className="r">{r._pack}</td>
-                    </tr>
-                  ))}
-                </tbody>
+             <tbody ref={tbodyRef} tabIndex={0} onKeyDown={tk}>
+  
+  {rows.length === 0 && (
+    <tr>
+      <td colSpan={7} className="xp-empty">
+        No products found
+      </td>
+    </tr>
+  )}
+
+  {rows.map((r, i) => (
+    <tr
+      key={`${r._id}-${r._pi}`}
+      style={{
+        background: i === hiIdx ? "#c3d9f5" : undefined,
+      }}
+      onClick={() => setHiIdx(i)}
+      onDoubleClick={() => onSelect(r)}
+    >
+      <td className="text-muted">{i + 1}</td>
+
+      <td>
+        <span className="xp-code">{r.code}</span>
+      </td>
+
+      <td>
+        <button className="xp-link-btn">{r._name}</button>
+      </td>
+
+      <td className="text-muted">{r._meas}</td>
+
+      <td className="r xp-amt">
+        {Number(r._rate).toLocaleString("en-PK")}
+      </td>
+
+      <td className="r">{r._stock}</td>
+
+      <td className="r">{r._pack}</td>
+    </tr>
+  ))}
+
+</tbody>
               </table>
             </div>
           </div>
@@ -655,7 +664,7 @@ function SearchModal({ allProducts, onSelect, onClose }) {
 }
 
 /* ══════════════════════════════════════════════════════════
-   SALE INVOICE SEARCH MODAL (IMPROVED KEYBOARD NAVIGATION)
+   SALE INVOICE SEARCH MODAL
 ══════════════════════════════════════════════════════════ */
 function SearchSaleModal({ onSelect, onClose, onNext, onPrev, hasNext, hasPrev }) {
   const [searchId, setSearchId] = useState("");
@@ -673,38 +682,19 @@ function SearchSaleModal({ onSelect, onClose, onNext, onPrev, hasNext, hasPrev }
   const searchPriceRef = useRef(null);
   const listRef = useRef(null);
 
-  useEffect(() => {
-    fetchInvoices();
-  }, [currentPage, searchId, searchPhone, searchPrice, priceOperator]);
-
-  useEffect(() => {
-    setTimeout(() => searchIdRef.current?.focus(), 50);
-  }, []);
-
   const fetchInvoices = async () => {
     setLoading(true);
     try {
-      const params = new URLSearchParams();
-      if (searchId) params.append("search", searchId);
-      if (searchPhone) params.append("phone", searchPhone);
-      if (searchPrice) {
-        params.append("price", searchPrice);
-        params.append("priceOperator", priceOperator);
-      }
-      params.append("page", currentPage);
-      params.append("limit", 20);
-      params.append("type", "sale");
-      
-      const response = await api.get(`${EP.SALES.GET_ALL}?${params}`);
+      const response = await api.get(EP.SALES.GET_ALL);
       if (response.data.success) {
         let sales = response.data.data;
         if (Array.isArray(sales)) {
+          // Filter by search criteria
           if (searchId) {
             const searchIdLower = searchId.toLowerCase();
             sales = sales.filter(sale => 
               sale.invoiceNo?.toLowerCase().includes(searchIdLower) ||
-              sale._id?.toLowerCase().includes(searchIdLower) ||
-              sale.returnNo?.toLowerCase().includes(searchIdLower)
+              sale._id?.toLowerCase().includes(searchIdLower)
             );
           }
           
@@ -732,6 +722,7 @@ function SearchSaleModal({ onSelect, onClose, onNext, onPrev, hasNext, hasPrev }
             });
           }
           
+          // Only show sale invoices (not returns)
           sales = sales.filter(
             (sale) =>
               sale.saleType === "sale" ||
@@ -741,7 +732,7 @@ function SearchSaleModal({ onSelect, onClose, onNext, onPrev, hasNext, hasPrev }
           );
         }
         setInvoices(sales);
-        setTotalInvoices(response.data.total || sales.length);
+        setTotalInvoices(sales.length);
         setHiIdx(sales.length > 0 ? 0 : -1);
       }
     } catch (error) {
@@ -749,6 +740,14 @@ function SearchSaleModal({ onSelect, onClose, onNext, onPrev, hasNext, hasPrev }
     }
     setLoading(false);
   };
+
+  useEffect(() => {
+    fetchInvoices();
+  }, [searchId, searchPhone, searchPrice, priceOperator]);
+
+  useEffect(() => {
+    setTimeout(() => searchIdRef.current?.focus(), 50);
+  }, []);
 
   const handleFieldKeyDown = (e, fieldType) => {
     if (e.key === "Enter") {
@@ -811,28 +810,11 @@ function SearchSaleModal({ onSelect, onClose, onNext, onPrev, hasNext, hasPrev }
     }
   };
 
-  const handlePrevPage = () => {
-    if (currentPage > 0) {
-      setCurrentPage(currentPage - 1);
-    } else if (onPrev) {
-      onPrev();
-    }
-  };
-
-  const handleNextPage = () => {
-    if (invoices.length === 20) {
-      setCurrentPage(currentPage + 1);
-    } else if (onNext) {
-      onNext();
-    }
-  };
-
   const clearFilters = () => {
     setSearchId("");
     setSearchPhone("");
     setSearchPrice("");
     setPriceOperator("eq");
-    setCurrentPage(0);
     setTimeout(() => searchIdRef.current?.focus(), 50);
   };
 
@@ -969,7 +951,7 @@ function SearchSaleModal({ onSelect, onClose, onNext, onPrev, hasNext, hasPrev }
                   {!loading && invoices.length === 0 && (
                     <tr>
                       <td colSpan={7} className="xp-empty">
-                        No sale invoices found. Press Enter in Amount field to search.
+                        No sale invoices found.
                       </td>
                     </tr>
                   )}
@@ -983,7 +965,7 @@ function SearchSaleModal({ onSelect, onClose, onNext, onPrev, hasNext, hasPrev }
                       onClick={() => setHiIdx(i)}
                       onDoubleClick={() => onSelect(inv)}
                     >
-                      <td className="text-muted">{i + 1 + (currentPage * 20)}</td>
+                      <td className="text-muted">{i + 1}</td>
                       <td style={{ fontFamily: "var(--xp-mono)", fontWeight: 500 }}>
                         {inv.invoiceNo || inv.returnNo || "N/A"}
                       </td>
@@ -1015,31 +997,6 @@ function SearchSaleModal({ onSelect, onClose, onNext, onPrev, hasNext, hasPrev }
         }}>
           <div className="cs-modal-hint" style={{ margin: 0 }}>
             ⬆⬇ = navigate results &nbsp;|&nbsp; Enter = select invoice &nbsp;|&nbsp; Tab between fields &nbsp;|&nbsp; Esc = close
-            <br />
-            <span style={{ fontSize: 10, color: "#666" }}>
-              ✓ Enter in Invoice ID → goes to Phone | Enter in Phone → goes to Amount | Enter in Amount → searches
-            </span>
-          </div>
-          <div style={{ display: "flex", gap: 8 }}>
-            <button
-              className="xp-btn xp-btn-sm"
-              onClick={handlePrevPage}
-              disabled={currentPage === 0 && !hasPrev}
-              style={{ display: "flex", alignItems: "center", gap: 4 }}
-            >
-              ◀ Previous
-            </button>
-            <span style={{ fontSize: 12, padding: "4px 8px", background: "#f3f4f6", borderRadius: 4 }}>
-              Page {currentPage + 1}
-            </span>
-            <button
-              className="xp-btn xp-btn-sm"
-              onClick={handleNextPage}
-              disabled={invoices.length < 20 && !hasNext}
-              style={{ display: "flex", alignItems: "center", gap: 4 }}
-            >
-              Next ▶
-            </button>
           </div>
         </div>
       </div>
@@ -1569,20 +1526,20 @@ export default function SaleReturnPage() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [pRes, cRes, rtnRes] = await Promise.all([
+      const [pRes, cRes] = await Promise.all([
         api.get(EP.PRODUCTS.GET_ALL),
         api.get(EP.CUSTOMERS.GET_ALL),
-        api.get(EP.SALES.NEXT_RETURN_NO || EP.SALES.NEXT_INVOICE),
       ]);
       if (pRes.data.success) setAllProducts(pRes.data.data);
       if (cRes.data.success) setAllCustomers(cRes.data.data);
-      if (rtnRes.data.success) {
-        const no =
-          rtnRes.data.data.returnNo ||
-          rtnRes.data.data.invoiceNo ||
-          "RTN-00001";
-        setReturnNo(no.replace("INV", "RTN"));
-      }
+      
+      // Generate return number locally
+      const today = new Date();
+      const year = today.getFullYear();
+      const month = String(today.getMonth() + 1).padStart(2, '0');
+      const date = String(today.getDate()).padStart(2, '0');
+      setReturnNo(`RTN-${year}${month}${date}-${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`);
+      
     } catch {
       showMsg("Failed to load data", "error");
     }
@@ -1610,14 +1567,12 @@ export default function SaleReturnPage() {
     }
   };
 
-  const refreshReturnNo = async () => {
-    try {
-      const r = await api.get(EP.SALES.NEXT_RETURN_NO || EP.SALES.NEXT_INVOICE);
-      if (r.data.success) {
-        const no = r.data.data.returnNo || r.data.data.invoiceNo || "RTN-00001";
-        setReturnNo(no.replace("INV", "RTN"));
-      }
-    } catch {}
+  const refreshReturnNo = () => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const date = String(today.getDate()).padStart(2, '0');
+    setReturnNo(`RTN-${year}${month}${date}-${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`);
   };
 
   const loadSaleByInv = async (saleData = null) => {
@@ -1664,11 +1619,9 @@ export default function SaleReturnPage() {
     }
     
     try {
-      const r = await api.get(
-        `${EP.SALES.GET_BY_INV || EP.SALES.GET_ALL}?invoiceNo=${saleInvNo.trim()}`
-      );
+      const r = await api.get(EP.SALES.GET_ALL);
       if (r.data.success && r.data.data) {
-        const sale = Array.isArray(r.data.data) ? r.data.data[0] : r.data.data;
+        const sale = r.data.data.find(s => s.invoiceNo === saleInvNo.trim());
         if (!sale) {
           showMsg("Invoice not found", "error");
           return;
@@ -1940,10 +1893,7 @@ export default function SaleReturnPage() {
       };
       const { data } = editId
         ? await api.put(EP.SALES.UPDATE(editId), finalPayload)
-        : await api.post(
-            EP.SALES.RETURN_CREATE || EP.SALES.CREATE,
-            finalPayload,
-          );
+        : await api.post(EP.SALES.CREATE, finalPayload);
 
       if (data.success) {
         showMsg(
@@ -1966,7 +1916,7 @@ export default function SaleReturnPage() {
         setShowSaveModal(false);
         setPendingPayload(null);
         fullReset();
-        await refreshReturnNo();
+        refreshReturnNo();
       } else {
         showMsg(data.message, "error");
       }
