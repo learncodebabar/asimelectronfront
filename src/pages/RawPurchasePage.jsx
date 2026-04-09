@@ -257,7 +257,7 @@ const buildPrintHtml = (sale, type, overrides = {}) => {
       <div class="page"${pageNum > 1 ? ' style="page-break-before:always"' : ""}>
         ${headerHtml}
         ${metaHtml}
-        <table>
+        <tr>
           <thead>
             <tr>
               <th style="width:28px;text-align:center">Sr.#</th>
@@ -645,30 +645,30 @@ function SearchModal({ allProducts, onSelect, onClose }) {
                     <th className="r">Stock</th>
                     <th className="r">Pack</th>
                     <th>Rack#</th>
-                  </tr>
+                  </td>
                 </thead>
                 <tbody ref={tbodyRef} tabIndex={0} onKeyDown={tk}>
-                  {rows.length === 0 && <tr><td colSpan={8} className="xp-empty">⚠️ No products found with company name "RAW". Please check your product data.ERC: NO_SUPPLIER</td></tr>}
+                  {rows.length === 0 && <tr><td colSpan={8} className="xp-empty">⚠️ No products found with company name "RAW". Please check your product data.ERC: NO_SUPPLIER<\/td><\/tr>}
                   {rows.map((r, i) => (
                     <tr key={`${r._id}-${r._pi}`} style={{ background: i === hiIdx ? "#c3d9f5" : undefined }} onClick={() => setHiIdx(i)} onDoubleClick={() => onSelect(r)}>
-                      <td className="text-muted">{i + 1}</td>
-                      <td><span className="xp-code">{r.code}</span></td>
-                      <td><button className="xp-link-btn">{r._name}</button></td>
-                      <td className="text-muted">{r._meas}</td>
-                      <td className="r xp-amt">{Number(r._rate).toLocaleString("en-PK")}</td>
-                      <td className="r">{r._stock}</td>
-                      <td className="r">{r._pack}</td>
-                      <td className="text-muted">{r.rackNo || "—"}</td>
-                    </tr>
+                      <td className="text-muted">{i + 1}<\/td>
+                      <td><span className="xp-code">{r.code}<\/span><\/td>
+                      <td><button className="xp-link-btn">{r._name}<\/button><\/td>
+                      <td className="text-muted">{r._meas}<\/td>
+                      <td className="r xp-amt">{Number(r._rate).toLocaleString("en-PK")}<\/td>
+                      <td className="r">{r._stock}<\/td>
+                      <td className="r">{r._pack}<\/td>
+                      <td className="text-muted">{r.rackNo || "—"}<\/td>
+                    <\/tr>
                   ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-        <div className="cs-modal-hint">↑↓ navigate &nbsp;|&nbsp; Enter / Double-click = select &nbsp;|&nbsp; Esc = close &nbsp;|&nbsp; Tab = filters &nbsp;|&nbsp; <strong style={{color: "green"}}>🔍 Only showing products with Company = "RAW"</strong></div>
-      </div>
-    </div>
+                <\/tbody>
+              <\/table>
+            <\/div>
+          <\/div>
+        <\/div>
+        <div className="cs-modal-hint">↑↓ navigate &nbsp;|&nbsp; Enter / Double-click = select &nbsp;|&nbsp; Esc = close &nbsp;|&nbsp; Tab = filters &nbsp;|&nbsp; <strong style={{color: "green"}}>🔍 Only showing products with Company = "RAW"<\/strong><\/div>
+      <\/div>
+    <\/div>
   );
 }
 
@@ -680,38 +680,38 @@ function HoldPreviewModal({ bill, onResume, onClose }) {
   return (
     <div className="xp-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="xp-modal" style={{ width: 560 }}>
-        <div className="xp-modal-tb"><span className="xp-modal-title">Hold Bill — {bill.invoiceNo}</span><button className="xp-cap-btn xp-cap-close" onClick={onClose}>✕</button></div>
+        <div className="xp-modal-tb"><span className="xp-modal-title">Hold Bill — {bill.invoiceNo}<\/span><button className="xp-cap-btn xp-cap-close" onClick={onClose}>✕<\/button><\/div>
         <div className="xp-modal-body" style={{ padding: 8 }}>
           <div style={{ marginBottom: 6, display: "flex", gap: 16, fontSize: "var(--xp-fs-xs)" }}>
-            <span><b>Customer:</b> {bill.buyerName}</span><span><b>Items:</b> {bill.items.length}</span><span><b>Amount:</b> <span style={{ color: "var(--xp-blue-dark)", fontWeight: 700 }}>{Number(bill.amount).toLocaleString("en-PK")}</span></span>
-          </div>
+            <span><b>Customer:</b> {bill.buyerName}<\/span><span><b>Items:</b> {bill.items.length}<\/span><span><b>Amount:</b> <span style={{ color: "var(--xp-blue-dark)", fontWeight: 700 }}>{Number(bill.amount).toLocaleString("en-PK")}<\/span><\/span>
+          <\/div>
           <div className="xp-table-panel" style={{ border: "none" }}>
             <div className="xp-table-scroll" style={{ maxHeight: 300 }}>
               <table className="xp-table">
-                <thead><tr><th>#</th><th>Code</th><th>Name</th><th>UOM</th><th className="r">Pcs</th><th className="r">Rate</th><th className="r">Amount</th></tr></thead>
+                <thead><tr><th>#<\/th><th>Code<\/th><th>Name<\/th><th>UOM<\/th><th className="r">Pcs<\/th><th className="r">Rate<\/th><th className="r">Amount<\/th><\/tr><\/thead>
                 <tbody>
                   {bill.items.map((r, i) => (
                     <tr key={i}>
-                      <td className="text-muted">{i + 1}</td>
-                      <td className="text-muted">{r.code}</td>
-                      <td>{r.name}</td>
-                      <td className="text-muted">{r.uom}</td>
-                      <td className="r">{r.pcs}</td>
-                      <td className="r">{Number(r.rate).toLocaleString("en-PK")}</td>
-                      <td className="r" style={{ color: "var(--xp-blue-dark)", fontWeight: 700 }}>{Number(r.amount).toLocaleString("en-PK")}</td>
-                    </tr>
+                      <td className="text-muted">{i + 1}<\/td>
+                      <td className="text-muted">{r.code}<\/td>
+                      <td>{r.name}<\/td>
+                      <td className="text-muted">{r.uom}<\/td>
+                      <td className="r">{r.pcs}<\/td>
+                      <td className="r">{Number(r.rate).toLocaleString("en-PK")}<\/td>
+                      <td className="r" style={{ color: "var(--xp-blue-dark)", fontWeight: 700 }}>{Number(r.amount).toLocaleString("en-PK")}<\/td>
+                    <\/tr>
                   ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
+                <\/tbody>
+              <\/table>
+            <\/div>
+          <\/div>
+        <\/div>
         <div style={{ display: "flex", gap: 6, padding: "6px 10px", borderTop: "1px solid var(--xp-silver-5)", justifyContent: "flex-end" }}>
-          <button className="xp-btn xp-btn-sm" onClick={onClose}>Cancel</button>
-          <button className="xp-btn xp-btn-primary xp-btn-sm" onClick={() => onResume(bill.id)}>Resume This Bill</button>
-        </div>
-      </div>
-    </div>
+          <button className="xp-btn xp-btn-sm" onClick={onClose}>Cancel<\/button>
+          <button className="xp-btn xp-btn-primary xp-btn-sm" onClick={() => onResume(bill.id)}>Resume This Bill<\/button>
+        <\/div>
+      <\/div>
+    <\/div>
   );
 }
 
@@ -857,20 +857,20 @@ function CustomerDropdown({ allCustomers, value, displayName, customerType, onSe
   return (
     <div style={{ position: "relative", flex: 1 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 4, position: "relative" }}>
-        {typeStyle && <span className="cdd-type-badge" style={typeStyle}>{customerType}</span>}
+        {typeStyle && <span className="cdd-type-badge" style={typeStyle}>{customerType}<\/span>}
         <div ref={parentRef} style={{ position: "relative", flex: 1, background: isFocused ? "#fffbe6" : "transparent", borderRadius: "4px", transition: "background 0.15s ease" }}>
           {ghost && !isNavigating && (
             <div style={{ position: "absolute", left: 0, top: "50%", transform: "translateY(-50%)", pointerEvents: "none", whiteSpace: "nowrap", fontSize: "13px", fontFamily: "inherit", display: "flex", zIndex: 2, color: "#a0aec0", opacity: 1, backgroundColor: "transparent", paddingLeft: "4px" }}>
-              <span style={{ visibility: "hidden", opacity: 1 }}>{originalQuery}</span>
-              <span style={{ opacity: 1, color: "#a0aec0" }}>{ghost}</span>
-            </div>
+              <span style={{ visibility: "hidden", opacity: 1 }}>{originalQuery}<\/span>
+              <span style={{ opacity: 1, color: "#a0aec0" }}>{ghost}<\/span>
+            <\/div>
           )}
           <input ref={inputRef} className="sl-cust-input cdd-input" style={{ flex: 1, minWidth: 0, cursor: "text", background: "transparent", position: "relative", zIndex: 1, width: "100%", border: "none", outline: "none", padding: "4px" }} value={value ? query || displayName : query} onChange={handleChange} onKeyDown={handleKeyDown} onFocus={() => setIsFocused(true)} onBlur={() => setIsFocused(false)} autoComplete="off" spellCheck={false} />
-        </div>
+        <\/div>
         {value && (
-          <button className="xp-btn xp-btn-sm xp-btn-danger" style={{ height: 22, padding: "0 5px", fontSize: 10, flexShrink: 0 }} onMouseDown={(e) => { e.preventDefault(); onClear(); setQuery(""); setOriginalQuery(""); setGhost(""); setSuggestions([]); setSelectedSuggestionIndex(-1); setShowDropdown(false); setIsNavigating(false); inputRef.current?.focus(); }} title="Clear">✕</button>
+          <button className="xp-btn xp-btn-sm xp-btn-danger" style={{ height: 22, padding: "0 5px", fontSize: 10, flexShrink: 0 }} onMouseDown={(e) => { e.preventDefault(); onClear(); setQuery(""); setOriginalQuery(""); setGhost(""); setSuggestions([]); setSelectedSuggestionIndex(-1); setShowDropdown(false); setIsNavigating(false); inputRef.current?.focus(); }} title="Clear">✕<\/button>
         )}
-      </div>
+      <\/div>
       {showDropdown && suggestions.length > 0 && (
         <div style={{ position: "absolute", top: "100%", left: 0, right: 0, backgroundColor: "white", border: "1px solid #e5e7eb", borderRadius: 4, maxHeight: 200, overflowY: "auto", zIndex: 1000, boxShadow: "0 4px 6px -1px rgba(0,0,0,0.1)", marginTop: 2 }}>
           {suggestions.map((customer, idx) => {
@@ -878,17 +878,17 @@ function CustomerDropdown({ allCustomers, value, displayName, customerType, onSe
             const ts = TYPE_COLORS[t];
             return (
               <div key={customer._id} onClick={() => selectCustomer(customer)} style={{ padding: "8px 12px", cursor: "pointer", backgroundColor: idx === selectedSuggestionIndex ? "#e5f0ff" : "white", borderBottom: "1px solid #f3f4f6", fontSize: 13 }} onMouseEnter={() => { setSelectedSuggestionIndex(idx); setIsNavigating(true); setQuery(customer.name); setGhost(""); }}>
-                <div style={{ fontWeight: 500, marginBottom: 2 }}>{customer.code && <span style={{ color: "#6b7280", fontSize: 11 }}>[{customer.code}]</span>} {customer.name}</div>
-                {customer.phone && <div style={{ fontSize: 10, color: "#6b7280" }}>📞 {customer.phone}</div>}
-                {t && ts && <div style={{ fontSize: 10, color: ts.color, marginTop: 2 }}>Type: {t}</div>}
-                {(customer.currentBalance || 0) > 0 && <div style={{ fontSize: 10, color: "#ef4444", marginTop: 2 }}>Balance: PKR {(customer.currentBalance || 0).toLocaleString("en-PK")}</div>}
-              </div>
+                <div style={{ fontWeight: 500, marginBottom: 2 }}>{customer.code && <span style={{ color: "#6b7280", fontSize: 11 }}>[{customer.code}]<\/span>} {customer.name}<\/div>
+                {customer.phone && <div style={{ fontSize: 10, color: "#6b7280" }}>📞 {customer.phone}<\/div>}
+                {t && ts && <div style={{ fontSize: 10, color: ts.color, marginTop: 2 }}>Type: {t}<\/div>}
+                {(customer.currentBalance || 0) > 0 && <div style={{ fontSize: 10, color: "#ef4444", marginTop: 2 }}>Balance: PKR {(customer.currentBalance || 0).toLocaleString("en-PK")}<\/div>}
+              <\/div>
             );
           })}
-        </div>
+        <\/div>
       )}
-      {originalQuery && suggestions.length === 0 && <div style={{ position: "absolute", top: "100%", left: 0, fontSize: 10, color: "#9ca3af", marginTop: 2, padding: "4px 8px" }}>No customer found matching "{originalQuery}"</div>}
-    </div>
+      {originalQuery && suggestions.length === 0 && <div style={{ position: "absolute", top: "100%", left: 0, fontSize: 10, color: "#9ca3af", marginTop: 2, padding: "4px 8px" }}>No customer found matching "{originalQuery}"<\/div>}
+    <\/div>
   );
 }
 
@@ -1075,73 +1075,45 @@ export default function RawPurchasePage() {
     setTimeout(() => setMsg({ text: "", type: "" }), 3500);
   };
 
+  // ✅ UPDATED: Handle customer select and focus on remarks
+  const handleCustomerSelect = async (c) => {
+    if (!c || !c._id) {
+      showMsg("Invalid customer selected", "error");
+      return;
+    }
+    
+    try {
+      const freshCustomer = await api.get(EP.CUSTOMERS.GET_ONE(c._id));
+      if (freshCustomer.data.success) {
+        const customer = freshCustomer.data.data;
+        const type = customer.customerType || customer.type || "";
+        setCustomerId(customer._id);
+        setCustomerName(customer.name);
+        setCodeSearch(customer.code || "");
+        setCustomerType(type);
+        setPrevBalance(customer.currentBalance || 0);
+        setPaymentMode("Credit");
+        setSaleSource("credit");
+        setDeductAmount(billAmount);
 
-  // In RawPurchasePage.jsx, update the handleCustomerSelect function
-// pages/RawPurchasePage.jsx
-// Update the handleCustomerSelect function to focus on remarks input
-
-const handleCustomerSelect = async (c) => {
-  // Make sure we have a valid customer object
-  if (!c || !c._id) {
-    showMsg("Invalid customer selected", "error");
-    return;
-  }
-  
-  // ✅ Fetch fresh customer data to get current balance
-  try {
-    const freshCustomer = await api.get(EP.CUSTOMERS.GET_ONE(c._id));
-    if (freshCustomer.data.success) {
-      const customer = freshCustomer.data.data;
-      const type = customer.customerType || customer.type || "";
-      setCustomerId(customer._id);
-      setCustomerName(customer.name);
-      setCodeSearch(customer.code || "");
-      setCustomerType(type);
-      setPrevBalance(customer.currentBalance || 0);
-      setPaymentMode("Credit");
-      setSaleSource("credit");
-      setDeductAmount(billAmount);
-
-      const limit = customer.creditLimit || 0;
-      const custBal = customer.currentBalance || 0;
-      if (type === "credit" && limit > 0 && custBal >= limit) {
-        setCreditWarning(true);
-      } else {
-        setCreditWarning(false);
+        const limit = customer.creditLimit || 0;
+        const custBal = customer.currentBalance || 0;
+        if (type === "credit" && limit > 0 && custBal >= limit) {
+          setCreditWarning(true);
+        } else {
+          setCreditWarning(false);
+        }
+        setCreditStatement("");
+        setShowCustomerPanel(true);
+        
+        // ✅ Focus on remarks input after customer selection
+        setTimeout(() => statementRef.current?.focus(), 100);
       }
-      setCreditStatement("");
-      setShowCustomerPanel(true);
-      
-      // ✅ Focus on remarks input after customer selection
-      setTimeout(() => statementRef.current?.focus(), 100);
+    } catch (error) {
+      console.error("Failed to fetch customer details:", error);
+      showMsg("Failed to load customer data", "error");
     }
-  } catch (error) {
-    console.error("Failed to fetch customer details:", error);
-    showMsg("Failed to load customer data", "error");
-  }
-};
-
-// Update the credit statement input to save and print on Enter
-// Find the credit statement input in the JSX and update it:
-
-<input 
-  ref={statementRef} 
-  type="text" 
-  className="sl-credit-statement-input" 
-  placeholder={creditWarning ? "Enter reason / authorization statement to allow deduction…" : "Notes (optional)…"} 
-  value={creditStatement} 
-  onChange={(e) => setCreditStatement(e.target.value)} 
-  onKeyDown={(e) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      e.stopPropagation();
-      // Open save modal directly
-      openSaleConfirm();
-    }
-  }} 
-/>
-
-// Also update the openSaleConfirm function to handle credit statement validation properly
+  };
 
   const handleCustomerClear = () => {
     setCustomerId("");
@@ -1426,6 +1398,7 @@ const handleCustomerSelect = async (c) => {
     saleType: "raw-purchase",
   });
   
+  // ✅ UPDATED: Open sale confirm - for credit customers, save and print directly
   const openSaleConfirm = () => {
     if (!items.length) {
       alert("Add at least one item");
@@ -1438,100 +1411,113 @@ const handleCustomerSelect = async (c) => {
         showMsg("Note is required for credit deduction", "error");
         return;
       }
+      // ✅ For credit customers: Save and Print directly (like pressing *)
+      const payload = buildPayload();
+      confirmSaveWithPayload(payload, {
+        extraDisc: payload.extraDisc,
+        netTotal: payload.netTotal,
+        paidAmount: deductAmount,
+        balance: payload.balance,
+        printType: printType,
+        withPrint: true,
+      });
+      return;
     }
 
+    // For cash customers: Show the save modal
     const payload = buildPayload();
     setPendingPayload(payload);
     setShowSaveModal(true);
   };
   
-const confirmSaveWithPayload = async (payload, overrides) => {
-  if (!payload) return;
-  setLoading(true);
-  try {
-    const finalPayload = {
-      ...payload,
-      extraDisc: overrides.extraDisc,
-      netTotal: overrides.netTotal,
-      paidAmount: overrides.paidAmount,
-      balance: overrides.balance,
-      printType: overrides.printType,
-    };
-    
-    const { data } = editId
-      ? await api.put(EP.RAW_PURCHASES.UPDATE(editId), finalPayload)
-      : await api.post(EP.RAW_PURCHASES.CREATE, finalPayload);
-
-    if (data.success) {
-      console.log("Purchase saved successfully:", data.data);
-      
-      // Update stock
-      await updateProductStockBulk(payload.items, "add");
-      
-      // ✅ FIRST: Refresh customer data to get updated balance
-      let updatedCustomerBalance = finalPayload.prevBalance; // Default to old value
-      
-      if (customerId) {
-        try {
-          const customerResponse = await api.get(EP.CUSTOMERS.GET_ONE(customerId));
-          if (customerResponse.data.success) {
-            updatedCustomerBalance = customerResponse.data.data.currentBalance || 0;
-            console.log("Updated customer balance from DB:", updatedCustomerBalance);
-            setPrevBalance(updatedCustomerBalance);
-          }
-        } catch (err) {
-          console.error("Failed to refresh customer balance:", err);
-        }
-      }
-      
-      showMsg(editId ? "Purchase updated!" : `Saved: ${data.data.invoiceNo}`);
-      
-      // ✅ Prepare print object with CORRECT updated balance
-      const saleObj = {
-        invoiceNo: data.data.invoiceNo,
-        invoiceDate: finalPayload.invoiceDate,
-        customerName: finalPayload.customerName,
-        saleSource: finalPayload.saleSource,
-        paymentMode: finalPayload.paymentMode,
-        items: payload.items,
-        subTotal: finalPayload.subTotal,
+  const confirmSaveWithPayload = async (payload, overrides) => {
+    if (!payload) return;
+    setLoading(true);
+    try {
+      const finalPayload = {
+        ...payload,
         extraDisc: overrides.extraDisc,
         netTotal: overrides.netTotal,
-        prevBalance: updatedCustomerBalance, // ✅ Use updated balance from database
         paidAmount: overrides.paidAmount,
-        balance: updatedCustomerBalance - overrides.paidAmount, // ✅ Calculate correct remaining balance
+        balance: overrides.balance,
+        printType: overrides.printType,
       };
       
-      if (overrides.withPrint) {
-        setPendingPrintSale(saleObj);
-        setShowPrintModal(true);
+      const { data } = editId
+        ? await api.put(EP.RAW_PURCHASES.UPDATE(editId), finalPayload)
+        : await api.post(EP.RAW_PURCHASES.CREATE, finalPayload);
+
+      if (data.success) {
+        console.log("Purchase saved successfully:", data.data);
+        
+        // Update stock
+        await updateProductStockBulk(payload.items, "add");
+        
+        // Refresh customer data to get updated balance
+        let updatedCustomerBalance = finalPayload.prevBalance;
+        
+        if (customerId) {
+          try {
+            const customerResponse = await api.get(EP.CUSTOMERS.GET_ONE(customerId));
+            if (customerResponse.data.success) {
+              updatedCustomerBalance = customerResponse.data.data.currentBalance || 0;
+              console.log("Updated customer balance from DB:", updatedCustomerBalance);
+              setPrevBalance(updatedCustomerBalance);
+            }
+          } catch (err) {
+            console.error("Failed to refresh customer balance:", err);
+          }
+        }
+        
+        showMsg(editId ? "Purchase updated!" : `Saved: ${data.data.invoiceNo}`);
+        
+        // Prepare print object with correct updated balance
+        const saleObj = {
+          invoiceNo: data.data.invoiceNo,
+          invoiceDate: finalPayload.invoiceDate,
+          customerName: finalPayload.customerName,
+          saleSource: finalPayload.saleSource,
+          paymentMode: finalPayload.paymentMode,
+          items: payload.items,
+          subTotal: finalPayload.subTotal,
+          extraDisc: overrides.extraDisc,
+          netTotal: overrides.netTotal,
+          prevBalance: updatedCustomerBalance,
+          paidAmount: overrides.paidAmount,
+          balance: updatedCustomerBalance - overrides.paidAmount,
+        };
+        
+        if (overrides.withPrint) {
+          setPendingPrintSale(saleObj);
+          setShowPrintModal(true);
+        }
+        
+        setShowSaveModal(false);
+        setPendingPayload(null);
+        fullReset();
+        await refreshInvoiceNo();
+        
+        // Refresh products
+        const pRes = await api.get(EP.PRODUCTS.GET_ALL);
+        if (pRes.data.success) {
+          setAllProducts(pRes.data.data);
+        }
+        
+        // Refresh customers list
+        const cRes = await api.get(EP.CUSTOMERS.GET_ALL);
+        if (cRes.data.success) {
+          setAllCustomers(cRes.data.data);
+        }
+      } else {
+        showMsg(data.message, "error");
       }
-      
-      setShowSaveModal(false);
-      setPendingPayload(null);
-      fullReset();
-      await refreshInvoiceNo();
-      
-      // Refresh products to show updated stock
-      const pRes = await api.get(EP.PRODUCTS.GET_ALL);
-      if (pRes.data.success) {
-        setAllProducts(pRes.data.data);
-      }
-      
-      // Refresh customers list
-      const cRes = await api.get(EP.CUSTOMERS.GET_ALL);
-      if (cRes.data.success) {
-        setAllCustomers(cRes.data.data);
-      }
-    } else {
-      showMsg(data.message, "error");
+    } catch (e) {
+      console.error("Save error:", e);
+      showMsg(e.response?.data?.message || "Save failed", "error");
     }
-  } catch (e) {
-    console.error("Save error:", e);
-    showMsg(e.response?.data?.message || "Save failed", "error");
-  }
-  setLoading(false);
-};
+    setLoading(false);
+  };
+
   const confirmSave = async (overrides) => {
     confirmSaveWithPayload(pendingPayload, overrides);
   };
@@ -1655,13 +1641,28 @@ const confirmSaveWithPayload = async (payload, overrides) => {
               <div className="sl-pay-btns">{["Cash", "Credit"].map((m) => (<button key={m} className={`sl-pay-btn${paymentMode === m ? " active-" + m.toLowerCase() : ""}`} onClick={() => handlePaymentMode(m)}>{m}</button>))}</div>
             </div>
 
+            {/* ✅ UPDATED: Credit Warning Bar with Enter key handler */}
             {showCustomerPanel && customerId && (
               <div className={`sl-credit-warning-bar${creditWarning ? "" : " sl-credit-normal"}`}>
                 <div className="sl-credit-warning-left">
                   {(() => { const cust = allCustomers.find((c) => c._id === customerId); return cust?.imageFront ? (<img src={cust.imageFront} alt={cust.name} style={{ width: 48, height: 48, borderRadius: 4, objectFit: "cover", border: "2px solid #fff", flexShrink: 0 }} />) : (<div style={{ width: 48, height: 48, borderRadius: 4, background: "rgba(255,255,255,0.3)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, flexShrink: 0 }}>👤</div>); })()}
                   <div>{creditWarning ? (<><div className="sl-credit-title">⚠ CREDIT LIMIT EXCEEDED</div><div className="sl-credit-sub">Balance: <b>{fmt(prevBalance)}</b> — Enter authorization statement to proceed</div></>) : (<div className="sl-credit-sub" style={{ color: "#fff" }}>Balance: <b>{fmt(prevBalance)}</b></div>)}</div>
                 </div>
-                <input ref={statementRef} type="text" className="sl-credit-statement-input" placeholder={creditWarning ? "Enter reason / authorization statement to allow deduction…" : "Notes (optional)…"} value={creditStatement} onChange={(e) => setCreditStatement(e.target.value)} />
+                <input 
+                  ref={statementRef} 
+                  type="text" 
+                  className="sl-credit-statement-input" 
+                  placeholder={creditWarning ? "Enter reason / authorization statement to allow deduction…" : "Notes (optional)…"} 
+                  value={creditStatement} 
+                  onChange={(e) => setCreditStatement(e.target.value)} 
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      openSaleConfirm();
+                    }
+                  }} 
+                />
               </div>
             )}
           </div>
