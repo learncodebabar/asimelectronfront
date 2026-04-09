@@ -1,5 +1,4 @@
 // pages/SalePage.jsx
-
 import { useState, useEffect, useRef, useCallback } from "react";
 import api from "../api/api.js";
 import EP from "../api/apiEndpoints.js";
@@ -219,13 +218,11 @@ const buildPrintHtml = (sale, type, overrides = {}) => {
       @media print{@page{size:80mm auto;margin:1mm}body{width:78mm}}
     </style></head><body>
 
-      <!-- HEADER -->
       <div class="shop-urdu">${SHOP_INFO.name}</div>
       <div class="shop-addr">${SHOP_INFO.address}</div>
       <div class="shop-phones">${SHOP_INFO.phone1}, ${SHOP_INFO.phone2}, ${SHOP_INFO.phone3}</div>
       <div class="banner">${SHOP_INFO.urduBanner}</div>
 
-      <!-- META -->
       <div class="meta-row">
         <span><b>Sales Invoice</b></span>
         <span>ADMIN</span>
@@ -244,7 +241,6 @@ const buildPrintHtml = (sale, type, overrides = {}) => {
       <div class="meta-row"><span style="font-size:9px;color:#555">Items: ${rows.length}</span></div>
       <hr class="divider-solid">
 
-      <!-- ITEMS TABLE -->
       <table>
         <thead>
           <tr>
@@ -259,7 +255,6 @@ const buildPrintHtml = (sale, type, overrides = {}) => {
       </table>
       <hr class="divider-dash">
 
-      <!-- TOTALS -->
       <div class="totals-box">
         <div style="display:flex;justify-content:space-between;font-size:9px;margin-bottom:2px">
           <span>T.Qty: <b>${totalQty}</b></span>
@@ -272,10 +267,7 @@ const buildPrintHtml = (sale, type, overrides = {}) => {
         <div class="sum-row bold sep ${sale.balance > 0 ? "red" : "green"}"><span>Balance:</span><span>PKR ${Number(sale.balance).toLocaleString()}</span></div>
       </div>
 
-      <!-- TERMS -->
       <div class="terms">${SHOP_INFO.urduTerms.replace(/\n/g, "<br>")}</div>
-
-      <!-- FOOTER -->
       <div class="devby">${SHOP_INFO.devBy}</div>
 
     </body></html>`;
@@ -451,6 +443,40 @@ const buildPrintHtml = (sale, type, overrides = {}) => {
       body{padding:0}
     }
   </style></head><body>${allPagesHtml}</body></html>`;
+};
+
+// Share via WhatsApp - A4 PDF only, no database save
+const shareViaWhatsApp = async (sale, overrides = {}) => {
+  try {
+    if (!sale.items || sale.items.length === 0) {
+      alert("No items to share");
+      return;
+    }
+    
+    // Generate the HTML for A4 size
+    const htmlContent = buildPrintHtml(sale, "A4", overrides);
+    
+    // Create a blob from the HTML
+    const blob = new Blob([htmlContent], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    
+    // Open in new window and print to PDF
+    const printWindow = window.open(url, '_blank');
+    if (printWindow) {
+      printWindow.onload = () => {
+        setTimeout(() => {
+          printWindow.print();
+          URL.revokeObjectURL(url);
+          alert("Please save the PDF and share on WhatsApp");
+        }, 500);
+      };
+    } else {
+      alert("Please allow popups to generate PDF");
+    }
+  } catch (error) {
+    console.error("Failed to generate PDF:", error);
+    alert("Failed to generate PDF. Please try again.");
+  }
 };
 
 function PrintOptionsModal({
@@ -1738,54 +1764,52 @@ export default function SalePage() {
     setMsg({ text, type });
     setTimeout(() => setMsg({ text: "", type: "" }), 3500);
   };
-const handleCustomerSelect = async (c) => {
-  // Make sure we have a valid customer object
-  if (!c || !c._id) {
-    showMsg("Invalid customer selected", "error");
-    return;
-  }
   
-  // ✅ Fetch fresh customer data to get current balance
-  try {
-    const freshCustomer = await api.get(EP.CUSTOMERS.GET_ONE(c._id));
-    if (freshCustomer.data.success) {
-      const customer = freshCustomer.data.data;
-      const type = customer.customerType || customer.type || "";
-      setCustomerId(customer._id);
-      setBuyerName(customer.name);
-      setCustomerType(type);
-      setPrevBalance(customer.currentBalance || 0);
-      setCodeSearch("");
-      const pm = typeToPayment(type);
-      const ss = typeToSource(type);
-      setPaymentMode(pm);
-      setSaleSource(ss);
-      if (pm === "Credit") setReceived(0);
-      else setReceived(billAmount + (customer.currentBalance || 0));
-
-      const limit = customer.creditLimit || 0;
-      const custBal = customer.currentBalance || 0;
-      if (type === "credit" && limit > 0 && custBal >= limit) {
-        setCreditWarning(true);
-      } else {
-        setCreditWarning(false);
-      }
-      setCreditStatement("");
-      setShowCustomerPanel(true);
-
-      if (type === "credit") {
-        setTimeout(() => statementRef.current?.focus(), 80);
-      } else {
-        setTimeout(() => searchRef.current?.focus(), 30);
-      }
+  const handleCustomerSelect = async (c) => {
+    if (!c || !c._id) {
+      showMsg("Invalid customer selected", "error");
+      return;
     }
-  } catch (error) {
-    console.error("Failed to fetch customer details:", error);
-    showMsg("Failed to load customer data", "error");
-  }
-};
+    
+    try {
+      const freshCustomer = await api.get(EP.CUSTOMERS.GET_ONE(c._id));
+      if (freshCustomer.data.success) {
+        const customer = freshCustomer.data.data;
+        const type = customer.customerType || customer.type || "";
+        setCustomerId(customer._id);
+        setBuyerName(customer.name);
+        setCustomerType(type);
+        setPrevBalance(customer.currentBalance || 0);
+        setCodeSearch("");
+        const pm = typeToPayment(type);
+        const ss = typeToSource(type);
+        setPaymentMode(pm);
+        setSaleSource(ss);
+        if (pm === "Credit") setReceived(0);
+        else setReceived(billAmount + (customer.currentBalance || 0));
 
-  
+        const limit = customer.creditLimit || 0;
+        const custBal = customer.currentBalance || 0;
+        if (type === "credit" && limit > 0 && custBal >= limit) {
+          setCreditWarning(true);
+        } else {
+          setCreditWarning(false);
+        }
+        setCreditStatement("");
+        setShowCustomerPanel(true);
+
+        if (type === "credit") {
+          setTimeout(() => statementRef.current?.focus(), 80);
+        } else {
+          setTimeout(() => searchRef.current?.focus(), 30);
+        }
+      }
+    } catch (error) {
+      console.error("Failed to fetch customer details:", error);
+      showMsg("Failed to load customer data", "error");
+    }
+  };
+
   const handleCustomerClear = () => {
     setCustomerId("");
     setBuyerName("COUNTER SALE");
@@ -2107,77 +2131,74 @@ const handleCustomerSelect = async (c) => {
     setShowSaveModal(true);
   };
   
-const confirmSaveWithPayload = async (payload, overrides) => {
-  if (!payload) return;
-  setLoading(true);
-  try {
-    const finalPayload = {
-      ...payload,
-      extraDisc: overrides.extraDisc,
-      netTotal: overrides.netTotal,
-      paidAmount: overrides.paidAmount,
-      balance: overrides.balance,
-      printType: overrides.printType,
-    };
-    const { data } = editId
-      ? await api.put(EP.SALES.UPDATE(editId), finalPayload)
-      : await api.post(EP.SALES.CREATE, finalPayload);
-
-    if (data.success) {
-      showMsg(editId ? "Sale updated!" : `Saved: ${data.data.invoiceNo}`);
-      
-      // ✅ REFRESH CUSTOMER BALANCE AFTER SAVE
-      if (customerId) {
-        try {
-          // Fetch the specific customer to get updated balance
-          const customerResponse = await api.get(EP.CUSTOMERS.GET_ONE(customerId));
-          if (customerResponse.data.success) {
-            const updatedCustomer = customerResponse.data.data;
-            console.log("Updated customer balance:", updatedCustomer.currentBalance);
-            setPrevBalance(updatedCustomer.currentBalance || 0);
-          }
-        } catch (err) {
-          console.error("Failed to refresh customer balance:", err);
-        }
-      }
-      
-      const saleObj = {
-        invoiceNo: data.data.invoiceNo,
-        invoiceDate: finalPayload.invoiceDate,
-        customerName: finalPayload.customerName,
-        saleSource: finalPayload.saleSource,
-        paymentMode: finalPayload.paymentMode,
-        items: payload.items,
-        subTotal: finalPayload.subTotal,
+  const confirmSaveWithPayload = async (payload, overrides) => {
+    if (!payload) return;
+    setLoading(true);
+    try {
+      const finalPayload = {
+        ...payload,
         extraDisc: overrides.extraDisc,
         netTotal: overrides.netTotal,
-        prevBalance: finalPayload.prevBalance,
         paidAmount: overrides.paidAmount,
         balance: overrides.balance,
+        printType: overrides.printType,
       };
-      
-      // Print gatepass if checkbox was checked
-      if (gatepassPrint) {
-        doPrint(saleObj, "Gatepass", { customerName: finalPayload.customerName, hidePrices: true });
-        setGatepassPrint(false);
+      const { data } = editId
+        ? await api.put(EP.SALES.UPDATE(editId), finalPayload)
+        : await api.post(EP.SALES.CREATE, finalPayload);
+
+      if (data.success) {
+        showMsg(editId ? "Sale updated!" : `Saved: ${data.data.invoiceNo}`);
+        
+        if (customerId) {
+          try {
+            const customerResponse = await api.get(EP.CUSTOMERS.GET_ONE(customerId));
+            if (customerResponse.data.success) {
+              const updatedCustomer = customerResponse.data.data;
+              console.log("Updated customer balance:", updatedCustomer.currentBalance);
+              setPrevBalance(updatedCustomer.currentBalance || 0);
+            }
+          } catch (err) {
+            console.error("Failed to refresh customer balance:", err);
+          }
+        }
+        
+        const saleObj = {
+          invoiceNo: data.data.invoiceNo,
+          invoiceDate: finalPayload.invoiceDate,
+          customerName: finalPayload.customerName,
+          saleSource: finalPayload.saleSource,
+          paymentMode: finalPayload.paymentMode,
+          items: payload.items,
+          subTotal: finalPayload.subTotal,
+          extraDisc: overrides.extraDisc,
+          netTotal: overrides.netTotal,
+          prevBalance: finalPayload.prevBalance,
+          paidAmount: overrides.paidAmount,
+          balance: overrides.balance,
+        };
+        
+        if (gatepassPrint) {
+          doPrint(saleObj, "Gatepass", { customerName: finalPayload.customerName, hidePrices: true });
+          setGatepassPrint(false);
+        }
+        
+        if (overrides.withPrint) {
+          setPendingPrintSale(saleObj);
+          setShowPrintModal(true);
+        }
+        setShowSaveModal(false);
+        setPendingPayload(null);
+        fullReset();
+        await refreshInvoiceNo();
+      } else {
+        showMsg(data.message, "error");
       }
-      
-      if (overrides.withPrint) {
-        setPendingPrintSale(saleObj);
-        setShowPrintModal(true);
-      }
-      setShowSaveModal(false);
-      setPendingPayload(null);
-      fullReset();
-      await refreshInvoiceNo();
-    } else {
-      showMsg(data.message, "error");
+    } catch (e) {
+      showMsg(e.response?.data?.message || "Save failed", "error");
     }
-  } catch (e) {
-    showMsg(e.response?.data?.message || "Save failed", "error");
-  }
-  setLoading(false);
-};
+    setLoading(false);
+  };
 
   const confirmSave = async (overrides) => {
     confirmSaveWithPayload(pendingPayload, overrides);
@@ -2217,9 +2238,6 @@ const confirmSaveWithPayload = async (payload, overrides) => {
     showPrintModal,
     billAmount,
   ]);
-
-  // Remove empty rows constant - no longer needed
-  // const EMPTY_ROWS = Math.max(0, 8 - items.length);
 
   return (
     <>
@@ -2323,7 +2341,6 @@ const confirmSaveWithPayload = async (payload, overrides) => {
             <div className="sl-top-bar">
               <div className="sl-sale-title-box">Sale</div>
               
-              {/* Prev button */}
               <button
                 className="xp-btn xp-btn-sm sl-nav-btn"
                 onClick={() => navInvoice("prev")}
@@ -2385,7 +2402,6 @@ const confirmSaveWithPayload = async (payload, overrides) => {
                 />
               </div>
               
-              {/* Next button */}
               <button
                 className="xp-btn xp-btn-sm sl-nav-btn"
                 onClick={() => navInvoice("next")}
@@ -2748,7 +2764,6 @@ const confirmSaveWithPayload = async (payload, overrides) => {
                       <td className="muted">{r.rack}</td>
                     </tr>
                   ))}
-                  {/* Empty rows removed */}
                 </tbody>
               </table>
             </div>
@@ -3202,6 +3217,8 @@ const confirmSaveWithPayload = async (payload, overrides) => {
             Delete Record
           </button>
           <div className="xp-toolbar-divider" />
+          
+          {/* Updated Commands Section with WhatsApp Button */}
           <div className="sl-cmd-checks">
             <label className="sl-check-label">
               <input
@@ -3214,7 +3231,46 @@ const confirmSaveWithPayload = async (payload, overrides) => {
             <label className="sl-check-label">
               <input type="checkbox" /> Print P.Bal
             </label>
+            <button 
+              className="xp-btn xp-btn-sm"
+              style={{ 
+                background: "#25D366", 
+                color: "#fff",
+                borderColor: "#128C7E",
+                marginLeft: "4px",
+                padding: "4px 12px",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "4px"
+              }}
+              onClick={() => {
+                if (items.length === 0) {
+                  alert("No items to share");
+                  return;
+                }
+                const saleObj = {
+                  invoiceNo,
+                  invoiceDate,
+                  customerName: buyerName,
+                  items: items,
+                  subTotal,
+                  extraDisc: extraDiscount,
+                  netTotal: billAmount,
+                  prevBalance,
+                  paidAmount: received,
+                  balance,
+                };
+                shareViaWhatsApp(saleObj, {
+                  customerName: buyerName,
+                  customerPhone: "",
+                  hidePrices: false
+                });
+              }}
+            >
+              📱 WhatsApp
+            </button>
           </div>
+          
           <div className="xp-toolbar-divider" />
           <div className="sl-print-types">
             {["Thermal", "A4", "A5", "Gatepass"].map((pt) => (
@@ -3246,12 +3302,10 @@ const confirmSaveWithPayload = async (payload, overrides) => {
       </div>
 
       <style>{`
-      /* Base Styles */
       .sl-page {
         background: #ffffff;
       }
       
-      /* Input Borders - Black */
       input, .xp-input, .sl-product-input, .sl-num-input, .sl-sum-input, 
       .sl-cust-input, .sl-credit-statement-input, .sl-inv-input-large,
       .sl-date-input, .sl-sum-val {
@@ -3261,7 +3315,6 @@ const confirmSaveWithPayload = async (payload, overrides) => {
         background: #ffffff !important;
       }
       
-      /* Table Borders - Black */
       .sl-items-table th,
       .sl-items-table td,
       .sl-hold-table th,
@@ -3270,21 +3323,18 @@ const confirmSaveWithPayload = async (payload, overrides) => {
         border-width: 1px !important;
       }
       
-      /* Button Borders - Black */
       .xp-btn, .sl-pay-btn, .sl-entry-btns .xp-btn {
         border-color: #000000 !important;
         border-width: 1px !important;
         border-style: solid !important;
       }
       
-      /* Card Borders */
       .sl-summary-bar, .sl-customer-bar, .sl-gatepass-bar,
       .sl-top-bar, .sl-entry-strip, .sl-table-header-bar,
       .sl-hold-panel, .sl-right, .sl-left {
         border-color: #e0e0e0;
       }
       
-      /* Remove empty rows */
       .sl-items-table tbody tr.sl-empty-row {
         display: none;
       }
@@ -3317,7 +3367,6 @@ const confirmSaveWithPayload = async (payload, overrides) => {
         font-weight: 600 !important;
       }
 
-      /* --- CREDIT LIMIT EXCEEDED WARNING STYLES --- */
       .sl-page.sl-credit-mode .sl-right {
         background-color: #dc2626 !important;
         border-left: 3px solid #991b1b;
@@ -3446,26 +3495,19 @@ const confirmSaveWithPayload = async (payload, overrides) => {
         background: #ffffff;
       }
 
+      .sl-product-input {
+        background-color: #fffde7 !important;
+        border-color: #000000 !important;
+      }
 
-      /* Yellow background for product search input to show focus area */
-.sl-product-input {
-  background-color: #fffde7 !important;
-  border-color: #000000 !important;
-}
+      .sl-num-input, .sl-sum-input, .sl-cust-input {
+        background-color: #fffde7 !important;
+      }
 
-/* Also for other inputs that should stand out */
-.sl-num-input, .sl-sum-input, .sl-cust-input {
-  background-color: #fffde7 !important;
-}
-
-/* Regular white background for readonly/disabled inputs */
-.sl-sum-val, .sl-date-input[readonly] {
-  background-color: #f5f5f5 !important;
-}
-
-
-
+      .sl-sum-val, .sl-date-input[readonly] {
+        background-color: #f5f5f5 !important;
+      }
       `}</style>
     </>
   );
-} 
+}

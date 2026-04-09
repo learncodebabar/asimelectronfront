@@ -1,5 +1,5 @@
 // pages/CreditCustomersPage.jsx
-import { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, Fragment } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../api/api.js";
 import EP from "../api/apiEndpoints.js";
@@ -9,350 +9,900 @@ import "../styles/CreditCustomersPage.css";
 const fmt = (n) => Number(n || 0).toLocaleString("en-PK");
 const isoD = () => new Date().toISOString().split("T")[0];
 
-/* ═══════════════════════════════════════════════════════════
-   CUSTOMER DETAIL MODAL - Shows transactions and payment form
-════════════════════════════════════════════════════════════ */
-function CustomerDetailModal({ customer, onClose, onUpdated }) {
-  const [sales, setSales] = useState([]);
-  const [loadingSales, setLoadS] = useState(false);
-  const [payAmount, setPayAmount] = useState("");
-  const [payRemarks, setPayRemarks] = useState("");
-  const [paying, setPaying] = useState(false);
-  const [payMsg, setPayMsg] = useState({ text: "", type: "" });
-  const [activeTab, setActiveTab] = useState("history");
-  const [selectedSale, setSelectedSale] = useState(null);
-  const [currentCustomer, setCurrentCustomer] = useState(customer);
-  const payRef = useRef(null);
+// Build Complete Customer Statement HTML for Print (Smaller Font)
+const buildCustomerStatementHtml = (customer, sales, rawPurchases, payments) => {
+  const URDU_FONT = `'Noto Nastaliq Urdu','Mehr Nastaliq','Jameel Noori Nastaleeq','Urdu Typesetting',serif`;
+  
+  const totalSales = sales.reduce((s, x) => s + (x.netTotal || 0), 0);
+  const totalPaid = sales.reduce((s, x) => s + (x.paidAmount || 0), 0);
+  const totalRaw = rawPurchases.reduce((s, x) => s + (x.netTotal || 0), 0);
+  const totalPayments = payments.reduce((s, p) => s + (p.amount || 0), 0);
+  const outstanding = customer.currentBalance || 0;
+  
+  // Build detailed invoice rows with items in proper table format
+  const allInvoices = [...sales, ...rawPurchases].sort((a, b) => new Date(b.invoiceDate) - new Date(a.invoiceDate));
+  
+  let invoiceRows = "";
+  let counter = 1;
+  
+  allInvoices.forEach((inv) => {
+    // Main invoice row
+    invoiceRows += `
+      <tr style="background:${inv.saleType === "raw-purchase" ? "#fef3c7" : "#e8f0fe"}">
+        <td style="padding:6px;border:1px solid #ddd;font-size:10px;font-weight:bold;text-align:center">${counter}</td>
+        <td style="padding:6px;border:1px solid #ddd;font-size:10px;font-weight:bold">${inv.invoiceNo}</td>
+        <td style="padding:6px;border:1px solid #ddd;font-size:10px;font-weight:bold">${inv.invoiceDate}</td>
+        <td style="padding:6px;border:1px solid #ddd;text-align:right;font-size:10px;font-weight:bold">PKR ${fmt(inv.netTotal)}</td>
+        <td style="padding:6px;border:1px solid #ddd;text-align:right;font-size:10px;font-weight:bold">PKR ${fmt(inv.paidAmount)}</td>
+        <td style="padding:6px;border:1px solid #ddd;text-align:right;font-size:10px;font-weight:bold">PKR ${fmt(inv.balance)}</td>
+      </tr>
+    `;
+    
+    // Items rows (indented)
+    if (inv.items && inv.items.length > 0) {
+      inv.items.forEach((it, idx) => {
+        invoiceRows += `
+          <tr style="background:#f9f9f9">
+            <td style="padding:3px 6px 3px 25px;border:1px solid #ddd;font-size:9px;text-align:center">${String.fromCharCode(97 + idx)}</td>
+            <td colspan="2" style="padding:3px 6px;border:1px solid #ddd;font-size:9px">${it.description || it.name}</td>
+            <td style="padding:3px 6px;border:1px solid #ddd;text-align:right;font-size:9px">${it.qty || it.pcs || 0} ${it.measurement || it.uom || ""}</td>
+            <td style="padding:3px 6px;border:1px solid #ddd;text-align:right;font-size:9px">PKR ${fmt(it.rate || 0)}</td>
+            <td style="padding:3px 6px;border:1px solid #ddd;text-align:right;font-size:9px">PKR ${fmt(it.amount || 0)}</td>
+          </tr>
+        `;
+      });
+    }
+    
+    counter++;
+  });
+  
+  const paymentRows = payments.map((p, i) => `
+    <tr>
+      <td style="padding:5px;border:1px solid #ddd;font-size:10px;text-align:center">${i + 1}</td>
+      <td style="padding:5px;border:1px solid #ddd;font-size:10px">${p.paymentDate || p.createdAt?.split("T")[0]}</td>
+      <td style="padding:5px;border:1px solid #ddd;text-align:right;font-size:10px">PKR ${fmt(p.amount)}</td>
+      <td style="padding:5px;border:1px solid #ddd;font-size:10px">${p.remarks || "—"}</td>
+    </tr>
+  `).join("");
+  
+  // Get current date and time for print
+  const printDateTime = new Date().toLocaleString("en-PK", {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+  
+  return `<!DOCTYPE html>
+  <html>
+  <head>
+    <meta charset="utf-8">
+    <title>Customer Statement - ${customer.name}</title>
+    <style>
+      *{margin:0;padding:0;box-sizing:border-box}
+      body{font-family:Arial,sans-serif;padding:15px;font-size:10px}
+      
+      /* Header with shop left and customer right */
+      .print-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 15px;
+        padding-bottom: 10px;
+        border-bottom: 2px solid #333;
+      }
+      .shop-section {
+        text-align: left;
+        flex: 2;
+      }
+      .customer-section {
+        text-align: right;
+        flex: 1;
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+        gap: 10px;
+      }
+      .shop-name{font-size:16px;font-weight:bold;font-family:${URDU_FONT};margin-bottom:3px}
+      .shop-name-en{font-size:12px;font-weight:bold;margin-bottom:3px}
+      .shop-addr{font-size:8px;color:#666;margin:2px 0}
+      .print-time{font-size:7px;color:#999;margin-top:3px}
+      .customer-photo-small{width:50px;height:50px;border-radius:50%;object-fit:cover;border:2px solid #333}
+      .customer-name{font-size:12px;font-weight:bold;margin-bottom:2px}
+      .customer-phone{font-size:9px;color:#666}
+      
+      .customer-info{background:#f5f5f5;padding:10px;margin:10px 0;border-radius:6px;display:flex;gap:15px;flex-wrap:wrap;align-items:center}
+      .customer-photo{width:60px;height:60px;border-radius:50%;object-fit:cover;border:2px solid #333}
+      .customer-details{flex:1}
+      .customer-details h3{font-size:12px;margin-bottom:5px}
+      .customer-details p{font-size:9px;margin:2px 0}
+      .section-title{font-size:11px;font-weight:bold;margin:12px 0 6px;padding:5px;background:#333;color:#fff}
+      table{width:100%;border-collapse:collapse;margin:5px 0}
+      th{background:#555;color:#fff;padding:5px;font-size:9px;border:1px solid #666}
+      td{padding:5px;border:1px solid #ddd;font-size:9px}
+      .totals{width:300px;margin-left:auto;margin-top:12px}
+      .totals-row{display:flex;justify-content:space-between;padding:4px 0;font-size:9px}
+      .totals-row.bold{font-weight:bold;border-top:1px solid #333;margin-top:3px;padding-top:3px}
+      .footer{text-align:center;margin-top:20px;padding-top:6px;border-top:1px solid #ddd;font-size:7px;color:#666}
+      .text-center{text-align:center}
+      .text-right{text-align:right}
+      @media print{body{padding:5mm}}
+    </style>
+  </head>
+  <body>
+    <!-- Header with Shop on Left and Customer on Right -->
+    <div class="print-header">
+      <div class="shop-section">
+        <div class="shop-name">عاصم الیکٹرک اینڈ الیکٹرونکس سٹور</div>
+        <div class="shop-name-en">ASIM ELECTRIC & ELECTRONIC STORE</div>
+        <div class="shop-addr">Main Bazar Nahari Town, Near Bijli Ghar Stop, Gujranwala Road, Faisalabad</div>
+        <div class="shop-addr">Ph: 0300 7262129, 041 8711575, 0315 7262129</div>
+        <div class="print-time">Printed on: ${printDateTime}</div>
+      </div>
+      <div class="customer-section">
+        ${customer.imageFront ? 
+          `<img src="${customer.imageFront}" class="customer-photo-small" alt="${customer.name}">` : 
+          `<div style="width:50px;height:50px;border-radius:50%;background:#ddd;display:flex;align-items:center;justify-content:center;font-size:25px">👤</div>`
+        }
+        <div>
+          <div class="customer-name">${customer.name}</div>
+          <div class="customer-phone">📞 ${customer.phone || "N/A"}</div>
+          <div class="customer-phone">🆔 ${customer.code || "N/A"}</div>
+               <p>📍 ${customer.address || ""} ${customer.area ? `(${customer.area})` : ""}</p>
+                <p>📅 Statement Date: ${isoD()}</p>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Detailed Customer Info 
+   
+    </div>
+    -->
+    <div class="section-title">💰 INVOICES (With Items Details)</div>
+    <table>
+      <thead>
+        <tr>
+          <th style="width:30px">#</th>
+          <th>Invoice No</th>
+          <th>Date</th>
+          <th class="text-right">Total</th>
+          <th class="text-right">Paid</th>
+          <th class="text-right">Balance</th>
+        </tr>
+      </thead>
+      <tbody>${invoiceRows}</tbody>
+    </table>
+    
+    ${payments.length > 0 ? `
+    <div class="section-title">💳 PAYMENT HISTORY</div>
+    <table>
+      <thead>
+        <tr><th style="width:30px">#</th><th>Date</th><th class="text-right">Amount</th><th>Remarks</th></tr>
+      </thead>
+      <tbody>${paymentRows}</tbody>
+    </table>` : ""}
+    
+    <div class="totals">
+      <div class="totals-row"><span>Total Sales:</span><span>PKR ${fmt(totalSales)}</span></div>
+      <div class="totals-row"><span>Raw Purchases:</span><span>PKR ${fmt(totalRaw)}</span></div>
+      <div class="totals-row"><span>Total Paid:</span><span>PKR ${fmt(totalPaid + totalPayments)}</span></div>
+      <div class="totals-row bold"><span>Outstanding Balance:</span><span style="color:#dc2626">PKR ${fmt(outstanding)}</span></div>
+    </div>
+    
+    <div class="footer">Thank you for your business! | Developed by: AppHill / 03222292922 | www.apphill.pk</div>
+  </body>
+  </html>`;
+};
 
-  // Load customer transaction history
+// Build Single Invoice HTML for Print (Smaller Font)
+const buildInvoiceHtml = (invoice, customer) => {
+  const URDU_FONT = `'Noto Nastaliq Urdu','Mehr Nastaliq','Jameel Noori Nastaleeq','Urdu Typesetting',serif`;
+  const rows = invoice.items?.map((it, i) => ({ ...it, sr: i + 1 })) || [];
+  
+  const itemRows = rows.map(it => `
+    <tr>
+      <td style="padding:4px 6px;border:1px solid #ddd;font-size:9px;text-align:center">${it.sr}</td>
+      <td style="padding:4px 6px;border:1px solid #ddd;font-size:9px">${it.description || it.name}</td>
+      <td style="padding:4px 6px;border:1px solid #ddd;text-align:right;font-size:9px">${it.qty || it.pcs || 0} ${it.measurement || it.uom || ""}</td>
+      <td style="padding:4px 6px;border:1px solid #ddd;text-align:right;font-size:9px">PKR ${fmt(it.rate || 0)}</td>
+      <td style="padding:4px 6px;border:1px solid #ddd;text-align:right;font-size:9px">PKR ${fmt(it.amount || 0)}</td>
+    </tr>
+  `).join("");
+  
+  const printDateTime = new Date().toLocaleString("en-PK", {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+  
+  return `<!DOCTYPE html>
+  <html>
+  <head>
+    <meta charset="utf-8">
+    <title>Invoice ${invoice.invoiceNo}</title>
+    <style>
+      *{margin:0;padding:0;box-sizing:border-box}
+      body{font-family:Arial,sans-serif;padding:12px;font-size:10px}
+      
+      /* Header with shop left and customer right */
+      .print-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 12px;
+        padding-bottom: 8px;
+        border-bottom: 2px solid #333;
+      }
+      .shop-section {
+        text-align: left;
+        flex: 2;
+      }
+      .customer-section {
+        text-align: right;
+        flex: 1;
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+        gap: 8px;
+      }
+      .shop-name{font-size:14px;font-weight:bold;font-family:${URDU_FONT};margin-bottom:2px}
+      .shop-name-en{font-size:11px;font-weight:bold;margin-bottom:2px}
+      .shop-addr{font-size:7px;color:#666;margin:1px 0}
+      .print-time{font-size:6px;color:#999;margin-top:2px}
+      .customer-photo-small{width:40px;height:40px;border-radius:50%;object-fit:cover;border:2px solid #333}
+      .customer-name{font-size:11px;font-weight:bold;margin-bottom:2px}
+      .customer-phone{font-size:8px;color:#666}
+      
+      .invoice-title{font-size:13px;font-weight:bold;margin:10px 0;padding:5px;background:#333;color:#fff;text-align:center}
+      .info-row{display:flex;justify-content:space-between;margin:8px 0;padding:6px;background:#f5f5f5;border-radius:4px;font-size:9px}
+      table{width:100%;border-collapse:collapse;margin:10px 0}
+      th{background:#555;color:#fff;padding:5px;font-size:9px;border:1px solid #666}
+      td{padding:4px 6px;border:1px solid #ddd;font-size:9px}
+      .totals{width:280px;margin-left:auto;margin-top:10px}
+      .totals-row{display:flex;justify-content:space-between;padding:3px 0;font-size:9px}
+      .totals-row.bold{font-weight:bold;border-top:1px solid #333;margin-top:3px;padding-top:3px}
+      .footer{text-align:center;margin-top:15px;padding-top:6px;border-top:1px solid #ddd;font-size:7px;color:#666}
+      .text-right{text-align:right}
+      @media print{body{padding:3mm}}
+    </style>
+  </head>
+  <body>
+    <!-- Header with Shop on Left and Customer on Right -->
+    <div class="print-header">
+      <div class="shop-section">
+        <div class="shop-name">عاصم الیکٹرک اینڈ الیکٹرونکس سٹور</div>
+        <div class="shop-name-en">ASIM ELECTRIC & ELECTRONIC STORE</div>
+        <div class="shop-addr">Main Bazar Nahari Town, Faisalabad</div>
+        <div class="shop-addr">Ph: 0300 7262129, 041 8711575</div>
+        <div class="print-time">Printed on: ${printDateTime}</div>
+      </div>
+      <div class="customer-section">
+        ${customer.imageFront ? 
+          `<img src="${customer.imageFront}" class="customer-photo-small" alt="${customer.name}">` : 
+          `<div style="width:40px;height:40px;border-radius:50%;background:#ddd;display:flex;align-items:center;justify-content:center;font-size:20px">👤</div>`
+        }
+        <div>
+          <div class="customer-name">${customer.name}</div>
+          <div class="customer-phone">📞 ${customer.phone || "N/A"}</div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="invoice-title">${invoice.saleType === "raw-purchase" ? "RAW PURCHASE INVOICE" : "SALES INVOICE"}</div>
+    <div class="info-row">
+      <span><strong>Invoice No:</strong> ${invoice.invoiceNo}</span>
+      <span><strong>Date:</strong> ${invoice.invoiceDate}</span>
+    </div>
+    <div class="info-row">
+      <span><strong>Customer:</strong> ${customer.name}</span>
+      <span><strong>Phone:</strong> ${customer.phone || ""}</span>
+    </div>
+    <table>
+      <thead>
+        <tr><th style="width:30px">#</th><th>Description</th><th class="text-right">Qty</th><th class="text-right">Rate</th><th class="text-right">Amount</th></tr>
+      </thead>
+      <tbody>${itemRows}</tbody>
+    </table>
+    <div class="totals">
+      <div class="totals-row"><span>Sub Total:</span><span>PKR ${fmt(invoice.subTotal || 0)}</span></div>
+      ${invoice.extraDisc > 0 ? `<div class="totals-row"><span>Discount:</span><span>PKR ${fmt(invoice.extraDisc)}</span></div>` : ""}
+      <div class="totals-row bold"><span>Net Total:</span><span>PKR ${fmt(invoice.netTotal || 0)}</span></div>
+      ${invoice.prevBalance > 0 ? `<div class="totals-row"><span>Previous Balance:</span><span>PKR ${fmt(invoice.prevBalance)}</span></div>` : ""}
+      <div class="totals-row"><span>Paid:</span><span>PKR ${fmt(invoice.paidAmount || 0)}</span></div>
+      <div class="totals-row bold ${(invoice.balance || 0) > 0 ? 'red' : 'green'}"><span>Balance:</span><span>PKR ${fmt(invoice.balance || 0)}</span></div>
+    </div>
+    <div class="footer">Thank you for your business! | Developed by: AppHill / 03222292922</div>
+  </body>
+  </html>`;
+};
+
+// Print/Share Functions
+const printCustomerStatement = (customer, sales, rawPurchases, payments) => {
+  const html = buildCustomerStatementHtml(customer, sales, rawPurchases, payments);
+  const printWindow = window.open('', '_blank');
+  printWindow.document.write(html);
+  printWindow.document.close();
+  setTimeout(() => printWindow.print(), 500);
+};
+
+const shareCustomerStatement = async (customer, sales, rawPurchases, payments) => {
+  const phone = customer.phone?.replace(/\D/g, "");
+  if (!phone) {
+    alert("No phone number available");
+    return;
+  }
+  const html = buildCustomerStatementHtml(customer, sales, rawPurchases, payments);
+  const blob = new Blob([html], { type: 'text/html' });
+  const url = URL.createObjectURL(blob);
+  const printWindow = window.open(url, '_blank');
+  if (printWindow) {
+    printWindow.onload = () => {
+      setTimeout(() => {
+        printWindow.print();
+        URL.revokeObjectURL(url);
+        setTimeout(() => {
+          window.open(`https://wa.me/${phone}?text=${encodeURIComponent(`Customer Statement - ${customer.name}`)}`, '_blank');
+        }, 1000);
+      }, 500);
+    };
+  }
+};
+
+const printInvoice = (invoice, customer) => {
+  const html = buildInvoiceHtml(invoice, customer);
+  const printWindow = window.open('', '_blank');
+  printWindow.document.write(html);
+  printWindow.document.close();
+  setTimeout(() => printWindow.print(), 500);
+};
+
+const shareInvoice = async (invoice, customer) => {
+  const phone = customer.phone?.replace(/\D/g, "");
+  if (!phone) {
+    alert("No phone number available");
+    return;
+  }
+  const html = buildInvoiceHtml(invoice, customer);
+  const blob = new Blob([html], { type: 'text/html' });
+  const url = URL.createObjectURL(blob);
+  const printWindow = window.open(url, '_blank');
+  if (printWindow) {
+    printWindow.onload = () => {
+      setTimeout(() => {
+        printWindow.print();
+        URL.revokeObjectURL(url);
+        setTimeout(() => {
+          window.open(`https://wa.me/${phone}?text=${encodeURIComponent(`Invoice ${invoice.invoiceNo} - ${customer.name}`)}`, '_blank');
+        }, 1000);
+      }, 500);
+    };
+  }
+};
+
+/* ═══════════════════════════════════════════════════════════
+   CUSTOMER DETAIL PAGE - Shows all customer details, invoices, payments
+════════════════════════════════════════════════════════════ */
+function CustomerDetailPage({ customer, onBack }) {
+  const [sales, setSales] = useState([]);
+  const [payments, setPayments] = useState([]);
+  const [rawPurchases, setRawPurchases] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState("invoices");
+  const [selectedInvoice, setSelectedInvoice] = useState(null);
+  const [showInvoiceModal, setShowInvoiceModal] = useState(false);
+  const [expandedInvoices, setExpandedInvoices] = useState({});
+  const [expandAll, setExpandAll] = useState(false);
+
   useEffect(() => {
-    loadSales();
-    loadCustomerBalance();
+    loadAllData();
   }, [customer._id]);
 
-  const loadCustomerBalance = async () => {
+  const loadAllData = async () => {
+    setLoading(true);
     try {
-      const { data } = await api.get(EP.CUSTOMERS.GET_ONE(customer._id));
-      if (data.success) {
-        setCurrentCustomer(data.data);
-      }
-    } catch (err) {
-      console.error("Failed to load customer balance:", err);
-    }
-  };
-
-  const loadSales = async () => {
-    setLoadS(true);
-    try {
-      const { data } = await api.get(EP.CUSTOMERS.SALE_HISTORY(customer._id));
-      if (data.success) setSales(data.data || []);
-    } catch (err) {
-      console.error("Failed to load sales:", err);
-    }
-    setLoadS(false);
-  };
-
-  const showPayMsg = (text, type = "success") => {
-    setPayMsg({ text, type });
-    setTimeout(() => setPayMsg({ text: "", type: "" }), 3000);
-  };
-
-  // Record payment and update balance
-  const handlePay = async () => {
-    const amt = Number(payAmount);
-    if (!amt || amt <= 0) {
-      showPayMsg("Please enter a valid amount", "error");
-      return;
-    }
-    
-    if (amt > (currentCustomer.currentBalance || 0)) {
-      showPayMsg(`Amount cannot exceed outstanding balance of PKR ${fmt(currentCustomer.currentBalance)}`, "error");
-      return;
-    }
-    
-    setPaying(true);
-    try {
-      // Record payment
-      const { data } = await api.post("/payments", {
-        customerId: customer._id,
-        amount: amt,
-        remarks: payRemarks,
-        paymentDate: isoD(),
-      });
-      
-      if (data.success) {
-        // Update customer balance directly
-        const balanceResponse = await api.patch(`/customers/${customer._id}/balance`, {
-          amount: amt,
-          operation: "subtract"
-        });
-        
-        if (balanceResponse.data.success) {
-          showPayMsg(`PKR ${fmt(amt)} payment recorded successfully. New balance: PKR ${fmt(balanceResponse.data.data.currentBalance)}`, "success");
-          setPayAmount("");
-          setPayRemarks("");
-          await loadSales();
-          await loadCustomerBalance();
-          if (onUpdated) onUpdated();
-        } else {
-          showPayMsg("Payment recorded but balance update failed", "error");
-        }
+      const salesRes = await api.get(EP.CUSTOMERS.SALE_HISTORY(customer._id));
+      if (salesRes.data.success) {
+        setSales(Array.isArray(salesRes.data.data) ? salesRes.data.data : []);
       } else {
-        showPayMsg(data.message || "Payment failed", "error");
+        setSales([]);
       }
-    } catch (e) {
-      console.error("Payment error:", e);
-      showPayMsg(e.response?.data?.message || "Payment failed", "error");
+      
+      try {
+        const paymentsRes = await api.get(`/payments/customer/${customer._id}`);
+        if (paymentsRes.data.success) {
+          setPayments(Array.isArray(paymentsRes.data.data) ? paymentsRes.data.data : []);
+        } else {
+          setPayments([]);
+        }
+      } catch (err) {
+        setPayments([]);
+      }
+      
+      try {
+        const rawPurchasesRes = await api.get(`${EP.RAW_PURCHASES.GET_ALL}?customerId=${customer._id}`);
+        if (rawPurchasesRes.data.success) {
+          setRawPurchases(Array.isArray(rawPurchasesRes.data.data) ? rawPurchasesRes.data.data : []);
+        } else {
+          setRawPurchases([]);
+        }
+      } catch (err) {
+        setRawPurchases([]);
+      }
+    } catch (err) {
+      console.error("Failed to load customer data:", err);
+      setSales([]);
+      setPayments([]);
+      setRawPurchases([]);
     }
-    setPaying(false);
+    setLoading(false);
   };
 
-  // Send WhatsApp statement
-  const sendWhatsAppHistory = () => {
-    const saleTxns = sales.filter((s) => s.saleType === "sale");
-    const returnTxns = sales.filter((s) => s.saleType === "return");
-    const totalSales = saleTxns.reduce((s, x) => s + (x.netTotal || 0), 0);
-    const totalPaid = saleTxns.reduce((s, x) => s + (x.paidAmount || 0), 0);
-    const totalReturn = returnTxns.reduce((s, x) => s + (x.netTotal || 0), 0);
-    const outstanding = currentCustomer.currentBalance || 0;
+  const toggleInvoiceExpand = (invoiceId) => {
+    setExpandedInvoices(prev => ({
+      ...prev,
+      [invoiceId]: !prev[invoiceId]
+    }));
+  };
+
+  const toggleExpandAll = () => {
+    const newExpandAll = !expandAll;
+    setExpandAll(newExpandAll);
+    const allInvoiceIds = [...sales, ...rawPurchases].map(inv => inv._id);
+    const newExpandedState = {};
+    if (newExpandAll) {
+      allInvoiceIds.forEach(id => { newExpandedState[id] = true; });
+    }
+    setExpandedInvoices(newExpandedState);
+  };
+
+  const totalSales = Array.isArray(sales) ? sales.reduce((s, x) => s + (x.netTotal || 0), 0) : 0;
+  const totalPaid = Array.isArray(sales) ? sales.reduce((s, x) => s + (x.paidAmount || 0), 0) : 0;
+  const totalRawPurchases = Array.isArray(rawPurchases) ? rawPurchases.reduce((s, x) => s + (x.netTotal || 0), 0) : 0;
+  const totalPayments = Array.isArray(payments) ? payments.reduce((s, p) => s + (p.amount || 0), 0) : 0;
+  const outstanding = customer.currentBalance || 0;
+
+  const allTransactions = [
+    ...(Array.isArray(sales) ? sales.map(s => ({ ...s, type: "sale", date: s.invoiceDate })) : []),
+    ...(Array.isArray(rawPurchases) ? rawPurchases.map(r => ({ ...r, type: "raw-purchase", date: r.invoiceDate })) : []),
+    ...(Array.isArray(payments) ? payments.map(p => ({ ...p, type: "payment", date: p.paymentDate || p.createdAt?.split("T")[0], amount: p.amount })) : [])
+  ].sort((a, b) => new Date(b.date) - new Date(a.date));
+
+  const handleViewInvoice = (invoice) => {
+    setSelectedInvoice(invoice);
+    setShowInvoiceModal(true);
+  };
+
+  const handleFullDetails = () => {
+    setTimeout(() => {
+      printCustomerStatement(customer, sales, rawPurchases, payments);
+    }, 100);
+  };
+
+  // Render invoice items in table format
+  const renderInvoiceItems = (invoice) => {
+    const items = invoice.items || [];
+    if (items.length === 0) return null;
     
-    const separator = "━".repeat(30);
-    const dash = "─".repeat(30);
-    
-    const invoiceLines = sales
-      .slice(0, 10)
-      .map((s, i) => {
-        const typeLabel = s.saleType === "return" ? "RETURN" : "SALE";
-        return `${i + 1}. ${typeLabel} | ${s.invoiceNo} | ${s.invoiceDate}\n   Net: PKR ${fmt(s.netTotal || 0)} | Paid: PKR ${fmt(s.paidAmount || 0)}${s.balance > 0 ? ` | Bal: PKR ${fmt(s.balance)}` : " (Clear)"}`;
-      })
-      .join(`\n${dash}\n`);
-    
-    const message = `${separator}\n*ASIM ELECTRIC & ELECTRONIC STORE*\n*CUSTOMER ACCOUNT STATEMENT*\n${separator}\n*${currentCustomer.name}*${currentCustomer.phone ? "\n📞 " + currentCustomer.phone : ""}${currentCustomer.code ? "\n🆔 Code: " + currentCustomer.code : ""}\n📅 Date: ${isoD()}\n${separator}\n💰 Total Purchases: PKR ${fmt(totalSales)}\n↩️ Total Returns:   PKR ${fmt(totalReturn)}\n💵 Total Paid:      PKR ${fmt(totalPaid)}\n⚠️ *Outstanding:    PKR ${fmt(outstanding)}*\n${separator}\n${invoiceLines}\n${separator}\n_Thank you for your business!_`;
-    
-    window.open(
-      `https://wa.me/${(currentCustomer.phone || "").replace(/\D/g, "")}?text=${encodeURIComponent(message)}`,
-      "_blank",
+    return (
+      <tr className="invoice-details-row">
+        <td colSpan="8" style={{ padding: "0", background: "#f8fafc" }}>
+          <table className="xp-table" style={{ margin: "0", fontSize: "11px", border: "none", width: "100%" }}>
+            <thead>
+              <tr>
+                <th style={{ width: 35, background: "#e2e8f0", padding: "4px", fontSize: "10px" }}>#</th>
+                <th style={{ background: "#e2e8f0", padding: "4px", fontSize: "10px" }}>Product</th>
+                <th style={{ width: 60, background: "#e2e8f0", padding: "4px", fontSize: "10px", textAlign: "center" }}>Qty</th>
+                <th style={{ width: 80, background: "#e2e8f0", padding: "4px", fontSize: "10px", textAlign: "right" }}>Rate</th>
+                <th style={{ width: 90, background: "#e2e8f0", padding: "4px", fontSize: "10px", textAlign: "right" }}>Amount</th>
+                <th style={{ width: 50, background: "#e2e8f0", padding: "4px", fontSize: "10px", textAlign: "center" }}>Rack</th>
+                <th style={{ width: 55, background: "#e2e8f0", padding: "4px", fontSize: "10px", textAlign: "center" }}>UOM</th>
+                <th style={{ width: 50, background: "#e2e8f0", padding: "4px", fontSize: "10px", textAlign: "center" }}>Disc%</th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.map((it, idx) => (
+                <tr key={idx} style={{ borderBottom: "1px solid #e2e8f0" }}>
+                  <td style={{ padding: "4px", fontSize: "10px", textAlign: "center" }}>{idx + 1}</td>
+                  <td style={{ padding: "4px", fontSize: "10px" }}>{it.description || it.name}</td>
+                  <td style={{ padding: "4px", fontSize: "10px", textAlign: "center" }}>{it.qty || it.pcs || 0}</td>
+                  <td style={{ padding: "4px", fontSize: "10px", textAlign: "right" }}>PKR {fmt(it.rate || 0)}</td>
+                  <td style={{ padding: "4px", fontSize: "10px", textAlign: "right" }}>PKR {fmt(it.amount || 0)}</td>
+                  <td style={{ padding: "4px", fontSize: "10px", textAlign: "center" }}>{it.rack || "—"}</td>
+                  <td style={{ padding: "4px", fontSize: "10px", textAlign: "center" }}>{it.measurement || it.uom || "—"}</td>
+                  <td style={{ padding: "4px", fontSize: "10px", textAlign: "center" }}>{it.disc || 0}%</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </td>
+      </tr>
     );
   };
 
-  // Calculate statistics
-  const saleTxns = sales.filter((s) => s.saleType === "sale");
-  const returnTxns = sales.filter((s) => s.saleType === "return");
-  const totalSales = saleTxns.reduce((s, x) => s + (x.netTotal || 0), 0);
-  const totalPaid = saleTxns.reduce((s, x) => s + (x.paidAmount || 0), 0);
-  const totalReturn = returnTxns.reduce((s, x) => s + (x.netTotal || 0), 0);
-  const outstanding = currentCustomer.currentBalance || 0;
-
   return (
-    <div className="xp-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="xp-modal" style={{ maxWidth: 1000, width: "90%" }}>
-        {/* Modal Header */}
-        <div className="xp-modal-tb">
-          <svg width="14" height="14" viewBox="0 0 16 16" fill="rgba(255,255,255,0.8)">
-            <path d="M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6m2-3a2 2 0 1 1-4 0 2 2 0 0 1 4 0m4 8c0 1-1 1-1 1H3s-1 0-1-1 1-4 6-4 6 3 6 4" />
-          </svg>
-          <span className="xp-modal-title">
-            {currentCustomer.name}
-            {currentCustomer.code && <span className="xp-modal-code">[{currentCustomer.code}]</span>}
-          </span>
-          <button className="xp-btn xp-btn-wa xp-btn-sm" onClick={sendWhatsAppHistory}>
-            📱 Statement
-          </button>
-          <button className="xp-cap-btn xp-cap-close" onClick={onClose}>✕</button>
-        </div>
-
-        {/* Customer Info Strip */}
-        <div className="cc-info-strip">
-          <div className="cc-info-meta">
-            {currentCustomer.phone && <span className="cc-info-chip">📞 {currentCustomer.phone}</span>}
-            {currentCustomer.address && <span className="cc-info-chip">📍 {currentCustomer.address}</span>}
-            {currentCustomer.area && <span className="cc-info-chip">🏘️ {currentCustomer.area}</span>}
-          </div>
-
-          {/* Statistics Cards */}
-          <div className="cc-stat-row">
-            <div className="cc-mini-stat">
-              <div className="cc-mini-lbl">Total Purchases</div>
-              <div className="cc-mini-val">PKR {fmt(totalSales)}</div>
-            </div>
-            <div className="cc-mini-stat">
-              <div className="cc-mini-lbl">Total Paid</div>
-              <div className="cc-mini-val success">PKR {fmt(totalPaid)}</div>
-            </div>
-            <div className="cc-mini-stat">
-              <div className="cc-mini-lbl">Returns</div>
-              <div className="cc-mini-val warning">PKR {fmt(totalReturn)}</div>
-            </div>
-            <div className="cc-mini-stat danger">
-              <div className="cc-mini-lbl">Outstanding</div>
-              <div className="cc-mini-val danger">PKR {fmt(outstanding)}</div>
-            </div>
-            <div className="cc-mini-stat">
-              <div className="cc-mini-lbl">Transactions</div>
-              <div className="cc-mini-val">{sales.length}</div>
-            </div>
-          </div>
-        </div>
-
-        {/* Tabs */}
-        <div className="xp-tab-bar">
-          <button className={`xp-tab${activeTab === "history" ? " active" : ""}`} onClick={() => setActiveTab("history")}>
-            📋 History
-            <span className="xp-tab-cnt">{sales.length}</span>
-          </button>
-          <button className={`xp-tab${activeTab === "pay" ? " active" : ""}`} onClick={() => { setActiveTab("pay"); setTimeout(() => payRef.current?.focus(), 50); }}>
-            💰 Record Payment
-          </button>
-        </div>
-
-        {/* Modal Body */}
-        <div className="xp-modal-body">
-          {/* History Tab */}
-          {activeTab === "history" && (
-            <>
-              {loadingSales && <div className="xp-loading">Loading transactions…</div>}
-              {!loadingSales && sales.length === 0 && <div className="xp-empty">No transactions found</div>}
-              {!loadingSales && sales.length > 0 && (
-                <div className="xp-table-panel">
-                  <div className="xp-table-scroll">
-                    <table className="xp-table" style={{ fontSize: 12 }}>
-                      <thead>
-                        <tr>
-                          <th style={{ width: 35 }}>#</th>
-                          <th>Invoice</th>
-                          <th>Date</th>
-                          <th className="r">Net Total</th>
-                          <th className="r">Paid</th>
-                          <th className="r">Balance</th>
-                          <th>Type</th>
-                          <th style={{ width: 30 }}></th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {sales.map((s, i) => (
-                          <>
-                            <tr key={s._id} className={selectedSale?._id === s._id ? "cc-row-expanded" : ""} style={{ cursor: "pointer" }} onClick={() => setSelectedSale(selectedSale?._id === s._id ? null : s)}>
-                              <td className="text-muted">{i + 1}</td>
-                              <td><strong>{s.invoiceNo}</strong></td>
-                              <td className="text-muted">{s.invoiceDate}</td>
-                              <td className="r xp-amt">{fmt(s.netTotal)}</td>
-                              <td className="r xp-amt success">{fmt(s.paidAmount)}</td>
-                              <td className="r">{s.balance > 0 ? <span className="xp-amt danger">{fmt(s.balance)}</span> : <span className="text-muted">✓</span>}</td>
-                              <td><span className={`xp-badge ${s.saleType === "return" ? "xp-badge-ret" : "xp-badge-sale"}`}>{s.saleType === "return" ? "Return" : "Sale"}</span></td>
-                              <td style={{ textAlign: "center" }}>{selectedSale?._id === s._id ? "▲" : "▼"}</td>
-                            </tr>
-
-                            {selectedSale?._id === s._id && (
-                              <tr>
-                                <td colSpan={8} className="cc-detail-cell">
-                                  <div className="cc-detail-inner">
-                                    <table className="xp-table" style={{ fontSize: 11 }}>
-                                      <thead>
-                                        <tr><th>#</th><th>Description</th><th>Meas.</th><th className="r">Qty</th><th className="r">Rate</th><th className="r">Amount</th></tr>
-                                      </thead>
-                                      <tbody>
-                                        {(s.items || []).map((it, j) => (
-                                          <tr key={j}>
-                                            <td className="text-muted">{j + 1}</td>
-                                            <td>{it.description}</td>
-                                            <td className="text-muted">{it.measurement || "—"}</td>
-                                            <td className="r">{it.qty}</td>
-                                            <td className="r xp-amt">{fmt(it.rate)}</td>
-                                            <td className="r xp-amt">{fmt(it.amount)}</td>
-                                          </tr>
-                                        ))}
-                                      </tbody>
-                                    </table>
-                                  </div>
-                                  <div className="cc-detail-footer">
-                                    <span>Net: <strong>PKR {fmt(s.netTotal)}</strong></span>
-                                    <span>Paid: <strong>PKR {fmt(s.paidAmount)}</strong></span>
-                                    {s.balance > 0 && <span className="danger">Balance: <strong>PKR {fmt(s.balance)}</strong></span>}
-                                  </div>
-                                </td>
-                              </tr>
-                            )}
-                          </>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
-            </>
-          )}
-
-          {/* Payment Tab */}
-          {activeTab === "pay" && (
-            <div className="cc-pay-form">
-              <div className="cc-due-banner">
-                <span>💰 Outstanding Balance</span>
-                <strong>PKR {fmt(outstanding)}</strong>
-              </div>
-
-              {payMsg.text && (
-                <div className={`xp-alert ${payMsg.type === "success" ? "xp-alert-success" : "xp-alert-error"}`} style={{ marginBottom: 12 }}>
-                  {payMsg.text}
-                </div>
-              )}
-
-              <div className="cc-pay-form-row">
-                <div className="xp-form-grp">
-                  <label className="xp-label">Amount (PKR)</label>
-                  <div className="cc-pfx-wrap">
-                    <span className="cc-pfx">PKR</span>
-                    <input ref={payRef} type="number" className="xp-input xp-input-lg" value={payAmount} onChange={(e) => setPayAmount(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handlePay()} placeholder="0" />
-                  </div>
-                </div>
-                <div className="xp-form-grp">
-                  <label className="xp-label">Remarks</label>
-                  <input type="text" className="xp-input xp-input-lg" value={payRemarks} onChange={(e) => setPayRemarks(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handlePay()} placeholder="Cash, Cheque, Bank Transfer..." />
-                </div>
-              </div>
-
-              <button className="xp-btn xp-btn-success xp-btn-lg" onClick={handlePay} disabled={paying} style={{ width: "100%" }}>
-                {paying ? "Processing..." : "💵 Record Payment"}
-              </button>
-            </div>
+    <div className="cp-customer-detail-page">
+      {/* Header with Customer Photo */}
+      <div className="cp-detail-header">
+        <button className="xp-btn xp-btn-sm" onClick={onBack}>← Back to List</button>
+        <div className="cp-customer-photo">
+          {customer.imageFront ? (
+            <img src={customer.imageFront} alt={customer.name} className="cp-photo-img" />
+          ) : (
+            <div className="cp-photo-placeholder">👤</div>
           )}
         </div>
-
-        {/* Modal Footer */}
-        <div className="xp-modal-footer">
-          <button className="xp-btn" onClick={onClose}>Close</button>
+        <div className="cp-customer-info">
+          <h2>{customer.name}</h2>
+          <div className="cp-customer-badges">
+            {customer.code && <span className="cp-badge">Code: {customer.code}</span>}
+            {customer.phone && <span className="cp-badge">📞 {customer.phone}</span>}
+            {customer.area && <span className="cp-badge">📍 {customer.area}</span>}
+            {customer.address && <span className="cp-badge">🏠 {customer.address}</span>}
+          </div>
+        </div>
+        <div className="cp-detail-actions">
+          <button className="xp-btn xp-btn-primary" onClick={handleFullDetails}>
+            📄 Print Full Statement
+          </button>
+          <button className="xp-btn xp-btn-wa" onClick={() => shareCustomerStatement(customer, sales, rawPurchases, payments)}>
+            📱 Share Statement
+          </button>
         </div>
       </div>
+
+      {/* Stats Cards */}
+      <div className="cc-stat-grid" style={{ marginBottom: 20 }}>
+        <div className="cc-stat-card"><div className="cc-stat-label">Total Sales</div><div className="cc-stat-val">PKR {fmt(totalSales)}</div></div>
+        <div className="cc-stat-card green"><div className="cc-stat-label">Total Paid</div><div className="cc-stat-val success">PKR {fmt(totalPaid + totalPayments)}</div></div>
+        <div className="cc-stat-card"><div className="cc-stat-label">Raw Purchases</div><div className="cc-stat-val">PKR {fmt(totalRawPurchases)}</div></div>
+        <div className="cc-stat-card red"><div className="cc-stat-label">Outstanding</div><div className="cc-stat-val danger">PKR {fmt(outstanding)}</div></div>
+        <div className="cc-stat-card"><div className="cc-stat-label">Transactions</div><div className="cc-stat-val">{allTransactions.length}</div></div>
+      </div>
+
+      {/* Tabs */}
+      <div className="xp-tab-bar">
+        <button className={`xp-tab${activeTab === "invoices" ? " active" : ""}`} onClick={() => setActiveTab("invoices")}>📋 Invoices ({(sales.length || 0) + (rawPurchases.length || 0)})</button>
+        <button className={`xp-tab${activeTab === "payments" ? " active" : ""}`} onClick={() => setActiveTab("payments")}>💳 Payments ({payments.length || 0})</button>
+        <button className={`xp-tab${activeTab === "raw" ? " active" : ""}`} onClick={() => setActiveTab("raw")}>📦 Raw Purchases ({rawPurchases.length || 0})</button>
+        <button className={`xp-tab${activeTab === "all" ? " active" : ""}`} onClick={() => setActiveTab("all")}>📊 All Transactions ({allTransactions.length})</button>
+      </div>
+
+      {/* Expand/Collapse All Button */}
+      {(activeTab === "invoices" || activeTab === "raw") && (sales.length > 0 || rawPurchases.length > 0) && (
+        <div style={{ marginBottom: 12, display: "flex", justifyContent: "flex-end" }}>
+          <button className="xp-btn xp-btn-sm" onClick={toggleExpandAll}>
+            {expandAll ? "📋 Collapse All Invoices" : "📋 Expand All Invoices (Show Items)"}
+          </button>
+        </div>
+      )}
+
+      {/* Content */}
+      <div className="xp-table-panel">
+        {loading && <div className="xp-loading">Loading...</div>}
+        
+        {/* Invoices Tab */}
+        {activeTab === "invoices" && !loading && (
+          <div className="xp-table-scroll">
+            <table className="xp-table">
+              <thead>
+                <tr>
+                  <th style={{ width: 35 }}>#</th>
+                  <th>Invoice No</th>
+                  <th>Date</th>
+                  <th className="r">Total</th>
+                  <th className="r">Paid</th>
+                  <th className="r">Balance</th>
+                  <th>Type</th>
+                  <th style={{ width: 170 }}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {[...(Array.isArray(sales) ? sales : []), ...(Array.isArray(rawPurchases) ? rawPurchases : [])]
+                  .sort((a,b) => new Date(b.invoiceDate) - new Date(a.invoiceDate))
+                  .map((inv, i) => {
+                    const isExpanded = expandedInvoices[inv._id];
+                    return (
+                      <Fragment key={inv._id || i}>
+                        <tr style={{ background: inv.saleType === "raw-purchase" ? "#fef3c7" : "white" }}>
+                          <td style={{ textAlign: "center" }}>{i + 1}</td>
+                          <td><strong>{inv.invoiceNo}</strong></td>
+                          <td>{inv.invoiceDate}</td>
+                          <td className="r">PKR {fmt(inv.netTotal)}</td>
+                          <td className="r success">PKR {fmt(inv.paidAmount)}</td>
+                          <td className="r">{inv.balance > 0 ? <span className="danger">PKR {fmt(inv.balance)}</span> : "✓"}</td>
+                          <td><span className={`xp-badge ${inv.saleType === "raw-purchase" ? "xp-badge-raw" : "xp-badge-sale"}`}>{inv.saleType === "raw-purchase" ? "Raw Purchase" : "Sale"}</span></td>
+                          <td>
+                            <div className="cc-act">
+                              <button className="xp-btn xp-btn-sm xp-btn-ico" onClick={() => toggleInvoiceExpand(inv._id)} title={isExpanded ? "Hide Items" : "Show Items"}>
+                                {isExpanded ? "📄 Hide" : "📄 Show Items"}
+                              </button>
+                              <button className="xp-btn xp-btn-sm xp-btn-ico" onClick={() => handleViewInvoice(inv)} title="View Invoice">👁️</button>
+                              <button className="xp-btn xp-btn-sm xp-btn-ico" onClick={() => printInvoice(inv, customer)} title="Print Invoice">🖨️</button>
+                              <button className="xp-btn xp-btn-sm xp-btn-ico cc-btn-wa-sm" onClick={() => shareInvoice(inv, customer)} title="Share Invoice">📱</button>
+                            </div>
+                          </td>
+                        </tr>
+                        {isExpanded && renderInvoiceItems(inv)}
+                      </Fragment>
+                    );
+                  })}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* Payments Tab */}
+        {activeTab === "payments" && !loading && (
+          <div className="xp-table-scroll">
+            <table className="xp-table">
+              <thead>
+                <tr>
+                  <th style={{ width: 35 }}>#</th>
+                  <th>Reference</th>
+                  <th>Date</th>
+                  <th className="r">Amount</th>
+                  <th>Remarks</th>
+                </tr>
+              </thead>
+              <tbody>
+                {Array.isArray(payments) && payments.map((p, i) => (
+                  <tr key={p._id || i}>
+                    <td style={{ textAlign: "center" }}>{i + 1}</td>
+                    <td><strong>PAY-{p.paymentNo || p._id?.slice(-6)}</strong></td>
+                    <td>{p.paymentDate || p.createdAt?.split("T")[0]}</td>
+                    <td className="r success">PKR {fmt(p.amount)}</td>
+                    <td>{p.remarks || "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr>
+                  <td colSpan="3"><strong>Total</strong></td>
+                  <td className="r success"><strong>PKR {fmt(totalPayments)}</strong></td>
+                  <td></td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        )}
+
+        {/* Raw Purchases Tab */}
+        {activeTab === "raw" && !loading && (
+          <div className="xp-table-scroll">
+            <table className="xp-table">
+              <thead>
+                <tr>
+                  <th style={{ width: 35 }}>#</th>
+                  <th>Invoice No</th>
+                  <th>Date</th>
+                  <th className="r">Total</th>
+                  <th className="r">Paid</th>
+                  <th className="r">Balance</th>
+                  <th style={{ width: 170 }}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {Array.isArray(rawPurchases) && rawPurchases.map((r, i) => {
+                  const isExpanded = expandedInvoices[r._id];
+                  return (
+                    <Fragment key={r._id || i}>
+                      <tr style={{ background: "#fef3c7" }}>
+                        <td style={{ textAlign: "center" }}>{i + 1}</td>
+                        <td><strong>{r.invoiceNo}</strong></td>
+                        <td>{r.invoiceDate}</td>
+                        <td className="r">PKR {fmt(r.netTotal)}</td>
+                        <td className="r success">PKR {fmt(r.paidAmount)}</td>
+                        <td className="r">{r.balance > 0 ? <span className="danger">PKR {fmt(r.balance)}</span> : "✓"}</td>
+                        <td>
+                          <div className="cc-act">
+                            <button className="xp-btn xp-btn-sm xp-btn-ico" onClick={() => toggleInvoiceExpand(r._id)} title={isExpanded ? "Hide Items" : "Show Items"}>
+                              {isExpanded ? "📄 Hide" : "📄 Show Items"}
+                            </button>
+                            <button className="xp-btn xp-btn-sm xp-btn-ico" onClick={() => handleViewInvoice(r)}>👁️</button>
+                            <button className="xp-btn xp-btn-sm xp-btn-ico" onClick={() => printInvoice(r, customer)}>🖨️</button>
+                            <button className="xp-btn xp-btn-sm xp-btn-ico cc-btn-wa-sm" onClick={() => shareInvoice(r, customer)}>📱</button>
+                          </div>
+                        </td>
+                      </tr>
+                      {isExpanded && renderInvoiceItems(r)}
+                    </Fragment>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* All Transactions Tab */}
+        {activeTab === "all" && !loading && (
+          <div className="xp-table-scroll">
+            <table className="xp-table">
+              <thead>
+                <tr>
+                  <th style={{ width: 35 }}>#</th>
+                  <th>Reference</th>
+                  <th>Date</th>
+                  <th className="r">Debit</th>
+                  <th className="r">Credit</th>
+                  <th>Type</th>
+                  <th>Details</th>
+                </tr>
+              </thead>
+              <tbody>
+                {allTransactions.map((t, i) => (
+                  <tr key={t._id || i} className={t.type === "payment" ? "cc-payment-row" : ""}>
+                    <td style={{ textAlign: "center" }}>{i + 1}</td>
+                    <td><strong>{t.invoiceNo || t._id?.slice(-6)}</strong></td>
+                    <td>{t.date}</td>
+                    <td className="r">{t.type !== "payment" ? `PKR ${fmt(t.netTotal)}` : "—"}</td>
+                    <td className="r success">{t.type === "payment" ? `PKR ${fmt(t.amount)}` : (t.paidAmount > 0 ? `PKR ${fmt(t.paidAmount)}` : "—")}</td>
+                    <td>{t.type === "payment" ? "💵 Payment" : (t.saleType === "raw-purchase" ? "📦 Raw Purchase" : "🛒 Sale")}</td>
+                    <td>{t.remarks || (t.items?.length ? `${t.items.length} items` : "")}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* Invoice Modal */}
+      {showInvoiceModal && selectedInvoice && (
+        <div className="xp-overlay" onClick={() => setShowInvoiceModal(false)}>
+          <div className="xp-modal" style={{ maxWidth: 900, width: "90%", maxHeight: "85vh", overflow: "auto" }}>
+            <div className="xp-modal-tb">
+              <span className="xp-modal-title">Invoice {selectedInvoice.invoiceNo}</span>
+              <button className="xp-cap-btn xp-cap-close" onClick={() => setShowInvoiceModal(false)}>✕</button>
+            </div>
+            <div className="xp-modal-body" style={{ padding: 20 }}>
+              <div dangerouslySetInnerHTML={{ __html: buildInvoiceHtml(selectedInvoice, customer) }} />
+            </div>
+            <div className="xp-modal-footer">
+              <button className="xp-btn" onClick={() => printInvoice(selectedInvoice, customer)}>🖨️ Print</button>
+              <button className="xp-btn xp-btn-wa" onClick={() => shareInvoice(selectedInvoice, customer)}>📱 Share on WhatsApp</button>
+              <button className="xp-btn" onClick={() => setShowInvoiceModal(false)}>Close</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <style>{`
+        .cp-customer-detail-page {
+          padding: 16px;
+          height: 100%;
+          overflow: auto;
+          background: #fff;
+        }
+        .cp-detail-header {
+          display: flex;
+          align-items: center;
+          gap: 20px;
+          margin-bottom: 20px;
+          padding: 16px;
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          border-radius: 12px;
+          flex-wrap: wrap;
+        }
+        .cp-customer-photo {
+          width: 70px;
+          height: 70px;
+          border-radius: 50%;
+          overflow: hidden;
+          background: #fff;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border: 3px solid #fff;
+          box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+        }
+        .cp-photo-img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+        }
+        .cp-photo-placeholder {
+          font-size: 40px;
+        }
+        .cp-customer-info {
+          flex: 1;
+        }
+        .cp-customer-info h2 {
+          margin: 0 0 8px 0;
+          color: #fff;
+          font-size: 18px;
+        }
+        .cp-customer-badges {
+          display: flex;
+          gap: 10px;
+          flex-wrap: wrap;
+        }
+        .cp-badge {
+          background: rgba(255,255,255,0.2);
+          padding: 3px 10px;
+          border-radius: 20px;
+          font-size: 11px;
+          color: #fff;
+        }
+        .cp-detail-actions {
+          display: flex;
+          gap: 10px;
+        }
+        .invoice-details-row td {
+          padding: 8px !important;
+          background: #f8fafc;
+        }
+        .xp-badge-raw {
+          background: #fef3c7;
+          color: #d97706;
+          padding: 2px 8px;
+          border-radius: 12px;
+          font-size: 10px;
+        }
+        .xp-badge-sale {
+          background: #dbeafe;
+          color: #2563eb;
+          padding: 2px 8px;
+          border-radius: 12px;
+          font-size: 10px;
+        }
+        .xp-btn-wa {
+          background: #25D366;
+          color: #fff;
+          border-color: #128C7E;
+        }
+        .xp-btn-wa:hover {
+          background: #128C7E;
+        }
+        .danger { color: #dc2626; font-weight: bold; }
+        .success { color: #059669; }
+        .red { color: #dc2626; }
+        .green { color: #059669; }
+        .cc-act {
+          display: flex;
+          gap: 4px;
+          flex-wrap: wrap;
+        }
+        .xp-btn-ico {
+          padding: 4px 8px;
+          font-size: 11px;
+        }
+        .r {
+          text-align: right;
+        }
+        .text-center {
+          text-align: center;
+        }
+      `}</style>
     </div>
   );
 }
 
 /* ═══════════════════════════════════════════════════════════
-   MAIN PAGE - Credit Customers List
+   MAIN PAGE - Credit Customers List with Search
 ════════════════════════════════════════════════════════════ */
 export default function CreditCustomersPage() {
   const navigate = useNavigate();
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
-  const [filterType, setFilterType] = useState("all");
-  const [sortBy, setSortBy] = useState("balance");
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [msg, setMsg] = useState({ text: "", type: "" });
   const searchRef = useRef(null);
 
-  // Load customers on mount
   useEffect(() => {
     loadCustomers();
     searchRef.current?.focus();
   }, []);
 
-  // Fetch customers from API
   const loadCustomers = async () => {
     setLoading(true);
     try {
-      const { data } = await api.get(EP.CUSTOMERS.GET_ALL + "?type=credit&limit=500");
+      const { data } = await api.get(EP.CUSTOMERS.GET_ALL + "?type=credit");
       if (data.success) {
-        setCustomers(data.data || []);
+        setCustomers(Array.isArray(data.data) ? data.data : []);
       }
     } catch (err) {
       showMsg("Failed to load customers", "error");
@@ -365,143 +915,62 @@ export default function CreditCustomersPage() {
     setTimeout(() => setMsg({ text: "", type: "" }), 3000);
   };
 
-  // Statistics
-  const totalCustomers = customers.length;
-  const dueCustomers = customers.filter((c) => (c.currentBalance || 0) > 0);
-  const clearCustomers = customers.filter((c) => (c.currentBalance || 0) <= 0);
-  const totalDue = customers.reduce((s, c) => s + Math.max(0, c.currentBalance || 0), 0);
-  const totalRecovered = customers.reduce((s, c) => s + Math.max(0, -(c.currentBalance || 0)), 0);
+  const totalCustomers = Array.isArray(customers) ? customers.length : 0;
+  const dueCustomers = Array.isArray(customers) ? customers.filter((c) => (c.currentBalance || 0) > 0) : [];
+  const totalDue = Array.isArray(customers) ? customers.reduce((s, c) => s + Math.max(0, c.currentBalance || 0), 0) : 0;
 
-  // Filter and sort customers
-  const filtered = customers
-    .filter((c) => {
-      const query = search.toLowerCase();
-      const matchSearch = !query || 
-        c.name?.toLowerCase().includes(query) ||
-        c.phone?.includes(query) ||
-        c.code?.toLowerCase().includes(query) ||
-        c.area?.toLowerCase().includes(query);
-      
-      const matchType = filterType === "all" ||
-        (filterType === "due" && (c.currentBalance || 0) > 0) ||
-        (filterType === "clear" && (c.currentBalance || 0) <= 0);
-      
-      return matchSearch && matchType;
-    })
-    .sort((a, b) => {
-      if (sortBy === "balance") return (b.currentBalance || 0) - (a.currentBalance || 0);
-      return a.name.localeCompare(b.name);
-    });
+  const filtered = Array.isArray(customers) ? customers.filter((c) => {
+    const query = search.toLowerCase();
+    return !query || 
+      c.name?.toLowerCase().includes(query) ||
+      c.phone?.includes(query) ||
+      c.code?.toLowerCase().includes(query) ||
+      c.area?.toLowerCase().includes(query);
+  }) : [];
 
-  // Send bulk reminder via WhatsApp
-  const sendBulkReminder = () => {
-    const dueList = filtered.filter((c) => (c.currentBalance || 0) > 0).slice(0, 20);
-    if (!dueList.length) {
-      showMsg("No customers with due balance", "error");
-      return;
-    }
-    
-    const lines = dueList.map((c, i) => `${i + 1}. ${c.name}${c.phone ? " - " + c.phone : ""} - PKR ${fmt(c.currentBalance)}`).join("\n");
-    const message = `*ASIM ELECTRIC & ELECTRONIC STORE*\n*OUTSTANDING DUE CUSTOMERS*\n📅 Date: ${isoD()}\n${"─".repeat(30)}\n${lines}\n${"─".repeat(30)}\n💰 *Total Outstanding: PKR ${fmt(totalDue)}*`;
-    window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, "_blank");
+  const handleCustomerClick = (customer) => {
+    setSelectedCustomer(customer);
   };
+
+  if (selectedCustomer) {
+    return <CustomerDetailPage customer={selectedCustomer} onBack={() => setSelectedCustomer(null)} />;
+  }
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%", background: "#f1f5f9" }}>
-      {/* Customer Detail Modal */}
-      {selectedCustomer && (
-        <CustomerDetailModal
-          customer={selectedCustomer}
-          onClose={() => setSelectedCustomer(null)}
-          onUpdated={() => loadCustomers()}
-        />
-      )}
-
-      {/* Page Header */}
       <div className="xp-titlebar">
-        <button className="xp-cap-btn" onClick={() => navigate("/")} title="Back" style={{ marginRight: 2 }}>
-          ←
-        </button>
-        <svg width="15" height="15" viewBox="0 0 16 16" fill="rgba(255,255,255,0.85)">
-          <path d="M15 14s1 0 1-1-1-4-5-4-5 3-5 4 1 1 1 1zm-7.978-1A.261.261 0 0 1 7 12.996c.001-.264.167-1.03.76-1.72C8.312 10.629 9.282 10 11 10c1.717 0 2.687.63 3.24 1.276.593.69.758 1.457.76 1.72l-.008.002A.274.274 0 0 1 15 13zM11 7a2 2 0 1 0 0-4 2 2 0 0 0 0 4m3-2a3 3 0 1 1-6 0 3 3 0 0 1 6 0M6.936 9.28a6 6 0 0 0-1.23-.247A7 7 0 0 0 5 9c-4 0-5 3-5 4q0 1 1 1h4.216A2.24 2.24 0 0 1 5 13c0-1.01.377-2.042 1.09-2.904.243-.294.526-.569.846-.816M4.92 10A5.5 5.5 0 0 0 4 13H1c0-.26.164-1.03.76-1.724.545-.636 1.492-1.256 3.16-1.275ZM1.5 5.5a3 3 0 1 1 6 0 3 3 0 0 1-6 0m3-2a2 2 0 1 0 0 4 2 2 0 0 0 0-4" />
-        </svg>
+        <button className="xp-cap-btn" onClick={() => navigate("/")}>←</button>
         <span className="xp-tb-title">Credit Customers — Asim Electric Store</span>
         <div className="xp-tb-actions">
-          <button className="xp-btn xp-btn-sm" onClick={sendBulkReminder}>
-            📱 Bulk Reminder
-          </button>
-          <button className="xp-btn xp-btn-primary xp-btn-sm" onClick={() => navigate("/customers")}>
-            + Add Customer
-          </button>
-          <div className="xp-tb-divider" />
-          <button className="xp-cap-btn" title="Minimize">─</button>
-          <button className="xp-cap-btn" title="Maximize">□</button>
-          <button className="xp-cap-btn xp-cap-close" title="Close">✕</button>
+          <button className="xp-btn xp-btn-primary xp-btn-sm" onClick={() => navigate("/customers")}>+ Add Customer</button>
         </div>
       </div>
 
-      {/* Alert Message */}
-      {msg.text && (
-        <div className={`xp-alert ${msg.type === "success" ? "xp-alert-success" : "xp-alert-error"}`} style={{ margin: "8px 16px 0" }}>
-          {msg.text}
-        </div>
-      )}
+      {msg.text && <div className={`xp-alert ${msg.type === "success" ? "xp-alert-success" : "xp-alert-error"}`} style={{ margin: "8px 16px 0" }}>{msg.text}</div>}
 
       <div className="xp-page-body" style={{ padding: "16px" }}>
-        {/* Statistics Cards */}
         <div className="cc-stat-grid">
-          <div className="cc-stat-card">
-            <div className="cc-stat-label">Total Customers</div>
-            <div className="cc-stat-val">{totalCustomers}</div>
-          </div>
-          <div className="cc-stat-card red">
-            <div className="cc-stat-label">With Due</div>
-            <div className="cc-stat-val danger">{dueCustomers.length}</div>
-          </div>
-          <div className="cc-stat-card green">
-            <div className="cc-stat-label">Clear / Paid</div>
-            <div className="cc-stat-val success">{clearCustomers.length}</div>
-          </div>
-          <div className="cc-stat-card red">
-            <div className="cc-stat-label">Total Outstanding</div>
-            <div className="cc-stat-val danger">PKR {fmt(totalDue)}</div>
-          </div>
-          <div className="cc-stat-card green">
-            <div className="cc-stat-label">Recovered</div>
-            <div className="cc-stat-val success">PKR {fmt(totalRecovered)}</div>
-          </div>
+          <div className="cc-stat-card"><div className="cc-stat-label">Total Customers</div><div className="cc-stat-val">{totalCustomers}</div></div>
+          <div className="cc-stat-card red"><div className="cc-stat-label">With Due</div><div className="cc-stat-val danger">{dueCustomers.length}</div></div>
+          <div className="cc-stat-card red"><div className="cc-stat-label">Total Outstanding</div><div className="cc-stat-val danger">PKR {fmt(totalDue)}</div></div>
         </div>
 
-        {/* Toolbar */}
         <div className="xp-toolbar" style={{ marginTop: 12 }}>
           <div className="xp-search-wrap" style={{ flex: 1 }}>
-            <svg className="xp-search-icon" width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
-              <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.044.06.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1 1 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0" />
+            <svg className="xp-search-icon" width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+              <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.044.06.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1 1 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0"/>
             </svg>
-            <input ref={searchRef} type="text" className="xp-input" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search by name, phone, code or area..." />
+            <input ref={searchRef} type="text" className="xp-input" style={{ paddingLeft: "32px" }} value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search by name, phone, code or area..." autoFocus />
           </div>
-
-          <div className="xp-filter-group">
-            <button className={`xp-filter-btn${filterType === "all" ? " active" : ""}`} onClick={() => setFilterType("all")}>All ({totalCustomers})</button>
-            <button className={`xp-filter-btn${filterType === "due" ? " active" : ""}`} onClick={() => setFilterType("due")}>Due ({dueCustomers.length})</button>
-            <button className={`xp-filter-btn${filterType === "clear" ? " active" : ""}`} onClick={() => setFilterType("clear")}>Clear ({clearCustomers.length})</button>
-          </div>
-
-          <select className="xp-select" style={{ width: "auto" }} value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
-            <option value="name">Sort: Name</option>
-            <option value="balance">Sort: Balance (High to Low)</option>
-          </select>
-
-          <span className="text-muted" style={{ fontSize: 12 }}>{filtered.length} records</span>
+          <span className="text-muted" style={{ fontSize: 12 }}>{filtered.length} customers found</span>
         </div>
 
-        {/* Customer Table */}
         <div className="xp-table-panel" style={{ marginTop: 12 }}>
           {loading && <div className="xp-loading">Loading customers...</div>}
           {!loading && filtered.length === 0 && <div className="xp-empty">No customers found</div>}
           {!loading && filtered.length > 0 && (
             <div className="xp-table-scroll">
-              <table className="xp-table" style={{ fontSize: 13 }}>
+              <table className="xp-table" style={{ fontSize: 13, cursor: "pointer" }}>
                 <thead>
                   <tr>
                     <th style={{ width: 40 }}>#</th>
@@ -509,7 +978,7 @@ export default function CreditCustomersPage() {
                     <th>Customer Name</th>
                     <th>Phone</th>
                     <th>Area</th>
-                    <th className="r">Outstanding (PKR)</th>
+                    <th className="r">Outstanding</th>
                     <th>Status</th>
                     <th style={{ width: 80 }}>Actions</th>
                   </tr>
@@ -519,18 +988,19 @@ export default function CreditCustomersPage() {
                     <tr key={c._id} className={(c.currentBalance || 0) > 0 ? "cc-row-due" : ""}>
                       <td className="text-muted">{i + 1}</td>
                       <td><span className="xp-code">{c.code || "—"}</span></td>
-                      <td><button className="xp-link-btn" onClick={() => setSelectedCustomer(c)}>{c.name}</button></td>
+                      <td><button className="xp-link-btn" onClick={() => handleCustomerClick(c)}><strong>{c.name}</strong></button></td>
                       <td className="text-muted">{c.phone || "—"}</td>
                       <td className="text-muted">{c.area || "—"}</td>
                       <td className="r"><span className={`xp-amt${(c.currentBalance || 0) > 0 ? " danger" : ""}`}>{fmt(c.currentBalance || 0)}</span></td>
                       <td><span className={`xp-badge ${(c.currentBalance || 0) > 0 ? "xp-badge-due" : "xp-badge-clear"}`}>{(c.currentBalance || 0) > 0 ? "Due" : "Clear"}</span></td>
                       <td>
                         <div className="cc-act">
-                          <button className="xp-btn xp-btn-sm xp-btn-ico" title="View Details" onClick={() => setSelectedCustomer(c)}>👁️</button>
+                          <button className="xp-btn xp-btn-sm xp-btn-ico" onClick={() => handleCustomerClick(c)} title="Full Details">📋</button>
                           {c.phone && (
-                            <button className="xp-btn xp-btn-sm xp-btn-ico cc-btn-wa-sm" title="WhatsApp" onClick={() => {
-                              const message = `Assalam-o-Alaikum *${c.name}*,\n\nYour outstanding balance: *PKR ${fmt(c.currentBalance)}*\nPlease clear at your earliest convenience.\n\n_Asim Electric Store_`;
-                              window.open(`https://wa.me/${c.phone.replace(/\D/g, "")}?text=${encodeURIComponent(message)}`, "_blank");
+                            <button className="xp-btn xp-btn-sm xp-btn-ico cc-btn-wa-sm" onClick={(e) => { 
+                              e.stopPropagation(); 
+                              const msg = `Assalam-o-Alaikum *${c.name}*,\n\nOutstanding: *PKR ${fmt(c.currentBalance)}*`;
+                              window.open(`https://wa.me/${c.phone.replace(/\D/g, "")}?text=${encodeURIComponent(msg)}`, "_blank");
                             }}>📱</button>
                           )}
                         </div>
@@ -542,7 +1012,7 @@ export default function CreditCustomersPage() {
                   <tr>
                     <td colSpan={5}><strong>Total</strong></td>
                     <td className="r xp-amt danger"><strong>PKR {fmt(filtered.reduce((s, c) => s + Math.max(0, c.currentBalance || 0), 0))}</strong></td>
-                    <td colSpan={2} />
+                    <td colSpan={2}></td>
                   </tr>
                 </tfoot>
               </table>
@@ -551,7 +1021,6 @@ export default function CreditCustomersPage() {
         </div>
       </div>
 
-      {/* Status Bar */}
       <div className="xp-statusbar">
         <div className="xp-status-pane">👥 {totalCustomers} customers</div>
         <div className="xp-status-pane">⚠️ {dueCustomers.length} due</div>

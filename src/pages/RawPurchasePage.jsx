@@ -1077,6 +1077,9 @@ export default function RawPurchasePage() {
 
 
   // In RawPurchasePage.jsx, update the handleCustomerSelect function
+// pages/RawPurchasePage.jsx
+// Update the handleCustomerSelect function to focus on remarks input
+
 const handleCustomerSelect = async (c) => {
   // Make sure we have a valid customer object
   if (!c || !c._id) {
@@ -1108,13 +1111,38 @@ const handleCustomerSelect = async (c) => {
       }
       setCreditStatement("");
       setShowCustomerPanel(true);
-      setTimeout(() => searchRef.current?.focus(), 30);
+      
+      // ✅ Focus on remarks input after customer selection
+      setTimeout(() => statementRef.current?.focus(), 100);
     }
   } catch (error) {
     console.error("Failed to fetch customer details:", error);
     showMsg("Failed to load customer data", "error");
   }
 };
+
+// Update the credit statement input to save and print on Enter
+// Find the credit statement input in the JSX and update it:
+
+<input 
+  ref={statementRef} 
+  type="text" 
+  className="sl-credit-statement-input" 
+  placeholder={creditWarning ? "Enter reason / authorization statement to allow deduction…" : "Notes (optional)…"} 
+  value={creditStatement} 
+  onChange={(e) => setCreditStatement(e.target.value)} 
+  onKeyDown={(e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      e.stopPropagation();
+      // Open save modal directly
+      openSaleConfirm();
+    }
+  }} 
+/>
+
+// Also update the openSaleConfirm function to handle credit statement validation properly
+
   const handleCustomerClear = () => {
     setCustomerId("");
     setCustomerName("COUNTER SALE");
