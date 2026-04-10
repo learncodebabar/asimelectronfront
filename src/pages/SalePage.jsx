@@ -2338,98 +2338,95 @@ export default function SalePage() {
         <div className="sl-body">
           <div className="sl-left">
             {/* Invoice info with big input and nav buttons */}
-            <div className="sl-top-bar">
-              <div className="sl-sale-title-box">Sale</div>
-              
-              <button
-                className="xp-btn xp-btn-sm sl-nav-btn"
-                onClick={() => navInvoice("prev")}
-                title="Previous Invoice (↑)"
-                style={{ fontSize: 16, padding: "4px 10px" }}
-              >
-                ◀ Prev
-              </button>
-              
-              <div className="sl-inv-field-grp">
-                <label>Invoice #</label>
-                <input
-                  className="xp-input xp-input-sm sl-inv-input-large"
-                  value={invoiceNo}
-                  onChange={(e) => setInvoiceNo(e.target.value)}
-                  onKeyDown={async (e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      const val = invoiceNo.trim();
-                      if (!val) return;
-                      try {
-                        const { data } = await api.get(
-                          EP.SALES.GET_ALL + `?invoiceNo=${val}`,
-                        );
-                        const sales = data.data;
-                        if (!sales || sales.length === 0) {
-                          showMsg(`Invoice "${val}" not found`, "error");
-                          await refreshInvoiceNo();
-                          return;
-                        }
-                        const exact = sales.find(
-                          (s) => s.invoiceNo?.toString() === val.toString(),
-                        );
-                        if (!exact) {
-                          showMsg(`Invoice "${val}" not found`, "error");
-                          await refreshInvoiceNo();
-                          return;
-                        }
-                        setItems([]);
-                        setEditId(null);
-                        loadSaleForEdit(exact);
-                      } catch {
-                        showMsg("Search failed", "error");
-                      }
-                    }
-                    if (e.key === "ArrowUp" || e.key === "ArrowDown") {
-                      e.preventDefault();
-                      await navInvoice(e.key === "ArrowUp" ? "prev" : "next");
-                    }
-                  }}
-                  onFocus={(e) => e.target.select()}
-                  style={{ 
-                    background: editId ? "#fffbe6" : "#fffde7",
-                    fontSize: "18px",
-                    fontWeight: "bold",
-                    width: "160px",
-                    textAlign: "center"
-                  }}
-                />
-              </div>
-              
-              <button
-                className="xp-btn xp-btn-sm sl-nav-btn"
-                onClick={() => navInvoice("next")}
-                title="Next Invoice (↓)"
-                style={{ fontSize: 16, padding: "4px 10px" }}
-              >
-                Next ▶
-              </button>
-              
-              <div className="sl-inv-field-grp">
-                <label>Date</label>
-                <input
-                  type="date"
-                  className="xp-input xp-input-sm sl-date-input"
-                  value={invoiceDate}
-                  readOnly
-                  style={{
-                    background: "#f5f5f5",
-                    cursor: "not-allowed",
-                    color: "#888",
-                  }}
-                />
-              </div>
-              <div className="sl-inv-field-grp">
-                <label>Time</label>
-                <div className="sl-time-box">{time}</div>
-              </div>
-            </div>
+           {/* Invoice info with integrated nav buttons inside input */}
+{/* Invoice info with integrated nav buttons inside input */}
+<div className="sl-top-bar">
+  <div className="sl-sale-title-box">Sale</div>
+  
+  <div className="sl-inv-field-grp">
+    <label>Invoice #</label>
+    <div className="sl-inv-nav-container">
+      <button
+        className="sl-inv-nav-btn sl-inv-nav-prev"
+        onClick={() => navInvoice("prev")}
+        title="Previous Invoice (↑)"
+        type="button"
+      >
+        ◀
+      </button>
+      
+      <input
+        className="xp-input xp-input-sm sl-inv-input-large"
+        value={invoiceNo}
+        onChange={(e) => setInvoiceNo(e.target.value)}
+        onKeyDown={async (e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            const val = invoiceNo.trim();
+            if (!val) return;
+            try {
+              const { data } = await api.get(
+                EP.SALES.GET_ALL + `?invoiceNo=${val}`,
+              );
+              const sales = data.data;
+              if (!sales || sales.length === 0) {
+                showMsg(`Invoice "${val}" not found`, "error");
+                await refreshInvoiceNo();
+                return;
+              }
+              const exact = sales.find(
+                (s) => s.invoiceNo?.toString() === val.toString(),
+              );
+              if (!exact) {
+                showMsg(`Invoice "${val}" not found`, "error");
+                await refreshInvoiceNo();
+                return;
+              }
+              setItems([]);
+              setEditId(null);
+              loadSaleForEdit(exact);
+            } catch {
+              showMsg("Search failed", "error");
+            }
+          }
+          if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+            e.preventDefault();
+            await navInvoice(e.key === "ArrowUp" ? "prev" : "next");
+          }
+        }}
+        onFocus={(e) => e.target.select()}
+      />
+      
+      <button
+        className="sl-inv-nav-btn sl-inv-nav-next"
+        onClick={() => navInvoice("next")}
+        title="Next Invoice (↓)"
+        type="button"
+      >
+        ▶
+      </button>
+    </div>
+  </div>
+  
+  <div className="sl-inv-field-grp">
+    <label>Date</label>
+    <input
+      type="date"
+      className="xp-input xp-input-sm sl-date-input"
+      value={invoiceDate}
+      readOnly
+      style={{
+        background: "#f5f5f5",
+        cursor: "not-allowed",
+        color: "#888",
+      }}
+    />
+  </div>
+  <div className="sl-inv-field-grp">
+    <label>Time</label>
+    <div className="sl-time-box">{time}</div>
+  </div>
+</div>
 
             {/* Entry strip with product autocomplete */}
             <div className="sl-entry-strip">
@@ -3507,6 +3504,65 @@ export default function SalePage() {
       .sl-sum-val, .sl-date-input[readonly] {
         background-color: #f5f5f5 !important;
       }
+        /* Always Visible Clean Design */
+.sl-inv-nav-container {
+  position: relative;
+  display: inline-block;
+}
+
+.sl-inv-nav-btn {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  color: #64748b;
+  transition: all 0.2s ease;
+  z-index: 2;
+}
+
+.sl-inv-nav-btn:hover {
+  background: #3b82f6;
+  border-color: #3b82f6;
+  color: white;
+}
+
+.sl-inv-nav-btn:active {
+  transform: translateY(-50%) scale(0.95);
+}
+
+.sl-inv-nav-prev {
+  left: 4px;
+}
+
+.sl-inv-nav-next {
+  right: 4px;
+}
+
+.sl-inv-input-large {
+  width: 180px !important;
+  text-align: center !important;
+  padding: 6px 36px !important;
+  font-size: 16px !important;
+  font-weight: 600 !important;
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 8px !important;
+}
+
+.sl-inv-input-large:focus {
+  border-color: #3b82f6 !important;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
       `}</style>
     </>
   );

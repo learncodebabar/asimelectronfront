@@ -52,12 +52,7 @@ const TYPE_COLORS = {
 };
 
 const typeToPayment = (t) => {
-  if (
-    t === "credit" ||
-    t === "raw-sale" ||
-    t === "raw-purchase" ||
-    t === "supplier"
-  )
+  if (t === "credit" || t === "raw-sale" || t === "raw-purchase" || t === "supplier")
     return "Credit";
   if (t === "debit") return "Bank";
   return "Cash";
@@ -91,7 +86,7 @@ const updateProductStockBulk = async (items, operation) => {
     
     const response = await api.post(EP.PRODUCTS.STOCK_BULK, {
       items: stockItems,
-      operation: operation // "add" or "subtract"
+      operation: operation
     });
     
     if (response.data.success) {
@@ -103,6 +98,29 @@ const updateProductStockBulk = async (items, operation) => {
     }
   } catch (error) {
     console.error("Failed to update stock:", error);
+    return false;
+  }
+};
+
+/* ══════════════════════════════════════════════════════════
+   CUSTOMER BALANCE UPDATE FUNCTION
+══════════════════════════════════════════════════════════ */
+const updateCustomerBalance = async (customerId, amount, operation) => {
+  try {
+    const response = await api.patch(`/customers/${customerId}/balance`, {
+      amount: amount,
+      operation: operation
+    });
+    
+    if (response.data.success) {
+      console.log("Balance updated successfully:", response.data.data);
+      return true;
+    } else {
+      console.error("Balance update failed:", response.data.message);
+      return false;
+    }
+  } catch (error) {
+    console.error("Failed to update customer balance:", error);
     return false;
   }
 };
@@ -180,7 +198,7 @@ const buildPrintHtml = (sale, type, overrides = {}) => {
       ${customerPhone ? `<div style="font-size:9px;color:#555">${customerPhone}</div>` : ""}
       <div class="meta-row"><span style="font-size:9px;color:#555">Items: ${rows.length}</span></div>
       <hr class="divider-solid">
-      <tr>
+      <table>
         <thead>
           <tr>
             <th style="width:20px">#</th>
@@ -491,7 +509,7 @@ const doPrint = (sale, type, overrides = {}) => {
    SAVE CONFIRM MODAL
 ══════════════════════════════════════════════════════════ */
 function SaveConfirmModal({ salePayload, printType: defaultPrintType, onConfirm, onClose }) {
-  const [paidAmount, setPaidAmount] = useState(0);
+  const [paidAmount, setPaidAmount] = useState(salePayload.netTotal + (salePayload.prevBalance || 0));
   const [selPrintType, setSelPrintType] = useState(defaultPrintType);
   const [saving, setSaving] = useState(false);
   const paidRef = useRef(null);
@@ -661,50 +679,27 @@ function SearchModal({ allProducts, onSelect, onClose }) {
                     <th>Rack#</th>
                   </tr>
                 </thead>
-             <tbody ref={tbodyRef} tabIndex={0} onKeyDown={tk}>
-  
-  {rows.length === 0 && (
-    <tr>
-      <td colSpan={8} className="xp-empty">
-        ⚠️ No products found with company name "RAW". Please check your product data.
-      </td>
-    </tr>
-  )}
-
-  {rows.map((r, i) => (
-    <tr
-      key={`${r._id}-${r._pi}`}
-      style={{ background: i === hiIdx ? "#c3d9f5" : undefined }}
-      onClick={() => setHiIdx(i)}
-      onDoubleClick={() => onSelect(r)}
-    >
-      <td className="text-muted">{i + 1}</td>
-
-      <td>
-        <span className="xp-code">{r.code}</span>
-      </td>
-
-      <td>
-        <button className="xp-link-btn">{r._name}</button>
-      </td>
-
-      <td className="text-muted">{r._meas}</td>
-
-      <td className="r xp-amt">
-        {Number(r._rate).toLocaleString("en-PK")}
-      </td>
-
-      <td className="r">{r._stock}</td>
-
-      <td className="r">{r._pack}</td>
-
-      <td className="text-muted">
-        {r.rackNo || "—"}
-      </td>
-    </tr>
-  ))}
-
-</tbody>
+                <tbody ref={tbodyRef} tabIndex={0} onKeyDown={tk}>
+                  {rows.length === 0 && (
+                    <tr>
+                      <td colSpan={8} className="xp-empty">
+                        ⚠️ No products found with company name "RAW". Please check your product data.
+                      </td>
+                    </tr>
+                  )}
+                  {rows.map((r, i) => (
+                    <tr key={`${r._id}-${r._pi}`} style={{ background: i === hiIdx ? "#c3d9f5" : undefined }} onClick={() => setHiIdx(i)} onDoubleClick={() => onSelect(r)}>
+                      <td className="text-muted">{i + 1}</td>
+                      <td><span className="xp-code">{r.code}</span></td>
+                      <td><button className="xp-link-btn">{r._name}</button></td>
+                      <td className="text-muted">{r._meas}</td>
+                      <td className="r xp-amt">{Number(r._rate).toLocaleString("en-PK")}</td>
+                      <td className="r">{r._stock}</td>
+                      <td className="r">{r._pack}</td>
+                      <td className="text-muted">{r.rackNo || "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
               </table>
             </div>
           </div>
@@ -731,45 +726,31 @@ function HoldPreviewModal({ bill, onResume, onClose }) {
           <div className="xp-table-panel" style={{ border: "none" }}>
             <div className="xp-table-scroll" style={{ maxHeight: 300 }}>
               <table className="xp-table">
-  <thead>
-    <tr>
-      <th>#</th>
-      <th>Code</th>
-      <th>Name</th>
-      <th>UOM</th>
-      <th className="r">Pcs</th>
-      <th className="r">Rate</th>
-      <th className="r">Amount</th>
-    </tr>
-  </thead>
-
-  <tbody>
-    {bill.items.map((r, i) => (
-      <tr key={i}>
-        <td className="text-muted">{i + 1}</td>
-
-        <td className="text-muted">{r.code}</td>
-
-        <td>{r.name}</td>
-
-        <td className="text-muted">{r.uom}</td>
-
-        <td className="r">{r.pcs}</td>
-
-        <td className="r">
-          {Number(r.rate).toLocaleString("en-PK")}
-        </td>
-
-        <td
-          className="r"
-          style={{ color: "var(--xp-blue-dark)", fontWeight: 700 }}
-        >
-          {Number(r.amount).toLocaleString("en-PK")}
-        </td>
-      </tr>
-    ))}
-  </tbody>
-</table>
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Code</th>
+                    <th>Name</th>
+                    <th>UOM</th>
+                    <th className="r">Pcs</th>
+                    <th className="r">Rate</th>
+                    <th className="r">Amount</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {bill.items.map((r, i) => (
+                    <tr key={i}>
+                      <td className="text-muted">{i + 1}</td>
+                      <td className="text-muted">{r.code}</td>
+                      <td>{r.name}</td>
+                      <td className="text-muted">{r.uom}</td>
+                      <td className="r">{r.pcs}</td>
+                      <td className="r">{Number(r.rate).toLocaleString("en-PK")}</td>
+                      <td className="r" style={{ color: "var(--xp-blue-dark)", fontWeight: 700 }}>{Number(r.amount).toLocaleString("en-PK")}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
         </div>
@@ -970,7 +951,7 @@ export default function RawSalePage() {
   const [curRow, setCurRow] = useState({ ...EMPTY_ROW });
   const [items, setItems] = useState([]);
   const [invoiceDate, setInvoiceDate] = useState(isoDate());
-  const [invoiceNo, setInvoiceNo] = useState("INV-00001");
+  const [invoiceNo, setInvoiceNo] = useState("RAW-S-00001");
   const amountRef = useRef(null);
 
   const [customerId, setCustomerId] = useState("");
@@ -1054,13 +1035,12 @@ export default function RawSalePage() {
           return type === "raw-sale" || type === "supplier" || type === "credit";
         });
         setAllCustomers(customers);
-        console.log("Customers/suppliers loaded:", customers.length);
       }
       if (invRes.data.success) {
-        const num = invRes.data.data.invoiceNo.replace("INV-", "RAW-");
-        setInvoiceNo(num);
+        setInvoiceNo(invRes.data.data.invoiceNo);
       }
-    } catch {
+    } catch (error) {
+      console.error("Fetch data error:", error);
       showMsg("Failed to load data", "error");
     }
     setLoading(false);
@@ -1069,8 +1049,7 @@ export default function RawSalePage() {
   const refreshInvoiceNo = async () => {
     try {
       const r = await api.get(EP.RAW_SALES.NEXT_INVOICE);
-      const num = r.data.data.invoiceNo.replace("INV-", "RAW-");
-      setInvoiceNo(num);
+      if (r.data.success) setInvoiceNo(r.data.data.invoiceNo);
     } catch {}
   };
 
@@ -1079,30 +1058,45 @@ export default function RawSalePage() {
     setTimeout(() => setMsg({ text: "", type: "" }), 3500);
   };
 
-  const handleCustomerSelect = (c) => {
-    const type = c.customerType || c.type || "";
-    setCustomerId(c._id);
-    setBuyerName(c.name);
-    setCodeSearch(c.code || "");
-    setCustomerType(type);
-    setPrevBalance(c.currentBalance || 0);
-    const pm = typeToPayment(type);
-    const ss = typeToSource(type);
-    setPaymentMode(pm);
-    setSaleSource(ss);
-    if (pm === "Credit") setReceived(0);
-    else setReceived(billAmount + (c.currentBalance || 0));
-
-    const limit = c.creditLimit || 0;
-    const custBal = c.currentBalance || 0;
-    if ((type === "raw-sale" || type === "supplier" || type === "credit") && limit > 0 && custBal >= limit) {
-      setCreditWarning(true);
-    } else {
-      setCreditWarning(false);
+  const handleCustomerSelect = async (c) => {
+    if (!c || !c._id) {
+      showMsg("Invalid customer selected", "error");
+      return;
     }
-    setCreditStatement("");
-    setShowCustomerPanel(true);
-    setTimeout(() => searchRef.current?.focus(), 30);
+    
+    try {
+      const freshCustomer = await api.get(EP.CUSTOMERS.GET_ONE(c._id));
+      if (freshCustomer.data.success) {
+        const customer = freshCustomer.data.data;
+        const type = customer.customerType || customer.type || "";
+        setCustomerId(customer._id);
+        setBuyerName(customer.name);
+        setCodeSearch(customer.code || "");
+        setCustomerType(type);
+        setPrevBalance(customer.currentBalance || 0);
+        const pm = typeToPayment(type);
+        const ss = typeToSource(type);
+        setPaymentMode(pm);
+        setSaleSource(ss);
+        if (pm === "Credit") setReceived(0);
+        else setReceived(billAmount + (customer.currentBalance || 0));
+
+        const limit = customer.creditLimit || 0;
+        const custBal = customer.currentBalance || 0;
+        if ((type === "raw-sale" || type === "supplier" || type === "credit") && limit > 0 && custBal >= limit) {
+          setCreditWarning(true);
+        } else {
+          setCreditWarning(false);
+        }
+        setCreditStatement("");
+        setShowCustomerPanel(true);
+        // Focus on remarks input after customer selection
+        setTimeout(() => statementRef.current?.focus(), 100);
+      }
+    } catch (error) {
+      console.error("Failed to fetch customer details:", error);
+      showMsg("Failed to load customer data", "error");
+    }
   };
   
   const handleCustomerClear = () => {
@@ -1127,8 +1121,8 @@ export default function RawSalePage() {
         phone: "",
       });
       if (data.success) {
+        await fetchData();
         const newCust = data.data;
-        setAllCustomers((prev) => [...prev, newCust]);
         handleCustomerSelect({
           _id: newCust._id,
           name: newCust.name,
@@ -1308,6 +1302,7 @@ export default function RawSalePage() {
       setPrevBalance(sale.prevBalance || 0);
       setPaymentMode(sale.paymentMode || "Cash");
       setSaleSource(sale.saleSource || "cash");
+      setReceived(sale.paidAmount || 0);
     } else {
       setCustomerId("");
       setBuyerName(sale.customerName || "COUNTER SALE");
@@ -1315,6 +1310,7 @@ export default function RawSalePage() {
       setPrevBalance(sale.prevBalance || 0);
       setPaymentMode(sale.paymentMode || "Cash");
       setSaleSource(sale.saleSource || "cash");
+      setReceived(sale.paidAmount || 0);
     }
 
     const loadedItems = (sale.items || []).map((it) => ({
@@ -1329,7 +1325,6 @@ export default function RawSalePage() {
     }));
     setItems(loadedItems);
     setExtraDiscount(sale.extraDisc || 0);
-    setReceived(sale.paidAmount || 0);
     resetCurRow();
     showMsg(`✏ Editing Invoice ${sale.invoiceNo}`, "success");
     setTimeout(() => searchRef.current?.focus(), 50);
@@ -1390,6 +1385,16 @@ export default function RawSalePage() {
       alert("Add at least one item");
       return;
     }
+
+    // Check if customer is selected and is credit type
+    if (customerId && (customerType === "raw-sale" || customerType === "supplier" || customerType === "credit")) {
+      if (!creditStatement.trim()) {
+        statementRef.current?.focus();
+        showMsg("Note is required for credit sale", "error");
+        return;
+      }
+    }
+
     const payload = buildPayload();
     setPendingPayload(payload);
     setShowSaveModal(true);
@@ -1407,6 +1412,7 @@ export default function RawSalePage() {
         balance: overrides.balance,
         printType: overrides.printType,
       };
+      
       const { data } = editId
         ? await api.put(EP.RAW_SALES.UPDATE(editId), finalPayload)
         : await api.post(EP.RAW_SALES.CREATE, finalPayload);
@@ -1415,7 +1421,30 @@ export default function RawSalePage() {
         // UPDATE STOCK - SUBTRACT quantities for sale
         await updateProductStockBulk(payload.items, "subtract");
         
+        // UPDATE CUSTOMER BALANCE if credit sale (balance due > 0)
+        if (customerId && (customerType === "raw-sale" || customerType === "supplier" || customerType === "credit")) {
+          const balanceDue = overrides.balance;
+          if (balanceDue > 0) {
+            await updateCustomerBalance(customerId, balanceDue, "add");
+          }
+        }
+        
+        // Refresh customer balance
+        let updatedCustomerBalance = finalPayload.prevBalance;
+        if (customerId) {
+          try {
+            const customerResponse = await api.get(EP.CUSTOMERS.GET_ONE(customerId));
+            if (customerResponse.data.success) {
+              updatedCustomerBalance = customerResponse.data.data.currentBalance || 0;
+              setPrevBalance(updatedCustomerBalance);
+            }
+          } catch (err) {
+            console.error("Failed to refresh customer balance:", err);
+          }
+        }
+        
         showMsg(editId ? "Sale updated!" : `Saved: ${data.data.invoiceNo}`);
+        
         const saleObj = {
           invoiceNo: data.data.invoiceNo,
           invoiceDate: finalPayload.invoiceDate,
@@ -1426,14 +1455,16 @@ export default function RawSalePage() {
           subTotal: finalPayload.subTotal,
           extraDisc: overrides.extraDisc,
           netTotal: overrides.netTotal,
-          prevBalance: finalPayload.prevBalance,
+          prevBalance: updatedCustomerBalance,
           paidAmount: overrides.paidAmount,
           balance: overrides.balance,
         };
+        
         if (overrides.withPrint) {
           setPendingPrintSale(saleObj);
           setShowPrintModal(true);
         }
+        
         setShowSaveModal(false);
         setPendingPayload(null);
         fullReset();
@@ -1444,10 +1475,21 @@ export default function RawSalePage() {
         if (pRes.data.success) {
           setAllProducts(pRes.data.data);
         }
+        
+        // Refresh customers list
+        const cRes = await api.get(EP.CUSTOMERS.GET_ALL);
+        if (cRes.data.success) {
+          const customers = cRes.data.data.filter((c) => {
+            const type = (c.type || c.customerType || "").toLowerCase();
+            return type === "raw-sale" || type === "supplier" || type === "credit";
+          });
+          setAllCustomers(customers);
+        }
       } else {
         showMsg(data.message, "error");
       }
     } catch (e) {
+      console.error("Save error:", e);
       showMsg(e.response?.data?.message || "Save failed", "error");
     }
     setLoading(false);
@@ -1480,7 +1522,9 @@ export default function RawSalePage() {
         {showPrintModal && pendingPrintSale && <PrintOptionsModal sale={pendingPrintSale} allCustomers={allCustomers} defaultPrintType={printType} hideCustomerFields={pendingPrintSale.paymentMode === "Credit"} newCustomerType="raw-sale" onPrint={(type, overrides) => { doPrint(pendingPrintSale, type, overrides); setShowPrintModal(false); setPendingPrintSale(null); }} onClose={() => { setShowPrintModal(false); setPendingPrintSale(null); }} />}
         
         <div className="xp-titlebar">
-          <svg width="15" height="15" viewBox="0 0 16 16" fill="rgba(255,255,255,0.85)"><path d="M0 4a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2zm2-1a1 1 0 0 0-1 1v1h14V4a1 1 0 0 0-1-1zm13 4H1v5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1zM2 10h2a1 1 0 0 1 0 2H2a1 1 0 0 1 0-2m4 0h6a1 1 0 0 1 0 2H6a1 1 0 0 1 0-2" /></svg>
+          <svg width="15" height="15" viewBox="0 0 16 16" fill="rgba(255,255,255,0.85)">
+            <path d="M0 4a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2zm2-1a1 1 0 0 0-1 1v1h14V4a1 1 0 0 0-1-1zm13 4H1v5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1zM2 10h2a1 1 0 0 1 0 2H2a1 1 0 0 1 0-2m4 0h6a1 1 0 0 1 0 2H6a1 1 0 0 1 0-2" />
+          </svg>
           <span className="xp-tb-title">Raw Sale Invoice — Asim Electric &amp; Electronic Store</span>
           <div className="xp-tb-actions">
             {editId && <div className="sl-edit-badge">✏ Editing Raw Sale</div>}
@@ -1497,32 +1541,100 @@ export default function RawSalePage() {
 
         <div className="sl-body">
           <div className="sl-left">
-            <div className="sl-top-bar">
-              <div className="sl-sale-title-box" style={{ background: "#f59e0b", border: "1px solid #d97706", color: "#fff" }}>Raw Sale</div>
-              <button className="xp-btn xp-btn-sm sl-nav-btn" onClick={() => navInvoice("prev")} title="Previous Invoice (↑)" style={{ fontSize: 16, padding: "4px 10px" }}>◀ Prev</button>
-              <div className="sl-inv-field-grp">
-                <label>Invoice #</label>
-                <input className="xp-input xp-input-sm sl-inv-input-large" value={invoiceNo} onChange={(e) => setInvoiceNo(e.target.value)} onKeyDown={async (e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    const val = invoiceNo.trim();
-                    if (!val) return;
-                    try {
-                      const { data } = await api.get(EP.RAW_SALES.GET_ALL + `?invoiceNo=${val}`);
-                      const sales = data.data;
-                      if (!sales || sales.length === 0) { showMsg(`Invoice "${val}" not found`, "error"); await refreshInvoiceNo(); return; }
-                      const exact = sales.find((s) => s.invoiceNo?.toString() === val.toString());
-                      if (!exact) { showMsg(`Invoice "${val}" not found`, "error"); await refreshInvoiceNo(); return; }
-                      setItems([]); setEditId(null); loadSaleForEdit(exact);
-                    } catch { showMsg("Search failed", "error"); }
-                  }
-                  if (e.key === "ArrowUp" || e.key === "ArrowDown") { e.preventDefault(); await navInvoice(e.key === "ArrowUp" ? "prev" : "next"); }
-                }} onFocus={(e) => e.target.select()} style={{ background: editId ? "#fffbe6" : "#fffde7", fontSize: "18px", fontWeight: "bold", width: "160px", textAlign: "center" }} />
-              </div>
-              <button className="xp-btn xp-btn-sm sl-nav-btn" onClick={() => navInvoice("next")} title="Next Invoice (↓)" style={{ fontSize: 16, padding: "4px 10px" }}>Next ▶</button>
-              <div className="sl-inv-field-grp"><label>Date</label><input type="date" className="xp-input xp-input-sm sl-date-input" value={invoiceDate} readOnly style={{ background: "#f5f5f5", cursor: "not-allowed", color: "#888" }} /></div>
-              <div className="sl-inv-field-grp"><label>Time</label><div className="sl-time-box">{time}</div></div>
-            </div>
+        <div className="sl-top-bar">
+  <div className="sl-sale-title-box" style={{ background: "#f59e0b", border: "1px solid #d97706", color: "#fff" }}>Raw Sale</div>
+  
+  <div className="sl-inv-field-grp">
+    <label>Invoice #</label>
+    <div className="sl-inv-nav-container">
+      <button
+        className="sl-inv-nav-btn sl-inv-nav-prev"
+        onClick={() => navInvoice("prev")}
+        title="Previous Invoice (↑)"
+        type="button"
+      >
+        ◀
+      </button>
+      
+      <input
+        className="xp-input xp-input-sm sl-inv-input-large"
+        value={invoiceNo}
+        onChange={(e) => setInvoiceNo(e.target.value)}
+        onKeyDown={async (e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            const val = invoiceNo.trim();
+            if (!val) return;
+            try {
+              const { data } = await api.get(EP.RAW_SALES.GET_ALL + `?invoiceNo=${val}`);
+              const sales = data.data;
+              if (!sales || sales.length === 0) { 
+                showMsg(`Invoice "${val}" not found`, "error"); 
+                await refreshInvoiceNo(); 
+                return; 
+              }
+              const exact = sales.find((s) => s.invoiceNo?.toString() === val.toString());
+              if (!exact) { 
+                showMsg(`Invoice "${val}" not found`, "error"); 
+                await refreshInvoiceNo(); 
+                return; 
+              }
+              setItems([]); 
+              setEditId(null); 
+              loadSaleForEdit(exact);
+            } catch { 
+              showMsg("Search failed", "error"); 
+            }
+          }
+          if (e.key === "ArrowUp" || e.key === "ArrowDown") { 
+            e.preventDefault(); 
+            await navInvoice(e.key === "ArrowUp" ? "prev" : "next"); 
+          }
+        }}
+        onFocus={(e) => e.target.select()}
+        placeholder="Invoice # ya ↑↓"
+        style={{ 
+          background: editId ? "#fffbe6" : "#fffde7", 
+          fontSize: "16px", 
+          fontWeight: "bold", 
+          width: "180px", 
+          textAlign: "center",
+          paddingLeft: "32px",
+          paddingRight: "32px"
+        }}
+      />
+      
+      <button
+        className="sl-inv-nav-btn sl-inv-nav-next"
+        onClick={() => navInvoice("next")}
+        title="Next Invoice (↓)"
+        type="button"
+      >
+        ▶
+      </button>
+    </div>
+  </div>
+  
+  <div className="sl-inv-field-grp">
+    <label>Date</label>
+    <input
+      type="date"
+      className="xp-input xp-input-sm sl-date-input"
+      value={invoiceDate}
+      readOnly
+      style={{
+        background: "#f5f5f5",
+        cursor: "not-allowed",
+        color: "#888",
+      }}
+    />
+  </div>
+  
+  <div className="sl-inv-field-grp">
+    <label>Time</label>
+    <div className="sl-time-box">{time}</div>
+  </div>
+</div>
 
             <div className="sl-entry-strip">
               <div className="sl-entry-cell sl-entry-product">
@@ -1622,7 +1734,23 @@ export default function RawSalePage() {
                   {(() => { const cust = allCustomers.find((c) => c._id === customerId); return cust?.imageFront ? (<img src={cust.imageFront} alt={cust.name} style={{ width: 48, height: 48, borderRadius: 4, objectFit: "cover", border: "2px solid #fff", flexShrink: 0 }} />) : (<div style={{ width: 48, height: 48, borderRadius: 4, background: "rgba(255,255,255,0.3)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, flexShrink: 0 }}>👤</div>); })()}
                   <div>{creditWarning ? (<><div className="sl-credit-title">⚠ CREDIT LIMIT EXCEEDED</div><div className="sl-credit-sub">Balance: <b>{fmt(prevBalance)}</b> — Enter authorization statement to proceed</div></>) : (<div className="sl-credit-sub" style={{ color: "#fff" }}>Balance: <b>{fmt(prevBalance)}</b></div>)}</div>
                 </div>
-                <input ref={statementRef} type="text" className="sl-credit-statement-input" style={{ background: "#fffde7" }} placeholder={creditWarning ? "Enter reason / authorization statement to allow sale…" : "Notes (optional)…"} value={creditStatement} onChange={(e) => setCreditStatement(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); e.stopPropagation(); openSaleConfirm(); } }} />
+                <input 
+                  ref={statementRef} 
+                  type="text" 
+                  className="sl-credit-statement-input" 
+                  style={{ background: "#fffde7" }} 
+                  placeholder={creditWarning ? "Enter reason / authorization statement to allow sale…" : "Notes (optional)…"} 
+                  value={creditStatement} 
+                  onChange={(e) => setCreditStatement(e.target.value)} 
+                  onKeyDown={(e) => { 
+                    if (e.key === "Enter") { 
+                      e.preventDefault(); 
+                      e.stopPropagation(); 
+                      // Open save modal directly when Enter is pressed in remarks field
+                      openSaleConfirm(); 
+                    } 
+                  }} 
+                />
               </div>
             )}
           </div>
@@ -1670,11 +1798,90 @@ export default function RawSalePage() {
         @font-face { font-family: 'UrduFont'; src: local('Jameel Noori Nastaleeq'), local('Noto Nastaliq Urdu'), local('Urdu Typesetting'), local('Arial Unicode MS'); }
         .urdu, .shop-urdu, .shop-addr, .banner, .terms-box, .terms { font-family: 'UrduFont', 'Jameel Noori Nastaleeq', 'Noto Nastaliq Urdu', 'Urdu Typesetting', Arial, sans-serif !important; direction: rtl; }
         .xp-link-btn { text-decoration: none; }
-        .sl-inv-input-large { font-size: 18px !important; font-weight: bold !important; width: 160px !important; text-align: center !important; background: #ffffff !important; }
+        .sl-inv-input-large { font-size: 16px !important; font-weight: bold !important; width: 150px !important; text-align: center !important; background: #ffffff !important; }
         .sl-nav-btn { font-size: 14px !important; padding: 4px 12px !important; font-weight: 600 !important; }
         .sl-product-input { background-color: #fffde7 !important; border-color: #000000 !important; }
         .sl-num-input, .sl-sum-input, .sl-cust-input { background-color: #fffde7 !important; }
         .sl-sum-val, .sl-date-input[readonly] { background-color: #f5f5f5 !important; }
+        .sl-credit-warning-bar { background: #ef4444; }
+        .sl-credit-normal { background: #f59e0b; }
+
+        /* Invoice Nav Container - Buttons Inside Input */
+.sl-inv-nav-container {
+  position: relative;
+  display: inline-block;
+}
+
+/* Navigation Buttons - Always Visible */
+.sl-inv-nav-btn {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  background: #f3f4f6;
+  border: 1px solid #d1d5db;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  width: 26px;
+  height: 26px;
+  border-radius: 4px;
+  color: #4b5563;
+  font-size: 12px;
+  font-weight: bold;
+  transition: all 0.2s ease;
+  z-index: 2;
+}
+
+.sl-inv-nav-btn:hover {
+  background: #f59e0b;
+  border-color: #d97706;
+  color: white;
+  transform: translateY(-50%) scale(1.05);
+}
+
+.sl-inv-nav-btn:active {
+  transform: translateY(-50%) scale(0.95);
+}
+
+/* Left button */
+.sl-inv-nav-prev {
+  left: 4px;
+}
+
+/* Right button */
+.sl-inv-nav-next {
+  right: 4px;
+}
+
+/* Input field with space for buttons */
+.sl-inv-input-large {
+  width: 180px !important;
+  text-align: center !important;
+  padding: 6px 32px !important;
+  font-size: 16px !important;
+  font-weight: 600 !important;
+  background: #ffffff !important;
+  border: 1px solid #d1d5db !important;
+  border-radius: 6px !important;
+  transition: all 0.2s ease;
+}
+
+.sl-inv-input-large:hover {
+  border-color: #f59e0b !important;
+}
+
+.sl-inv-input-large:focus {
+  border-color: #f59e0b !important;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.1);
+}
+
+/* Remove the old separate nav buttons */
+.sl-nav-btn {
+  display: none;
+}
       `}</style>
     </>
   );

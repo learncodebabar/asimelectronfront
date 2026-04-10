@@ -21,6 +21,7 @@ import DamageInPage from "./pages/DamageInPage.jsx";
 import DamageOutPage from "./pages/DamageOutPage.jsx";
 import CashPaymentVoucher from "./pages/cashPamentVoucherPage.jsx";
 import SuppliersPage from "./pages/SuppliersPage.jsx";
+import CashReceiptsPage from "./pages/CashReceiptsPage.jsx"; // Add this import
 
 // Create a wrapper component that provides the current location as key
 function AppRoutes() {
@@ -33,6 +34,7 @@ function AppRoutes() {
       <Route path="/debit-sale" element={<DebitSalePage key={`debit-sale-${location.pathname}`} />} />
       <Route path="/debit-customers" element={<DebitCustomersPage key={`debit-customers-${location.pathname}`} />} />
       <Route path="/credit-customers" element={<CreditCustomersPage key={`credit-customers-${location.pathname}`} />} />
+      <Route path="/cash-receipts" element={<CashReceiptsPage key={`cash-receipts-${location.pathname}`} />} /> {/* Add this route */}
       <Route path="/suppliers" element={<SuppliersPage key={`suppliers-${location.pathname}`} />} />
       <Route path="/quotation-page" element={<QuotationPage key={`quotation-${location.pathname}`} />} />
       <Route path="/journal-page" element={<JournalVoucherPage key={`journal-${location.pathname}`} />} />

@@ -68,6 +68,7 @@ const EP = {
     CREATE: "/customers",
     UPDATE: (id) => `/customers/${id}`,
     DELETE: (id) => `/customers/${id}`,
+    UPDATE_BALANCE: (id) => `/customers/${id}/balance`,
     SALE_HISTORY: (id) => `/customers/${id}/sales`,
     GET_CREDIT: (search = "") =>
       `/customers?type=credit${search ? "&search=" + encodeURIComponent(search) : ""}`,
@@ -115,6 +116,17 @@ const EP = {
     CREATE: "/cpv",
     UPDATE: (id) => `/cpv/${id}`,
     DELETE: (id) => `/cpv/${id}`,
+  },
+
+  // ── Cash Receipts ─────────────────────────────────────────────────────────
+  CASH_RECEIPTS: {
+    GET_TODAY: "/cash-receipts/today",
+    GET_BY_DATE: "/cash-receipts/by-date",
+    GET_BY_CUSTOMER: (id) => `/cash-receipts/customer/${id}`,
+    GET_ONE: (id) => `/cash-receipts/${id}`,
+    CREATE: "/cash-receipts",
+    DELETE: (id) => `/cash-receipts/${id}`,
+    GET_SUMMARY: (date) => `/cash-receipts/summary/${date}`,
   },
 };
 

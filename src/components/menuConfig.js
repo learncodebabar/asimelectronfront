@@ -38,6 +38,7 @@ const MENU_CONFIG = [
     items: [
       { label: "Debit Customers", route: "/debit-customers" },
       { label: "Credit Customers", route: "/credit-customers" },
+      { label: "Cash Receipts", route: "/cash-receipts" },  // Added Cash Receipts here
       { label: "All Customers", route: "/customers" },
     ],
   },
