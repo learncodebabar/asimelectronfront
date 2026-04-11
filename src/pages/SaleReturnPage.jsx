@@ -2049,72 +2049,93 @@ export default function SaleReturnPage() {
       <div className="sr-body">
         <div className="sr-left">
           {/* Top bar */}
-          <div className="sr-top-bar">
-            <div className="sr-title-box">Sale Return</div>
-            <div className="sr-inv-field-grp">
-              <label>Sale Inv. #</label>
-              <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
-                <button
-                  className="xp-btn xp-btn-sm"
-                  onClick={loadPrevInvoice}
-                  disabled={currentInvoiceIndex <= 0}
-                  title="Previous Invoice"
-                  style={{ padding: "0 8px" }}
-                >
-                  ◀ Prev
-                </button>
-                <input
-                  ref={saleInvRef}
-                  className="xp-input xp-input-sm sr-inv-input"
-                  value={saleInvNo}
-                  onChange={(e) => setSaleInvNo(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      if (saleInvNo.trim()) {
-                        loadSaleByInv();
-                      } else {
-                        setShowSaleSearchModal(true);
-                      }
-                    }
-                  }}
-                  placeholder="Enter invoice # and press Enter"
-                  title="Enter invoice number and press Enter to load"
-                  style={{ minWidth: "200px" }}
-                />
-                <button
-                  className="xp-btn xp-btn-sm"
-                  onClick={loadNextInvoice}
-                  disabled={currentInvoiceIndex >= allSaleInvoices.length - 1}
-                  title="Next Invoice"
-                  style={{ padding: "0 8px" }}
-                >
-                  Next ▶
-                </button>
-              </div>
-            </div>
-            <div className="sr-inv-field-grp">
-              <label>Invoice #</label>
-              <input
-                className="xp-input xp-input-sm sr-inv-input"
-                value={editId ? "EDIT MODE" : returnNo}
-                readOnly
-              />
-            </div>
-            <div className="sr-inv-field-grp">
-              <label>Date</label>
-              <input
-                type="date"
-                className="xp-input xp-input-sm sr-date-input"
-                value={returnDate}
-                onChange={(e) => setReturnDate(e.target.value)}
-              />
-            </div>
-            <div className="sr-inv-field-grp">
-              <label>Time</label>
-              <div className="sr-time-box">{time}</div>
-            </div>
-          </div>
+      {/* Top bar - Updated with integrated nav buttons */}
+<div className="sr-top-bar">
+  <div className="sr-title-box">Sale Return</div>
+  
+  <div className="sr-inv-field-grp">
+    <label>Sale Inv. #</label>
+    <div className="sr-inv-nav-container">
+      <button
+        className="sr-inv-nav-btn sr-inv-nav-prev"
+        onClick={loadPrevInvoice}
+        disabled={currentInvoiceIndex <= 0}
+        title="Previous Invoice (←)"
+        type="button"
+      >
+        ◀
+      </button>
+      
+      <input
+        ref={saleInvRef}
+        className="xp-input xp-input-sm sr-inv-input"
+        value={saleInvNo}
+        onChange={(e) => setSaleInvNo(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            if (saleInvNo.trim()) {
+              loadSaleByInv();
+            } else {
+              setShowSaleSearchModal(true);
+            }
+          }
+          if (e.key === "ArrowLeft") {
+            e.preventDefault();
+            loadPrevInvoice();
+          }
+          if (e.key === "ArrowRight") {
+            e.preventDefault();
+            loadNextInvoice();
+          }
+        }}
+        placeholder="Enter invoice # and press Enter"
+        title="Enter invoice number and press Enter to load | ← → arrows for navigation"
+        style={{ 
+          minWidth: "200px",
+          paddingLeft: "32px",
+          paddingRight: "32px",
+          textAlign: "center"
+        }}
+      />
+      
+      <button
+        className="sr-inv-nav-btn sr-inv-nav-next"
+        onClick={loadNextInvoice}
+        disabled={currentInvoiceIndex >= allSaleInvoices.length - 1}
+        title="Next Invoice (→)"
+        type="button"
+      >
+        ▶
+      </button>
+    </div>
+  </div>
+  
+  <div className="sr-inv-field-grp">
+    <label>Return #</label>
+    <input
+      className="xp-input xp-input-sm sr-inv-input"
+      value={editId ? "EDIT MODE" : returnNo}
+      readOnly
+      style={{ background: "#f5f5f5" }}
+    />
+  </div>
+  
+  <div className="sr-inv-field-grp">
+    <label>Date</label>
+    <input
+      type="date"
+      className="xp-input xp-input-sm sr-date-input"
+      value={returnDate}
+      onChange={(e) => setReturnDate(e.target.value)}
+    />
+  </div>
+  
+  <div className="sr-inv-field-grp">
+    <label>Time</label>
+    <div className="sr-time-box">{time}</div>
+  </div>
+</div>
 
           {/* Entry strip */}
           <div className="sr-entry-strip">
@@ -2658,6 +2679,98 @@ export default function SaleReturnPage() {
         .sr-items-table tbody tr.sr-empty-row {
           display: none;
         }
+
+        /* Invoice Nav Container - Buttons Inside Input */
+.sr-inv-nav-container {
+  position: relative;
+  display: inline-block;
+}
+
+/* Navigation Buttons - Always Visible */
+.sr-inv-nav-btn {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  background: #f3f4f6;
+  border: 1px solid #d1d5db;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  width: 26px;
+  height: 26px;
+  border-radius: 4px;
+  color: #4b5563;
+  font-size: 12px;
+  font-weight: bold;
+  transition: all 0.2s ease;
+  z-index: 2;
+}
+
+.sr-inv-nav-btn:hover:not(:disabled) {
+  background: #c0392b;
+  border-color: #a93226;
+  color: white;
+  transform: translateY(-50%) scale(1.05);
+}
+
+.sr-inv-nav-btn:active:not(:disabled) {
+  transform: translateY(-50%) scale(0.95);
+}
+
+.sr-inv-nav-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: #e5e7eb;
+  color: #9ca3af;
+}
+
+/* Left button */
+.sr-inv-nav-prev {
+  left: 4px;
+}
+
+/* Right button */
+.sr-inv-nav-next {
+  right: 4px;
+}
+
+/* Input field with space for buttons */
+.sr-inv-input {
+  min-width: 200px !important;
+  text-align: center !important;
+  padding: 6px 32px !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  background: #ffffff !important;
+  border: 1px solid #d1d5db !important;
+  border-radius: 6px !important;
+  transition: all 0.2s ease;
+}
+
+.sr-inv-input:hover:not(:disabled) {
+  border-color: #c0392b !important;
+}
+
+.sr-inv-input:focus {
+  border-color: #c0392b !important;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(192, 57, 43, 0.1);
+}
+
+/* Remove the old separate buttons if they exist */
+.sr-inv-field-grp .xp-btn {
+  display: none;
+}
+
+/* Style for the return number input (readonly) */
+.sr-inv-input[readonly] {
+  background-color: #f5f5f5 !important;
+  cursor: not-allowed;
+}
+
+
       `}</style>
     </div>
   );

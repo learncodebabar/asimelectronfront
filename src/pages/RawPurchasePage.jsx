@@ -1578,32 +1578,100 @@ const confirmSaveWithPayload = async (payload, overrides) => {
 
         <div className="sl-body">
           <div className="sl-left">
-            <div className="sl-top-bar">
-              <div className="sl-sale-title-box" style={{ background: "green", border: "1px solid green" }}>Raw Purchase</div>
-              <button className="xp-btn xp-btn-sm sl-nav-btn" onClick={() => navInvoice("prev")} title="Previous Invoice (↑)" style={{ fontSize: 16, padding: "4px 10px" }}>◀ Prev</button>
-              <div className="sl-inv-field-grp">
-                <label>Invoice #</label>
-                <input className="xp-input xp-input-sm sl-inv-input" value={invoiceNo} onChange={(e) => setInvoiceNo(e.target.value)} onKeyDown={async (e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    const val = invoiceNo.trim();
-                    if (!val) return;
-                    try {
-                      const { data } = await api.get(EP.RAW_PURCHASES.GET_ALL + `?invoiceNo=${val}`);
-                      const purchases = data.data;
-                      if (!purchases || purchases.length === 0) { showMsg(`Invoice "${val}" not found`, "error"); await refreshInvoiceNo(); return; }
-                      const exact = purchases.find((s) => s.invoiceNo?.toString() === val.toString());
-                      if (!exact) { showMsg(`Invoice "${val}" not found`, "error"); await refreshInvoiceNo(); return; }
-                      setItems([]); setEditId(null); loadPurchaseForEdit(exact);
-                    } catch { showMsg("Search failed", "error"); }
-                  }
-                  if (e.key === "ArrowUp" || e.key === "ArrowDown") { e.preventDefault(); await navInvoice(e.key === "ArrowUp" ? "prev" : "next"); }
-                }} onFocus={(e) => e.target.select()} placeholder="Invoice # ya ↑↓" style={{ background: editId ? "#fffbe6" : undefined }} />
-              </div>
-              <button className="xp-btn xp-btn-sm sl-nav-btn" onClick={() => navInvoice("next")} title="Next Invoice (↓)" style={{ fontSize: 16, padding: "4px 10px" }}>Next ▶</button>
-              <div className="sl-inv-field-grp"><label>Date</label><input type="date" className="xp-input xp-input-sm sl-date-input" value={invoiceDate} readOnly style={{ background: "#f5f5f5", cursor: "not-allowed", color: "#888" }} /></div>
-              <div className="sl-inv-field-grp"><label>Time</label><div className="sl-time-box">{time}</div></div>
-            </div>
+           <div className="sl-top-bar">
+  <div className="sl-sale-title-box" style={{ background: "green", border: "1px solid green" }}>Raw Purchase</div>
+  
+  <div className="sl-inv-field-grp">
+    <label>Invoice #</label>
+    <div className="sl-inv-nav-container">
+      <button
+        className="sl-inv-nav-btn sl-inv-nav-prev"
+        onClick={() => navInvoice("prev")}
+        title="Previous Invoice (↑)"
+        type="button"
+      >
+        ◀
+      </button>
+      
+      <input 
+        className="xp-input xp-input-sm sl-inv-input" 
+        value={invoiceNo} 
+        onChange={(e) => setInvoiceNo(e.target.value)}
+        onKeyDown={async (e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            const val = invoiceNo.trim();
+            if (!val) return;
+            try {
+              const { data } = await api.get(EP.RAW_PURCHASES.GET_ALL + `?invoiceNo=${val}`);
+              const purchases = data.data;
+              if (!purchases || purchases.length === 0) { 
+                showMsg(`Invoice "${val}" not found`, "error"); 
+                await refreshInvoiceNo(); 
+                return; 
+              }
+              const exact = purchases.find((s) => s.invoiceNo?.toString() === val.toString());
+              if (!exact) { 
+                showMsg(`Invoice "${val}" not found`, "error"); 
+                await refreshInvoiceNo(); 
+                return; 
+              }
+              setItems([]); 
+              setEditId(null); 
+              loadPurchaseForEdit(exact);
+            } catch { 
+              showMsg("Search failed", "error"); 
+            }
+          }
+          if (e.key === "ArrowUp" || e.key === "ArrowDown") { 
+            e.preventDefault(); 
+            await navInvoice(e.key === "ArrowUp" ? "prev" : "next"); 
+          }
+        }}
+        onFocus={(e) => e.target.select()}
+        placeholder="Invoice # ya ↑↓"
+        style={{ 
+          background: editId ? "#fffbe6" : undefined,
+          fontSize: "14px",
+          fontWeight: "bold",
+          width: "160px",
+          textAlign: "center",
+          paddingLeft: "32px",
+          paddingRight: "32px"
+        }}
+      />
+      
+      <button
+        className="sl-inv-nav-btn sl-inv-nav-next"
+        onClick={() => navInvoice("next")}
+        title="Next Invoice (↓)"
+        type="button"
+      >
+        ▶
+      </button>
+    </div>
+  </div>
+  
+  <div className="sl-inv-field-grp">
+    <label>Date</label>
+    <input 
+      type="date" 
+      className="xp-input xp-input-sm sl-date-input" 
+      value={invoiceDate} 
+      readOnly 
+      style={{ 
+        background: "#f5f5f5", 
+        cursor: "not-allowed", 
+        color: "#888" 
+      }} 
+    />
+  </div>
+  
+  <div className="sl-inv-field-grp">
+    <label>Time</label>
+    <div className="sl-time-box">{time}</div>
+  </div>
+</div>
 
             <div className="sl-entry-strip">
               <div className="sl-entry-cell sl-entry-product"><label>Select Product <kbd>F2</kbd></label><input ref={searchRef} type="text" className="sl-product-input" value={searchText} onKeyDown={(e) => { if (e.key === "ArrowDown") { e.preventDefault(); setShowProductModal(true); } if (e.key === "Enter") { e.preventDefault(); if (!searchText.trim()) { setShowProductModal(true); return; } const q = searchText.trim().toLowerCase(); const found = allProducts.find((p) => p.code?.toLowerCase() === q); if (found) { const pk = found.packingInfo?.[0]; pickProduct({ ...found, _pi: 0, _meas: pk?.measurement || "", _rate: pk?.purchaseRate || pk?.costRate || 0, _pack: pk?.packing || 1, _stock: pk?.openingQty || 0, _name: [found.category, found.description, found.company].filter(Boolean).join(" ") }); } else { alert(`"${searchText}" — Product not found`); searchRef.current?.select(); } } }} onChange={(e) => { setSearchText(e.target.value); if (curRow.name) { setCurRow({ ...EMPTY_ROW }); setPackingOptions([]); } }} autoFocus /></div>
@@ -1716,6 +1784,86 @@ const confirmSaveWithPayload = async (payload, overrides) => {
         .sl-product-input { background-color: #fffde7 !important; border-color: #000000 !important; }
         .sl-num-input, .sl-sum-input, .sl-cust-input { background-color: #fffde7 !important; }
         .sl-sum-val, .sl-date-input[readonly] { background-color: #f5f5f5 !important; }
+
+        /* Invoice Nav Container - Buttons Inside Input */
+.sl-inv-nav-container {
+  position: relative;
+  display: inline-block;
+}
+
+/* Navigation Buttons - Always Visible */
+.sl-inv-nav-btn {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  background: #f3f4f6;
+  border: 1px solid #d1d5db;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  width: 26px;
+  height: 26px;
+  border-radius: 4px;
+  color: #4b5563;
+  font-size: 12px;
+  font-weight: bold;
+  transition: all 0.2s ease;
+  z-index: 2;
+}
+
+.sl-inv-nav-btn:hover {
+  background: #22c55e;
+  border-color: #16a34a;
+  color: white;
+  transform: translateY(-50%) scale(1.05);
+}
+
+.sl-inv-nav-btn:active {
+  transform: translateY(-50%) scale(0.95);
+}
+
+/* Left button */
+.sl-inv-nav-prev {
+  left: 4px;
+}
+
+/* Right button */
+.sl-inv-nav-next {
+  right: 4px;
+}
+
+/* Input field with space for buttons */
+.sl-inv-input {
+  width: 160px !important;
+  text-align: center !important;
+  padding: 6px 32px !important;
+  font-size: 14px !important;
+  font-weight: bold !important;
+  background: #ffffff !important;
+  border: 1px solid #d1d5db !important;
+  border-radius: 6px !important;
+  transition: all 0.2s ease;
+}
+
+.sl-inv-input:hover {
+  border-color: #22c55e !important;
+}
+
+.sl-inv-input:focus {
+  border-color: #22c55e !important;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.1);
+}
+
+/* Hide the old separate nav buttons */
+.sl-nav-btn {
+  display: none;
+}
+
+
+
       `}</style>
     </>
   );
