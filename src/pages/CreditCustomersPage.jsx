@@ -9,7 +9,7 @@ import "../styles/CreditCustomersPage.css";
 const fmt = (n) => Number(n || 0).toLocaleString("en-PK");
 const isoD = () => new Date().toISOString().split("T")[0];
 
-// Build Complete Customer Statement HTML for Print (Larger Font, Bold, Uppercase)
+// Build Complete Customer Statement HTML for Print (Full with Items)
 const buildCustomerStatementHtml = (customer, sales, rawPurchases, payments) => {
   const URDU_FONT = `'Noto Nastaliq Urdu','Mehr Nastaliq','Jameel Noori Nastaleeq','Urdu Typesetting',serif`;
   
@@ -29,25 +29,25 @@ const buildCustomerStatementHtml = (customer, sales, rawPurchases, payments) => 
     // Main invoice row with UPPERCASE and BOLD
     invoiceRows += `
       <tr style="background:${inv.saleType === "raw-purchase" ? "#fef3c7" : "#e8f0fe"}">
-        <td style="padding:10px 8px;border:1px solid #000;font-size:15px;font-weight:bold;text-align:center">${counter}</td>
-        <td style="padding:10px 8px;border:1px solid #000;font-size:15px;font-weight:bold;text-transform:uppercase">${inv.invoiceNo}</td>
-        <td style="padding:10px 8px;border:1px solid #000;font-size:15px;font-weight:bold">${inv.invoiceDate}</td>
-        <td style="padding:10px 8px;border:1px solid #000;text-align:right;font-size:15px;font-weight:bold">PKR ${fmt(inv.netTotal)}</td>
-        <td style="padding:10px 8px;border:1px solid #000;text-align:right;font-size:15px;font-weight:bold">PKR ${fmt(inv.paidAmount)}</td>
-        <td style="padding:10px 8px;border:1px solid #000;text-align:right;font-size:15px;font-weight:bold">PKR ${fmt(inv.balance)}</td>
+        <td style="padding:10px 8px;border:1px solid #000;font-size:13px;font-weight:bold;text-align:center">${counter}</td>
+        <td style="padding:10px 8px;border:1px solid #000;font-size:13px;font-weight:bold;text-transform:uppercase">${inv.invoiceNo}</td>
+        <td style="padding:10px 8px;border:1px solid #000;font-size:13px;font-weight:bold">${inv.invoiceDate}</td>
+        <td style="padding:10px 8px;border:1px solid #000;text-align:right;font-size:13px;font-weight:bold">PKR ${fmt(inv.netTotal)}</td>
+        <td style="padding:10px 8px;border:1px solid #000;text-align:right;font-size:13px;font-weight:bold">PKR ${fmt(inv.paidAmount)}</td>
+        <td style="padding:10px 8px;border:1px solid #000;text-align:right;font-size:13px;font-weight:bold">PKR ${fmt(inv.balance)}</td>
       </tr>
     `;
     
-    // Items rows (indented, smaller font)
+    // Items rows (indented) - ONLY for FULL statement
     if (inv.items && inv.items.length > 0) {
       inv.items.forEach((it, idx) => {
         invoiceRows += `
           <tr style="background:#f9f9f9">
-            <td style="padding:5px 8px 5px 25px;border:1px solid #ddd;font-size:14px;text-align:center">${String.fromCharCode(97 + idx)}</td>
-            <td colspan="2" style="padding:5px 8px;border:1px solid #ddd;font-size:14px">${it.description || it.name}</td>
-            <td style="padding:5px 8px;border:1px solid #ddd;text-align:right;font-size:14px">${it.qty || it.pcs || 0} ${it.measurement || it.uom || ""}</td>
-            <td style="padding:5px 8px;border:1px solid #ddd;text-align:right;font-size:14px">PKR ${fmt(it.rate || 0)}</td>
-            <td style="padding:5px 8px;border:1px solid #ddd;text-align:right;font-size:14px">PKR ${fmt(it.amount || 0)}</td>
+            <td style="padding:5px 8px 5px 25px;border:1px solid #ddd;font-size:11px;text-align:center">${String.fromCharCode(97 + idx)}</td>
+            <td colspan="2" style="padding:5px 8px;border:1px solid #ddd;font-size:11px">${it.description || it.name}</td>
+            <td style="padding:5px 8px;border:1px solid #ddd;text-align:right;font-size:11px">${it.qty || it.pcs || 0} ${it.measurement || it.uom || ""}</td>
+            <td style="padding:5px 8px;border:1px solid #ddd;text-align:right;font-size:11px">PKR ${fmt(it.rate || 0)}</td>
+            <td style="padding:5px 8px;border:1px solid #ddd;text-align:right;font-size:11px">PKR ${fmt(it.amount || 0)}</td>
           </tr>
         `;
       });
@@ -83,7 +83,6 @@ const buildCustomerStatementHtml = (customer, sales, rawPurchases, payments) => 
       *{margin:0;padding:0;box-sizing:border-box}
       body{font-family:Arial,sans-serif;padding:20px;font-size:12px}
       
-      /* Header with shop left and customer right */
       .print-header {
         display: flex;
         justify-content: space-between;
@@ -113,11 +112,6 @@ const buildCustomerStatementHtml = (customer, sales, rawPurchases, payments) => 
       .customer-phone{font-size:12px;color:#333}
       .customer-code{font-size:11px;color:#666}
       
-      .customer-info{background:#f5f5f5;padding:15px;margin:15px 0;border-radius:8px;display:flex;gap:20px;flex-wrap:wrap;align-items:center}
-      .customer-photo{width:80px;height:80px;border-radius:50%;object-fit:cover;border:3px solid #000}
-      .customer-details{flex:1}
-      .customer-details h3{font-size:16px;margin-bottom:8px;text-transform:uppercase}
-      .customer-details p{font-size:11px;margin:3px 0}
       .section-title{font-size:14px;font-weight:bold;margin:15px 0 10px;padding:8px;background:#333;color:#fff;text-transform:uppercase}
       table{width:100%;border-collapse:collapse;margin:8px 0}
       th{background:#555;color:#fff;padding:10px 8px;font-size:12px;border:1px solid #000;text-transform:uppercase;font-weight:bold}
@@ -138,7 +132,6 @@ const buildCustomerStatementHtml = (customer, sales, rawPurchases, payments) => 
     </style>
   </head>
   <body>
-    <!-- Header with Shop on Left and Customer on Right -->
     <div class="print-header">
       <div class="shop-section">
         <div class="shop-name">عاصم الیکٹرک اینڈ الیکٹرونکس سٹور</div>
@@ -198,7 +191,180 @@ const buildCustomerStatementHtml = (customer, sales, rawPurchases, payments) => 
   </html>`;
 };
 
-// Build Single Invoice HTML for Print (Larger Font)
+// Build Simple Statement HTML for Print (Only Invoice Summary - No Items)
+const buildSimpleStatementHtml = (customer, sales, rawPurchases, payments) => {
+  const URDU_FONT = `'Noto Nastaliq Urdu','Mehr Nastaliq','Jameel Noori Nastaleeq','Urdu Typesetting',serif`;
+  
+  const totalSales = sales.reduce((s, x) => s + (x.netTotal || 0), 0);
+  const totalPaid = sales.reduce((s, x) => s + (x.paidAmount || 0), 0);
+  const totalRaw = rawPurchases.reduce((s, x) => s + (x.netTotal || 0), 0);
+  const totalPayments = payments.reduce((s, p) => s + (p.amount || 0), 0);
+  const outstanding = customer.currentBalance || 0;
+  
+  // Build simple invoice rows - NO ITEMS, just summary
+  const allInvoices = [...sales, ...rawPurchases].sort((a, b) => new Date(b.invoiceDate) - new Date(a.invoiceDate));
+  
+  let invoiceRows = "";
+  let counter = 1;
+  
+  allInvoices.forEach((inv) => {
+    invoiceRows += `
+      <tr style="background:${inv.saleType === "raw-purchase" ? "#fef3c7" : "#e8f0fe"}">
+        <td style="padding:10px 8px;border:1px solid #000;font-size:13px;font-weight:bold;text-align:center">${counter}</td>
+        <td style="padding:10px 8px;border:1px solid #000;font-size:13px;font-weight:bold;text-transform:uppercase">${inv.invoiceNo}</td>
+        <td style="padding:10px 8px;border:1px solid #000;font-size:13px;font-weight:bold">${inv.invoiceDate}</td>
+        <td style="padding:10px 8px;border:1px solid #000;text-align:right;font-size:13px;font-weight:bold">PKR ${fmt(inv.netTotal)}</td>
+        <td style="padding:10px 8px;border:1px solid #000;text-align:right;font-size:13px;font-weight:bold">PKR ${fmt(inv.paidAmount)}</td>
+        <td style="padding:10px 8px;border:1px solid #000;text-align:right;font-size:13px;font-weight:bold">PKR ${fmt(inv.balance)}</td>
+      </tr>
+    `;
+    counter++;
+  });
+  
+  const paymentRows = payments.map((p, i) => `
+    <tr>
+      <td style="padding:8px;border:1px solid #000;font-size:12px;text-align:center">${i + 1}</td>
+      <td style="padding:8px;border:1px solid #000;font-size:12px">${p.paymentDate || p.createdAt?.split("T")[0]}</td>
+      <td style="padding:8px;border:1px solid #000;text-align:right;font-size:12px;font-weight:bold">PKR ${fmt(p.amount)}</td>
+      <td style="padding:8px;border:1px solid #000;font-size:12px">${p.remarks || "—"}</td>
+    </table>
+  `).join("");
+  
+  const printDateTime = new Date().toLocaleString("en-PK", {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+  
+  return `<!DOCTYPE html>
+  <html>
+  <head>
+    <meta charset="utf-8">
+    <title>Customer Statement (Simple) - ${customer.name}</title>
+    <style>
+      *{margin:0;padding:0;box-sizing:border-box}
+      body{font-family:Arial,sans-serif;padding:20px;font-size:12px}
+      
+      .print-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+        padding-bottom: 15px;
+        border-bottom: 3px solid #000;
+      }
+      .shop-section {
+        text-align: left;
+        flex: 2;
+      }
+      .customer-section {
+        text-align: right;
+        flex: 1;
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+        gap: 15px;
+      }
+      .shop-name{font-size:20px;font-weight:bold;font-family:${URDU_FONT};margin-bottom:5px}
+      .shop-name-en{font-size:14px;font-weight:bold;margin-bottom:5px;text-transform:uppercase}
+      .shop-addr{font-size:10px;color:#444;margin:2px 0}
+      .print-time{font-size:9px;color:#666;margin-top:5px}
+      .customer-photo-small{width:60px;height:60px;border-radius:50%;object-fit:cover;border:3px solid #000}
+      .customer-name{font-size:16px;font-weight:bold;margin-bottom:5px;text-transform:uppercase}
+      .customer-phone{font-size:12px;color:#333}
+      .customer-code{font-size:11px;color:#666}
+      
+      .section-title{font-size:14px;font-weight:bold;margin:15px 0 10px;padding:8px;background:#333;color:#fff;text-transform:uppercase}
+      table{width:100%;border-collapse:collapse;margin:8px 0}
+      th{background:#555;color:#fff;padding:10px 8px;font-size:12px;border:1px solid #000;text-transform:uppercase;font-weight:bold}
+      td{padding:8px;border:1px solid #000;font-size:12px}
+      .totals{width:350px;margin-left:auto;margin-top:15px}
+      .totals-row{display:flex;justify-content:space-between;padding:6px 0;font-size:12px}
+      .totals-row.bold{font-weight:bold;border-top:2px solid #000;margin-top:5px;padding-top:8px;font-size:14px}
+      .footer{text-align:center;margin-top:25px;padding-top:10px;border-top:1px solid #ddd;font-size:9px;color:#666}
+      .text-center{text-align:center}
+      .text-right{text-align:right}
+      .red{color:#dc2626}
+      .green{color:#059669}
+      .statement-note {
+        text-align: center;
+        font-size: 10px;
+        color: #666;
+        margin: 10px 0;
+        font-style: italic;
+      }
+      @media print{
+        body{padding:8mm}
+        .print-header{margin-bottom:15px}
+        th,td{padding:6px}
+      }
+    </style>
+  </head>
+  <body>
+    <div class="print-header">
+      <div class="shop-section">
+        <div class="shop-name">عاصم الیکٹرک اینڈ الیکٹرونکس سٹور</div>
+        <div class="shop-name-en">ASIM ELECTRIC & ELECTRONIC STORE</div>
+        <div class="shop-addr">Main Bazar Nahari Town, Near Bijli Ghar Stop, Gujranwala Road, Faisalabad</div>
+        <div class="shop-addr">Ph: 0300 7262129, 041 8711575, 0315 7262129</div>
+        <div class="print-time">Printed on: ${printDateTime}</div>
+      </div>
+      <div class="customer-section">
+        ${customer.imageFront ? 
+          `<img src="${customer.imageFront}" class="customer-photo-small" alt="${customer.name}">` : 
+          `<div style="width:60px;height:60px;border-radius:50%;background:#ddd;display:flex;align-items:center;justify-content:center;font-size:30px">👤</div>`
+        }
+        <div>
+          <div class="customer-name">${customer.name}</div>
+          <div class="customer-phone">📞 ${customer.phone || "N/A"}</div>
+          <div class="customer-code">🆔 ${customer.code || "N/A"}</div>
+          <div class="customer-code">📍 ${customer.address || ""} ${customer.area ? `(${customer.area})` : ""}</div>
+          <div class="customer-code">📅 Statement Date: ${isoD()}</div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="statement-note">📋 SIMPLE STATEMENT - INVOICE SUMMARY ONLY</div>
+    
+    <div class="section-title">💰 INVOICE SUMMARY</div>
+    <table>
+      <thead>
+        <tr>
+          <th style="width:40px">#</th>
+          <th>INVOICE NO</th>
+          <th>DATE</th>
+          <th class="text-right">TOTAL</th>
+          <th class="text-right">PAID</th>
+          <th class="text-right">BALANCE</th>
+        </tr>
+      </thead>
+      <tbody>${invoiceRows}</tbody>
+    </table>
+    
+    ${payments.length > 0 ? `
+    <div class="section-title">💳 PAYMENT HISTORY</div>
+    </table>
+      <thead>
+        <tr><th style="width:40px">#</th><th>DATE</th><th class="text-right">AMOUNT</th><th>REMARKS</th></tr>
+      </thead>
+      <tbody>${paymentRows}</tbody>
+    </table>` : ""}
+    
+    <div class="totals">
+      <div class="totals-row"><span>TOTAL SALES:</span><span>PKR ${fmt(totalSales)}</span></div>
+      <div class="totals-row"><span>RAW PURCHASES:</span><span>PKR ${fmt(totalRaw)}</span></div>
+      <div class="totals-row"><span>TOTAL PAID:</span><span>PKR ${fmt(totalPaid + totalPayments)}</span></div>
+      <div class="totals-row bold"><span>OUTSTANDING BALANCE:</span><span class="red">PKR ${fmt(outstanding)}</span></div>
+    </div>
+    
+    <div class="footer">Thank you for your business! | Developed by: AppHill / 03222292922 | www.apphill.pk</div>
+  </body>
+  </html>`;
+};
+
+// Build Single Invoice HTML for Print
 const buildInvoiceHtml = (invoice, customer) => {
   const URDU_FONT = `'Noto Nastaliq Urdu','Mehr Nastaliq','Jameel Noori Nastaleeq','Urdu Typesetting',serif`;
   const rows = invoice.items?.map((it, i) => ({ ...it, sr: i + 1 })) || [];
@@ -230,7 +396,6 @@ const buildInvoiceHtml = (invoice, customer) => {
       *{margin:0;padding:0;box-sizing:border-box}
       body{font-family:Arial,sans-serif;padding:15px;font-size:11px}
       
-      /* Header with shop left and customer right */
       .print-header {
         display: flex;
         justify-content: space-between;
@@ -275,7 +440,6 @@ const buildInvoiceHtml = (invoice, customer) => {
     </style>
   </head>
   <body>
-    <!-- Header with Shop on Left and Customer on Right -->
     <div class="print-header">
       <div class="shop-section">
         <div class="shop-name">عاصم الیکٹرک اینڈ الیکٹرونکس سٹور</div>
@@ -324,9 +488,17 @@ const buildInvoiceHtml = (invoice, customer) => {
   </html>`;
 };
 
-// Print/Share Functions
-const printCustomerStatement = (customer, sales, rawPurchases, payments) => {
+// Print Functions
+const printFullCustomerStatement = (customer, sales, rawPurchases, payments) => {
   const html = buildCustomerStatementHtml(customer, sales, rawPurchases, payments);
+  const printWindow = window.open('', '_blank');
+  printWindow.document.write(html);
+  printWindow.document.close();
+  setTimeout(() => printWindow.print(), 500);
+};
+
+const printSimpleCustomerStatement = (customer, sales, rawPurchases, payments) => {
+  const html = buildSimpleStatementHtml(customer, sales, rawPurchases, payments);
   const printWindow = window.open('', '_blank');
   printWindow.document.write(html);
   printWindow.document.close();
@@ -482,7 +654,13 @@ function CustomerDetailPage({ customer, onBack }) {
 
   const handleFullDetails = () => {
     setTimeout(() => {
-      printCustomerStatement(customer, sales, rawPurchases, payments);
+      printFullCustomerStatement(customer, sales, rawPurchases, payments);
+    }, 100);
+  };
+
+  const handleSimpleStatement = () => {
+    setTimeout(() => {
+      printSimpleCustomerStatement(customer, sales, rawPurchases, payments);
     }, 100);
   };
 
@@ -550,7 +728,10 @@ function CustomerDetailPage({ customer, onBack }) {
         </div>
         <div className="cp-detail-actions">
           <button className="xp-btn xp-btn-primary" onClick={handleFullDetails}>
-            📄 Print Full Statement
+            📄 Full Statement
+          </button>
+          <button className="xp-btn xp-btn-secondary" onClick={handleSimpleStatement}>
+            📋 Simple Statement
           </button>
           <button className="xp-btn xp-btn-wa" onClick={() => shareCustomerStatement(customer, sales, rawPurchases, payments)}>
             📱 Share Statement
@@ -834,6 +1015,14 @@ function CustomerDetailPage({ customer, onBack }) {
         .cp-detail-actions {
           display: flex;
           gap: 10px;
+        }
+        .xp-btn-secondary {
+          background: #6b7280;
+          color: #fff;
+          border-color: #4b5563;
+        }
+        .xp-btn-secondary:hover {
+          background: #4b5563;
         }
         .invoice-details-row td {
           padding: 8px !important;
