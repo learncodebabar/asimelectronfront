@@ -9,7 +9,7 @@ import "../styles/CreditCustomersPage.css";
 const fmt = (n) => Number(n || 0).toLocaleString("en-PK");
 const isoD = () => new Date().toISOString().split("T")[0];
 
-// Build Complete Customer Statement HTML for Print (Smaller Font)
+// Build Complete Customer Statement HTML for Print (Larger Font, Bold, Uppercase)
 const buildCustomerStatementHtml = (customer, sales, rawPurchases, payments) => {
   const URDU_FONT = `'Noto Nastaliq Urdu','Mehr Nastaliq','Jameel Noori Nastaleeq','Urdu Typesetting',serif`;
   
@@ -26,28 +26,28 @@ const buildCustomerStatementHtml = (customer, sales, rawPurchases, payments) => 
   let counter = 1;
   
   allInvoices.forEach((inv) => {
-    // Main invoice row
+    // Main invoice row with UPPERCASE and BOLD
     invoiceRows += `
       <tr style="background:${inv.saleType === "raw-purchase" ? "#fef3c7" : "#e8f0fe"}">
-        <td style="padding:6px;border:1px solid #ddd;font-size:10px;font-weight:bold;text-align:center">${counter}</td>
-        <td style="padding:6px;border:1px solid #ddd;font-size:10px;font-weight:bold">${inv.invoiceNo}</td>
-        <td style="padding:6px;border:1px solid #ddd;font-size:10px;font-weight:bold">${inv.invoiceDate}</td>
-        <td style="padding:6px;border:1px solid #ddd;text-align:right;font-size:10px;font-weight:bold">PKR ${fmt(inv.netTotal)}</td>
-        <td style="padding:6px;border:1px solid #ddd;text-align:right;font-size:10px;font-weight:bold">PKR ${fmt(inv.paidAmount)}</td>
-        <td style="padding:6px;border:1px solid #ddd;text-align:right;font-size:10px;font-weight:bold">PKR ${fmt(inv.balance)}</td>
+        <td style="padding:10px 8px;border:1px solid #000;font-size:15px;font-weight:bold;text-align:center">${counter}</td>
+        <td style="padding:10px 8px;border:1px solid #000;font-size:15px;font-weight:bold;text-transform:uppercase">${inv.invoiceNo}</td>
+        <td style="padding:10px 8px;border:1px solid #000;font-size:15px;font-weight:bold">${inv.invoiceDate}</td>
+        <td style="padding:10px 8px;border:1px solid #000;text-align:right;font-size:15px;font-weight:bold">PKR ${fmt(inv.netTotal)}</td>
+        <td style="padding:10px 8px;border:1px solid #000;text-align:right;font-size:15px;font-weight:bold">PKR ${fmt(inv.paidAmount)}</td>
+        <td style="padding:10px 8px;border:1px solid #000;text-align:right;font-size:15px;font-weight:bold">PKR ${fmt(inv.balance)}</td>
       </tr>
     `;
     
-    // Items rows (indented)
+    // Items rows (indented, smaller font)
     if (inv.items && inv.items.length > 0) {
       inv.items.forEach((it, idx) => {
         invoiceRows += `
           <tr style="background:#f9f9f9">
-            <td style="padding:3px 6px 3px 25px;border:1px solid #ddd;font-size:9px;text-align:center">${String.fromCharCode(97 + idx)}</td>
-            <td colspan="2" style="padding:3px 6px;border:1px solid #ddd;font-size:9px">${it.description || it.name}</td>
-            <td style="padding:3px 6px;border:1px solid #ddd;text-align:right;font-size:9px">${it.qty || it.pcs || 0} ${it.measurement || it.uom || ""}</td>
-            <td style="padding:3px 6px;border:1px solid #ddd;text-align:right;font-size:9px">PKR ${fmt(it.rate || 0)}</td>
-            <td style="padding:3px 6px;border:1px solid #ddd;text-align:right;font-size:9px">PKR ${fmt(it.amount || 0)}</td>
+            <td style="padding:5px 8px 5px 25px;border:1px solid #ddd;font-size:14px;text-align:center">${String.fromCharCode(97 + idx)}</td>
+            <td colspan="2" style="padding:5px 8px;border:1px solid #ddd;font-size:14px">${it.description || it.name}</td>
+            <td style="padding:5px 8px;border:1px solid #ddd;text-align:right;font-size:14px">${it.qty || it.pcs || 0} ${it.measurement || it.uom || ""}</td>
+            <td style="padding:5px 8px;border:1px solid #ddd;text-align:right;font-size:14px">PKR ${fmt(it.rate || 0)}</td>
+            <td style="padding:5px 8px;border:1px solid #ddd;text-align:right;font-size:14px">PKR ${fmt(it.amount || 0)}</td>
           </tr>
         `;
       });
@@ -58,10 +58,10 @@ const buildCustomerStatementHtml = (customer, sales, rawPurchases, payments) => 
   
   const paymentRows = payments.map((p, i) => `
     <tr>
-      <td style="padding:5px;border:1px solid #ddd;font-size:10px;text-align:center">${i + 1}</td>
-      <td style="padding:5px;border:1px solid #ddd;font-size:10px">${p.paymentDate || p.createdAt?.split("T")[0]}</td>
-      <td style="padding:5px;border:1px solid #ddd;text-align:right;font-size:10px">PKR ${fmt(p.amount)}</td>
-      <td style="padding:5px;border:1px solid #ddd;font-size:10px">${p.remarks || "—"}</td>
+      <td style="padding:8px;border:1px solid #000;font-size:12px;text-align:center">${i + 1}</td>
+      <td style="padding:8px;border:1px solid #000;font-size:12px">${p.paymentDate || p.createdAt?.split("T")[0]}</td>
+      <td style="padding:8px;border:1px solid #000;text-align:right;font-size:12px;font-weight:bold">PKR ${fmt(p.amount)}</td>
+      <td style="padding:8px;border:1px solid #000;font-size:12px">${p.remarks || "—"}</td>
     </tr>
   `).join("");
   
@@ -81,16 +81,16 @@ const buildCustomerStatementHtml = (customer, sales, rawPurchases, payments) => 
     <title>Customer Statement - ${customer.name}</title>
     <style>
       *{margin:0;padding:0;box-sizing:border-box}
-      body{font-family:Arial,sans-serif;padding:15px;font-size:10px}
+      body{font-family:Arial,sans-serif;padding:20px;font-size:12px}
       
       /* Header with shop left and customer right */
       .print-header {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin-bottom: 15px;
-        padding-bottom: 10px;
-        border-bottom: 2px solid #333;
+        margin-bottom: 20px;
+        padding-bottom: 15px;
+        border-bottom: 3px solid #000;
       }
       .shop-section {
         text-align: left;
@@ -102,32 +102,39 @@ const buildCustomerStatementHtml = (customer, sales, rawPurchases, payments) => 
         display: flex;
         justify-content: flex-end;
         align-items: center;
-        gap: 10px;
+        gap: 15px;
       }
-      .shop-name{font-size:16px;font-weight:bold;font-family:${URDU_FONT};margin-bottom:3px}
-      .shop-name-en{font-size:12px;font-weight:bold;margin-bottom:3px}
-      .shop-addr{font-size:8px;color:#666;margin:2px 0}
-      .print-time{font-size:7px;color:#999;margin-top:3px}
-      .customer-photo-small{width:50px;height:50px;border-radius:50%;object-fit:cover;border:2px solid #333}
-      .customer-name{font-size:12px;font-weight:bold;margin-bottom:2px}
-      .customer-phone{font-size:9px;color:#666}
+      .shop-name{font-size:20px;font-weight:bold;font-family:${URDU_FONT};margin-bottom:5px}
+      .shop-name-en{font-size:14px;font-weight:bold;margin-bottom:5px;text-transform:uppercase}
+      .shop-addr{font-size:10px;color:#444;margin:2px 0}
+      .print-time{font-size:9px;color:#666;margin-top:5px}
+      .customer-photo-small{width:60px;height:60px;border-radius:50%;object-fit:cover;border:3px solid #000}
+      .customer-name{font-size:16px;font-weight:bold;margin-bottom:5px;text-transform:uppercase}
+      .customer-phone{font-size:12px;color:#333}
+      .customer-code{font-size:11px;color:#666}
       
-      .customer-info{background:#f5f5f5;padding:10px;margin:10px 0;border-radius:6px;display:flex;gap:15px;flex-wrap:wrap;align-items:center}
-      .customer-photo{width:60px;height:60px;border-radius:50%;object-fit:cover;border:2px solid #333}
+      .customer-info{background:#f5f5f5;padding:15px;margin:15px 0;border-radius:8px;display:flex;gap:20px;flex-wrap:wrap;align-items:center}
+      .customer-photo{width:80px;height:80px;border-radius:50%;object-fit:cover;border:3px solid #000}
       .customer-details{flex:1}
-      .customer-details h3{font-size:12px;margin-bottom:5px}
-      .customer-details p{font-size:9px;margin:2px 0}
-      .section-title{font-size:11px;font-weight:bold;margin:12px 0 6px;padding:5px;background:#333;color:#fff}
-      table{width:100%;border-collapse:collapse;margin:5px 0}
-      th{background:#555;color:#fff;padding:5px;font-size:9px;border:1px solid #666}
-      td{padding:5px;border:1px solid #ddd;font-size:9px}
-      .totals{width:300px;margin-left:auto;margin-top:12px}
-      .totals-row{display:flex;justify-content:space-between;padding:4px 0;font-size:9px}
-      .totals-row.bold{font-weight:bold;border-top:1px solid #333;margin-top:3px;padding-top:3px}
-      .footer{text-align:center;margin-top:20px;padding-top:6px;border-top:1px solid #ddd;font-size:7px;color:#666}
+      .customer-details h3{font-size:16px;margin-bottom:8px;text-transform:uppercase}
+      .customer-details p{font-size:11px;margin:3px 0}
+      .section-title{font-size:14px;font-weight:bold;margin:15px 0 10px;padding:8px;background:#333;color:#fff;text-transform:uppercase}
+      table{width:100%;border-collapse:collapse;margin:8px 0}
+      th{background:#555;color:#fff;padding:10px 8px;font-size:12px;border:1px solid #000;text-transform:uppercase;font-weight:bold}
+      td{padding:8px;border:1px solid #000;font-size:12px}
+      .totals{width:350px;margin-left:auto;margin-top:15px}
+      .totals-row{display:flex;justify-content:space-between;padding:6px 0;font-size:12px}
+      .totals-row.bold{font-weight:bold;border-top:2px solid #000;margin-top:5px;padding-top:8px;font-size:14px}
+      .footer{text-align:center;margin-top:25px;padding-top:10px;border-top:1px solid #ddd;font-size:9px;color:#666}
       .text-center{text-align:center}
       .text-right{text-align:right}
-      @media print{body{padding:5mm}}
+      .red{color:#dc2626}
+      .green{color:#059669}
+      @media print{
+        body{padding:8mm}
+        .print-header{margin-bottom:15px}
+        th,td{padding:6px}
+      }
     </style>
   </head>
   <body>
@@ -143,32 +150,28 @@ const buildCustomerStatementHtml = (customer, sales, rawPurchases, payments) => 
       <div class="customer-section">
         ${customer.imageFront ? 
           `<img src="${customer.imageFront}" class="customer-photo-small" alt="${customer.name}">` : 
-          `<div style="width:50px;height:50px;border-radius:50%;background:#ddd;display:flex;align-items:center;justify-content:center;font-size:25px">👤</div>`
+          `<div style="width:60px;height:60px;border-radius:50%;background:#ddd;display:flex;align-items:center;justify-content:center;font-size:30px">👤</div>`
         }
         <div>
           <div class="customer-name">${customer.name}</div>
           <div class="customer-phone">📞 ${customer.phone || "N/A"}</div>
-          <div class="customer-phone">🆔 ${customer.code || "N/A"}</div>
-               <p>📍 ${customer.address || ""} ${customer.area ? `(${customer.area})` : ""}</p>
-                <p>📅 Statement Date: ${isoD()}</p>
+          <div class="customer-code">🆔 ${customer.code || "N/A"}</div>
+          <div class="customer-code">📍 ${customer.address || ""} ${customer.area ? `(${customer.area})` : ""}</div>
+          <div class="customer-code">📅 Statement Date: ${isoD()}</div>
         </div>
       </div>
     </div>
     
-    <!-- Detailed Customer Info 
-   
-    </div>
-    -->
-    <div class="section-title">💰 INVOICES (With Items Details)</div>
+    <div class="section-title">💰 INVOICES (WITH ITEMS DETAILS)</div>
     <table>
       <thead>
         <tr>
-          <th style="width:30px">#</th>
-          <th>Invoice No</th>
-          <th>Date</th>
-          <th class="text-right">Total</th>
-          <th class="text-right">Paid</th>
-          <th class="text-right">Balance</th>
+          <th style="width:40px">#</th>
+          <th>INVOICE NO</th>
+          <th>DATE</th>
+          <th class="text-right">TOTAL</th>
+          <th class="text-right">PAID</th>
+          <th class="text-right">BALANCE</th>
         </tr>
       </thead>
       <tbody>${invoiceRows}</tbody>
@@ -178,16 +181,16 @@ const buildCustomerStatementHtml = (customer, sales, rawPurchases, payments) => 
     <div class="section-title">💳 PAYMENT HISTORY</div>
     <table>
       <thead>
-        <tr><th style="width:30px">#</th><th>Date</th><th class="text-right">Amount</th><th>Remarks</th></tr>
+        <tr><th style="width:40px">#</th><th>DATE</th><th class="text-right">AMOUNT</th><th>REMARKS</th></tr>
       </thead>
       <tbody>${paymentRows}</tbody>
     </table>` : ""}
     
     <div class="totals">
-      <div class="totals-row"><span>Total Sales:</span><span>PKR ${fmt(totalSales)}</span></div>
-      <div class="totals-row"><span>Raw Purchases:</span><span>PKR ${fmt(totalRaw)}</span></div>
-      <div class="totals-row"><span>Total Paid:</span><span>PKR ${fmt(totalPaid + totalPayments)}</span></div>
-      <div class="totals-row bold"><span>Outstanding Balance:</span><span style="color:#dc2626">PKR ${fmt(outstanding)}</span></div>
+      <div class="totals-row"><span>TOTAL SALES:</span><span>PKR ${fmt(totalSales)}</span></div>
+      <div class="totals-row"><span>RAW PURCHASES:</span><span>PKR ${fmt(totalRaw)}</span></div>
+      <div class="totals-row"><span>TOTAL PAID:</span><span>PKR ${fmt(totalPaid + totalPayments)}</span></div>
+      <div class="totals-row bold"><span>OUTSTANDING BALANCE:</span><span class="red">PKR ${fmt(outstanding)}</span></div>
     </div>
     
     <div class="footer">Thank you for your business! | Developed by: AppHill / 03222292922 | www.apphill.pk</div>
@@ -195,18 +198,18 @@ const buildCustomerStatementHtml = (customer, sales, rawPurchases, payments) => 
   </html>`;
 };
 
-// Build Single Invoice HTML for Print (Smaller Font)
+// Build Single Invoice HTML for Print (Larger Font)
 const buildInvoiceHtml = (invoice, customer) => {
   const URDU_FONT = `'Noto Nastaliq Urdu','Mehr Nastaliq','Jameel Noori Nastaleeq','Urdu Typesetting',serif`;
   const rows = invoice.items?.map((it, i) => ({ ...it, sr: i + 1 })) || [];
   
   const itemRows = rows.map(it => `
     <tr>
-      <td style="padding:4px 6px;border:1px solid #ddd;font-size:9px;text-align:center">${it.sr}</td>
-      <td style="padding:4px 6px;border:1px solid #ddd;font-size:9px">${it.description || it.name}</td>
-      <td style="padding:4px 6px;border:1px solid #ddd;text-align:right;font-size:9px">${it.qty || it.pcs || 0} ${it.measurement || it.uom || ""}</td>
-      <td style="padding:4px 6px;border:1px solid #ddd;text-align:right;font-size:9px">PKR ${fmt(it.rate || 0)}</td>
-      <td style="padding:4px 6px;border:1px solid #ddd;text-align:right;font-size:9px">PKR ${fmt(it.amount || 0)}</td>
+      <td style="padding:8px 6px;border:1px solid #000;font-size:11px;text-align:center">${it.sr}</td>
+      <td style="padding:8px 6px;border:1px solid #000;font-size:11px">${it.description || it.name}</td>
+      <td style="padding:8px 6px;border:1px solid #000;text-align:right;font-size:11px">${it.qty || it.pcs || 0} ${it.measurement || it.uom || ""}</td>
+      <td style="padding:8px 6px;border:1px solid #000;text-align:right;font-size:11px">PKR ${fmt(it.rate || 0)}</td>
+      <td style="padding:8px 6px;border:1px solid #000;text-align:right;font-size:11px">PKR ${fmt(it.amount || 0)}</td>
     </tr>
   `).join("");
   
@@ -225,16 +228,16 @@ const buildInvoiceHtml = (invoice, customer) => {
     <title>Invoice ${invoice.invoiceNo}</title>
     <style>
       *{margin:0;padding:0;box-sizing:border-box}
-      body{font-family:Arial,sans-serif;padding:12px;font-size:10px}
+      body{font-family:Arial,sans-serif;padding:15px;font-size:11px}
       
       /* Header with shop left and customer right */
       .print-header {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin-bottom: 12px;
-        padding-bottom: 8px;
-        border-bottom: 2px solid #333;
+        margin-bottom: 15px;
+        padding-bottom: 10px;
+        border-bottom: 2px solid #000;
       }
       .shop-section {
         text-align: left;
@@ -246,27 +249,29 @@ const buildInvoiceHtml = (invoice, customer) => {
         display: flex;
         justify-content: flex-end;
         align-items: center;
-        gap: 8px;
+        gap: 10px;
       }
-      .shop-name{font-size:14px;font-weight:bold;font-family:${URDU_FONT};margin-bottom:2px}
-      .shop-name-en{font-size:11px;font-weight:bold;margin-bottom:2px}
-      .shop-addr{font-size:7px;color:#666;margin:1px 0}
-      .print-time{font-size:6px;color:#999;margin-top:2px}
-      .customer-photo-small{width:40px;height:40px;border-radius:50%;object-fit:cover;border:2px solid #333}
-      .customer-name{font-size:11px;font-weight:bold;margin-bottom:2px}
-      .customer-phone{font-size:8px;color:#666}
+      .shop-name{font-size:18px;font-weight:bold;font-family:${URDU_FONT};margin-bottom:3px}
+      .shop-name-en{font-size:12px;font-weight:bold;margin-bottom:3px;text-transform:uppercase}
+      .shop-addr{font-size:9px;color:#444;margin:1px 0}
+      .print-time{font-size:8px;color:#666;margin-top:3px}
+      .customer-photo-small{width:50px;height:50px;border-radius:50%;object-fit:cover;border:2px solid #000}
+      .customer-name{font-size:14px;font-weight:bold;margin-bottom:3px;text-transform:uppercase}
+      .customer-phone{font-size:10px;color:#333}
       
-      .invoice-title{font-size:13px;font-weight:bold;margin:10px 0;padding:5px;background:#333;color:#fff;text-align:center}
-      .info-row{display:flex;justify-content:space-between;margin:8px 0;padding:6px;background:#f5f5f5;border-radius:4px;font-size:9px}
-      table{width:100%;border-collapse:collapse;margin:10px 0}
-      th{background:#555;color:#fff;padding:5px;font-size:9px;border:1px solid #666}
-      td{padding:4px 6px;border:1px solid #ddd;font-size:9px}
-      .totals{width:280px;margin-left:auto;margin-top:10px}
-      .totals-row{display:flex;justify-content:space-between;padding:3px 0;font-size:9px}
-      .totals-row.bold{font-weight:bold;border-top:1px solid #333;margin-top:3px;padding-top:3px}
-      .footer{text-align:center;margin-top:15px;padding-top:6px;border-top:1px solid #ddd;font-size:7px;color:#666}
+      .invoice-title{font-size:16px;font-weight:bold;margin:12px 0;padding:8px;background:#333;color:#fff;text-align:center;text-transform:uppercase}
+      .info-row{display:flex;justify-content:space-between;margin:10px 0;padding:8px;background:#f5f5f5;border-radius:4px;font-size:11px}
+      table{width:100%;border-collapse:collapse;margin:12px 0}
+      th{background:#555;color:#fff;padding:8px 6px;font-size:11px;border:1px solid #000;text-transform:uppercase;font-weight:bold}
+      td{padding:6px;border:1px solid #000;font-size:10px}
+      .totals{width:300px;margin-left:auto;margin-top:12px}
+      .totals-row{display:flex;justify-content:space-between;padding:5px 0;font-size:11px}
+      .totals-row.bold{font-weight:bold;border-top:1px solid #000;margin-top:5px;padding-top:8px;font-size:13px}
+      .footer{text-align:center;margin-top:18px;padding-top:8px;border-top:1px solid #ddd;font-size:8px;color:#666}
       .text-right{text-align:right}
-      @media print{body{padding:3mm}}
+      .red{color:#dc2626}
+      .green{color:#059669}
+      @media print{body{padding:5mm}}
     </style>
   </head>
   <body>
@@ -282,7 +287,7 @@ const buildInvoiceHtml = (invoice, customer) => {
       <div class="customer-section">
         ${customer.imageFront ? 
           `<img src="${customer.imageFront}" class="customer-photo-small" alt="${customer.name}">` : 
-          `<div style="width:40px;height:40px;border-radius:50%;background:#ddd;display:flex;align-items:center;justify-content:center;font-size:20px">👤</div>`
+          `<div style="width:50px;height:50px;border-radius:50%;background:#ddd;display:flex;align-items:center;justify-content:center;font-size:25px">👤</div>`
         }
         <div>
           <div class="customer-name">${customer.name}</div>
@@ -293,26 +298,26 @@ const buildInvoiceHtml = (invoice, customer) => {
     
     <div class="invoice-title">${invoice.saleType === "raw-purchase" ? "RAW PURCHASE INVOICE" : "SALES INVOICE"}</div>
     <div class="info-row">
-      <span><strong>Invoice No:</strong> ${invoice.invoiceNo}</span>
-      <span><strong>Date:</strong> ${invoice.invoiceDate}</span>
+      <span><strong>INVOICE NO:</strong> ${invoice.invoiceNo}</span>
+      <span><strong>DATE:</strong> ${invoice.invoiceDate}</span>
     </div>
     <div class="info-row">
-      <span><strong>Customer:</strong> ${customer.name}</span>
-      <span><strong>Phone:</strong> ${customer.phone || ""}</span>
+      <span><strong>CUSTOMER:</strong> ${customer.name}</span>
+      <span><strong>PHONE:</strong> ${customer.phone || ""}</span>
     </div>
     <table>
       <thead>
-        <tr><th style="width:30px">#</th><th>Description</th><th class="text-right">Qty</th><th class="text-right">Rate</th><th class="text-right">Amount</th></tr>
+        <tr><th style="width:35px">#</th><th>DESCRIPTION</th><th class="text-right">QTY</th><th class="text-right">RATE</th><th class="text-right">AMOUNT</th></tr>
       </thead>
       <tbody>${itemRows}</tbody>
     </table>
     <div class="totals">
-      <div class="totals-row"><span>Sub Total:</span><span>PKR ${fmt(invoice.subTotal || 0)}</span></div>
-      ${invoice.extraDisc > 0 ? `<div class="totals-row"><span>Discount:</span><span>PKR ${fmt(invoice.extraDisc)}</span></div>` : ""}
-      <div class="totals-row bold"><span>Net Total:</span><span>PKR ${fmt(invoice.netTotal || 0)}</span></div>
-      ${invoice.prevBalance > 0 ? `<div class="totals-row"><span>Previous Balance:</span><span>PKR ${fmt(invoice.prevBalance)}</span></div>` : ""}
-      <div class="totals-row"><span>Paid:</span><span>PKR ${fmt(invoice.paidAmount || 0)}</span></div>
-      <div class="totals-row bold ${(invoice.balance || 0) > 0 ? 'red' : 'green'}"><span>Balance:</span><span>PKR ${fmt(invoice.balance || 0)}</span></div>
+      <div class="totals-row"><span>SUB TOTAL:</span><span>PKR ${fmt(invoice.subTotal || 0)}</span></div>
+      ${invoice.extraDisc > 0 ? `<div class="totals-row"><span>DISCOUNT:</span><span>PKR ${fmt(invoice.extraDisc)}</span></div>` : ""}
+      <div class="totals-row bold"><span>NET TOTAL:</span><span>PKR ${fmt(invoice.netTotal || 0)}</span></div>
+      ${invoice.prevBalance > 0 ? `<div class="totals-row"><span>PREVIOUS BALANCE:</span><span>PKR ${fmt(invoice.prevBalance)}</span></div>` : ""}
+      <div class="totals-row"><span>PAID:</span><span>PKR ${fmt(invoice.paidAmount || 0)}</span></div>
+      <div class="totals-row bold ${(invoice.balance || 0) > 0 ? 'red' : 'green'}"><span>BALANCE:</span><span>PKR ${fmt(invoice.balance || 0)}</span></div>
     </div>
     <div class="footer">Thank you for your business! | Developed by: AppHill / 03222292922</div>
   </body>
@@ -492,27 +497,27 @@ function CustomerDetailPage({ customer, onBack }) {
           <table className="xp-table" style={{ margin: "0", fontSize: "11px", border: "none", width: "100%" }}>
             <thead>
               <tr>
-                <th style={{ width: 35, background: "#e2e8f0", padding: "4px", fontSize: "10px" }}>#</th>
-                <th style={{ background: "#e2e8f0", padding: "4px", fontSize: "10px" }}>Product</th>
-                <th style={{ width: 60, background: "#e2e8f0", padding: "4px", fontSize: "10px", textAlign: "center" }}>Qty</th>
-                <th style={{ width: 80, background: "#e2e8f0", padding: "4px", fontSize: "10px", textAlign: "right" }}>Rate</th>
-                <th style={{ width: 90, background: "#e2e8f0", padding: "4px", fontSize: "10px", textAlign: "right" }}>Amount</th>
-                <th style={{ width: 50, background: "#e2e8f0", padding: "4px", fontSize: "10px", textAlign: "center" }}>Rack</th>
-                <th style={{ width: 55, background: "#e2e8f0", padding: "4px", fontSize: "10px", textAlign: "center" }}>UOM</th>
-                <th style={{ width: 50, background: "#e2e8f0", padding: "4px", fontSize: "10px", textAlign: "center" }}>Disc%</th>
+                <th style={{ width: 35, background: "#e2e8f0", padding: "6px", fontSize: "10px" }}>#</th>
+                <th style={{ background: "#e2e8f0", padding: "6px", fontSize: "10px" }}>Product</th>
+                <th style={{ width: 60, background: "#e2e8f0", padding: "6px", fontSize: "10px", textAlign: "center" }}>Qty</th>
+                <th style={{ width: 80, background: "#e2e8f0", padding: "6px", fontSize: "10px", textAlign: "right" }}>Rate</th>
+                <th style={{ width: 90, background: "#e2e8f0", padding: "6px", fontSize: "10px", textAlign: "right" }}>Amount</th>
+                <th style={{ width: 50, background: "#e2e8f0", padding: "6px", fontSize: "10px", textAlign: "center" }}>Rack</th>
+                <th style={{ width: 55, background: "#e2e8f0", padding: "6px", fontSize: "10px", textAlign: "center" }}>UOM</th>
+                <th style={{ width: 50, background: "#e2e8f0", padding: "6px", fontSize: "10px", textAlign: "center" }}>Disc%</th>
               </tr>
             </thead>
             <tbody>
               {items.map((it, idx) => (
                 <tr key={idx} style={{ borderBottom: "1px solid #e2e8f0" }}>
-                  <td style={{ padding: "4px", fontSize: "10px", textAlign: "center" }}>{idx + 1}</td>
-                  <td style={{ padding: "4px", fontSize: "10px" }}>{it.description || it.name}</td>
-                  <td style={{ padding: "4px", fontSize: "10px", textAlign: "center" }}>{it.qty || it.pcs || 0}</td>
-                  <td style={{ padding: "4px", fontSize: "10px", textAlign: "right" }}>PKR {fmt(it.rate || 0)}</td>
-                  <td style={{ padding: "4px", fontSize: "10px", textAlign: "right" }}>PKR {fmt(it.amount || 0)}</td>
-                  <td style={{ padding: "4px", fontSize: "10px", textAlign: "center" }}>{it.rack || "—"}</td>
-                  <td style={{ padding: "4px", fontSize: "10px", textAlign: "center" }}>{it.measurement || it.uom || "—"}</td>
-                  <td style={{ padding: "4px", fontSize: "10px", textAlign: "center" }}>{it.disc || 0}%</td>
+                  <td style={{ padding: "6px", fontSize: "11px", textAlign: "center" }}>{idx + 1}</td>
+                  <td style={{ padding: "6px", fontSize: "11px" }}>{it.description || it.name}</td>
+                  <td style={{ padding: "6px", fontSize: "11px", textAlign: "center" }}>{it.qty || it.pcs || 0}</td>
+                  <td style={{ padding: "6px", fontSize: "11px", textAlign: "right" }}>PKR {fmt(it.rate || 0)}</td>
+                  <td style={{ padding: "6px", fontSize: "11px", textAlign: "right" }}>PKR {fmt(it.amount || 0)}</td>
+                  <td style={{ padding: "6px", fontSize: "11px", textAlign: "center" }}>{it.rack || "—"}</td>
+                  <td style={{ padding: "6px", fontSize: "11px", textAlign: "center" }}>{it.measurement || it.uom || "—"}</td>
+                  <td style={{ padding: "6px", fontSize: "11px", textAlign: "center" }}>{it.disc || 0}%</td>
                 </tr>
               ))}
             </tbody>
@@ -570,11 +575,11 @@ function CustomerDetailPage({ customer, onBack }) {
         <button className={`xp-tab${activeTab === "all" ? " active" : ""}`} onClick={() => setActiveTab("all")}>📊 All Transactions ({allTransactions.length})</button>
       </div>
 
-      {/* Expand/Collapse All Button */}
+      {/* Expand/Collapse All Button - Icon only */}
       {(activeTab === "invoices" || activeTab === "raw") && (sales.length > 0 || rawPurchases.length > 0) && (
         <div style={{ marginBottom: 12, display: "flex", justifyContent: "flex-end" }}>
-          <button className="xp-btn xp-btn-sm" onClick={toggleExpandAll}>
-            {expandAll ? "📋 Collapse All Invoices" : "📋 Expand All Invoices (Show Items)"}
+          <button className="xp-btn xp-btn-sm xp-btn-ico" onClick={toggleExpandAll} title={expandAll ? "Collapse All Invoices" : "Expand All Invoices"}>
+            {expandAll ? "📋" : "📄"}
           </button>
         </div>
       )}
@@ -592,11 +597,11 @@ function CustomerDetailPage({ customer, onBack }) {
                   <th style={{ width: 35 }}>#</th>
                   <th>Invoice No</th>
                   <th>Date</th>
+                  <th className="r">Type</th>
                   <th className="r">Total</th>
                   <th className="r">Paid</th>
                   <th className="r">Balance</th>
-                  <th>Type</th>
-                  <th style={{ width: 170 }}>Actions</th>
+                  <th style={{ width: 120 }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -610,14 +615,14 @@ function CustomerDetailPage({ customer, onBack }) {
                           <td style={{ textAlign: "center" }}>{i + 1}</td>
                           <td><strong>{inv.invoiceNo}</strong></td>
                           <td>{inv.invoiceDate}</td>
+                          <td className="r"><span className={`xp-badge ${inv.saleType === "raw-purchase" ? "xp-badge-raw" : "xp-badge-sale"}`}>{inv.saleType === "raw-purchase" ? "Raw Purchase" : "Sale"}</span></td>
                           <td className="r">PKR {fmt(inv.netTotal)}</td>
                           <td className="r success">PKR {fmt(inv.paidAmount)}</td>
                           <td className="r">{inv.balance > 0 ? <span className="danger">PKR {fmt(inv.balance)}</span> : "✓"}</td>
-                          <td><span className={`xp-badge ${inv.saleType === "raw-purchase" ? "xp-badge-raw" : "xp-badge-sale"}`}>{inv.saleType === "raw-purchase" ? "Raw Purchase" : "Sale"}</span></td>
-                          <td>
-                            <div className="cc-act">
+                          <td className="r">
+                            <div className="cc-act" style={{ justifyContent: "flex-end" }}>
                               <button className="xp-btn xp-btn-sm xp-btn-ico" onClick={() => toggleInvoiceExpand(inv._id)} title={isExpanded ? "Hide Items" : "Show Items"}>
-                                {isExpanded ? "📄 Hide" : "📄 Show Items"}
+                                {isExpanded ? "📄" : "📄"}
                               </button>
                               <button className="xp-btn xp-btn-sm xp-btn-ico" onClick={() => handleViewInvoice(inv)} title="View Invoice">👁️</button>
                               <button className="xp-btn xp-btn-sm xp-btn-ico" onClick={() => printInvoice(inv, customer)} title="Print Invoice">🖨️</button>
@@ -681,7 +686,7 @@ function CustomerDetailPage({ customer, onBack }) {
                   <th className="r">Total</th>
                   <th className="r">Paid</th>
                   <th className="r">Balance</th>
-                  <th style={{ width: 170 }}>Actions</th>
+                  <th style={{ width: 120 }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -696,10 +701,10 @@ function CustomerDetailPage({ customer, onBack }) {
                         <td className="r">PKR {fmt(r.netTotal)}</td>
                         <td className="r success">PKR {fmt(r.paidAmount)}</td>
                         <td className="r">{r.balance > 0 ? <span className="danger">PKR {fmt(r.balance)}</span> : "✓"}</td>
-                        <td>
-                          <div className="cc-act">
+                        <td className="r">
+                          <div className="cc-act" style={{ justifyContent: "flex-end" }}>
                             <button className="xp-btn xp-btn-sm xp-btn-ico" onClick={() => toggleInvoiceExpand(r._id)} title={isExpanded ? "Hide Items" : "Show Items"}>
-                              {isExpanded ? "📄 Hide" : "📄 Show Items"}
+                              {isExpanded ? "📄" : "📄"}
                             </button>
                             <button className="xp-btn xp-btn-sm xp-btn-ico" onClick={() => handleViewInvoice(r)}>👁️</button>
                             <button className="xp-btn xp-btn-sm xp-btn-ico" onClick={() => printInvoice(r, customer)}>🖨️</button>
@@ -868,6 +873,7 @@ function CustomerDetailPage({ customer, onBack }) {
         .xp-btn-ico {
           padding: 4px 8px;
           font-size: 11px;
+          min-width: 32px;
         }
         .r {
           text-align: right;
@@ -1001,7 +1007,7 @@ export default function CreditCustomersPage() {
                               e.stopPropagation(); 
                               const msg = `Assalam-o-Alaikum *${c.name}*,\n\nOutstanding: *PKR ${fmt(c.currentBalance)}*`;
                               window.open(`https://wa.me/${c.phone.replace(/\D/g, "")}?text=${encodeURIComponent(msg)}`, "_blank");
-                            }}>📱</button>
+                            }} title="WhatsApp">📱</button>
                           )}
                         </div>
                       </td>

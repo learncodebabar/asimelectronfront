@@ -94,7 +94,7 @@ const buildPrintHtml = (sale, type, overrides = {}) => {
     const itemRows = rows
       .map(
         (it) =>
-          `<td>
+          `<tr>
         <td style="font-size:9px;vertical-align:top">${it.sr}</td>
         <td style="font-size:9.5px;vertical-align:top;word-break:break-word;max-width:100px">${it.name}</td>
         <td style="font-size:9px;vertical-align:top;text-align:right">${it.pcs} ${it.uom || ""}</td>
@@ -459,7 +459,7 @@ const doPrint = (sale, type, overrides = {}) => {
 };
 
 /* ══════════════════════════════════════════════════════════
-   SAVE CONFIRM MODAL — XP Theme
+   SAVE CONFIRM MODAL — Only for Cash Customers
 ══════════════════════════════════════════════════════════ */
 function SaveConfirmModal({
   salePayload,
@@ -648,7 +648,7 @@ function SearchModal({ allProducts, onSelect, onClose }) {
                   </tr>
                 </thead>
                 <tbody ref={tbodyRef} tabIndex={0} onKeyDown={tk}>
-                  {rows.length === 0 && <tr><td colSpan={8} className="xp-empty">⚠️ No products found with company name "RAW". Please check your product data.ERC: NO_SUPPLIER</td></tr>}
+                  {rows.length === 0 && <td><td colSpan={8} className="xp-empty">⚠️ No products found with company name "RAW". Please check your product data.ERC: NO_SUPPLIER</td></td>}
                   {rows.map((r, i) => (
                     <tr key={`${r._id}-${r._pi}`} style={{ background: i === hiIdx ? "#c3d9f5" : undefined }} onClick={() => setHiIdx(i)} onDoubleClick={() => onSelect(r)}>
                       <td className="text-muted">{i + 1}</td>
@@ -1075,73 +1075,43 @@ export default function RawPurchasePage() {
     setTimeout(() => setMsg({ text: "", type: "" }), 3500);
   };
 
+  const handleCustomerSelect = async (c) => {
+    if (!c || !c._id) {
+      showMsg("Invalid customer selected", "error");
+      return;
+    }
+    
+    try {
+      const freshCustomer = await api.get(EP.CUSTOMERS.GET_ONE(c._id));
+      if (freshCustomer.data.success) {
+        const customer = freshCustomer.data.data;
+        const type = customer.customerType || customer.type || "";
+        setCustomerId(customer._id);
+        setCustomerName(customer.name);
+        setCodeSearch(customer.code || "");
+        setCustomerType(type);
+        setPrevBalance(customer.currentBalance || 0);
+        setPaymentMode("Credit");
+        setSaleSource("credit");
+        setDeductAmount(billAmount);
 
-  // In RawPurchasePage.jsx, update the handleCustomerSelect function
-// pages/RawPurchasePage.jsx
-// Update the handleCustomerSelect function to focus on remarks input
-
-const handleCustomerSelect = async (c) => {
-  // Make sure we have a valid customer object
-  if (!c || !c._id) {
-    showMsg("Invalid customer selected", "error");
-    return;
-  }
-  
-  // ✅ Fetch fresh customer data to get current balance
-  try {
-    const freshCustomer = await api.get(EP.CUSTOMERS.GET_ONE(c._id));
-    if (freshCustomer.data.success) {
-      const customer = freshCustomer.data.data;
-      const type = customer.customerType || customer.type || "";
-      setCustomerId(customer._id);
-      setCustomerName(customer.name);
-      setCodeSearch(customer.code || "");
-      setCustomerType(type);
-      setPrevBalance(customer.currentBalance || 0);
-      setPaymentMode("Credit");
-      setSaleSource("credit");
-      setDeductAmount(billAmount);
-
-      const limit = customer.creditLimit || 0;
-      const custBal = customer.currentBalance || 0;
-      if (type === "credit" && limit > 0 && custBal >= limit) {
-        setCreditWarning(true);
-      } else {
-        setCreditWarning(false);
+        const limit = customer.creditLimit || 0;
+        const custBal = customer.currentBalance || 0;
+        if (type === "credit" && limit > 0 && custBal >= limit) {
+          setCreditWarning(true);
+        } else {
+          setCreditWarning(false);
+        }
+        setCreditStatement("");
+        setShowCustomerPanel(true);
+        
+        setTimeout(() => statementRef.current?.focus(), 100);
       }
-      setCreditStatement("");
-      setShowCustomerPanel(true);
-      
-      // ✅ Focus on remarks input after customer selection
-      setTimeout(() => statementRef.current?.focus(), 100);
+    } catch (error) {
+      console.error("Failed to fetch customer details:", error);
+      showMsg("Failed to load customer data", "error");
     }
-  } catch (error) {
-    console.error("Failed to fetch customer details:", error);
-    showMsg("Failed to load customer data", "error");
-  }
-};
-
-// Update the credit statement input to save and print on Enter
-// Find the credit statement input in the JSX and update it:
-
-<input 
-  ref={statementRef} 
-  type="text" 
-  className="sl-credit-statement-input" 
-  placeholder={creditWarning ? "Enter reason / authorization statement to allow deduction…" : "Notes (optional)…"} 
-  value={creditStatement} 
-  onChange={(e) => setCreditStatement(e.target.value)} 
-  onKeyDown={(e) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      e.stopPropagation();
-      // Open save modal directly
-      openSaleConfirm();
-    }
-  }} 
-/>
-
-// Also update the openSaleConfirm function to handle credit statement validation properly
+  };
 
   const handleCustomerClear = () => {
     setCustomerId("");
@@ -1432,106 +1402,128 @@ const handleCustomerSelect = async (c) => {
       return;
     }
 
+    // ✅ DIRECT SAVE & PRINT - Skip the SaveConfirmModal for credit/supplier customers
     if (customerId && customerType === "credit") {
       if (!creditStatement.trim()) {
         statementRef.current?.focus();
-        showMsg("Note is required for credit deduction", "error");
+        showMsg("Note is required for credit purchase", "error");
         return;
       }
+      
+      const payload = buildPayload();
+      // For credit purchase, deduct amount is the bill amount (full amount deducted from customer balance)
+      const billTotal = payload.netTotal + (payload.prevBalance || 0);
+      
+      // Directly save and print without showing modal
+      confirmSaveWithPayload(payload, {
+        extraDisc: payload.extraDisc,
+        netTotal: payload.netTotal,
+        paidAmount: billTotal, // Full amount deducted
+        balance: 0, // Balance becomes 0 after full deduction
+        printType: printType,
+        withPrint: true, // Print after save
+      });
+      return;
     }
 
+    // For cash customers, show the SaveConfirmModal to enter deduction amount
     const payload = buildPayload();
     setPendingPayload(payload);
     setShowSaveModal(true);
   };
   
-const confirmSaveWithPayload = async (payload, overrides) => {
-  if (!payload) return;
-  setLoading(true);
-  try {
-    const finalPayload = {
-      ...payload,
-      extraDisc: overrides.extraDisc,
-      netTotal: overrides.netTotal,
-      paidAmount: overrides.paidAmount,
-      balance: overrides.balance,
-      printType: overrides.printType,
-    };
-    
-    const { data } = editId
-      ? await api.put(EP.RAW_PURCHASES.UPDATE(editId), finalPayload)
-      : await api.post(EP.RAW_PURCHASES.CREATE, finalPayload);
-
-    if (data.success) {
-      console.log("Purchase saved successfully:", data.data);
-      
-      // Update stock
-      await updateProductStockBulk(payload.items, "add");
-      
-      // ✅ FIRST: Refresh customer data to get updated balance
-      let updatedCustomerBalance = finalPayload.prevBalance; // Default to old value
-      
-      if (customerId) {
-        try {
-          const customerResponse = await api.get(EP.CUSTOMERS.GET_ONE(customerId));
-          if (customerResponse.data.success) {
-            updatedCustomerBalance = customerResponse.data.data.currentBalance || 0;
-            console.log("Updated customer balance from DB:", updatedCustomerBalance);
-            setPrevBalance(updatedCustomerBalance);
-          }
-        } catch (err) {
-          console.error("Failed to refresh customer balance:", err);
-        }
-      }
-      
-      showMsg(editId ? "Purchase updated!" : `Saved: ${data.data.invoiceNo}`);
-      
-      // ✅ Prepare print object with CORRECT updated balance
-      const saleObj = {
-        invoiceNo: data.data.invoiceNo,
-        invoiceDate: finalPayload.invoiceDate,
-        customerName: finalPayload.customerName,
-        saleSource: finalPayload.saleSource,
-        paymentMode: finalPayload.paymentMode,
-        items: payload.items,
-        subTotal: finalPayload.subTotal,
+  const confirmSaveWithPayload = async (payload, overrides) => {
+    if (!payload) return;
+    setLoading(true);
+    try {
+      const finalPayload = {
+        ...payload,
         extraDisc: overrides.extraDisc,
         netTotal: overrides.netTotal,
-        prevBalance: updatedCustomerBalance, // ✅ Use updated balance from database
         paidAmount: overrides.paidAmount,
-        balance: updatedCustomerBalance - overrides.paidAmount, // ✅ Calculate correct remaining balance
+        balance: overrides.balance,
+        printType: overrides.printType,
       };
       
-      if (overrides.withPrint) {
-        setPendingPrintSale(saleObj);
-        setShowPrintModal(true);
+      const { data } = editId
+        ? await api.put(EP.RAW_PURCHASES.UPDATE(editId), finalPayload)
+        : await api.post(EP.RAW_PURCHASES.CREATE, finalPayload);
+
+      if (data.success) {
+        console.log("Purchase saved successfully:", data.data);
+        
+        // Update stock (ADD stock for purchases)
+        await updateProductStockBulk(payload.items, "add");
+        
+        // Update customer balance if credit customer
+        if (customerId && customerType === "credit") {
+          const amountDeducted = overrides.paidAmount;
+          if (amountDeducted > 0) {
+            // For purchase, customer pays US, so we subtract from their balance (they owe us less)
+            await updateCustomerBalanceDirect(customerId, amountDeducted, "subtract");
+          }
+        }
+        
+        let updatedCustomerBalance = finalPayload.prevBalance;
+        if (customerId) {
+          try {
+            const customerResponse = await api.get(EP.CUSTOMERS.GET_ONE(customerId));
+            if (customerResponse.data.success) {
+              updatedCustomerBalance = customerResponse.data.data.currentBalance || 0;
+              console.log("Updated customer balance from DB:", updatedCustomerBalance);
+              setPrevBalance(updatedCustomerBalance);
+            }
+          } catch (err) {
+            console.error("Failed to refresh customer balance:", err);
+          }
+        }
+        
+        showMsg(editId ? "Purchase updated!" : `Saved: ${data.data.invoiceNo}`);
+        
+        const saleObj = {
+          invoiceNo: data.data.invoiceNo,
+          invoiceDate: finalPayload.invoiceDate,
+          customerName: finalPayload.customerName,
+          saleSource: finalPayload.saleSource,
+          paymentMode: finalPayload.paymentMode,
+          items: payload.items,
+          subTotal: finalPayload.subTotal,
+          extraDisc: overrides.extraDisc,
+          netTotal: overrides.netTotal,
+          prevBalance: updatedCustomerBalance,
+          paidAmount: overrides.paidAmount,
+          balance: overrides.balance,
+        };
+        
+        if (overrides.withPrint) {
+          setPendingPrintSale(saleObj);
+          setShowPrintModal(true);
+        }
+        
+        setShowSaveModal(false);
+        setPendingPayload(null);
+        fullReset();
+        await refreshInvoiceNo();
+        
+        const pRes = await api.get(EP.PRODUCTS.GET_ALL);
+        if (pRes.data.success) {
+          setAllProducts(pRes.data.data);
+        }
+        
+        const cRes = await api.get(EP.CUSTOMERS.GET_ALL);
+        if (cRes.data.success) {
+          setAllCustomers(cRes.data.data);
+        }
+      } else {
+        showMsg(data.message, "error");
       }
-      
-      setShowSaveModal(false);
-      setPendingPayload(null);
-      fullReset();
-      await refreshInvoiceNo();
-      
-      // Refresh products to show updated stock
-      const pRes = await api.get(EP.PRODUCTS.GET_ALL);
-      if (pRes.data.success) {
-        setAllProducts(pRes.data.data);
-      }
-      
-      // Refresh customers list
-      const cRes = await api.get(EP.CUSTOMERS.GET_ALL);
-      if (cRes.data.success) {
-        setAllCustomers(cRes.data.data);
-      }
-    } else {
-      showMsg(data.message, "error");
+    } catch (e) {
+      console.error("Save error:", e);
+      showMsg(e.response?.data?.message || "Save failed", "error");
     }
-  } catch (e) {
-    console.error("Save error:", e);
-    showMsg(e.response?.data?.message || "Save failed", "error");
-  }
-  setLoading(false);
-};
+    setLoading(false);
+  };
+  
   const confirmSave = async (overrides) => {
     confirmSaveWithPayload(pendingPayload, overrides);
   };
@@ -1578,100 +1570,100 @@ const confirmSaveWithPayload = async (payload, overrides) => {
 
         <div className="sl-body">
           <div className="sl-left">
-           <div className="sl-top-bar">
-  <div className="sl-sale-title-box" style={{ background: "green", border: "1px solid green" }}>Raw Purchase</div>
-  
-  <div className="sl-inv-field-grp">
-    <label>Invoice #</label>
-    <div className="sl-inv-nav-container">
-      <button
-        className="sl-inv-nav-btn sl-inv-nav-prev"
-        onClick={() => navInvoice("prev")}
-        title="Previous Invoice (↑)"
-        type="button"
-      >
-        ◀
-      </button>
-      
-      <input 
-        className="xp-input xp-input-sm sl-inv-input" 
-        value={invoiceNo} 
-        onChange={(e) => setInvoiceNo(e.target.value)}
-        onKeyDown={async (e) => {
-          if (e.key === "Enter") {
-            e.preventDefault();
-            const val = invoiceNo.trim();
-            if (!val) return;
-            try {
-              const { data } = await api.get(EP.RAW_PURCHASES.GET_ALL + `?invoiceNo=${val}`);
-              const purchases = data.data;
-              if (!purchases || purchases.length === 0) { 
-                showMsg(`Invoice "${val}" not found`, "error"); 
-                await refreshInvoiceNo(); 
-                return; 
-              }
-              const exact = purchases.find((s) => s.invoiceNo?.toString() === val.toString());
-              if (!exact) { 
-                showMsg(`Invoice "${val}" not found`, "error"); 
-                await refreshInvoiceNo(); 
-                return; 
-              }
-              setItems([]); 
-              setEditId(null); 
-              loadPurchaseForEdit(exact);
-            } catch { 
-              showMsg("Search failed", "error"); 
-            }
-          }
-          if (e.key === "ArrowUp" || e.key === "ArrowDown") { 
-            e.preventDefault(); 
-            await navInvoice(e.key === "ArrowUp" ? "prev" : "next"); 
-          }
-        }}
-        onFocus={(e) => e.target.select()}
-        placeholder="Invoice # ya ↑↓"
-        style={{ 
-          background: editId ? "#fffbe6" : undefined,
-          fontSize: "14px",
-          fontWeight: "bold",
-          width: "160px",
-          textAlign: "center",
-          paddingLeft: "32px",
-          paddingRight: "32px"
-        }}
-      />
-      
-      <button
-        className="sl-inv-nav-btn sl-inv-nav-next"
-        onClick={() => navInvoice("next")}
-        title="Next Invoice (↓)"
-        type="button"
-      >
-        ▶
-      </button>
-    </div>
-  </div>
-  
-  <div className="sl-inv-field-grp">
-    <label>Date</label>
-    <input 
-      type="date" 
-      className="xp-input xp-input-sm sl-date-input" 
-      value={invoiceDate} 
-      readOnly 
-      style={{ 
-        background: "#f5f5f5", 
-        cursor: "not-allowed", 
-        color: "#888" 
-      }} 
-    />
-  </div>
-  
-  <div className="sl-inv-field-grp">
-    <label>Time</label>
-    <div className="sl-time-box">{time}</div>
-  </div>
-</div>
+            <div className="sl-top-bar">
+              <div className="sl-sale-title-box" style={{ background: "green", border: "1px solid green" }}>Raw Purchase</div>
+              
+              <div className="sl-inv-field-grp">
+                <label>Invoice #</label>
+                <div className="sl-inv-nav-container">
+                  <button
+                    className="sl-inv-nav-btn sl-inv-nav-prev"
+                    onClick={() => navInvoice("prev")}
+                    title="Previous Invoice (↑)"
+                    type="button"
+                  >
+                    ◀
+                  </button>
+                  
+                  <input 
+                    className="xp-input xp-input-sm sl-inv-input" 
+                    value={invoiceNo} 
+                    onChange={(e) => setInvoiceNo(e.target.value)}
+                    onKeyDown={async (e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        const val = invoiceNo.trim();
+                        if (!val) return;
+                        try {
+                          const { data } = await api.get(EP.RAW_PURCHASES.GET_ALL + `?invoiceNo=${val}`);
+                          const purchases = data.data;
+                          if (!purchases || purchases.length === 0) { 
+                            showMsg(`Invoice "${val}" not found`, "error"); 
+                            await refreshInvoiceNo(); 
+                            return; 
+                          }
+                          const exact = purchases.find((s) => s.invoiceNo?.toString() === val.toString());
+                          if (!exact) { 
+                            showMsg(`Invoice "${val}" not found`, "error"); 
+                            await refreshInvoiceNo(); 
+                            return; 
+                          }
+                          setItems([]); 
+                          setEditId(null); 
+                          loadPurchaseForEdit(exact);
+                        } catch { 
+                          showMsg("Search failed", "error"); 
+                        }
+                      }
+                      if (e.key === "ArrowUp" || e.key === "ArrowDown") { 
+                        e.preventDefault(); 
+                        await navInvoice(e.key === "ArrowUp" ? "prev" : "next"); 
+                      }
+                    }}
+                    onFocus={(e) => e.target.select()}
+                    placeholder="Invoice # ya ↑↓"
+                    style={{ 
+                      background: editId ? "#fffbe6" : undefined,
+                      fontSize: "14px",
+                      fontWeight: "bold",
+                      width: "160px",
+                      textAlign: "center",
+                      paddingLeft: "32px",
+                      paddingRight: "32px"
+                    }}
+                  />
+                  
+                  <button
+                    className="sl-inv-nav-btn sl-inv-nav-next"
+                    onClick={() => navInvoice("next")}
+                    title="Next Invoice (↓)"
+                    type="button"
+                  >
+                    ▶
+                  </button>
+                </div>
+              </div>
+              
+              <div className="sl-inv-field-grp">
+                <label>Date</label>
+                <input 
+                  type="date" 
+                  className="xp-input xp-input-sm sl-date-input" 
+                  value={invoiceDate} 
+                  readOnly 
+                  style={{ 
+                    background: "#f5f5f5", 
+                    cursor: "not-allowed", 
+                    color: "#888" 
+                  }} 
+                />
+              </div>
+              
+              <div className="sl-inv-field-grp">
+                <label>Time</label>
+                <div className="sl-time-box">{time}</div>
+              </div>
+            </div>
 
             <div className="sl-entry-strip">
               <div className="sl-entry-cell sl-entry-product"><label>Select Product <kbd>F2</kbd></label><input ref={searchRef} type="text" className="sl-product-input" value={searchText} onKeyDown={(e) => { if (e.key === "ArrowDown") { e.preventDefault(); setShowProductModal(true); } if (e.key === "Enter") { e.preventDefault(); if (!searchText.trim()) { setShowProductModal(true); return; } const q = searchText.trim().toLowerCase(); const found = allProducts.find((p) => p.code?.toLowerCase() === q); if (found) { const pk = found.packingInfo?.[0]; pickProduct({ ...found, _pi: 0, _meas: pk?.measurement || "", _rate: pk?.purchaseRate || pk?.costRate || 0, _pack: pk?.packing || 1, _stock: pk?.openingQty || 0, _name: [found.category, found.description, found.company].filter(Boolean).join(" ") }); } else { alert(`"${searchText}" — Product not found`); searchRef.current?.select(); } } }} onChange={(e) => { setSearchText(e.target.value); if (curRow.name) { setCurRow({ ...EMPTY_ROW }); setPackingOptions([]); } }} autoFocus /></div>
@@ -1729,7 +1721,21 @@ const confirmSaveWithPayload = async (payload, overrides) => {
                   {(() => { const cust = allCustomers.find((c) => c._id === customerId); return cust?.imageFront ? (<img src={cust.imageFront} alt={cust.name} style={{ width: 48, height: 48, borderRadius: 4, objectFit: "cover", border: "2px solid #fff", flexShrink: 0 }} />) : (<div style={{ width: 48, height: 48, borderRadius: 4, background: "rgba(255,255,255,0.3)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, flexShrink: 0 }}>👤</div>); })()}
                   <div>{creditWarning ? (<><div className="sl-credit-title">⚠ CREDIT LIMIT EXCEEDED</div><div className="sl-credit-sub">Balance: <b>{fmt(prevBalance)}</b> — Enter authorization statement to proceed</div></>) : (<div className="sl-credit-sub" style={{ color: "#fff" }}>Balance: <b>{fmt(prevBalance)}</b></div>)}</div>
                 </div>
-                <input ref={statementRef} type="text" className="sl-credit-statement-input" placeholder={creditWarning ? "Enter reason / authorization statement to allow deduction…" : "Notes (optional)…"} value={creditStatement} onChange={(e) => setCreditStatement(e.target.value)} />
+                <input 
+                  ref={statementRef} 
+                  type="text" 
+                  className="sl-credit-statement-input" 
+                  placeholder={creditWarning ? "Enter reason / authorization statement to allow deduction…" : "Notes (optional)…"} 
+                  value={creditStatement} 
+                  onChange={(e) => setCreditStatement(e.target.value)}
+                  onKeyDown={(e) => { 
+                    if (e.key === "Enter") { 
+                      e.preventDefault(); 
+                      e.stopPropagation(); 
+                      openSaleConfirm(); 
+                    } 
+                  }} 
+                />
               </div>
             )}
           </div>
@@ -1780,90 +1786,51 @@ const confirmSaveWithPayload = async (payload, overrides) => {
         .xp-btn, .sl-entry-btns .xp-btn { border-color: #000000 !important; border-width: 1px !important; border-style: solid !important; }
         .sl-summary-bar, .sl-customer-bar, .sl-top-bar, .sl-entry-strip, .sl-table-header-bar, .sl-hold-panel, .sl-right, .sl-left { border-color: #e0e0e0; }
         .sl-items-table tbody tr.sl-empty-row { display: none; }
-        .sl-inv-input { font-size: 14px !important; font-weight: bold !important; width: 140px !important; text-align: center !important; }
+        .sl-inv-input { font-size: 14px !important; font-weight: bold !important; width: 160px !important; text-align: center !important; }
         .sl-product-input { background-color: #fffde7 !important; border-color: #000000 !important; }
         .sl-num-input, .sl-sum-input, .sl-cust-input { background-color: #fffde7 !important; }
         .sl-sum-val, .sl-date-input[readonly] { background-color: #f5f5f5 !important; }
 
         /* Invoice Nav Container - Buttons Inside Input */
-.sl-inv-nav-container {
-  position: relative;
-  display: inline-block;
-}
+        .sl-inv-nav-container {
+          position: relative;
+          display: inline-block;
+        }
 
-/* Navigation Buttons - Always Visible */
-.sl-inv-nav-btn {
-  position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
-  background: #f3f4f6;
-  border: 1px solid #d1d5db;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  width: 26px;
-  height: 26px;
-  border-radius: 4px;
-  color: #4b5563;
-  font-size: 12px;
-  font-weight: bold;
-  transition: all 0.2s ease;
-  z-index: 2;
-}
+        .sl-inv-nav-btn {
+          position: absolute;
+          top: 50%;
+          transform: translateY(-50%);
+          background: #f3f4f6;
+          border: 1px solid #d1d5db;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 0;
+          width: 26px;
+          height: 26px;
+          border-radius: 4px;
+          color: #4b5563;
+          font-size: 12px;
+          font-weight: bold;
+          transition: all 0.2s ease;
+          z-index: 2;
+        }
 
-.sl-inv-nav-btn:hover {
-  background: #22c55e;
-  border-color: #16a34a;
-  color: white;
-  transform: translateY(-50%) scale(1.05);
-}
+        .sl-inv-nav-btn:hover {
+          background: #22c55e;
+          border-color: #16a34a;
+          color: white;
+        }
 
-.sl-inv-nav-btn:active {
-  transform: translateY(-50%) scale(0.95);
-}
+        .sl-inv-nav-prev { left: 4px; }
+        .sl-inv-nav-next { right: 4px; }
 
-/* Left button */
-.sl-inv-nav-prev {
-  left: 4px;
-}
-
-/* Right button */
-.sl-inv-nav-next {
-  right: 4px;
-}
-
-/* Input field with space for buttons */
-.sl-inv-input {
-  width: 160px !important;
-  text-align: center !important;
-  padding: 6px 32px !important;
-  font-size: 14px !important;
-  font-weight: bold !important;
-  background: #ffffff !important;
-  border: 1px solid #d1d5db !important;
-  border-radius: 6px !important;
-  transition: all 0.2s ease;
-}
-
-.sl-inv-input:hover {
-  border-color: #22c55e !important;
-}
-
-.sl-inv-input:focus {
-  border-color: #22c55e !important;
-  outline: none;
-  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.1);
-}
-
-/* Hide the old separate nav buttons */
-.sl-nav-btn {
-  display: none;
-}
-
-
-
+        /* Hide the old separate nav buttons */
+        .sl-nav-btn {
+          display: none;
+        }
       `}</style>
     </>
   );
