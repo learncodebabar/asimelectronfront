@@ -95,12 +95,12 @@ const buildPrintHtml = (sale, type, overrides = {}) => {
       .map(
         (it) =>
           `<tr>
-        <td style="font-size:9px;vertical-align:top">${it.sr}</td>
-        <td style="font-size:9.5px;vertical-align:top;word-break:break-word;max-width:100px">${it.name}</td>
-        <td style="font-size:9px;vertical-align:top;text-align:right">${it.pcs} ${it.uom || ""}</td>
-        <td style="font-size:9px;vertical-align:top;text-align:right">${Number(it.rate).toLocaleString()}</td>
-        <td style="font-size:9px;vertical-align:top;text-align:right"><b>${Number(it.amount).toLocaleString()}</b></td>
-      </tr>`,
+            <td style="font-size:9px;vertical-align:top">${it.sr}</td>
+            <td style="font-size:9.5px;vertical-align:top;word-break:break-word;max-width:100px">${it.name}</td>
+            <td style="font-size:9px;vertical-align:top;text-align:right">${it.pcs} ${it.uom || ""}</td>
+            <td style="font-size:9px;vertical-align:top;text-align:right">${Number(it.rate).toLocaleString()}</td>
+            <td style="font-size:9px;vertical-align:top;text-align:right"><b>${Number(it.amount).toLocaleString()}</b></td>
+          </tr>`,
       )
       .join("");
 
@@ -266,7 +266,7 @@ const buildPrintHtml = (sale, type, overrides = {}) => {
               <th style="width:42px;text-align:right">Qty</th>
               <th style="width:70px;text-align:right">Rate</th>
               <th style="width:80px;text-align:right">Amount</th>
-            </tr>
+            </td>
           </thead>
           <tbody>${itemRows}</tbody>
         </table>
@@ -549,7 +549,7 @@ function SaveConfirmModal({
 }
 
 /* ══════════════════════════════════════════════════════════
-   PRODUCT SEARCH MODAL — Only shows products where company name is "raw"
+   PRODUCT SEARCH MODAL — Large size, bold, compact
 ══════════════════════════════════════════════════════════ */
 function SearchModal({ allProducts, onSelect, onClose }) {
   const [desc, setDesc] = useState("");
@@ -595,8 +595,9 @@ function SearchModal({ allProducts, onSelect, onClose }) {
 
   useEffect(() => {
     const rawOnly = filterRawCompanyProducts(allProducts);
-    setRows(buildFlat(rawOnly, desc, cat, company));
-    setHiIdx(rows.length > 0 ? 0 : -1);
+    const f = buildFlat(rawOnly, desc, cat, company);
+    setRows(f);
+    setHiIdx(f.length > 0 ? 0 : -1);
   }, [desc, cat, company, allProducts, filterRawCompanyProducts, buildFlat]);
 
   useEffect(() => {
@@ -616,49 +617,81 @@ function SearchModal({ allProducts, onSelect, onClose }) {
   };
 
   return (
-    <div className="xp-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="xp-modal xp-modal-lg">
-        <div className="xp-modal-tb">
-          <svg width="13" height="13" viewBox="0 0 16 16" fill="rgba(255,255,255,0.8)">
+    <div className="xp-overlay" onClick={(e) => e.target === e.currentTarget && onClose()} style={{ zIndex: 2000 }}>
+      <div className="xp-modal" style={{ 
+        width: "95%", 
+        maxWidth: "1400px", 
+        height: "85vh",
+        maxHeight: "85vh",
+        display: "flex",
+        flexDirection: "column",
+        borderRadius: "12px",
+        background: "#ffffff",
+        border: "2px solid #000000"
+      }}>
+        <div className="xp-modal-tb" style={{ background: "#22c55e", padding: "10px 16px", borderRadius: "10px 10px 0 0" }}>
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="rgba(255,255,255,0.9)">
             <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.044.06.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1 1 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0" />
           </svg>
-          <span className="xp-modal-title">Search Raw Products (Company = "RAW")</span>
-          <button className="xp-cap-btn xp-cap-close" onClick={onClose}>✕</button>
+          <span className="xp-modal-title" style={{ fontSize: "15px", fontWeight: "bold", color: "#ffffff" }}>Search Raw Products (Company = "RAW")</span>
+          <button className="xp-cap-btn xp-cap-close" onClick={onClose} style={{ color: "#ffffff", fontSize: "18px" }}>✕</button>
         </div>
-        <div className="cs-modal-filters">
-          <div className="cs-modal-filter-grp"><label className="xp-label">Description / Code</label><input ref={rDesc} type="text" className="xp-input" value={desc} onChange={(e) => setDesc(e.target.value)} onKeyDown={(e) => fk(e, rCat)} placeholder="Name / code…" autoComplete="off" /></div>
-          <div className="cs-modal-filter-grp"><label className="xp-label">Category</label><input ref={rCat} type="text" className="xp-input" value={cat} onChange={(e) => setCat(e.target.value)} onKeyDown={(e) => fk(e, rCompany)} placeholder="e.g. ELECTRONICS" autoComplete="off" /></div>
-          <div className="cs-modal-filter-grp"><label className="xp-label">Company</label><input ref={rCompany} type="text" className="xp-input" value={company} onChange={(e) => setCompany(e.target.value)} onKeyDown={(e) => fk(e, null)} placeholder="Filter by company..." autoComplete="off" /></div>
-          <div style={{ display: "flex", alignItems: "flex-end", gap: 6 }}><span style={{ fontSize: "var(--xp-fs-xs)", color: "#555" }}>{rows.length} product(s) with company "RAW"</span><button className="xp-btn xp-btn-sm" onClick={onClose}>Close</button></div>
+        
+        <div className="cs-modal-filters" style={{ padding: "8px 12px", gap: "10px", background: "#f8fafc", borderBottom: "1px solid #000000", flexWrap: "wrap" }}>
+          <div className="cs-modal-filter-grp" style={{ flex: 2, minWidth: "200px" }}>
+            <label className="xp-label" style={{ fontSize: "11px", fontWeight: "bold", color: "#000000", marginBottom: "3px", display: "block" }}>Description / Code</label>
+            <input ref={rDesc} type="text" className="xp-input" value={desc} onChange={(e) => setDesc(e.target.value)} onKeyDown={(e) => fk(e, rCat)} autoComplete="off" style={{ height: "32px", fontSize: "12px", border: "1px solid #000000", borderRadius: "4px", width: "100%", padding: "0 8px" }} />
+          </div>
+          <div className="cs-modal-filter-grp" style={{ flex: 1, minWidth: "140px" }}>
+            <label className="xp-label" style={{ fontSize: "11px", fontWeight: "bold", color: "#000000", marginBottom: "3px", display: "block" }}>Category</label>
+            <input ref={rCat} type="text" className="xp-input" value={cat} onChange={(e) => setCat(e.target.value)} onKeyDown={(e) => fk(e, rCompany)} autoComplete="off" style={{ height: "32px", fontSize: "12px", border: "1px solid #000000", borderRadius: "4px", width: "100%", padding: "0 8px" }} />
+          </div>
+          <div className="cs-modal-filter-grp" style={{ flex: 1, minWidth: "140px" }}>
+            <label className="xp-label" style={{ fontSize: "11px", fontWeight: "bold", color: "#000000", marginBottom: "3px", display: "block" }}>Company</label>
+            <input ref={rCompany} type="text" className="xp-input" value={company} onChange={(e) => setCompany(e.target.value)} onKeyDown={(e) => fk(e, null)} autoComplete="off" style={{ height: "32px", fontSize: "12px", border: "1px solid #000000", borderRadius: "4px", width: "100%", padding: "0 8px" }} />
+          </div>
+          <div style={{ display: "flex", alignItems: "flex-end", gap: "6px", paddingBottom: "2px" }}>
+            <span style={{ fontSize: "11px", color: "#000000", fontWeight: "bold" }}>{rows.length} product(s) with company "RAW"</span>
+            <button className="xp-btn xp-btn-sm" onClick={onClose} style={{ fontSize: "11px", padding: "4px 12px", border: "1px solid #000000", borderRadius: "4px", fontWeight: "bold" }}>Close</button>
+          </div>
         </div>
-        <div className="xp-modal-body" style={{ padding: 0 }}>
-          <div className="xp-table-panel" style={{ border: "none" }}>
-            <div className="xp-table-scroll">
-              <table className="xp-table">
+        
+        <div className="xp-modal-body" style={{ padding: 0, flex: 1, overflow: "hidden" }}>
+          <div className="xp-table-panel" style={{ border: "none", height: "100%" }}>
+            <div className="xp-table-scroll" style={{ height: "100%", overflow: "auto", maxHeight: "calc(85vh - 110px)" }}>
+              <table className="xp-table" style={{ fontSize: "12px", borderCollapse: "collapse", width: "100%", border: "1px solid #000000" }}>
                 <thead>
-                  <tr>
-                    <th style={{ width: 36 }}>Sr.#</th>
-                    <th>Barcode</th>
-                    <th>Name</th>
-                    <th>Meas.</th>
-                    <th className="r">Purchase Rate</th>
-                    <th className="r">Stock</th>
-                    <th className="r">Pack</th>
-                    <th>Rack#</th>
+                  <tr style={{ background: "#f1f5f9", position: "sticky", top: 0, zIndex: 10 }}>
+                    <th style={{ width: 40, padding: "5px 4px", textAlign: "center", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>#</th>
+                    <th style={{ width: 90, padding: "5px 4px", textAlign: "left", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>Barcode</th>
+                    <th style={{ padding: "5px 4px", textAlign: "left", border: "1px solid #000000", fontSize: "13px", fontWeight: "bold", color: "#000000" }}>Product Name</th>
+                    <th style={{ width: 60, padding: "5px 4px", textAlign: "center", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>Meas.</th>
+                    <th style={{ width: 85, padding: "5px 4px", textAlign: "right", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>Purchase Rate</th>
+                    <th style={{ width: 65, padding: "5px 4px", textAlign: "right", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>Stock</th>
+                    <th style={{ width: 55, padding: "5px 4px", textAlign: "right", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>Pack</th>
+                    <th style={{ width: 65, padding: "5px 4px", textAlign: "center", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>Rack#</th>
                   </tr>
                 </thead>
                 <tbody ref={tbodyRef} tabIndex={0} onKeyDown={tk}>
-                  {rows.length === 0 && <td><td colSpan={8} className="xp-empty">⚠️ No products found with company name "RAW". Please check your product data.ERC: NO_SUPPLIER</td></td>}
+                  {rows.length === 0 && (
+                    <tr>
+                      <td colSpan={8} className="xp-empty" style={{ padding: "30px", textAlign: "center", color: "#000000", fontSize: "12px", fontWeight: "bold" }}>
+                        ⚠️ No products found with company name "RAW". Please check your product data.
+                      </td>
+                    </tr>
+                  )}
                   {rows.map((r, i) => (
-                    <tr key={`${r._id}-${r._pi}`} style={{ background: i === hiIdx ? "#c3d9f5" : undefined }} onClick={() => setHiIdx(i)} onDoubleClick={() => onSelect(r)}>
-                      <td className="text-muted">{i + 1}</td>
-                      <td><span className="xp-code">{r.code}</span></td>
-                      <td><button className="xp-link-btn">{r._name}</button></td>
-                      <td className="text-muted">{r._meas}</td>
-                      <td className="r xp-amt">{Number(r._rate).toLocaleString("en-PK")}</td>
-                      <td className="r">{r._stock}</td>
-                      <td className="r">{r._pack}</td>
-                      <td className="text-muted">{r.rackNo || "—"}</td>
+                    <tr key={`${r._id}-${r._pi}`} style={{ background: i === hiIdx ? "#e5f0ff" : "white", cursor: "pointer" }} onClick={() => setHiIdx(i)} onDoubleClick={() => onSelect(r)}>
+                      <td style={{ padding: "4px 4px", textAlign: "center", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>{i + 1}</td>
+                      <td style={{ padding: "4px 4px", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>{r.code}</td>
+                      <td style={{ padding: "4px 4px", border: "1px solid #000000", fontSize: "13px", fontWeight: "bold", color: "#000000" }}>
+                        <button className="xp-link-btn" style={{ color: "#000000", textDecoration: "none", fontWeight: "bold", fontSize: "13px", background: "none", border: "none", cursor: "pointer", width: "100%", textAlign: "left", padding: "0" }}>{r._name}</button>
+                      </td>
+                      <td style={{ padding: "4px 4px", textAlign: "center", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>{r._meas}</td>
+                      <td style={{ padding: "4px 4px", textAlign: "right", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>{Number(r._rate).toLocaleString("en-PK")}</td>
+                      <td style={{ padding: "4px 4px", textAlign: "right", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>{r._stock}</td>
+                      <td style={{ padding: "4px 4px", textAlign: "right", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>{r._pack}</td>
+                      <td style={{ padding: "4px 4px", textAlign: "center", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>{r.rackNo || "—"}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -666,7 +699,9 @@ function SearchModal({ allProducts, onSelect, onClose }) {
             </div>
           </div>
         </div>
-        <div className="cs-modal-hint">↑↓ navigate &nbsp;|&nbsp; Enter / Double-click = select &nbsp;|&nbsp; Esc = close &nbsp;|&nbsp; Tab = filters &nbsp;|&nbsp; <strong style={{color: "green"}}>🔍 Only showing products with Company = "RAW"</strong></div>
+        <div className="cs-modal-hint" style={{ padding: "6px 12px", fontSize: "10px", color: "#000000", fontWeight: "bold", borderTop: "1px solid #000000", background: "#f8fafc", borderRadius: "0 0 10px 10px" }}>
+          <span>↑↓ navigate</span> &nbsp;|&nbsp; <span>Enter / Double-click = select</span> &nbsp;|&nbsp; <span>Esc = close</span> &nbsp;|&nbsp; <span>Tab = filters</span> &nbsp;|&nbsp; <strong style={{color: "#22c55e"}}>🔍 Only showing products with Company = "RAW"</strong>
+        </div>
       </div>
     </div>
   );
@@ -679,26 +714,41 @@ function HoldPreviewModal({ bill, onResume, onClose }) {
   if (!bill) return null;
   return (
     <div className="xp-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="xp-modal" style={{ width: 560 }}>
-        <div className="xp-modal-tb"><span className="xp-modal-title">Hold Bill — {bill.invoiceNo}</span><button className="xp-cap-btn xp-cap-close" onClick={onClose}>✕</button></div>
+      <div className="xp-modal" style={{ width: 560, border: "2px solid #000000" }}>
+        <div className="xp-modal-tb" style={{ background: "#22c55e" }}>
+          <span className="xp-modal-title" style={{ fontSize: "14px", fontWeight: "bold", color: "#ffffff" }}>Hold Bill — {bill.invoiceNo}</span>
+          <button className="xp-cap-btn xp-cap-close" onClick={onClose} style={{ color: "#ffffff" }}>✕</button>
+        </div>
         <div className="xp-modal-body" style={{ padding: 8 }}>
-          <div style={{ marginBottom: 6, display: "flex", gap: 16, fontSize: "var(--xp-fs-xs)" }}>
-            <span><b>Customer:</b> {bill.buyerName}</span><span><b>Items:</b> {bill.items.length}</span><span><b>Amount:</b> <span style={{ color: "var(--xp-blue-dark)", fontWeight: 700 }}>{Number(bill.amount).toLocaleString("en-PK")}</span></span>
+          <div style={{ marginBottom: 6, display: "flex", gap: 16, fontSize: "12px" }}>
+            <span><b>Customer:</b> {bill.buyerName}</span>
+            <span><b>Items:</b> {bill.items.length}</span>
+            <span><b>Amount:</b> <span style={{ color: "#dc2626", fontWeight: 700 }}>{Number(bill.amount).toLocaleString("en-PK")}</span></span>
           </div>
           <div className="xp-table-panel" style={{ border: "none" }}>
             <div className="xp-table-scroll" style={{ maxHeight: 300 }}>
-              <table className="xp-table">
-                <thead><tr><th>#</th><th>Code</th><th>Name</th><th>UOM</th><th className="r">Pcs</th><th className="r">Rate</th><th className="r">Amount</th></tr></thead>
+              <table className="xp-table" style={{ border: "1px solid #000000", width: "100%", borderCollapse: "collapse" }}>
+                <thead>
+                  <tr style={{ background: "#f1f5f9" }}>
+                    <th style={{ padding: "6px 6px", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>#</th>
+                    <th style={{ padding: "6px 6px", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>Code</th>
+                    <th style={{ padding: "6px 6px", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>Name</th>
+                    <th style={{ padding: "6px 6px", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>UOM</th>
+                    <th style={{ padding: "6px 6px", textAlign: "right", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>Pcs</th>
+                    <th style={{ padding: "6px 6px", textAlign: "right", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>Rate</th>
+                    <th style={{ padding: "6px 6px", textAlign: "right", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>Amount</th>
+                  </tr>
+                </thead>
                 <tbody>
                   {bill.items.map((r, i) => (
                     <tr key={i}>
-                      <td className="text-muted">{i + 1}</td>
-                      <td className="text-muted">{r.code}</td>
-                      <td>{r.name}</td>
-                      <td className="text-muted">{r.uom}</td>
-                      <td className="r">{r.pcs}</td>
-                      <td className="r">{Number(r.rate).toLocaleString("en-PK")}</td>
-                      <td className="r" style={{ color: "var(--xp-blue-dark)", fontWeight: 700 }}>{Number(r.amount).toLocaleString("en-PK")}</td>
+                      <td style={{ padding: "5px 6px", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>{i + 1}</td>
+                      <td style={{ padding: "5px 6px", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>{r.code}</td>
+                      <td style={{ padding: "5px 6px", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>{r.name}</td>
+                      <td style={{ padding: "5px 6px", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>{r.uom}</td>
+                      <td style={{ padding: "5px 6px", textAlign: "right", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>{r.pcs}</td>
+                      <td style={{ padding: "5px 6px", textAlign: "right", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>{Number(r.rate).toLocaleString("en-PK")}</td>
+                      <td style={{ padding: "5px 6px", textAlign: "right", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#dc2626" }}>{Number(r.amount).toLocaleString("en-PK")}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -706,9 +756,9 @@ function HoldPreviewModal({ bill, onResume, onClose }) {
             </div>
           </div>
         </div>
-        <div style={{ display: "flex", gap: 6, padding: "6px 10px", borderTop: "1px solid var(--xp-silver-5)", justifyContent: "flex-end" }}>
-          <button className="xp-btn xp-btn-sm" onClick={onClose}>Cancel</button>
-          <button className="xp-btn xp-btn-primary xp-btn-sm" onClick={() => onResume(bill.id)}>Resume This Bill</button>
+        <div style={{ display: "flex", gap: 6, padding: "6px 10px", borderTop: "1px solid #000000", justifyContent: "flex-end", background: "#f8fafc" }}>
+          <button className="xp-btn xp-btn-sm" onClick={onClose} style={{ fontSize: "11px", padding: "4px 12px", border: "1px solid #000000", fontWeight: "bold" }}>Cancel</button>
+          <button className="xp-btn xp-btn-primary xp-btn-sm" style={{ background: "#22c55e", color: "white", border: "1px solid #000000", fontWeight: "bold" }} onClick={() => onResume(bill.id)}>Resume This Bill</button>
         </div>
       </div>
     </div>
@@ -872,13 +922,13 @@ function CustomerDropdown({ allCustomers, value, displayName, customerType, onSe
         )}
       </div>
       {showDropdown && suggestions.length > 0 && (
-        <div style={{ position: "absolute", top: "100%", left: 0, right: 0, backgroundColor: "white", border: "1px solid #e5e7eb", borderRadius: 4, maxHeight: 200, overflowY: "auto", zIndex: 1000, boxShadow: "0 4px 6px -1px rgba(0,0,0,0.1)", marginTop: 2 }}>
+        <div style={{ position: "absolute", top: "100%", left: 0, right: 0, backgroundColor: "white", border: "1px solid #000000", borderRadius: 4, maxHeight: 200, overflowY: "auto", zIndex: 1000, boxShadow: "0 4px 6px -1px rgba(0,0,0,0.1)", marginTop: 2 }}>
           {suggestions.map((customer, idx) => {
             const t = customer.customerType || customer.type || "";
             const ts = TYPE_COLORS[t];
             return (
-              <div key={customer._id} onClick={() => selectCustomer(customer)} style={{ padding: "8px 12px", cursor: "pointer", backgroundColor: idx === selectedSuggestionIndex ? "#e5f0ff" : "white", borderBottom: "1px solid #f3f4f6", fontSize: 13 }} onMouseEnter={() => { setSelectedSuggestionIndex(idx); setIsNavigating(true); setQuery(customer.name); setGhost(""); }}>
-                <div style={{ fontWeight: 500, marginBottom: 2 }}>{customer.code && <span style={{ color: "#6b7280", fontSize: 11 }}>[{customer.code}]</span>} {customer.name}</div>
+              <div key={customer._id} onClick={() => selectCustomer(customer)} style={{ padding: "8px 12px", cursor: "pointer", backgroundColor: idx === selectedSuggestionIndex ? "#e5f0ff" : "white", borderBottom: "1px solid #000000", fontSize: 13 }} onMouseEnter={() => { setSelectedSuggestionIndex(idx); setIsNavigating(true); setQuery(customer.name); setGhost(""); }}>
+                <div style={{ fontWeight: "bold", marginBottom: 2, color: "#000000" }}>{customer.code && <span style={{ color: "#6b7280", fontSize: 11 }}>[{customer.code}]</span>} {customer.name}</div>
                 {customer.phone && <div style={{ fontSize: 10, color: "#6b7280" }}>📞 {customer.phone}</div>}
                 {t && ts && <div style={{ fontSize: 10, color: ts.color, marginTop: 2 }}>Type: {t}</div>}
                 {(customer.currentBalance || 0) > 0 && <div style={{ fontSize: 10, color: "#ef4444", marginTop: 2 }}>Balance: PKR {(customer.currentBalance || 0).toLocaleString("en-PK")}</div>}
@@ -926,17 +976,10 @@ const updateProductStockBulk = async (items, operation) => {
 ══════════════════════════════════════════════════════════ */
 const updateCustomerBalanceDirect = async (customerId, amount, operation) => {
   try {
-    console.log("========== FRONTEND BALANCE UPDATE ==========");
-    console.log("Customer ID:", customerId);
-    console.log("Amount:", amount);
-    console.log("Operation:", operation);
-    
     const response = await api.patch(`/customers/${customerId}/balance`, {
       amount: amount,
       operation: operation
     });
-    
-    console.log("Response:", response.data);
     
     if (response.data.success) {
       console.log("Balance updated successfully:", response.data.data);
@@ -947,7 +990,6 @@ const updateCustomerBalanceDirect = async (customerId, amount, operation) => {
     }
   } catch (error) {
     console.error("Failed to update customer balance:", error);
-    console.error("Error details:", error.response?.data);
     return false;
   }
 };
@@ -1402,7 +1444,6 @@ export default function RawPurchasePage() {
       return;
     }
 
-    // ✅ DIRECT SAVE & PRINT - Skip the SaveConfirmModal for credit/supplier customers
     if (customerId && customerType === "credit") {
       if (!creditStatement.trim()) {
         statementRef.current?.focus();
@@ -1411,22 +1452,19 @@ export default function RawPurchasePage() {
       }
       
       const payload = buildPayload();
-      // For credit purchase, deduct amount is the bill amount (full amount deducted from customer balance)
       const billTotal = payload.netTotal + (payload.prevBalance || 0);
       
-      // Directly save and print without showing modal
       confirmSaveWithPayload(payload, {
         extraDisc: payload.extraDisc,
         netTotal: payload.netTotal,
-        paidAmount: billTotal, // Full amount deducted
-        balance: 0, // Balance becomes 0 after full deduction
+        paidAmount: billTotal,
+        balance: 0,
         printType: printType,
-        withPrint: true, // Print after save
+        withPrint: true,
       });
       return;
     }
 
-    // For cash customers, show the SaveConfirmModal to enter deduction amount
     const payload = buildPayload();
     setPendingPayload(payload);
     setShowSaveModal(true);
@@ -1452,14 +1490,11 @@ export default function RawPurchasePage() {
       if (data.success) {
         console.log("Purchase saved successfully:", data.data);
         
-        // Update stock (ADD stock for purchases)
         await updateProductStockBulk(payload.items, "add");
         
-        // Update customer balance if credit customer
         if (customerId && customerType === "credit") {
           const amountDeducted = overrides.paidAmount;
           if (amountDeducted > 0) {
-            // For purchase, customer pays US, so we subtract from their balance (they owe us less)
             await updateCustomerBalanceDirect(customerId, amountDeducted, "subtract");
           }
         }
@@ -1571,20 +1606,12 @@ export default function RawPurchasePage() {
         <div className="sl-body">
           <div className="sl-left">
             <div className="sl-top-bar">
-              <div className="sl-sale-title-box" style={{ background: "green", border: "1px solid green" }}>Raw Purchase</div>
+              <div className="sl-sale-title-box" style={{ background: "#22c55e", border: "1px solid #000000", color: "#ffffff" }}>Raw Purchase</div>
               
               <div className="sl-inv-field-grp">
-                <label>Invoice #</label>
+                <label style={{ fontSize: "10px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>Invoice #</label>
                 <div className="sl-inv-nav-container">
-                  <button
-                    className="sl-inv-nav-btn sl-inv-nav-prev"
-                    onClick={() => navInvoice("prev")}
-                    title="Previous Invoice (↑)"
-                    type="button"
-                  >
-                    ◀
-                  </button>
-                  
+                  <button className="sl-inv-nav-btn sl-inv-nav-prev" onClick={() => navInvoice("prev")} title="Previous Invoice (↑)" type="button">◀</button>
                   <input 
                     className="xp-input xp-input-sm sl-inv-input" 
                     value={invoiceNo} 
@@ -1623,29 +1650,24 @@ export default function RawPurchasePage() {
                     onFocus={(e) => e.target.select()}
                     placeholder="Invoice # ya ↑↓"
                     style={{ 
-                      background: editId ? "#fffbe6" : undefined,
+                      background: editId ? "#fffbe6" : "#ffffff",
                       fontSize: "14px",
                       fontWeight: "bold",
-                      width: "160px",
+                      width: "180px",
                       textAlign: "center",
                       paddingLeft: "32px",
-                      paddingRight: "32px"
+                      paddingRight: "32px",
+                      border: "1px solid #000000",
+                      borderRadius: "4px",
+                      height: "36px"
                     }}
                   />
-                  
-                  <button
-                    className="sl-inv-nav-btn sl-inv-nav-next"
-                    onClick={() => navInvoice("next")}
-                    title="Next Invoice (↓)"
-                    type="button"
-                  >
-                    ▶
-                  </button>
+                  <button className="sl-inv-nav-btn sl-inv-nav-next" onClick={() => navInvoice("next")} title="Next Invoice (↓)" type="button">▶</button>
                 </div>
               </div>
               
               <div className="sl-inv-field-grp">
-                <label>Date</label>
+                <label style={{ fontSize: "10px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>Date</label>
                 <input 
                   type="date" 
                   className="xp-input xp-input-sm sl-date-input" 
@@ -1654,77 +1676,119 @@ export default function RawPurchasePage() {
                   style={{ 
                     background: "#f5f5f5", 
                     cursor: "not-allowed", 
-                    color: "#888" 
+                    color: "#888",
+                    border: "1px solid #000000",
+                    borderRadius: "4px",
+                    height: "36px"
                   }} 
                 />
               </div>
               
               <div className="sl-inv-field-grp">
-                <label>Time</label>
-                <div className="sl-time-box">{time}</div>
+                <label style={{ fontSize: "10px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>Time</label>
+                <div className="sl-time-box" style={{ border: "1px solid #000000", borderRadius: "4px", height: "36px", display: "flex", alignItems: "center", padding: "0 10px", fontWeight: "bold" }}>{time}</div>
               </div>
             </div>
 
             <div className="sl-entry-strip">
-              <div className="sl-entry-cell sl-entry-product"><label>Select Product <kbd>F2</kbd></label><input ref={searchRef} type="text" className="sl-product-input" value={searchText} onKeyDown={(e) => { if (e.key === "ArrowDown") { e.preventDefault(); setShowProductModal(true); } if (e.key === "Enter") { e.preventDefault(); if (!searchText.trim()) { setShowProductModal(true); return; } const q = searchText.trim().toLowerCase(); const found = allProducts.find((p) => p.code?.toLowerCase() === q); if (found) { const pk = found.packingInfo?.[0]; pickProduct({ ...found, _pi: 0, _meas: pk?.measurement || "", _rate: pk?.purchaseRate || pk?.costRate || 0, _pack: pk?.packing || 1, _stock: pk?.openingQty || 0, _name: [found.category, found.description, found.company].filter(Boolean).join(" ") }); } else { alert(`"${searchText}" — Product not found`); searchRef.current?.select(); } } }} onChange={(e) => { setSearchText(e.target.value); if (curRow.name) { setCurRow({ ...EMPTY_ROW }); setPackingOptions([]); } }} autoFocus /></div>
-              <div className="sl-entry-cell" style={{ position: "relative" }}><label>Packing</label><input ref={packingRef} type="text" className="xp-input xp-input-sm" style={{ width: 65 }} value={curRow.uom} onChange={(e) => setCurRow((p) => ({ ...p, uom: e.target.value }))} onFocus={() => { setPackingHiIdx(Math.max(0, packingOptions.indexOf(curRow.uom))); }} onBlur={() => setTimeout(() => setPackingOpen(false), 150)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); pcsRef.current?.focus(); return; } if (packingOptions.length === 0) return; if (e.key === "ArrowDown" || e.key === "ArrowUp") { e.preventDefault(); const idx = packingOptions.indexOf(curRow.uom); const next = e.key === "ArrowDown" ? (idx + 1) % packingOptions.length : (idx - 1 + packingOptions.length) % packingOptions.length; const newUom = packingOptions[next]; const product = allProducts.find((p) => p._id === curRow.productId); if (product?.packingInfo) { const pk = product.packingInfo.find((pk) => pk.measurement === newUom); if (pk) { setCurRow((p) => ({ ...p, uom: newUom, rate: pk.purchaseRate || pk.costRate || 0, pcs: pk.packing || 1, amount: (pk.packing || 1) * (pk.purchaseRate || pk.costRate || 0) })); return; } } setCurRow((p) => ({ ...p, uom: newUom })); } }} autoComplete="off" /></div>
-              <div className="sl-entry-cell"><label>Pcs</label><input ref={pcsRef} type="text" className="sl-num-input" style={{ width: 60 }} value={curRow.pcs} min={1} onChange={(e) => updateCurRow("pcs", e.target.value)} onKeyDown={(e) => e.key === "Enter" && rateRef.current?.focus()} onFocus={(e) => e.target.select()} /></div>
-              <div className="sl-entry-cell"><label>Purchase Rate</label><input ref={rateRef} type="text" className="sl-num-input" style={{ width: 75 }} value={curRow.rate} min={0} onChange={(e) => updateCurRow("rate", e.target.value)} onKeyDown={(e) => e.key === "Enter" && amountRef.current?.focus()} onFocus={(e) => e.target.select()} /></div>
-              <div className="sl-entry-cell"><label>Amount</label><input ref={amountRef} type="text" className="sl-num-input" style={{ width: 80 }} value={curRow.amount || 0} onChange={(e) => setCurRow((p) => ({ ...p, amount: parseFloat(e.target.value) || 0 }))} onFocus={(e) => e.target.select()} onKeyDown={(e) => e.key === "Enter" && addRef.current?.click()} /></div>
-              <div className="sl-entry-cell sl-entry-btns-cell"><label>&nbsp;</label><div className="sl-entry-btns"><button className="xp-btn xp-btn-sm" onClick={resetCurRow}>Reset</button><button ref={addRef} className="xp-btn xp-btn-primary xp-btn-sm" onClick={addRow}>{selItemIdx !== null ? "Update" : "Add"}</button><button className="xp-btn xp-btn-sm" disabled={selItemIdx === null} onClick={() => selItemIdx !== null && loadRowForEdit(selItemIdx)}>Edit</button><button className="xp-btn xp-btn-danger xp-btn-sm" disabled={selItemIdx === null} onClick={removeRow}>Remove</button></div></div>
+              <div className="sl-entry-cell sl-entry-product">
+                <label style={{ fontSize: "10px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>Select Product <kbd>F2</kbd></label>
+                <input ref={searchRef} type="text" className="sl-product-input" value={searchText} onKeyDown={(e) => { if (e.key === "ArrowDown") { e.preventDefault(); setShowProductModal(true); } if (e.key === "Enter") { e.preventDefault(); if (!searchText.trim()) { setShowProductModal(true); return; } const q = searchText.trim().toLowerCase(); const found = allProducts.find((p) => p.code?.toLowerCase() === q); if (found) { const pk = found.packingInfo?.[0]; pickProduct({ ...found, _pi: 0, _meas: pk?.measurement || "", _rate: pk?.purchaseRate || pk?.costRate || 0, _pack: pk?.packing || 1, _stock: pk?.openingQty || 0, _name: [found.category, found.description, found.company].filter(Boolean).join(" ") }); } else { alert(`"${searchText}" — Product not found`); searchRef.current?.select(); } } }} onChange={(e) => { setSearchText(e.target.value); if (curRow.name) { setCurRow({ ...EMPTY_ROW }); setPackingOptions([]); } }} autoFocus style={{ border: "1px solid #000000", borderRadius: "4px", height: "36px", background: "#fffde7" }} />
+              </div>
+              <div className="sl-entry-cell" style={{ position: "relative" }}>
+                <label style={{ fontSize: "10px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>Packing</label>
+                <input ref={packingRef} type="text" className="xp-input xp-input-sm" style={{ width: 70, border: "1px solid #000000", borderRadius: "4px", height: "36px", background: "#fffde7" }} value={curRow.uom} onChange={(e) => setCurRow((p) => ({ ...p, uom: e.target.value }))} onFocus={() => { setPackingHiIdx(Math.max(0, packingOptions.indexOf(curRow.uom))); }} onBlur={() => setTimeout(() => setPackingOpen(false), 150)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); pcsRef.current?.focus(); return; } if (packingOptions.length === 0) return; if (e.key === "ArrowDown" || e.key === "ArrowUp") { e.preventDefault(); const idx = packingOptions.indexOf(curRow.uom); const next = e.key === "ArrowDown" ? (idx + 1) % packingOptions.length : (idx - 1 + packingOptions.length) % packingOptions.length; const newUom = packingOptions[next]; const product = allProducts.find((p) => p._id === curRow.productId); if (product?.packingInfo) { const pk = product.packingInfo.find((pk) => pk.measurement === newUom); if (pk) { setCurRow((p) => ({ ...p, uom: newUom, rate: pk.purchaseRate || pk.costRate || 0, pcs: pk.packing || 1, amount: (pk.packing || 1) * (pk.purchaseRate || pk.costRate || 0) })); return; } } setCurRow((p) => ({ ...p, uom: newUom })); } }} autoComplete="off" />
+              </div>
+              <div className="sl-entry-cell">
+                <label style={{ fontSize: "10px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>Pcs</label>
+                <input ref={pcsRef} type="text" className="sl-num-input" style={{ width: 70, border: "1px solid #000000", borderRadius: "4px", height: "36px", background: "#fffde7" }} value={curRow.pcs} min={1} onChange={(e) => updateCurRow("pcs", e.target.value)} onKeyDown={(e) => e.key === "Enter" && rateRef.current?.focus()} onFocus={(e) => e.target.select()} />
+              </div>
+              <div className="sl-entry-cell">
+                <label style={{ fontSize: "10px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>Purchase Rate</label>
+                <input ref={rateRef} type="text" className="sl-num-input" style={{ width: 85, border: "1px solid #000000", borderRadius: "4px", height: "36px", background: "#fffde7" }} value={curRow.rate} min={0} onChange={(e) => updateCurRow("rate", e.target.value)} onKeyDown={(e) => e.key === "Enter" && amountRef.current?.focus()} onFocus={(e) => e.target.select()} />
+              </div>
+              <div className="sl-entry-cell">
+                <label style={{ fontSize: "10px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>Amount</label>
+                <input ref={amountRef} type="text" className="sl-num-input" style={{ width: 90, border: "1px solid #000000", borderRadius: "4px", height: "36px", background: "#f5f5f5", fontWeight: "bold" }} value={curRow.amount || 0} onChange={(e) => setCurRow((p) => ({ ...p, amount: parseFloat(e.target.value) || 0 }))} onFocus={(e) => e.target.select()} onKeyDown={(e) => e.key === "Enter" && addRef.current?.click()} />
+              </div>
+              <div className="sl-entry-cell sl-entry-btns-cell">
+                <label>&nbsp;</label>
+                <div className="sl-entry-btns">
+                  <button className="xp-btn xp-btn-sm" onClick={resetCurRow} style={{ border: "1px solid #000000", borderRadius: "4px", fontWeight: "bold" }}>Reset</button>
+                  <button ref={addRef} className="xp-btn xp-btn-primary xp-btn-sm" onClick={addRow} style={{ background: "#22c55e", color: "white", border: "1px solid #000000", borderRadius: "4px", fontWeight: "bold" }}>{selItemIdx !== null ? "Update" : "Add"}</button>
+                  <button className="xp-btn xp-btn-sm" disabled={selItemIdx === null} onClick={() => selItemIdx !== null && loadRowForEdit(selItemIdx)} style={{ border: "1px solid #000000", borderRadius: "4px", fontWeight: "bold" }}>Edit</button>
+                  <button className="xp-btn xp-btn-danger xp-btn-sm" disabled={selItemIdx === null} onClick={removeRow} style={{ background: "#ef4444", color: "white", border: "1px solid #000000", borderRadius: "4px", fontWeight: "bold" }}>Remove</button>
+                </div>
+              </div>
             </div>
 
-            <div className="sl-table-header-bar"><span className="sl-table-lbl">{curRow.name ? <span className="sl-cur-name-inline">{curRow.name}</span> : "Select Product"}</span><span className="sl-table-qty">Total Qty: {totalQty.toLocaleString("en-PK")}</span></div>
+            <div className="sl-table-header-bar">
+              <span className="sl-table-lbl" style={{ fontSize: "11px", fontWeight: "bold", color: "#000000" }}>{curRow.name ? <span className="sl-cur-name-inline" style={{ background: "#fef3c7", padding: "2px 8px", borderRadius: "4px" }}>{curRow.name}</span> : "Select Product"}</span>
+              <span className="sl-table-qty" style={{ fontSize: "11px", fontWeight: "bold", color: "#000000" }}>Total Qty: {totalQty.toLocaleString("en-PK")}</span>
+            </div>
 
             <div className="sl-items-wrap">
-              <table className="sl-items-table">
-                <thead><tr><th style={{ width: 32 }}>Sr.#</th><th style={{ width: 72 }}>Code</th><th>Product Name</th><th style={{ width: 65 }}>UOM</th><th style={{ width: 55 }} className="r">Qty</th><th style={{ width: 80 }} className="r">Rate</th><th style={{ width: 90 }} className="r">Amount</th><th style={{ width: 50 }}>Rack</th></tr></thead>
+              <table className="sl-items-table" style={{ width: "100%", borderCollapse: "collapse" }}>
+                <thead>
+                  <tr>
+                    <th style={{ width: 40, padding: "6px 6px", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000", background: "#f1f5f9" }}>#</th>
+                    <th style={{ width: 80, padding: "6px 6px", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000", background: "#f1f5f9" }}>Code</th>
+                    <th style={{ padding: "6px 6px", border: "1px solid #000000", fontSize: "12px", fontWeight: "bold", color: "#000000", background: "#f1f5f9" }}>Product Name</th>
+                    <th style={{ width: 65, padding: "6px 6px", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000", background: "#f1f5f9" }}>UOM</th>
+                    <th style={{ width: 60, padding: "6px 6px", textAlign: "right", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000", background: "#f1f5f9" }}>Qty</th>
+                    <th style={{ width: 85, padding: "6px 6px", textAlign: "right", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000", background: "#f1f5f9" }}>Rate</th>
+                    <th style={{ width: 95, padding: "6px 6px", textAlign: "right", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000", background: "#f1f5f9" }}>Amount</th>
+                    <th style={{ width: 65, padding: "6px 6px", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000", background: "#f1f5f9" }}>Rack</th>
+                  </tr>
+                </thead>
                 <tbody>
-                  {items.length === 0 && <tr><td colSpan={8} className="xp-empty" style={{ padding: 14 }}>Search and add raw products to start the purchase</td></tr>}
+                  {items.length === 0 && <tr><td colSpan={8} className="xp-empty" style={{ padding: 20, textAlign: "center", color: "#000000", fontSize: "12px" }}>Search and add raw products to start the purchase</td></tr>}
                   {items.map((r, i) => (
-                    <tr key={i} className={selItemIdx === i ? "sl-sel-row" : ""} onClick={() => setSelItemIdx(i === selItemIdx ? null : i)} onDoubleClick={() => loadRowForEdit(i)}>
-                      <td className="muted" style={{ textAlign: "center", fontSize: "var(--xp-fs-xs)" }}>{i + 1}</td>
-                      <td className="muted">{r.code}</td>
-                      <td style={{ fontWeight: 500 }}>{r.name}</td>
-                      <td className="muted">{r.uom}</td>
-                      <td className="r">{r.pcs}</td>
-                      <td className="r">{Number(r.rate).toLocaleString("en-PK")}</td>
-                      <td className="r" style={{ color: "var(--xp-blue-dark)" }}>{Number(r.amount).toLocaleString("en-PK")}</td>
-                      <td className="muted">{r.rack}</td>
+                    <tr key={i} className={selItemIdx === i ? "sl-sel-row" : ""} onClick={() => setSelItemIdx(i === selItemIdx ? null : i)} onDoubleClick={() => loadRowForEdit(i)} style={{ background: selItemIdx === i ? "#e5f0ff" : "white" }}>
+                      <td style={{ padding: "5px 6px", textAlign: "center", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>{i + 1}</td>
+                      <td style={{ padding: "5px 6px", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>{r.code}</td>
+                      <td style={{ padding: "5px 6px", border: "1px solid #000000", fontSize: "12px", fontWeight: "bold", color: "#000000" }}>{r.name}</td>
+                      <td style={{ padding: "5px 6px", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>{r.uom}</td>
+                      <td style={{ padding: "5px 6px", textAlign: "right", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>{r.pcs}</td>
+                      <td style={{ padding: "5px 6px", textAlign: "right", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>{Number(r.rate).toLocaleString("en-PK")}</td>
+                      <td style={{ padding: "5px 6px", textAlign: "right", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#dc2626" }}>{Number(r.amount).toLocaleString("en-PK")}</td>
+                      <td style={{ padding: "5px 6px", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>{r.rack}</td>
                     </tr>
                   ))}
-                  {Array.from({ length: EMPTY_ROWS }).map((_, i) => <tr key={`e${i}`} className="sl-empty-row"><td colSpan={8} /></tr>)}
+                  {Array.from({ length: EMPTY_ROWS }).map((_, i) =>
+                     <tr key={`e${i}`} className="sl-empty-row"><td colSpan={8} style={{ height: "30px", border: "1px solid #000000" }} /></tr>)}
                 </tbody>
               </table>
             </div>
 
-            <div className="sl-summary-bar">
-              <div className="sl-sum-cell"><label>Total Qty</label><input className="sl-sum-val" value={totalQty.toLocaleString("en-PK")} readOnly /></div>
-              <div className="sl-sum-cell"><label>Sub Total</label><input className="sl-sum-val" value={Number(subTotal).toLocaleString("en-PK")} readOnly /></div>
-              <div className="sl-sum-cell"><label>Bill Amount</label><input className="sl-sum-val" value={Number(billAmount).toLocaleString("en-PK")} readOnly /></div>
-              <div className="sl-sum-cell"><label>Extra Discount</label><input ref={discRef} type="text" className="sl-sum-input" value={extraDiscount} min={0} onChange={(e) => setExtraDiscount(e.target.value)} onKeyDown={(e) => e.key === "Enter" && deductRef.current?.focus()} onFocus={(e) => e.target.select()} /></div>
-              <div className="sl-sum-cell"><label>Amount to Deduct</label><input ref={deductRef} type="text" className="sl-sum-input" style={{ color: "var(--xp-green)", fontWeight: 700 }} value={deductAmount} min={0} onChange={(e) => setDeductAmount(e.target.value)} onKeyDown={(e) => e.key === "Enter" && saveRef.current?.focus()} onFocus={(e) => e.target.select()} /></div>
-              <div className="sl-sum-cell"><label>Remaining Balance</label><input className={`sl-sum-val sl-bal${balance > 0 ? " danger" : balance < 0 ? " success" : ""}`} value={Number(balance).toLocaleString("en-PK")} readOnly /></div>
+            <div className="sl-summary-bar" style={{ display: "flex", gap: "8px", padding: "6px 10px", background: "#f8fafc", borderTop: "1px solid #000000", borderBottom: "1px solid #000000" }}>
+              <div className="sl-sum-cell"><label style={{ fontSize: "9px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>Total Qty</label><input className="sl-sum-val" value={totalQty.toLocaleString("en-PK")} readOnly style={{ width: "75px", height: "30px", border: "1px solid #000000", borderRadius: "4px", textAlign: "right", fontWeight: "bold", background: "#f5f5f5" }} /></div>
+              <div className="sl-sum-cell"><label style={{ fontSize: "9px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>Sub Total</label><input className="sl-sum-val" value={Number(subTotal).toLocaleString("en-PK")} readOnly style={{ width: "85px", height: "30px", border: "1px solid #000000", borderRadius: "4px", textAlign: "right", fontWeight: "bold", background: "#f5f5f5" }} /></div>
+              <div className="sl-sum-cell"><label style={{ fontSize: "9px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>Bill Amount</label><input className="sl-sum-val" value={Number(billAmount).toLocaleString("en-PK")} readOnly style={{ width: "85px", height: "30px", border: "1px solid #000000", borderRadius: "4px", textAlign: "right", fontWeight: "bold", background: "#f5f5f5" }} /></div>
+              <div className="sl-sum-cell"><label style={{ fontSize: "9px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>Extra Discount</label><input ref={discRef} type="text" className="sl-sum-input" value={extraDiscount} min={0} onChange={(e) => setExtraDiscount(e.target.value)} onKeyDown={(e) => e.key === "Enter" && deductRef.current?.focus()} onFocus={(e) => e.target.select()} style={{ width: "85px", height: "30px", border: "1px solid #000000", borderRadius: "4px", textAlign: "right", fontWeight: "bold", background: "#fffde7" }} /></div>
+              <div className="sl-sum-cell"><label style={{ fontSize: "9px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>Amount to Deduct</label><input ref={deductRef} type="text" className="sl-sum-input" style={{ width: "95px", height: "30px", border: "1px solid #000000", borderRadius: "4px", textAlign: "right", fontWeight: "bold", background: "#fffde7", color: "#059669" }} value={deductAmount} min={0} onChange={(e) => setDeductAmount(e.target.value)} onKeyDown={(e) => e.key === "Enter" && saveRef.current?.focus()} onFocus={(e) => e.target.select()} /></div>
+              <div className="sl-sum-cell"><label style={{ fontSize: "9px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>Remaining Balance</label><input className={`sl-sum-val sl-bal${balance > 0 ? " danger" : balance < 0 ? " success" : ""}`} value={Number(balance).toLocaleString("en-PK")} readOnly style={{ width: "95px", height: "30px", border: "1px solid #000000", borderRadius: "4px", textAlign: "right", fontWeight: "bold", color: balance > 0 ? "#dc2626" : "#059669", background: "#f5f5f5" }} /></div>
             </div>
 
-            <div className="sl-customer-bar">
-              <div className="sl-cust-cell"><label>Code</label><input style={{ width: 65 }} value={customerId ? allCustomers.find((c) => c._id === customerId)?.code || codeSearch : codeSearch} onChange={(e) => setCodeSearch(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); const q = codeSearch.trim(); if (!q) return; const found = allCustomers.find((c) => String(c.code).toLowerCase() === q.toLowerCase()); if (found) { handleCustomerSelect(found); setCodeSearch(""); } else { showMsg(`Code "${q}" — customer nahi mila`, "error"); } } }} placeholder="Code…" autoComplete="off" /></div>
-              <div className="sl-cust-cell sl-cust-buyer"><label>Customer Name</label><CustomerDropdown allCustomers={allCustomers} value={customerId} displayName={customerName} customerType={customerType} onSelect={handleCustomerSelect} onClear={handleCustomerClear} onAddNew={handleAddNewCustomer} allowedTypes={["credit", "walkin", "wholesale"]} /></div>
-              <div className="sl-cust-cell"><label>Prev Balance</label><input type="text" className="sl-cust-input" style={{ width: 85 }} value={prevBalance} onChange={(e) => setPrevBalance(e.target.value)} onFocus={(e) => e.target.select()} /></div>
-              <div className="sl-cust-cell"><label>Net Receivable</label><input className="sl-cust-input sl-net-recv" style={{ color: balance > 0 ? "var(--xp-red)" : "var(--xp-green)", fontWeight: 700, width: 85 }} value={Number(balance).toLocaleString("en-PK")} readOnly /></div>
-              <div className="sl-pay-btns">{["Cash", "Credit"].map((m) => (<button key={m} className={`sl-pay-btn${paymentMode === m ? " active-" + m.toLowerCase() : ""}`} onClick={() => handlePaymentMode(m)}>{m}</button>))}</div>
+            <div className="sl-customer-bar" style={{ display: "flex", gap: "8px", padding: "6px 10px", background: "#f8fafc", borderTop: "1px solid #000000" }}>
+              <div className="sl-cust-cell"><label style={{ fontSize: "9px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>Code</label><input style={{ width: "80px", height: "30px", border: "1px solid #000000", borderRadius: "4px", background: "#fffde7" }} value={customerId ? allCustomers.find((c) => c._id === customerId)?.code || codeSearch : codeSearch} onChange={(e) => setCodeSearch(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); const q = codeSearch.trim(); if (!q) return; const found = allCustomers.find((c) => String(c.code).toLowerCase() === q.toLowerCase()); if (found) { handleCustomerSelect(found); setCodeSearch(""); } else { showMsg(`Code "${q}" — customer nahi mila`, "error"); } } }} placeholder="Code…" autoComplete="off" /></div>
+              <div className="sl-cust-cell sl-cust-buyer" style={{ flex: 2 }}><label style={{ fontSize: "9px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>Customer Name</label><div style={{ border: "1px solid #000000", borderRadius: "4px", background: "#ffffff", minHeight: "30px" }}><CustomerDropdown allCustomers={allCustomers} value={customerId} displayName={customerName} customerType={customerType} onSelect={handleCustomerSelect} onClear={handleCustomerClear} onAddNew={handleAddNewCustomer} allowedTypes={["credit", "walkin", "wholesale"]} /></div></div>
+              <div className="sl-cust-cell"><label style={{ fontSize: "9px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>Prev Balance</label><input type="text" className="sl-cust-input" style={{ width: "100px", height: "30px", border: "1px solid #000000", borderRadius: "4px", background: "#fffde7", textAlign: "right" }} value={prevBalance} onChange={(e) => setPrevBalance(e.target.value)} onFocus={(e) => e.target.select()} /></div>
+              <div className="sl-cust-cell"><label style={{ fontSize: "9px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>Net Receivable</label><input className="sl-cust-input sl-net-recv" style={{ width: "100px", height: "30px", border: "1px solid #000000", borderRadius: "4px", textAlign: "right", fontWeight: "bold", color: balance > 0 ? "#dc2626" : "#059669", background: "#f5f5f5" }} value={Number(balance).toLocaleString("en-PK")} readOnly /></div>
+              <div className="sl-pay-btns">{["Cash", "Credit"].map((m) => (<button key={m} className={`sl-pay-btn${paymentMode === m ? " active-" + m.toLowerCase() : ""}`} onClick={() => handlePaymentMode(m)} style={{ border: "1px solid #000000", borderRadius: "4px", fontWeight: "bold" }}>{m}</button>))}</div>
             </div>
 
             {showCustomerPanel && customerId && (
               <div className={`sl-credit-warning-bar${creditWarning ? "" : " sl-credit-normal"}`}>
                 <div className="sl-credit-warning-left">
-                  {(() => { const cust = allCustomers.find((c) => c._id === customerId); return cust?.imageFront ? (<img src={cust.imageFront} alt={cust.name} style={{ width: 48, height: 48, borderRadius: 4, objectFit: "cover", border: "2px solid #fff", flexShrink: 0 }} />) : (<div style={{ width: 48, height: 48, borderRadius: 4, background: "rgba(255,255,255,0.3)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, flexShrink: 0 }}>👤</div>); })()}
+                  {(() => { const cust = allCustomers.find((c) => c._id === customerId); return cust?.imageFront ? (<img src={cust.imageFront} alt={cust.name} style={{ width: 40, height: 40, borderRadius: 4, objectFit: "cover", border: "2px solid #fff", flexShrink: 0 }} />) : (<div style={{ width: 40, height: 40, borderRadius: 4, background: "rgba(255,255,255,0.3)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, flexShrink: 0 }}>👤</div>); })()}
                   <div>{creditWarning ? (<><div className="sl-credit-title">⚠ CREDIT LIMIT EXCEEDED</div><div className="sl-credit-sub">Balance: <b>{fmt(prevBalance)}</b> — Enter authorization statement to proceed</div></>) : (<div className="sl-credit-sub" style={{ color: "#fff" }}>Balance: <b>{fmt(prevBalance)}</b></div>)}</div>
                 </div>
                 <input 
                   ref={statementRef} 
                   type="text" 
                   className="sl-credit-statement-input" 
+                  style={{ border: "1px solid #000000", borderRadius: "4px", height: "36px", background: "#fffde7" }}
                   placeholder={creditWarning ? "Enter reason / authorization statement to allow deduction…" : "Notes (optional)…"} 
                   value={creditStatement} 
                   onChange={(e) => setCreditStatement(e.target.value)}
@@ -1741,52 +1805,61 @@ export default function RawPurchasePage() {
           </div>
 
           <div className="sl-right">
-            <div className="sl-hold-panel">
-              <div className="sl-hold-title"><span>Hold Bills <kbd style={{ fontSize: 9, background: "rgba(255,255,255,0.2)", padding: "0 3px", borderRadius: 2 }}>F4</kbd></span><span className="sl-hold-cnt">{holdBills.length}</span></div>
-              <div className="sl-hold-table-wrap">
-                <table className="sl-hold-table">
-                  <thead><tr><th style={{ width: 24 }}>#</th><th>Bill #</th><th className="r">Amount</th><th>Customer</th><th style={{ width: 22 }}></th></tr></thead>
+            <div className="sl-hold-panel" style={{ border: "1px solid #000000", borderRadius: "6px", background: "#ffffff" }}>
+              <div className="sl-hold-title" style={{ padding: "8px", background: "#22c55e", color: "#ffffff", fontWeight: "bold", borderBottom: "1px solid #000000" }}>
+                <span>Hold Bills <kbd style={{ fontSize: 9, background: "rgba(255,255,255,0.2)", padding: "0 3px", borderRadius: 2 }}>F4</kbd></span>
+                <span className="sl-hold-cnt" style={{ background: "#ffffff", color: "#22c55e", padding: "2px 8px", borderRadius: "12px" }}>{holdBills.length}</span>
+              </div>
+              <div className="sl-hold-table-wrap" style={{ overflow: "auto", maxHeight: "300px" }}>
+                <table className="sl-hold-table" style={{ width: "100%", borderCollapse: "collapse" }}>
+                  <thead>
+                    <tr>
+                      <th style={{ width: 30, padding: "6px 4px", border: "1px solid #000000", fontSize: "10px", fontWeight: "bold", color: "#000000", background: "#f1f5f9" }}>#</th>
+                      <th style={{ padding: "6px 4px", border: "1px solid #000000", fontSize: "10px", fontWeight: "bold", color: "#000000", background: "#f1f5f9" }}>Bill #</th>
+                      <th style={{ padding: "6px 4px", textAlign: "right", border: "1px solid #000000", fontSize: "10px", fontWeight: "bold", color: "#000000", background: "#f1f5f9" }}>Amount</th>
+                      <th style={{ padding: "6px 4px", border: "1px solid #000000", fontSize: "10px", fontWeight: "bold", color: "#000000", background: "#f1f5f9" }}>Customer</th>
+                      <th style={{ width: 25, padding: "6px 4px", border: "1px solid #000000", background: "#f1f5f9" }}></th>
+                    </tr>
+                  </thead>
                   <tbody>
-                    {holdBills.length === 0 ? Array.from({ length: 8 }).map((_, i) => (<tr key={i}><td colSpan={5} style={{ height: 22 }} /></tr>)) : holdBills.map((b, i) => (<tr key={b.id} onClick={() => setShowHoldPreview(b)} onDoubleClick={() => resumeHold(b.id)} title="Click = preview · Double-click = resume"><td className="muted" style={{ textAlign: "center", fontSize: "var(--xp-fs-xs)" }}>{i + 1}</td><td style={{ fontFamily: "var(--xp-mono)", fontSize: "var(--xp-fs-xs)" }}>{b.invoiceNo}</td><td className="r" style={{ color: "var(--xp-blue-dark)" }}>{Number(b.amount).toLocaleString("en-PK")}</td><td className="muted" style={{ fontSize: "var(--xp-fs-xs)" }}>{b.buyerName}</td><td style={{ textAlign: "center" }}><button className="xp-btn xp-btn-sm xp-btn-ico" style={{ width: 18, height: 18, fontSize: 9, color: "var(--xp-red)" }} onClick={(e) => deleteHold(b.id, e)}>✕</button></td></tr>))}
+                    {holdBills.length === 0 ? Array.from({ length: 6 }).map((_, i) => (<tr key={i}><td colSpan={5} style={{ height: "30px", border: "1px solid #000000" }} /></tr>)) : holdBills.map((b, i) => (<tr key={b.id} onClick={() => setShowHoldPreview(b)} onDoubleClick={() => resumeHold(b.id)} style={{ cursor: "pointer" }}><td style={{ padding: "4px 4px", textAlign: "center", border: "1px solid #000000", fontSize: "10px", fontWeight: "bold", color: "#000000" }}>{i + 1}</td><td style={{ padding: "4px 4px", border: "1px solid #000000", fontSize: "10px", fontWeight: "bold", color: "#000000" }}>{b.invoiceNo}</td><td style={{ padding: "4px 4px", textAlign: "right", border: "1px solid #000000", fontSize: "10px", fontWeight: "bold", color: "#dc2626" }}>{Number(b.amount).toLocaleString("en-PK")}</td><td style={{ padding: "4px 4px", border: "1px solid #000000", fontSize: "10px", fontWeight: "bold", color: "#000000" }}>{b.buyerName}</td><td style={{ padding: "4px 4px", textAlign: "center", border: "1px solid #000000" }}><button onClick={(e) => deleteHold(b.id, e)} style={{ background: "#ef4444", color: "white", border: "1px solid #000000", borderRadius: "3px", width: "18px", height: "18px", fontSize: "10px", cursor: "pointer" }}>✕</button></td></tr>))}
                   </tbody>
                 </table>
               </div>
-              <div className="sl-hold-scroll-btns"><button className="xp-btn xp-btn-sm xp-btn-ico">◀</button><button className="xp-btn xp-btn-sm xp-btn-ico">▶</button></div>
-              <div style={{ padding: "4px 8px", flexShrink: 0 }}><button className="xp-btn xp-btn-sm" style={{ width: "100%" }} onClick={holdBill} disabled={!items.length}>Hold Bill (F4)</button></div>
+              <div style={{ padding: "6px 8px" }}><button className="xp-btn xp-btn-sm" style={{ width: "100%", border: "1px solid #000000", fontWeight: "bold" }} onClick={holdBill} disabled={!items.length}>Hold Bill (F4)</button></div>
+              <div className="sl-hold-hint" style={{ padding: "4px 8px", fontSize: "9px", color: "#666", textAlign: "center", borderTop: "1px solid #000000", background: "#f8fafc" }}>Click = preview · Dbl-click = resume · ✕ = delete</div>
             </div>
-            {customerId && (() => { const cust = allCustomers.find((c) => c._id === customerId); return cust ? (<div style={{ width: "100%", height: 100, marginTop: 6, borderRadius: 6, overflow: "hidden", border: "2px solid var(--xp-silver-4)", flexShrink: 0, order: 2 }}>{cust.imageFront ? (<img src={cust.imageFront} alt={cust.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />) : (<div style={{ width: "100%", height: "100%", background: "var(--xp-silver-3)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 48 }}>👤</div>)}</div>) : null; })()}
+            {customerId && (() => { const cust = allCustomers.find((c) => c._id === customerId); return cust ? (<div style={{ width: "100%", height: 80, marginTop: 6, borderRadius: 6, overflow: "hidden", border: "2px solid #000000", flexShrink: 0, order: 2 }}>{cust.imageFront ? (<img src={cust.imageFront} alt={cust.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />) : (<div style={{ width: "100%", height: "100%", background: "#f1f5f9", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 32 }}>👤</div>)}</div>) : null; })()}
           </div>
         </div>
 
-        <div className="sl-cmd-bar">
-          <button className="xp-btn xp-btn-sm" onClick={fullReset} disabled={loading}>Refresh</button>
-          <button ref={saveRef} className="xp-btn xp-btn-primary xp-btn-lg" onClick={openSaleConfirm} disabled={loading}>{loading ? "Saving…" : "Save  *"}</button>
-          <button className="xp-btn xp-btn-sm" onClick={() => {}}>Edit Record</button>
-          <button className="xp-btn xp-btn-danger xp-btn-sm" disabled={!editId} onClick={async () => { if (!editId || !window.confirm("Delete this purchase?")) return; try { await api.delete(EP.RAW_PURCHASES.DELETE(editId)); showMsg("Purchase deleted"); fullReset(); refreshInvoiceNo(); } catch { showMsg("Delete failed", "error"); } }}>Delete Record</button>
-          <div className="xp-toolbar-divider" />
-          <div className="sl-cmd-checks"><label className="sl-check-label"><input type="checkbox" checked={sendSms} onChange={(e) => setSendSms(e.target.checked)} /> Send SMS</label><label className="sl-check-label"><input type="checkbox" /> Print P.Bal</label><label className="sl-check-label"><input type="checkbox" /> Gate Pass</label></div>
-          <div className="xp-toolbar-divider" />
-          <div className="sl-print-types">{["Thermal", "A4", "A5"].map((pt) => (<label key={pt} className="sl-check-label"><input type="radio" name="pt" checked={printType === pt} onChange={() => setPrintType(pt)} /> {pt}</label>))}</div>
-          <div className="xp-toolbar-divider" />
-          <span className={`sl-inv-info${editId ? " edit-mode" : ""}`}>{editId ? "✏ Editing purchase record" : `${invoiceNo} | Items: ${items.length} | Total: ${Number(subTotal).toLocaleString("en-PK")} | ${saleSource} / ${paymentMode}`}</span>
-          <button className="xp-btn xp-btn-sm" style={{ marginLeft: "auto" }} onClick={fullReset}>Close</button>
+        <div className="sl-cmd-bar" style={{ display: "flex", gap: "8px", padding: "6px 10px", background: "#ffffff", borderTop: "1px solid #000000", flexWrap: "wrap" }}>
+          <button className="xp-btn xp-btn-sm" onClick={fullReset} disabled={loading} style={{ border: "1px solid #000000", fontWeight: "bold" }}>Refresh</button>
+          <button ref={saveRef} className="xp-btn xp-btn-primary xp-btn-lg" onClick={openSaleConfirm} disabled={loading} style={{ background: "#22c55e", color: "white", border: "1px solid #000000", fontWeight: "bold" }}>{loading ? "Saving…" : "Save  *"}</button>
+          <button className="xp-btn xp-btn-sm" onClick={() => {}} style={{ border: "1px solid #000000", fontWeight: "bold" }}>Edit Record</button>
+          <button className="xp-btn xp-btn-danger xp-btn-sm" disabled={!editId} onClick={async () => { if (!editId || !window.confirm("Delete this purchase?")) return; try { await api.delete(EP.RAW_PURCHASES.DELETE(editId)); showMsg("Purchase deleted"); fullReset(); refreshInvoiceNo(); } catch { showMsg("Delete failed", "error"); } }} style={{ background: "#ef4444", color: "white", border: "1px solid #000000", fontWeight: "bold" }}>Delete Record</button>
+          <div className="xp-toolbar-divider" style={{ width: "1px", background: "#000000" }} />
+          <div className="sl-cmd-checks" style={{ display: "flex", gap: "12px" }}><label className="sl-check-label" style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "11px", fontWeight: "bold", color: "#000000" }}><input type="checkbox" checked={sendSms} onChange={(e) => setSendSms(e.target.checked)} /> Send SMS</label><label className="sl-check-label" style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "11px", fontWeight: "bold", color: "#000000" }}><input type="checkbox" /> Print P.Bal</label><label className="sl-check-label" style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "11px", fontWeight: "bold", color: "#000000" }}><input type="checkbox" /> Gate Pass</label></div>
+          <div className="xp-toolbar-divider" style={{ width: "1px", background: "#000000" }} />
+          <div className="sl-print-types" style={{ display: "flex", gap: "12px" }}>{["Thermal", "A4", "A5"].map((pt) => (<label key={pt} className="sl-check-label" style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "11px", fontWeight: "bold", color: "#000000" }}><input type="radio" name="pt" checked={printType === pt} onChange={() => setPrintType(pt)} /> {pt}</label>))}</div>
+          <div className="xp-toolbar-divider" style={{ width: "1px", background: "#000000" }} />
+          <span className={`sl-inv-info${editId ? " edit-mode" : ""}`} style={{ fontSize: "11px", fontWeight: "bold", color: "#000000" }}>{editId ? "✏ Editing purchase record" : `${invoiceNo} | Items: ${items.length} | Total: ${Number(subTotal).toLocaleString("en-PK")} | ${saleSource} / ${paymentMode}`}</span>
+          <button className="xp-btn xp-btn-sm" style={{ marginLeft: "auto", border: "1px solid #000000", fontWeight: "bold" }} onClick={fullReset}>Close</button>
         </div>
       </div>
 
       <style>{`
         @font-face { font-family: 'UrduFont'; src: local('Jameel Noori Nastaleeq'), local('Noto Nastaliq Urdu'), local('Urdu Typesetting'), local('Arial Unicode MS'); }
         .urdu, .shop-urdu, .shop-addr, .banner, .terms-box, .terms { font-family: 'UrduFont', 'Jameel Noori Nastaleeq', 'Noto Nastaliq Urdu', 'Urdu Typesetting', Arial, sans-serif !important; direction: rtl; }
-        .table.xp-table tbody td { border-right: 1px solid red !important; }
         .xp-link-btn { text-decoration: none; }
         .sl-nav-btn { font-size: 14px !important; padding: 4px 12px !important; font-weight: 600 !important; }
-        input, .xp-input, .sl-product-input, .sl-num-input, .sl-sum-input, .sl-cust-input { background-color: #fffde7 !important; }
         .sl-page { background: #ffffff; }
         input, .xp-input, .sl-product-input, .sl-num-input, .sl-sum-input, .sl-cust-input, .sl-credit-statement-input, .sl-inv-input, .sl-date-input, .sl-sum-val { border-color: #000000 !important; border-width: 1px !important; border-style: solid !important; }
         .sl-items-table th, .sl-items-table td, .sl-hold-table th, .sl-hold-table td { border-color: #000000 !important; border-width: 1px !important; }
         .xp-btn, .sl-entry-btns .xp-btn { border-color: #000000 !important; border-width: 1px !important; border-style: solid !important; }
         .sl-summary-bar, .sl-customer-bar, .sl-top-bar, .sl-entry-strip, .sl-table-header-bar, .sl-hold-panel, .sl-right, .sl-left { border-color: #e0e0e0; }
         .sl-items-table tbody tr.sl-empty-row { display: none; }
-        .sl-inv-input { font-size: 14px !important; font-weight: bold !important; width: 160px !important; text-align: center !important; }
+        .sl-inv-input { font-size: 14px !important; font-weight: bold !important; width: 180px !important; text-align: center !important; }
         .sl-product-input { background-color: #fffde7 !important; border-color: #000000 !important; }
         .sl-num-input, .sl-sum-input, .sl-cust-input { background-color: #fffde7 !important; }
         .sl-sum-val, .sl-date-input[readonly] { background-color: #f5f5f5 !important; }
@@ -1802,16 +1875,16 @@ export default function RawPurchasePage() {
           top: 50%;
           transform: translateY(-50%);
           background: #f3f4f6;
-          border: 1px solid #d1d5db;
+          border: 1px solid #000000;
           cursor: pointer;
           display: flex;
           align-items: center;
           justify-content: center;
           padding: 0;
-          width: 26px;
-          height: 26px;
+          width: 28px;
+          height: 28px;
           border-radius: 4px;
-          color: #4b5563;
+          color: #000000;
           font-size: 12px;
           font-weight: bold;
           transition: all 0.2s ease;
@@ -1820,7 +1893,7 @@ export default function RawPurchasePage() {
 
         .sl-inv-nav-btn:hover {
           background: #22c55e;
-          border-color: #16a34a;
+          border-color: #000000;
           color: white;
         }
 

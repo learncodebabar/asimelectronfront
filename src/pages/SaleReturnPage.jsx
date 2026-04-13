@@ -72,7 +72,7 @@ const buildPrintHtml = (ret, type) => {
             <td class="r">${it.pcs}</td>
             <td class="r">${Number(it.rate).toLocaleString()}</td>
             <td class="r"><b>${Number(it.amount).toLocaleString()}</b></td>
-          <tr>`,
+          </tr>`,
       )
       .join("");
     return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>
@@ -423,7 +423,7 @@ function SaveConfirmModal({
 }
 
 /* ══════════════════════════════════════════════════════════
-   PRODUCT SEARCH MODAL
+   PRODUCT SEARCH MODAL - PROFESSIONAL DESIGN
 ══════════════════════════════════════════════════════════ */
 function SearchModal({ allProducts, onSelect, onClose }) {
   const [desc, setDesc] = useState("");
@@ -482,11 +482,13 @@ function SearchModal({ allProducts, onSelect, onClose }) {
     rDesc.current?.focus();
     setRows(buildFlat(allProducts, "", "", ""));
   }, [allProducts, buildFlat]);
+  
   useEffect(() => {
     const f = buildFlat(allProducts, desc, cat, company);
     setRows(f);
     setHiIdx(f.length > 0 ? 0 : -1);
   }, [desc, cat, company, allProducts, buildFlat]);
+  
   useEffect(() => {
     if (tbodyRef.current && hiIdx >= 0)
       tbodyRef.current.children[hiIdx]?.scrollIntoView({ block: "nearest" });
@@ -504,6 +506,7 @@ function SearchModal({ allProducts, onSelect, onClose }) {
         : (tbodyRef.current?.focus(), setHiIdx((h) => Math.max(0, h)));
     }
   };
+  
   const tk = (e) => {
     if (e.key === "ArrowDown") {
       e.preventDefault();
@@ -528,25 +531,45 @@ function SearchModal({ allProducts, onSelect, onClose }) {
     <div
       className="xp-overlay"
       onClick={(e) => e.target === e.currentTarget && onClose()}
+      style={{ zIndex: 2000 }}
     >
-      <div className="xp-modal xp-modal-lg">
-        <div className="xp-modal-tb">
+      <div className="xp-modal" style={{ 
+        width: "95%", 
+        maxWidth: "1400px", 
+        height: "85vh",
+        maxHeight: "85vh",
+        display: "flex",
+        flexDirection: "column",
+        borderRadius: "12px",
+        background: "#ffffff",
+        border: "2px solid #000000"
+      }}>
+        <div className="xp-modal-tb" style={{ 
+          background: "#1e40af", 
+          padding: "10px 16px",
+          borderRadius: "10px 10px 0 0"
+        }}>
           <svg
-            width="13"
-            height="13"
+            width="14"
+            height="14"
             viewBox="0 0 16 16"
-            fill="rgba(255,255,255,0.8)"
+            fill="rgba(255,255,255,0.9)"
           >
             <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.044.06.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1 1 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0" />
           </svg>
-          <span className="xp-modal-title">Search Products</span>
-          <button className="xp-cap-btn xp-cap-close" onClick={onClose}>
-            ✕
-          </button>
+          <span className="xp-modal-title" style={{ fontSize: "15px", fontWeight: "bold", color: "#ffffff" }}>Search Products</span>
+          <button className="xp-cap-btn xp-cap-close" onClick={onClose} style={{ color: "#ffffff", fontSize: "18px" }}>✕</button>
         </div>
-        <div className="cs-modal-filters">
-          <div className="cs-modal-filter-grp">
-            <label className="xp-label">Description / Code</label>
+        
+        <div className="cs-modal-filters" style={{ 
+          padding: "8px 12px", 
+          gap: "10px", 
+          background: "#f8fafc",
+          borderBottom: "1px solid #000000",
+          flexWrap: "wrap"
+        }}>
+          <div className="cs-modal-filter-grp" style={{ flex: 2, minWidth: "200px" }}>
+            <label className="xp-label" style={{ fontSize: "11px", fontWeight: "bold", color: "#000000", marginBottom: "3px", display: "block" }}>Description / Code</label>
             <input
               ref={rDesc}
               type="text"
@@ -554,12 +577,12 @@ function SearchModal({ allProducts, onSelect, onClose }) {
               value={desc}
               onChange={(e) => setDesc(e.target.value)}
               onKeyDown={(e) => fk(e, rCat)}
-              placeholder="Name / code…"
               autoComplete="off"
+              style={{ height: "32px", fontSize: "12px", border: "1px solid #000000", borderRadius: "4px", width: "100%", padding: "0 8px" }}
             />
           </div>
-          <div className="cs-modal-filter-grp">
-            <label className="xp-label">Category</label>
+          <div className="cs-modal-filter-grp" style={{ flex: 1, minWidth: "140px" }}>
+            <label className="xp-label" style={{ fontSize: "11px", fontWeight: "bold", color: "#000000", marginBottom: "3px", display: "block" }}>Category</label>
             <input
               ref={rCat}
               type="text"
@@ -567,12 +590,12 @@ function SearchModal({ allProducts, onSelect, onClose }) {
               value={cat}
               onChange={(e) => setCat(e.target.value)}
               onKeyDown={(e) => fk(e, rCompany)}
-              placeholder="e.g. SMALL"
               autoComplete="off"
+              style={{ height: "32px", fontSize: "12px", border: "1px solid #000000", borderRadius: "4px", width: "100%", padding: "0 8px" }}
             />
           </div>
-          <div className="cs-modal-filter-grp">
-            <label className="xp-label">Company</label>
+          <div className="cs-modal-filter-grp" style={{ flex: 1, minWidth: "140px" }}>
+            <label className="xp-label" style={{ fontSize: "11px", fontWeight: "bold", color: "#000000", marginBottom: "3px", display: "block" }}>Company</label>
             <input
               ref={rCompany}
               type="text"
@@ -580,83 +603,101 @@ function SearchModal({ allProducts, onSelect, onClose }) {
               value={company}
               onChange={(e) => setCompany(e.target.value)}
               onKeyDown={(e) => fk(e, null)}
-              placeholder="e.g. LUX"
               autoComplete="off"
+              style={{ height: "32px", fontSize: "12px", border: "1px solid #000000", borderRadius: "4px", width: "100%", padding: "0 8px" }}
             />
           </div>
-          <div style={{ display: "flex", alignItems: "flex-end", gap: 6 }}>
-            <span style={{ fontSize: "var(--xp-fs-xs)", color: "#555" }}>
-              {rows.length} result(s)
-            </span>
-            <button className="xp-btn xp-btn-sm" onClick={onClose}>
-              Close
-            </button>
+          <div style={{ display: "flex", alignItems: "flex-end", gap: "6px", paddingBottom: "2px" }}>
+            <span style={{ fontSize: "11px", color: "#000000", fontWeight: "bold" }}>{rows.length} result(s)</span>
+            <button className="xp-btn xp-btn-sm" onClick={onClose} style={{ fontSize: "11px", padding: "4px 12px", border: "1px solid #000000", borderRadius: "4px", fontWeight: "bold" }}>Close</button>
           </div>
         </div>
-        <div className="xp-modal-body" style={{ padding: 0 }}>
-          <div className="xp-table-panel" style={{ border: "none" }}>
-            <div className="xp-table-scroll">
-              <table className="xp-table">
+        
+        <div className="xp-modal-body" style={{ padding: 0, flex: 1, overflow: "hidden" }}>
+          <div className="xp-table-panel" style={{ border: "none", height: "100%" }}>
+            <div className="xp-table-scroll" style={{ 
+              height: "100%", 
+              overflow: "auto",
+              maxHeight: "calc(85vh - 110px)"
+            }}>
+              <table className="xp-table" style={{ 
+                fontSize: "12px", 
+                borderCollapse: "collapse", 
+                width: "100%",
+                border: "1px solid #000000"
+              }}>
                 <thead>
-                  <tr>
-                    <th style={{ width: 36 }}>Sr.#</th>
-                    <th>Barcode</th>
-                    <th>Name</th>
-                    <th>Meas.</th>
-                    <th className="r">Rate</th>
-                    <th className="r">Stock</th>
-                    <th className="r">Pack</th>
+                  <tr style={{ background: "#f1f5f9", position: "sticky", top: 0, zIndex: 10 }}>
+                    <th style={{ width: 40, padding: "5px 4px", textAlign: "center", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>#</th>
+                    <th style={{ width: 90, padding: "5px 4px", textAlign: "left", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>Barcode</th>
+                    <th style={{ padding: "5px 4px", textAlign: "left", border: "1px solid #000000", fontSize: "13px", fontWeight: "bold", color: "#000000" }}>Product Name</th>
+                    <th style={{ width: 60, padding: "5px 4px", textAlign: "center", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>Meas.</th>
+                    <th style={{ width: 85, padding: "5px 4px", textAlign: "right", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>Rate</th>
+                    <th style={{ width: 65, padding: "5px 4px", textAlign: "right", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>Stock</th>
+                    <th style={{ width: 55, padding: "5px 4px", textAlign: "right", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>Pack</th>
+                    <th style={{ width: 65, padding: "5px 4px", textAlign: "center", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>Rack#</th>
                   </tr>
                 </thead>
-             <tbody ref={tbodyRef} tabIndex={0} onKeyDown={tk}>
-  
-  {rows.length === 0 && (
-    <tr>
-      <td colSpan={7} className="xp-empty">
-        No products found
-      </td>
-    </tr>
-  )}
-
-  {rows.map((r, i) => (
-    <tr
-      key={`${r._id}-${r._pi}`}
-      style={{
-        background: i === hiIdx ? "#c3d9f5" : undefined,
-      }}
-      onClick={() => setHiIdx(i)}
-      onDoubleClick={() => onSelect(r)}
-    >
-      <td className="text-muted">{i + 1}</td>
-
-      <td>
-        <span className="xp-code">{r.code}</span>
-      </td>
-
-      <td>
-        <button className="xp-link-btn">{r._name}</button>
-      </td>
-
-      <td className="text-muted">{r._meas}</td>
-
-      <td className="r xp-amt">
-        {Number(r._rate).toLocaleString("en-PK")}
-      </td>
-
-      <td className="r">{r._stock}</td>
-
-      <td className="r">{r._pack}</td>
-    </tr>
-  ))}
-
-</tbody>
+                <tbody ref={tbodyRef} tabIndex={0} onKeyDown={tk}>
+                  {rows.length === 0 && (
+                    <tr>
+                      <td colSpan={8} className="xp-empty" style={{ padding: "30px", textAlign: "center", color: "#000000", fontSize: "12px", fontWeight: "bold" }}>
+                        No products found
+                      </td>
+                    </tr>
+                  )}
+                  {rows.map((r, i) => (
+                    <tr
+                      key={`${r._id}-${r._pi}`}
+                      style={{
+                        background: i === hiIdx ? "#e5f0ff" : "white",
+                        cursor: "pointer"
+                      }}
+                      onClick={() => setHiIdx(i)}
+                      onDoubleClick={() => onSelect(r)}
+                    >
+                      <td style={{ padding: "4px 4px", textAlign: "center", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>{i + 1}</td>
+                      <td style={{ padding: "4px 4px", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>
+                        {r.code}
+                      </td>
+                      <td style={{ padding: "4px 4px", border: "1px solid #000000", fontSize: "13px", fontWeight: "bold", color: "#000000" }}>
+                        <button className="xp-link-btn" style={{ 
+                          color: "#000000", 
+                          textDecoration: "none", 
+                          fontWeight: "bold", 
+                          fontSize: "13px",
+                          background: "none", 
+                          border: "none", 
+                          cursor: "pointer", 
+                          width: "100%", 
+                          textAlign: "left",
+                          padding: "0"
+                        }}>{r._name}</button>
+                      </td>
+                      <td style={{ padding: "4px 4px", textAlign: "center", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>{r._meas}</td>
+                      <td style={{ padding: "4px 4px", textAlign: "right", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>
+                        {Number(r._rate).toLocaleString("en-PK")}
+                      </td>
+                      <td style={{ padding: "4px 4px", textAlign: "right", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>{r._stock}</td>
+                      <td style={{ padding: "4px 4px", textAlign: "right", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>{r._pack}</td>
+                      <td style={{ padding: "4px 4px", textAlign: "center", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>{r.rackNo || "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
               </table>
             </div>
           </div>
         </div>
-        <div className="cs-modal-hint">
-          ↑↓ navigate &nbsp;|&nbsp; Enter / Double-click = select &nbsp;|&nbsp;
-          Esc = close &nbsp;|&nbsp; Tab = filters
+        <div className="cs-modal-hint" style={{ 
+          padding: "6px 12px", 
+          fontSize: "10px", 
+          color: "#000000", 
+          fontWeight: "bold",
+          borderTop: "1px solid #000000", 
+          background: "#f8fafc",
+          borderRadius: "0 0 10px 10px"
+        }}>
+          <span>↑↓ navigate</span> &nbsp;|&nbsp; <span>Enter / Double-click = select</span> &nbsp;|&nbsp; <span>Esc = close</span> &nbsp;|&nbsp; <span>Tab = filters</span>
         </div>
       </div>
     </div>
@@ -664,7 +705,7 @@ function SearchModal({ allProducts, onSelect, onClose }) {
 }
 
 /* ══════════════════════════════════════════════════════════
-   SALE INVOICE SEARCH MODAL
+   SALE INVOICE SEARCH MODAL - PROFESSIONAL DESIGN
 ══════════════════════════════════════════════════════════ */
 function SearchSaleModal({ onSelect, onClose, onNext, onPrev, hasNext, hasPrev }) {
   const [searchId, setSearchId] = useState("");
@@ -674,7 +715,6 @@ function SearchSaleModal({ onSelect, onClose, onNext, onPrev, hasNext, hasPrev }
   const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(false);
   const [hiIdx, setHiIdx] = useState(0);
-  const [currentPage, setCurrentPage] = useState(0);
   const [totalInvoices, setTotalInvoices] = useState(0);
   
   const searchIdRef = useRef(null);
@@ -689,7 +729,6 @@ function SearchSaleModal({ onSelect, onClose, onNext, onPrev, hasNext, hasPrev }
       if (response.data.success) {
         let sales = response.data.data;
         if (Array.isArray(sales)) {
-          // Filter by search criteria
           if (searchId) {
             const searchIdLower = searchId.toLowerCase();
             sales = sales.filter(sale => 
@@ -722,7 +761,6 @@ function SearchSaleModal({ onSelect, onClose, onNext, onPrev, hasNext, hasPrev }
             });
           }
           
-          // Only show sale invoices (not returns)
           sales = sales.filter(
             (sale) =>
               sale.saleType === "sale" ||
@@ -822,27 +860,46 @@ function SearchSaleModal({ onSelect, onClose, onNext, onPrev, hasNext, hasPrev }
     <div
       className="xp-overlay"
       onClick={(e) => e.target === e.currentTarget && onClose()}
+      style={{ zIndex: 2000 }}
     >
-      <div className="xp-modal xp-modal-lg" style={{ width: 900 }}>
-        <div className="xp-modal-tb">
+      <div className="xp-modal" style={{ 
+        width: "95%", 
+        maxWidth: "1200px", 
+        height: "85vh",
+        maxHeight: "85vh",
+        display: "flex",
+        flexDirection: "column",
+        borderRadius: "12px",
+        background: "#ffffff",
+        border: "2px solid #000000"
+      }}>
+        <div className="xp-modal-tb" style={{ 
+          background: "#1e40af", 
+          padding: "10px 16px",
+          borderRadius: "10px 10px 0 0"
+        }}>
           <svg
-            width="13"
-            height="13"
+            width="14"
+            height="14"
             viewBox="0 0 16 16"
-            fill="rgba(255,255,255,0.8)"
+            fill="rgba(255,255,255,0.9)"
           >
             <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.044.06.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1 1 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0" />
           </svg>
-          <span className="xp-modal-title">Search Sale Invoice</span>
-          <button className="xp-cap-btn xp-cap-close" onClick={onClose}>
-            ✕
-          </button>
+          <span className="xp-modal-title" style={{ fontSize: "15px", fontWeight: "bold", color: "#ffffff" }}>Search Sale Invoice</span>
+          <button className="xp-cap-btn xp-cap-close" onClick={onClose} style={{ color: "#ffffff", fontSize: "18px" }}>✕</button>
         </div>
         
-        <div className="cs-modal-filters" style={{ padding: "12px" }}>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 12 }}>
+        <div className="cs-modal-filters" style={{ 
+          padding: "12px 16px", 
+          gap: "12px", 
+          background: "#f8fafc",
+          borderBottom: "1px solid #000000",
+          flexWrap: "wrap"
+        }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, width: "100%", marginBottom: 12 }}>
             <div className="cs-modal-filter-grp">
-              <label className="xp-label">Invoice # / ID</label>
+              <label className="xp-label" style={{ fontSize: "11px", fontWeight: "bold", color: "#000000", marginBottom: "3px", display: "block" }}>Invoice # / ID</label>
               <input
                 ref={searchIdRef}
                 type="text"
@@ -852,11 +909,12 @@ function SearchSaleModal({ onSelect, onClose, onNext, onPrev, hasNext, hasPrev }
                 onKeyDown={(e) => handleFieldKeyDown(e, "id")}
                 placeholder="Invoice number or ID..."
                 autoComplete="off"
+                style={{ height: "32px", fontSize: "12px", border: "1px solid #000000", borderRadius: "4px", width: "100%", padding: "0 8px" }}
               />
             </div>
             
             <div className="cs-modal-filter-grp">
-              <label className="xp-label">Customer Phone</label>
+              <label className="xp-label" style={{ fontSize: "11px", fontWeight: "bold", color: "#000000", marginBottom: "3px", display: "block" }}>Customer Phone</label>
               <input
                 ref={searchPhoneRef}
                 type="tel"
@@ -866,17 +924,18 @@ function SearchSaleModal({ onSelect, onClose, onNext, onPrev, hasNext, hasPrev }
                 onKeyDown={(e) => handleFieldKeyDown(e, "phone")}
                 placeholder="Phone number..."
                 autoComplete="off"
+                style={{ height: "32px", fontSize: "12px", border: "1px solid #000000", borderRadius: "4px", width: "100%", padding: "0 8px" }}
               />
             </div>
             
             <div className="cs-modal-filter-grp">
-              <label className="xp-label">Amount / Price</label>
+              <label className="xp-label" style={{ fontSize: "11px", fontWeight: "bold", color: "#000000", marginBottom: "3px", display: "block" }}>Amount / Price</label>
               <div style={{ display: "flex", gap: 6 }}>
                 <select
                   className="xp-input"
                   value={priceOperator}
                   onChange={(e) => setPriceOperator(e.target.value)}
-                  style={{ width: 70 }}
+                  style={{ width: 70, height: "32px", border: "1px solid #000000", borderRadius: "4px" }}
                 >
                   <option value="eq">=</option>
                   <option value="gt">&gt;</option>
@@ -897,7 +956,7 @@ function SearchSaleModal({ onSelect, onClose, onNext, onPrev, hasNext, hasPrev }
                   }}
                   onKeyDown={(e) => handleFieldKeyDown(e, "amount")}
                   placeholder="Amount..."
-                  style={{ flex: 1 }}
+                  style={{ flex: 1, height: "32px", fontSize: "12px", border: "1px solid #000000", borderRadius: "4px", padding: "0 8px" }}
                 />
               </div>
             </div>
@@ -905,35 +964,44 @@ function SearchSaleModal({ onSelect, onClose, onNext, onPrev, hasNext, hasPrev }
           
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <div style={{ display: "flex", gap: 8 }}>
-              <button className="xp-btn xp-btn-sm" onClick={clearFilters}>
+              <button className="xp-btn xp-btn-sm" onClick={clearFilters} style={{ fontSize: "11px", padding: "4px 12px", border: "1px solid #000000", borderRadius: "4px", fontWeight: "bold" }}>
                 Clear Filters
               </button>
-              <button className="xp-btn xp-btn-sm" onClick={fetchInvoices}>
+              <button className="xp-btn xp-btn-sm" onClick={fetchInvoices} style={{ fontSize: "11px", padding: "4px 12px", border: "1px solid #000000", borderRadius: "4px", fontWeight: "bold" }}>
                 Search
               </button>
-              <span style={{ fontSize: "var(--xp-fs-xs)", color: "#555", alignSelf: "center" }}>
+              <span style={{ fontSize: "11px", color: "#000000", fontWeight: "bold", alignSelf: "center" }}>
                 {totalInvoices} invoice(s) found
               </span>
             </div>
-            <button className="xp-btn xp-btn-sm" onClick={onClose}>
+            <button className="xp-btn xp-btn-sm" onClick={onClose} style={{ fontSize: "11px", padding: "4px 12px", border: "1px solid #000000", borderRadius: "4px", fontWeight: "bold" }}>
               Close
             </button>
           </div>
         </div>
         
-        <div className="xp-modal-body" style={{ padding: 0 }}>
-          <div className="xp-table-panel" style={{ border: "none" }}>
-            <div className="xp-table-scroll" style={{ maxHeight: 400 }}>
-              <table className="xp-table">
+        <div className="xp-modal-body" style={{ padding: 0, flex: 1, overflow: "hidden" }}>
+          <div className="xp-table-panel" style={{ border: "none", height: "100%" }}>
+            <div className="xp-table-scroll" style={{ 
+              height: "100%", 
+              overflow: "auto",
+              maxHeight: "calc(85vh - 150px)"
+            }}>
+              <table className="xp-table" style={{ 
+                fontSize: "12px", 
+                borderCollapse: "collapse", 
+                width: "100%",
+                border: "1px solid #000000"
+              }}>
                 <thead>
-                  <tr>
-                    <th style={{ width: 40 }}>#</th>
-                    <th>Invoice #</th>
-                    <th>Date</th>
-                    <th>Customer Name</th>
-                    <th>Phone</th>
-                    <th className="r">Total Amount</th>
-                    <th className="r">Items</th>
+                  <tr style={{ background: "#f1f5f9", position: "sticky", top: 0, zIndex: 10 }}>
+                    <th style={{ width: 40, padding: "8px 4px", textAlign: "center", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>#</th>
+                    <th style={{ padding: "8px 4px", textAlign: "left", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>Invoice #</th>
+                    <th style={{ padding: "8px 4px", textAlign: "left", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>Date</th>
+                    <th style={{ padding: "8px 4px", textAlign: "left", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>Customer Name</th>
+                    <th style={{ padding: "8px 4px", textAlign: "left", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>Phone</th>
+                    <th style={{ width: 100, padding: "8px 4px", textAlign: "right", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>Total Amount</th>
+                    <th style={{ width: 60, padding: "8px 4px", textAlign: "center", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>Items</th>
                   </tr>
                 </thead>
                 <tbody 
@@ -943,14 +1011,14 @@ function SearchSaleModal({ onSelect, onClose, onNext, onPrev, hasNext, hasPrev }
                 >
                   {loading && (
                     <tr>
-                      <td colSpan={7} className="xp-empty">
+                      <td colSpan={7} className="xp-empty" style={{ padding: "30px", textAlign: "center", color: "#000000", fontSize: "12px", fontWeight: "bold" }}>
                         Loading...
                       </td>
                     </tr>
                   )}
                   {!loading && invoices.length === 0 && (
                     <tr>
-                      <td colSpan={7} className="xp-empty">
+                      <td colSpan={7} className="xp-empty" style={{ padding: "30px", textAlign: "center", color: "#000000", fontSize: "12px", fontWeight: "bold" }}>
                         No sale invoices found.
                       </td>
                     </tr>
@@ -959,27 +1027,31 @@ function SearchSaleModal({ onSelect, onClose, onNext, onPrev, hasNext, hasPrev }
                     <tr
                       key={inv._id}
                       style={{
-                        background: i === hiIdx ? "#c3d9f5" : undefined,
+                        background: i === hiIdx ? "#e5f0ff" : "white",
                         cursor: "pointer",
                       }}
                       onClick={() => setHiIdx(i)}
                       onDoubleClick={() => onSelect(inv)}
                     >
-                      <td className="text-muted">{i + 1}</td>
-                      <td style={{ fontFamily: "var(--xp-mono)", fontWeight: 500 }}>
+                      <td style={{ padding: "6px 4px", textAlign: "center", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>{i + 1}</td>
+                      <td style={{ padding: "6px 4px", border: "1px solid #000000", fontSize: "12px", fontWeight: "bold", color: "#000000", fontFamily: "monospace" }}>
                         {inv.invoiceNo || inv.returnNo || "N/A"}
                       </td>
-                      <td>{inv.invoiceDate?.split("T")[0] || inv.date?.split("T")[0] || "-"}</td>
-                      <td style={{ fontWeight: 500 }}>
+                      <td style={{ padding: "6px 4px", border: "1px solid #000000", fontSize: "11px", color: "#000000" }}>
+                        {inv.invoiceDate?.split("T")[0] || inv.date?.split("T")[0] || "-"}
+                      </td>
+                      <td style={{ padding: "6px 4px", border: "1px solid #000000", fontSize: "12px", fontWeight: "bold", color: "#000000" }}>
                         {inv.customerName || inv.customer?.name || "COUNTER SALE"}
                       </td>
-                      <td className="text-muted">
+                      <td style={{ padding: "6px 4px", border: "1px solid #000000", fontSize: "11px", color: "#000000" }}>
                         {inv.customerPhone || inv.customer?.phone || "-"}
                       </td>
-                      <td className="r" style={{ color: "var(--xp-red)", fontWeight: 700 }}>
+                      <td style={{ padding: "6px 4px", textAlign: "right", border: "1px solid #000000", fontSize: "12px", fontWeight: "bold", color: "#c0392b" }}>
                         {Number(inv.netTotal || inv.total || 0).toLocaleString("en-PK")}
                       </td>
-                      <td className="r">{inv.items?.length || 0}</td>
+                      <td style={{ padding: "6px 4px", textAlign: "center", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>
+                        {inv.items?.length || 0}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -993,9 +1065,11 @@ function SearchSaleModal({ onSelect, onClose, onNext, onPrev, hasNext, hasPrev }
           justifyContent: "space-between", 
           alignItems: "center",
           padding: "8px 12px",
-          borderTop: "1px solid #e5e7eb"
+          borderTop: "1px solid #000000",
+          background: "#f8fafc",
+          borderRadius: "0 0 10px 10px"
         }}>
-          <div className="cs-modal-hint" style={{ margin: 0 }}>
+          <div className="cs-modal-hint" style={{ margin: 0, fontSize: "10px", fontWeight: "bold", color: "#000000" }}>
             ⬆⬇ = navigate results &nbsp;|&nbsp; Enter = select invoice &nbsp;|&nbsp; Tab between fields &nbsp;|&nbsp; Esc = close
           </div>
         </div>
@@ -1106,7 +1180,7 @@ function HoldPreviewModal({ bill, onResume, onClose }) {
 }
 
 /* ══════════════════════════════════════════════════════════
-   CUSTOMER DROPDOWN - Shows ALL credit customers (like Sale page)
+   CUSTOMER DROPDOWN
 ══════════════════════════════════════════════════════════ */
 function CustomerDropdown({
   allCustomers,
@@ -1127,7 +1201,6 @@ function CustomerDropdown({
   const inputRef = useRef(null);
   const parentRef = useRef(null);
 
-  // Show ALL credit customers (same as Sale page)
   const creditCustomers = allCustomers.filter((c) => {
     const t = (c.customerType || c.type || "").toLowerCase();
     return (
@@ -1500,6 +1573,9 @@ export default function SaleReturnPage() {
   const [packingOptions, setPackingOptions] = useState([]);
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [pendingPayload, setPendingPayload] = useState(null);
+  const [remarks, setRemarks] = useState("");
+  const [showRemarksInput, setShowRemarksInput] = useState(false);
+  const [creditCustomerSelected, setCreditCustomerSelected] = useState(false);
 
   const searchRef = useRef(null);
   const pcsRef = useRef(null);
@@ -1507,6 +1583,8 @@ export default function SaleReturnPage() {
   const addRef = useRef(null);
   const saveRef = useRef(null);
   const saleInvRef = useRef(null);
+  const packingRef = useRef(null);
+  const remarksRef = useRef(null);
 
   useEffect(() => {
     const t = setInterval(() => setTime(timeNow()), 1000);
@@ -1533,7 +1611,6 @@ export default function SaleReturnPage() {
       if (pRes.data.success) setAllProducts(pRes.data.data);
       if (cRes.data.success) setAllCustomers(cRes.data.data);
       
-      // Generate return number locally
       const today = new Date();
       const year = today.getFullYear();
       const month = String(today.getMonth() + 1).padStart(2, '0');
@@ -1688,9 +1765,22 @@ export default function SaleReturnPage() {
     setCustomerId(c._id);
     setBuyerName(c.name);
     setBuyerCode(c.code || "");
-    setCustomerType(c.customerType || c.type || "");
+    const custType = c.customerType || c.type || "";
+    setCustomerType(custType);
     setPrevBalance(c.currentBalance || 0);
-    setTimeout(() => searchRef.current?.focus(), 30);
+    
+    // Check if credit customer
+    if (custType === "credit") {
+      setCreditCustomerSelected(true);
+      setShowRemarksInput(true);
+      setRemarks("");
+      setTimeout(() => remarksRef.current?.focus(), 100);
+    } else {
+      setCreditCustomerSelected(false);
+      setShowRemarksInput(false);
+      setRemarks("");
+      setTimeout(() => searchRef.current?.focus(), 30);
+    }
   };
 
   const handleCustomerClear = () => {
@@ -1699,6 +1789,9 @@ export default function SaleReturnPage() {
     setBuyerCode("");
     setCustomerType("");
     setPrevBalance(0);
+    setCreditCustomerSelected(false);
+    setShowRemarksInput(false);
+    setRemarks("");
   };
 
   const pickProduct = (product) => {
@@ -1719,7 +1812,7 @@ export default function SaleReturnPage() {
     });
     setSearchText(product._name || product.description || "");
     setShowProductModal(false);
-    setTimeout(() => pcsRef.current?.focus(), 30);
+    setTimeout(() => packingRef.current?.focus(), 30);
   };
 
   const updateCurRow = (field, val) => {
@@ -1734,7 +1827,7 @@ export default function SaleReturnPage() {
 
   const addRow = () => {
     if (!curRow.name) {
-      setShowProductModal(true);
+      // Only open product modal on F2 or Enter, not on click
       return;
     }
     if (!curRow.productId) {
@@ -1769,7 +1862,15 @@ export default function SaleReturnPage() {
     const r = items[idx];
     setCurRow({ ...r });
     setSearchText(r.name);
-    setTimeout(() => pcsRef.current?.focus(), 30);
+    
+    const product = allProducts.find((p) => p._id === r.productId);
+    if (product?.packingInfo?.length > 0) {
+      setPackingOptions(product.packingInfo.map((pk) => pk.measurement));
+    } else {
+      setPackingOptions([]);
+    }
+    
+    setTimeout(() => packingRef.current?.focus(), 30);
   };
 
   const removeRow = () => {
@@ -1795,6 +1896,7 @@ export default function SaleReturnPage() {
         customerType,
         prevBalance,
         saleInvNo,
+        remarks,
       },
     ]);
     fullReset();
@@ -1811,6 +1913,11 @@ export default function SaleReturnPage() {
     setCustomerType(bill.customerType || "");
     setPrevBalance(bill.prevBalance || 0);
     setSaleInvNo(bill.saleInvNo || "");
+    setRemarks(bill.remarks || "");
+    if (bill.customerType === "credit") {
+      setCreditCustomerSelected(true);
+      setShowRemarksInput(true);
+    }
     setHoldBills((p) => p.filter((b) => b.id !== holdId));
     setShowHoldPreview(null);
     resetCurRow();
@@ -1838,6 +1945,9 @@ export default function SaleReturnPage() {
     setSelItemIdx(null);
     setCurrentInvoiceIndex(-1);
     setMsg({ text: "", type: "" });
+    setRemarks("");
+    setCreditCustomerSelected(false);
+    setShowRemarksInput(false);
     setTimeout(() => searchRef.current?.focus(), 50);
   };
 
@@ -1846,6 +1956,14 @@ export default function SaleReturnPage() {
       alert("Add at least one item");
       return;
     }
+    
+    // If credit customer, check if remarks is filled
+    if (creditCustomerSelected && !remarks.trim()) {
+      remarksRef.current?.focus();
+      showMsg("Please enter remarks for credit return", "error");
+      return;
+    }
+    
     const payload = {
       returnNo,
       returnDate,
@@ -1874,7 +1992,7 @@ export default function SaleReturnPage() {
       balance,
       sendSms,
       printType,
-      remarks: "",
+      remarks: remarks || "",
       saleType: "return",
     };
     setPendingPayload(payload);
@@ -1926,6 +2044,18 @@ export default function SaleReturnPage() {
     setLoading(false);
   };
 
+  // Handle Enter key on remarks field
+  const handleRemarksKeyDown = (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      if (items.length > 0) {
+        openReturnConfirm();
+      } else {
+        showMsg("Add at least one item first", "error");
+      }
+    }
+  };
+
   useEffect(() => {
     const handler = (e) => {
       if (showProductModal || showHoldPreview || showSaveModal) return;
@@ -1940,10 +2070,11 @@ export default function SaleReturnPage() {
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [items, showProductModal, showHoldPreview, showSaveModal]);
+  }, [items, showProductModal, showHoldPreview, showSaveModal, creditCustomerSelected, remarks]);
 
   useEffect(() => {
     const handler = (e) => {
+      // Only open product modal on F2 or Enter, not on click
       if (e.key === "F2") {
         e.preventDefault();
         setShowProductModal(true);
@@ -2049,93 +2180,92 @@ export default function SaleReturnPage() {
       <div className="sr-body">
         <div className="sr-left">
           {/* Top bar */}
-      {/* Top bar - Updated with integrated nav buttons */}
-<div className="sr-top-bar">
-  <div className="sr-title-box">Sale Return</div>
-  
-  <div className="sr-inv-field-grp">
-    <label>Sale Inv. #</label>
-    <div className="sr-inv-nav-container">
-      <button
-        className="sr-inv-nav-btn sr-inv-nav-prev"
-        onClick={loadPrevInvoice}
-        disabled={currentInvoiceIndex <= 0}
-        title="Previous Invoice (←)"
-        type="button"
-      >
-        ◀
-      </button>
-      
-      <input
-        ref={saleInvRef}
-        className="xp-input xp-input-sm sr-inv-input"
-        value={saleInvNo}
-        onChange={(e) => setSaleInvNo(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") {
-            e.preventDefault();
-            if (saleInvNo.trim()) {
-              loadSaleByInv();
-            } else {
-              setShowSaleSearchModal(true);
-            }
-          }
-          if (e.key === "ArrowLeft") {
-            e.preventDefault();
-            loadPrevInvoice();
-          }
-          if (e.key === "ArrowRight") {
-            e.preventDefault();
-            loadNextInvoice();
-          }
-        }}
-        placeholder="Enter invoice # and press Enter"
-        title="Enter invoice number and press Enter to load | ← → arrows for navigation"
-        style={{ 
-          minWidth: "200px",
-          paddingLeft: "32px",
-          paddingRight: "32px",
-          textAlign: "center"
-        }}
-      />
-      
-      <button
-        className="sr-inv-nav-btn sr-inv-nav-next"
-        onClick={loadNextInvoice}
-        disabled={currentInvoiceIndex >= allSaleInvoices.length - 1}
-        title="Next Invoice (→)"
-        type="button"
-      >
-        ▶
-      </button>
-    </div>
-  </div>
-  
-  <div className="sr-inv-field-grp">
-    <label>Return #</label>
-    <input
-      className="xp-input xp-input-sm sr-inv-input"
-      value={editId ? "EDIT MODE" : returnNo}
-      readOnly
-      style={{ background: "#f5f5f5" }}
-    />
-  </div>
-  
-  <div className="sr-inv-field-grp">
-    <label>Date</label>
-    <input
-      type="date"
-      className="xp-input xp-input-sm sr-date-input"
-      value={returnDate}
-      onChange={(e) => setReturnDate(e.target.value)}
-    />
-  </div>
-  
-  <div className="sr-inv-field-grp">
-    <label>Time</label>
-    <div className="sr-time-box">{time}</div>
-  </div>
-</div>
+          <div className="sr-top-bar">
+            <div className="sr-title-box">Sale Return</div>
+            
+            <div className="sr-inv-field-grp">
+              <label>Sale Inv. #</label>
+              <div className="sr-inv-nav-container">
+                <button
+                  className="sr-inv-nav-btn sr-inv-nav-prev"
+                  onClick={loadPrevInvoice}
+                  disabled={currentInvoiceIndex <= 0}
+                  title="Previous Invoice (←)"
+                  type="button"
+                >
+                  ◀
+                </button>
+                
+                <input
+                  ref={saleInvRef}
+                  className="xp-input xp-input-sm sr-inv-input"
+                  value={saleInvNo}
+                  onChange={(e) => setSaleInvNo(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      if (saleInvNo.trim()) {
+                        loadSaleByInv();
+                      } else {
+                        setShowSaleSearchModal(true);
+                      }
+                    }
+                    if (e.key === "ArrowLeft") {
+                      e.preventDefault();
+                      loadPrevInvoice();
+                    }
+                    if (e.key === "ArrowRight") {
+                      e.preventDefault();
+                      loadNextInvoice();
+                    }
+                  }}
+                  placeholder="Enter invoice # and press Enter"
+                  title="Enter invoice number and press Enter to load | ← → arrows for navigation"
+                  style={{ 
+                    minWidth: "200px",
+                    paddingLeft: "32px",
+                    paddingRight: "32px",
+                    textAlign: "center"
+                  }}
+                />
+                
+                <button
+                  className="sr-inv-nav-btn sr-inv-nav-next"
+                  onClick={loadNextInvoice}
+                  disabled={currentInvoiceIndex >= allSaleInvoices.length - 1}
+                  title="Next Invoice (→)"
+                  type="button"
+                >
+                  ▶
+                </button>
+              </div>
+            </div>
+            
+            <div className="sr-inv-field-grp">
+              <label>Return #</label>
+              <input
+                className="xp-input xp-input-sm sr-inv-input"
+                value={editId ? "EDIT MODE" : returnNo}
+                readOnly
+                style={{ background: "#f5f5f5" }}
+              />
+            </div>
+            
+            <div className="sr-inv-field-grp">
+              <label>Date</label>
+              <input
+                type="date"
+                className="xp-input xp-input-sm sr-date-input"
+                value={returnDate}
+                onChange={(e) => setReturnDate(e.target.value)}
+              />
+            </div>
+            
+            <div className="sr-inv-field-grp">
+              <label>Time</label>
+              <div className="sr-time-box">{time}</div>
+            </div>
+          </div>
 
           {/* Entry strip */}
           <div className="sr-entry-strip">
@@ -2147,51 +2277,74 @@ export default function SaleReturnPage() {
                 ref={searchRef}
                 type="text"
                 className="sr-product-input"
-                style={{ background: "#fffde7" }}
+                style={{ background: "#fffde7", cursor: "text" }}
                 value={searchText}
                 onChange={(e) => setSearchText(e.target.value)}
-                onClick={() => setShowProductModal(true)}
+                // Product modal only opens on F2 or Enter, not on click
                 onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === "ArrowDown") {
+                  if (e.key === "Enter" || e.key === "F2") {
                     e.preventDefault();
                     setShowProductModal(true);
                   }
                 }}
-                placeholder="Enter / F2 to search…"
-                readOnly={!!curRow.name}
+                placeholder="Press F2 or Enter to search..."
                 autoFocus
               />
             </div>
             <div className="sr-entry-cell">
               <label>Packing</label>
-              {packingOptions.length > 0 ? (
-                <select
-                  className="sr-uom-select"
-                  value={curRow.uom}
-                  onChange={(e) =>
-                    setCurRow((p) => ({ ...p, uom: e.target.value }))
+              <input
+                ref={packingRef}
+                type="text"
+                className="xp-input sr-num-input"
+                style={{ width: 70, background: "#fffde7" }}
+                value={curRow.uom}
+                onChange={(e) => setCurRow((p) => ({ ...p, uom: e.target.value }))}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    pcsRef.current?.focus();
+                    return;
                   }
-                >
-                  {packingOptions.map((o) => (
-                    <option key={o} value={o}>
-                      {o}
-                    </option>
-                  ))}
-                </select>
-              ) : (
-                <input
-                  type="text"
-                  className="xp-input xp-input-sm"
-                  style={{ width: 65 }}
-                  value={curRow.uom}
-                  onChange={(e) =>
-                    setCurRow((p) => ({ ...p, uom: e.target.value }))
+                  if (packingOptions.length === 0) return;
+                  
+                  if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+                    e.preventDefault();
+                    const currentIdx = packingOptions.indexOf(curRow.uom);
+                    let nextIdx;
+                    if (e.key === "ArrowDown") {
+                      nextIdx = currentIdx + 1;
+                      if (nextIdx >= packingOptions.length) nextIdx = 0;
+                    } else {
+                      nextIdx = currentIdx - 1;
+                      if (nextIdx < 0) nextIdx = packingOptions.length - 1;
+                    }
+                    const newUom = packingOptions[nextIdx];
+                    
+                    const product = allProducts.find(p => p._id === curRow.productId);
+                    if (product?.packingInfo) {
+                      const pk = product.packingInfo.find(pk => pk.measurement === newUom);
+                      if (pk) {
+                        setCurRow(prev => ({
+                          ...prev,
+                          uom: newUom,
+                          rate: pk.saleRate || 0,
+                          pcs: pk.packing || 1,
+                          amount: (pk.packing || 1) * (pk.saleRate || 0)
+                        }));
+                        return;
+                      }
+                    }
+                    setCurRow(prev => ({ ...prev, uom: newUom }));
                   }
-                  onKeyDown={(e) =>
-                    e.key === "Enter" && pcsRef.current?.focus()
+                }}
+                onFocus={(e) => {
+                  if (packingOptions.length > 0 && !curRow.uom) {
+                    setCurRow(prev => ({ ...prev, uom: packingOptions[0] }));
                   }
-                />
-              )}
+                }}
+                autoComplete="off"
+              />
             </div>
             <div className="sr-entry-cell">
               <label>Pcs</label>
@@ -2199,7 +2352,7 @@ export default function SaleReturnPage() {
                 ref={pcsRef}
                 type="number"
                 className="sr-num-input"
-                style={{ width: 60 }}
+                style={{ width: 60, background: "#fffde7" }}
                 value={curRow.pcs}
                 min={1}
                 onChange={(e) => updateCurRow("pcs", e.target.value)}
@@ -2213,7 +2366,7 @@ export default function SaleReturnPage() {
                 ref={rateRef}
                 type="number"
                 className="sr-num-input"
-                style={{ width: 75 }}
+                style={{ width: 75, background: "#fffde7" }}
                 value={curRow.rate}
                 min={0}
                 onChange={(e) => updateCurRow("rate", e.target.value)}
@@ -2225,7 +2378,7 @@ export default function SaleReturnPage() {
               <label>Amount</label>
               <input
                 className="sr-num-input"
-                style={{ width: 80 }}
+                style={{ width: 80, background: "#fffde7" }}
                 value={Number(curRow.amount || 0).toLocaleString("en-PK")}
                 readOnly
               />
@@ -2305,7 +2458,7 @@ export default function SaleReturnPage() {
                       className="xp-empty"
                       style={{ padding: 14 }}
                     >
-                      Search and add returned products
+                      Press F2 or Enter to search and add returned products
                     </td>
                   </tr>
                 )}
@@ -2375,7 +2528,7 @@ export default function SaleReturnPage() {
               <input
                 type="number"
                 className="sr-sum-input"
-                style={{ color: "var(--xp-green)", fontWeight: 700 }}
+                style={{ color: "var(--xp-green)", fontWeight: 700, background: "#fffde7" }}
                 value={paid}
                 min={0}
                 onChange={(e) => setPaid(e.target.value)}
@@ -2398,7 +2551,7 @@ export default function SaleReturnPage() {
               <label>Code</label>
               <input
                 className="sr-cust-input"
-                style={{ width: 55 }}
+                style={{ width: 55, background: "#fffde7" }}
                 value={buyerCode}
                 onChange={(e) => setBuyerCode(e.target.value)}
               />
@@ -2419,7 +2572,7 @@ export default function SaleReturnPage() {
               <input
                 type="number"
                 className="sr-cust-input"
-                style={{ width: 95 }}
+                style={{ width: 95, background: "#fffde7" }}
                 value={prevBalance}
                 onChange={(e) => setPrevBalance(e.target.value)}
                 onFocus={(e) => e.target.select()}
@@ -2439,6 +2592,38 @@ export default function SaleReturnPage() {
               />
             </div>
           </div>
+
+          {/* Remarks input for credit customer */}
+          {showRemarksInput && (
+            <div className="sr-remarks-bar" style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "10px",
+              padding: "8px 12px",
+              background: "#fef3c7",
+              borderRadius: "6px",
+              marginTop: "8px",
+              border: "1px solid #f59e0b"
+            }}>
+              <label style={{ fontWeight: "bold", color: "#92400e", fontSize: "12px" }}>
+                📝 Remarks (Credit Return):
+              </label>
+              <input
+                ref={remarksRef}
+                type="text"
+                className="xp-input"
+                style={{ flex: 1, background: "#fffde7", border: "1px solid #f59e0b" }}
+                value={remarks}
+                onChange={(e) => setRemarks(e.target.value)}
+                onKeyDown={handleRemarksKeyDown}
+                placeholder="Enter reason for credit return..."
+                autoComplete="off"
+              />
+              <span style={{ fontSize: "10px", color: "#92400e" }}>
+                Press Enter to Save & Print
+              </span>
+            </div>
+          )}
         </div>
 
         {/* RIGHT — Hold Bills */}
@@ -2629,37 +2814,32 @@ export default function SaleReturnPage() {
       </div>
 
       <style>{`
-        /* White background for the page */
         .sr-page {
           background: #ffffff;
         }
         
-        /* Yellow background for product search input (focus indicator) */
         .sr-product-input {
           background-color: #fffde7 !important;
           border-color: #000000 !important;
+          cursor: text !important;
         }
         
-        /* Yellow background for editable numeric inputs */
         .sr-num-input, .sr-sum-input, .sr-cust-input {
           background-color: #fffde7 !important;
           border-color: #000000 !important;
         }
         
-        /* Regular white background for readonly inputs */
         .sr-sum-val, .sr-date-input[readonly] {
           background-color: #f5f5f5 !important;
           border-color: #000000 !important;
         }
         
-        /* Input Borders - Black for all */
         input, .xp-input, .sr-inv-input, .sr-date-input {
           border-color: #000000 !important;
           border-width: 1px !important;
           border-style: solid !important;
         }
         
-        /* Table Borders - Black */
         .sr-items-table th,
         .sr-items-table td,
         .sr-hold-table th,
@@ -2668,109 +2848,98 @@ export default function SaleReturnPage() {
           border-width: 1px !important;
         }
         
-        /* Button Borders - Black */
         .xp-btn, .sr-entry-btns .xp-btn {
           border-color: #000000 !important;
           border-width: 1px !important;
           border-style: solid !important;
         }
         
-        /* Remove empty rows */
         .sr-items-table tbody tr.sr-empty-row {
           display: none;
         }
 
-        /* Invoice Nav Container - Buttons Inside Input */
-.sr-inv-nav-container {
-  position: relative;
-  display: inline-block;
-}
+        .sr-inv-nav-container {
+          position: relative;
+          display: inline-block;
+        }
 
-/* Navigation Buttons - Always Visible */
-.sr-inv-nav-btn {
-  position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
-  background: #f3f4f6;
-  border: 1px solid #d1d5db;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  width: 26px;
-  height: 26px;
-  border-radius: 4px;
-  color: #4b5563;
-  font-size: 12px;
-  font-weight: bold;
-  transition: all 0.2s ease;
-  z-index: 2;
-}
+        .sr-inv-nav-btn {
+          position: absolute;
+          top: 50%;
+          transform: translateY(-50%);
+          background: #f3f4f6;
+          border: 1px solid #d1d5db;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 0;
+          width: 26px;
+          height: 26px;
+          border-radius: 4px;
+          color: #4b5563;
+          font-size: 12px;
+          font-weight: bold;
+          transition: all 0.2s ease;
+          z-index: 2;
+        }
 
-.sr-inv-nav-btn:hover:not(:disabled) {
-  background: #c0392b;
-  border-color: #a93226;
-  color: white;
-  transform: translateY(-50%) scale(1.05);
-}
+        .sr-inv-nav-btn:hover:not(:disabled) {
+          background: #c0392b;
+          border-color: #a93226;
+          color: white;
+          transform: translateY(-50%) scale(1.05);
+        }
 
-.sr-inv-nav-btn:active:not(:disabled) {
-  transform: translateY(-50%) scale(0.95);
-}
+        .sr-inv-nav-btn:active:not(:disabled) {
+          transform: translateY(-50%) scale(0.95);
+        }
 
-.sr-inv-nav-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-  background: #e5e7eb;
-  color: #9ca3af;
-}
+        .sr-inv-nav-btn:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+          background: #e5e7eb;
+          color: #9ca3af;
+        }
 
-/* Left button */
-.sr-inv-nav-prev {
-  left: 4px;
-}
+        .sr-inv-nav-prev {
+          left: 4px;
+        }
 
-/* Right button */
-.sr-inv-nav-next {
-  right: 4px;
-}
+        .sr-inv-nav-next {
+          right: 4px;
+        }
 
-/* Input field with space for buttons */
-.sr-inv-input {
-  min-width: 200px !important;
-  text-align: center !important;
-  padding: 6px 32px !important;
-  font-size: 14px !important;
-  font-weight: 500 !important;
-  background: #ffffff !important;
-  border: 1px solid #d1d5db !important;
-  border-radius: 6px !important;
-  transition: all 0.2s ease;
-}
+        .sr-inv-input {
+          min-width: 200px !important;
+          text-align: center !important;
+          padding: 6px 32px !important;
+          font-size: 14px !important;
+          font-weight: 500 !important;
+          background: #ffffff !important;
+          border: 1px solid #d1d5db !important;
+          border-radius: 6px !important;
+          transition: all 0.2s ease;
+        }
 
-.sr-inv-input:hover:not(:disabled) {
-  border-color: #c0392b !important;
-}
+        .sr-inv-input:hover:not(:disabled) {
+          border-color: #c0392b !important;
+        }
 
-.sr-inv-input:focus {
-  border-color: #c0392b !important;
-  outline: none;
-  box-shadow: 0 0 0 3px rgba(192, 57, 43, 0.1);
-}
+        .sr-inv-input:focus {
+          border-color: #c0392b !important;
+          outline: none;
+          box-shadow: 0 0 0 3px rgba(192, 57, 43, 0.1);
+        }
 
-/* Remove the old separate buttons if they exist */
-.sr-inv-field-grp .xp-btn {
-  display: none;
-}
+        .sr-inv-field-grp .xp-btn {
+          display: none;
+        }
 
-/* Style for the return number input (readonly) */
-.sr-inv-input[readonly] {
-  background-color: #f5f5f5 !important;
-  cursor: not-allowed;
-}
-
-
+        .sr-inv-input[readonly] {
+          background-color: #f5f5f5 !important;
+          cursor: not-allowed;
+        }
       `}</style>
     </div>
   );

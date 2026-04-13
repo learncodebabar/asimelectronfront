@@ -932,6 +932,14 @@ function SaveConfirmModal({
 /* ══════════════════════════════════════════════════════════
    PRODUCT SEARCH MODAL
 ══════════════════════════════════════════════════════════ */
+/* ══════════════════════════════════════════════════════════
+   PRODUCT SEARCH MODAL - COMPACT WITH BLACK TEXT
+══════════════════════════════════════════════════════════ */
+
+
+/* ══════════════════════════════════════════════════════════
+   PRODUCT SEARCH MODAL - LARGE SIZE, ALL BOLD, COMPACT TABLE
+══════════════════════════════════════════════════════════ */
 function SearchModal({ allProducts, onSelect, onClose }) {
   const [desc, setDesc] = useState("");
   const [cat, setCat] = useState("");
@@ -1037,25 +1045,46 @@ function SearchModal({ allProducts, onSelect, onClose }) {
     <div
       className="xp-overlay"
       onClick={(e) => e.target === e.currentTarget && onClose()}
+      style={{ zIndex: 2000 }}
     >
-      <div className="xp-modal xp-modal-lg">
-        <div className="xp-modal-tb">
+      <div className="xp-modal" style={{ 
+        width: "95%", 
+        maxWidth: "1400px", 
+        height: "85vh",
+        maxHeight: "85vh",
+        display: "flex",
+        flexDirection: "column",
+        borderRadius: "12px",
+        background: "#ffffff",
+        border: "2px solid #000000"
+      }}>
+        <div className="xp-modal-tb" style={{ 
+          background: "#1e40af", 
+          padding: "10px 16px",
+          borderRadius: "10px 10px 0 0"
+        }}>
           <svg
-            width="13"
-            height="13"
+            width="14"
+            height="14"
             viewBox="0 0 16 16"
-            fill="rgba(255,255,255,0.8)"
+            fill="rgba(255,255,255,0.9)"
           >
             <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.044.06.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1 1 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0" />
           </svg>
-          <span className="xp-modal-title">Search Products</span>
-          <button className="xp-cap-btn xp-cap-close" onClick={onClose}>
-            ✕
-          </button>
+          <span className="xp-modal-title" style={{ fontSize: "15px", fontWeight: "bold", color: "#ffffff" }}>Search Products</span>
+          <button className="xp-cap-btn xp-cap-close" onClick={onClose} style={{ color: "#ffffff", fontSize: "18px" }}>✕</button>
         </div>
-        <div className="cs-modal-filters">
-          <div className="cs-modal-filter-grp">
-            <label className="xp-label">Description / Code</label>
+        
+        {/* Filters - Compact */}
+        <div className="cs-modal-filters" style={{ 
+          padding: "8px 12px", 
+          gap: "10px", 
+          background: "#f8fafc",
+          borderBottom: "1px solid #000000",
+          flexWrap: "wrap"
+        }}>
+          <div className="cs-modal-filter-grp" style={{ flex: 2, minWidth: "200px" }}>
+            <label className="xp-label" style={{ fontSize: "11px", fontWeight: "bold", color: "#000000", marginBottom: "3px", display: "block" }}>Description / Code</label>
             <input
               ref={rDesc}
               type="text"
@@ -1064,10 +1093,11 @@ function SearchModal({ allProducts, onSelect, onClose }) {
               onChange={(e) => setDesc(e.target.value)}
               onKeyDown={(e) => fk(e, rCat)}
               autoComplete="off"
+              style={{ height: "32px", fontSize: "12px", border: "1px solid #000000", borderRadius: "4px", width: "100%", padding: "0 8px" }}
             />
           </div>
-          <div className="cs-modal-filter-grp">
-            <label className="xp-label">Category</label>
+          <div className="cs-modal-filter-grp" style={{ flex: 1, minWidth: "140px" }}>
+            <label className="xp-label" style={{ fontSize: "11px", fontWeight: "bold", color: "#000000", marginBottom: "3px", display: "block" }}>Category</label>
             <input
               ref={rCat}
               type="text"
@@ -1076,10 +1106,11 @@ function SearchModal({ allProducts, onSelect, onClose }) {
               onChange={(e) => setCat(e.target.value)}
               onKeyDown={(e) => fk(e, rCompany)}
               autoComplete="off"
+              style={{ height: "32px", fontSize: "12px", border: "1px solid #000000", borderRadius: "4px", width: "100%", padding: "0 8px" }}
             />
           </div>
-          <div className="cs-modal-filter-grp">
-            <label className="xp-label">Company</label>
+          <div className="cs-modal-filter-grp" style={{ flex: 1, minWidth: "140px" }}>
+            <label className="xp-label" style={{ fontSize: "11px", fontWeight: "bold", color: "#000000", marginBottom: "3px", display: "block" }}>Company</label>
             <input
               ref={rCompany}
               type="text"
@@ -1088,37 +1119,45 @@ function SearchModal({ allProducts, onSelect, onClose }) {
               onChange={(e) => setCompany(e.target.value)}
               onKeyDown={(e) => fk(e, null)}
               autoComplete="off"
+              style={{ height: "32px", fontSize: "12px", border: "1px solid #000000", borderRadius: "4px", width: "100%", padding: "0 8px" }}
             />
           </div>
-          <div style={{ display: "flex", alignItems: "flex-end", gap: 6 }}>
-            <span style={{ fontSize: "var(--xp-fs-xs)", color: "#555" }}>
-              {rows.length} result(s)
-            </span>
-            <button className="xp-btn xp-btn-sm" onClick={onClose}>
-              Close
-            </button>
+          <div style={{ display: "flex", alignItems: "flex-end", gap: "6px", paddingBottom: "2px" }}>
+            <span style={{ fontSize: "11px", color: "#000000", fontWeight: "bold" }}>{rows.length} result(s)</span>
+            <button className="xp-btn xp-btn-sm" onClick={onClose} style={{ fontSize: "11px", padding: "4px 12px", border: "1px solid #000000", borderRadius: "4px", fontWeight: "bold" }}>Close</button>
           </div>
         </div>
-        <div className="xp-modal-body" style={{ padding: 0 }}>
-          <div className="xp-table-panel" style={{ border: "none" }}>
-            <div className="xp-table-scroll">
-              <table className="xp-table">
+        
+        {/* Table - Large Area, Minimal Padding, All Bold */}
+        <div className="xp-modal-body" style={{ padding: 0, flex: 1, overflow: "hidden" }}>
+          <div className="xp-table-panel" style={{ border: "none", height: "100%" }}>
+            <div className="xp-table-scroll" style={{ 
+              height: "100%", 
+              overflow: "auto",
+              maxHeight: "calc(85vh - 110px)"
+            }}>
+              <table className="xp-table" style={{ 
+                fontSize: "12px", 
+                borderCollapse: "collapse", 
+                width: "100%",
+                border: "1px solid #000000"
+              }}>
                 <thead>
-                  <tr>
-                    <th style={{ width: 36 }}>Sr.#</th>
-                    <th>Barcode</th>
-                    <th>Name</th>
-                    <th>Meas.</th>
-                    <th className="r">Rate</th>
-                    <th className="r">Stock</th>
-                    <th className="r">Pack</th>
-                    <th>Rack#</th>
+                  <tr style={{ background: "#f1f5f9", position: "sticky", top: 0, zIndex: 10 }}>
+                    <th style={{ width: 40, padding: "5px 4px", textAlign: "center", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>#</th>
+                    <th style={{ width: 90, padding: "5px 4px", textAlign: "left", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>Barcode</th>
+                    <th style={{ padding: "5px 4px", textAlign: "left", border: "1px solid #000000", fontSize: "13px", fontWeight: "bold", color: "#000000" }}>Product Name</th>
+                    <th style={{ width: 60, padding: "5px 4px", textAlign: "center", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>Meas.</th>
+                    <th style={{ width: 85, padding: "5px 4px", textAlign: "right", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>Rate</th>
+                    <th style={{ width: 65, padding: "5px 4px", textAlign: "right", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>Stock</th>
+                    <th style={{ width: 55, padding: "5px 4px", textAlign: "right", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>Pack</th>
+                    <th style={{ width: 65, padding: "5px 4px", textAlign: "center", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>Rack#</th>
                   </tr>
                 </thead>
                 <tbody ref={tbodyRef} tabIndex={0} onKeyDown={tk}>
                   {rows.length === 0 && (
                     <tr>
-                      <td colSpan={7} className="xp-empty">
+                      <td colSpan={8} className="xp-empty" style={{ padding: "30px", textAlign: "center", color: "#000000", fontSize: "12px", fontWeight: "bold" }}>
                         No products found
                       </td>
                     </tr>
@@ -1127,25 +1166,37 @@ function SearchModal({ allProducts, onSelect, onClose }) {
                     <tr
                       key={`${r._id}-${r._pi}`}
                       style={{
-                        background: i === hiIdx ? "#c3d9f5" : undefined,
+                        background: i === hiIdx ? "#e5f0ff" : "white",
+                        cursor: "pointer"
                       }}
                       onClick={() => setHiIdx(i)}
                       onDoubleClick={() => onSelect(r)}
                     >
-                      <td className="text-muted">{i + 1}</td>
-                      <td>
-                        <span className="xp-code">{r.code}</span>
+                      <td style={{ padding: "4px 4px", textAlign: "center", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>{i + 1}</td>
+                      <td style={{ padding: "4px 4px", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>
+                        {r.code}
                       </td>
-                      <td>
-                        <button className="xp-link-btn">{r._name}</button>
+                      <td style={{ padding: "4px 4px", border: "1px solid #000000", fontSize: "13px", fontWeight: "bold", color: "#000000" }}>
+                        <button className="xp-link-btn" style={{ 
+                          color: "#000000", 
+                          textDecoration: "none", 
+                          fontWeight: "bold", 
+                          fontSize: "13px",
+                          background: "none", 
+                          border: "none", 
+                          cursor: "pointer", 
+                          width: "100%", 
+                          textAlign: "left",
+                          padding: "0"
+                        }}>{r._name}</button>
                       </td>
-                      <td className="text-muted">{r._meas}</td>
-                      <td className="r xp-amt">
+                      <td style={{ padding: "4px 4px", textAlign: "center", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>{r._meas}</td>
+                      <td style={{ padding: "4px 4px", textAlign: "right", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>
                         {Number(r._rate).toLocaleString("en-PK")}
                       </td>
-                      <td className="r">{r._stock}</td>
-                      <td className="r">{r._pack}</td>
-                      <td className="text-muted">{r.rackNo || "—"}</td>
+                      <td style={{ padding: "4px 4px", textAlign: "right", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>{r._stock}</td>
+                      <td style={{ padding: "4px 4px", textAlign: "right", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>{r._pack}</td>
+                      <td style={{ padding: "4px 4px", textAlign: "center", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>{r.rackNo || "—"}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -1153,9 +1204,16 @@ function SearchModal({ allProducts, onSelect, onClose }) {
             </div>
           </div>
         </div>
-        <div className="cs-modal-hint">
-          ↑↓ navigate &nbsp;|&nbsp; Enter / Double-click = select &nbsp;|&nbsp;
-          Esc = close &nbsp;|&nbsp; Tab = filters
+        <div className="cs-modal-hint" style={{ 
+          padding: "6px 12px", 
+          fontSize: "10px", 
+          color: "#000000", 
+          fontWeight: "bold",
+          borderTop: "1px solid #000000", 
+          background: "#f8fafc",
+          borderRadius: "0 0 10px 10px"
+        }}>
+          <span>↑↓ navigate</span> &nbsp;|&nbsp; <span>Enter / Double-click = select</span> &nbsp;|&nbsp; <span>Esc = close</span> &nbsp;|&nbsp; <span>Tab = filters</span>
         </div>
       </div>
     </div>
