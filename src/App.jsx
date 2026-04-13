@@ -19,7 +19,7 @@ import RawPurchasePage from "./pages/RawPurchasePage.jsx";
 import PurchasePage from "./pages/PurchasePage.jsx";
 import DamageInPage from "./pages/DamageInPage.jsx";
 import DamageOutPage from "./pages/DamageOutPage.jsx";
-import CashPaymentVoucher from "./pages/cashPamentVoucherPage.jsx";
+import CashPaymentVoucher from "./pages/CashPaymentVoucher.jsx";
 import SuppliersPage from "./pages/SuppliersPage.jsx";
 import CashReceiptsPage from "./pages/CashReceiptsPage.jsx"; // Add this import
 
@@ -50,7 +50,7 @@ function AppRoutes() {
       <Route path="/customers" element={<CustomersPage key={`customers-${location.pathname}`} />} />
       <Route path="/sale-history" element={<SaleHistoryPage key={`sale-history-${location.pathname}`} />} />
       <Route path="/sale-return" element={<SaleReturnPage key={`sale-return-${location.pathname}`} />} />
-      <Route path="/cash-payment-voucher" element={<CashPaymentVoucher key={`cash-payment-${location.pathname}`} />} />
+      <Route path="/cash-payment" element={<CashPaymentVoucher key={`cash-payment-${location.pathname}`} />} />
       <Route path="*" element={<ComingSoon key={`coming-soon-${location.pathname}`} />} />
     </Routes>
   );
