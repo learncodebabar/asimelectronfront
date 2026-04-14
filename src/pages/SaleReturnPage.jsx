@@ -105,7 +105,7 @@ const buildPrintHtml = (ret, type) => {
       <table>
         <thead><tr><th>#</th><th>Item</th><th class="r">Qty</th><th class="r">Rate</th><th class="r">Amt</th></tr></thead>
         <tbody>${itemRows}</tbody>
-      </table>
+      </tr>
       <hr class="dash">
       <div class="row b sep"><span>RETURN TOTAL</span><span>PKR ${Number(ret.netTotal).toLocaleString()}</span></div>
       <div class="row green"><span>Refunded</span><span>PKR ${Number(ret.paidAmount).toLocaleString()}</span></div>
@@ -115,26 +115,8 @@ const buildPrintHtml = (ret, type) => {
 
   const a5 = type === "A5";
   const sz = a5
-    ? {
-        title: 17,
-        sub: 9,
-        inv: 13,
-        meta: 8.5,
-        th: 8.5,
-        td: 8.5,
-        tot: 9.5,
-        totB: 11.5,
-      }
-    : {
-        title: 22,
-        sub: 10,
-        inv: 15,
-        meta: 10,
-        th: 10,
-        td: 10,
-        tot: 11,
-        totB: 14,
-      };
+    ? { title: 17, sub: 9, inv: 13, meta: 8.5, th: 8.5, td: 8.5, tot: 9.5, totB: 11.5 }
+    : { title: 22, sub: 10, inv: 15, meta: 10, th: 10, td: 10, tot: 11, totB: 14 };
 
   const itemRows = rows
     .map(
@@ -200,7 +182,7 @@ const buildPrintHtml = (ret, type) => {
       <div class="ii" style="flex:1;text-align:right"><span class="ilb">Items / Qty</span><span class="iv">${rows.length} / ${totalQty}</span></div>
     </div>
     <table>
-      <thead><tr><th width="24">#</th><th>Description</th><th width="46">UOM</th><th width="38" align="right">Qty</th><th width="68" align="right">Rate</th><th width="78" align="right">Amount</th></tr></thead>
+      <thead><tr><th width="24">#</th><th>Description</th><th width="46">UOM</th><th width="38" align="right">Qty</th><th width="68" align="right">Rate</th><th width="78" align="right">Amount</th></td></thead>
       <tbody>${itemRows}</tbody>
     </table>
     <div class="bwrap">
@@ -219,211 +201,14 @@ const buildPrintHtml = (ret, type) => {
 };
 
 const doPrint = (ret, type) => {
-  const w = window.open(
-    "",
-    "_blank",
-    type === "Thermal" ? "width=420,height=640" : "width=900,height=700",
-  );
+  const w = window.open("", "_blank", type === "Thermal" ? "width=420,height=640" : "width=900,height=700");
   w.document.write(buildPrintHtml(ret, type));
   w.document.close();
   setTimeout(() => w.print(), 400);
 };
 
 /* ══════════════════════════════════════════════════════════
-   SAVE CONFIRM MODAL
-══════════════════════════════════════════════════════════ */
-function SaveConfirmModal({
-  returnPayload,
-  printType: defaultPrintType,
-  onConfirm,
-  onClose,
-}) {
-  const [paidAmount, setPaidAmount] = useState(0);
-  const [selPrintType, setSelPrintType] = useState(defaultPrintType);
-  const [saving, setSaving] = useState(false);
-  const paidRef = useRef(null);
-
-  useEffect(() => {
-    setTimeout(() => {
-      paidRef.current?.focus();
-      paidRef.current?.select();
-    }, 80);
-  }, []);
-
-  useEffect(() => {
-    const h = (e) => {
-      if (e.key === "Escape") {
-        e.preventDefault();
-        onClose();
-      }
-      if (e.key === "Enter" && document.activeElement === paidRef.current) {
-        e.preventDefault();
-        handleConfirm(true);
-      }
-    };
-    window.addEventListener("keydown", h);
-    return () => window.removeEventListener("keydown", h);
-  }, [paidAmount, selPrintType]);
-
-  const netTotal = returnPayload.netTotal;
-  const paid = Number(paidAmount) || 0;
-  const balance = netTotal - paid;
-
-  const handleConfirm = async (withPrint) => {
-    if (saving) return;
-    setSaving(true);
-    await onConfirm({
-      paidAmount: paid,
-      balance,
-      printType: selPrintType,
-      withPrint,
-    });
-    setSaving(false);
-  };
-
-  return (
-    <div className="scm-overlay">
-      <div className="scm-window sr-confirm-window">
-        <div className="scm-tb sr-tb">
-          <svg
-            width="13"
-            height="13"
-            viewBox="0 0 16 16"
-            fill="rgba(255,255,255,0.85)"
-          >
-            <path d="M2.146 2.854a.5.5 0 1 1 .708-.708L8 7.293l5.146-5.147a.5.5 0 0 1 .708.708L8.707 8l5.147 5.146a.5.5 0 0 1-.708.708L8 8.707l-5.146 5.147a.5.5 0 0 1-.708-.708z" />
-          </svg>
-          <span className="scm-tb-title">
-            Return Confirm — {returnPayload.returnNo} &nbsp;|&nbsp;{" "}
-            {returnPayload.customerName}
-          </span>
-          <button className="xp-cap-btn xp-cap-close" onClick={onClose}>
-            ✕
-          </button>
-        </div>
-
-        <div className="scm-meta">
-          <span>
-            <b>Return #:</b> {returnPayload.returnNo}
-          </span>
-          <span>
-            <b>Date:</b> {returnPayload.returnDate}
-          </span>
-          <span>
-            <b>Customer:</b> {returnPayload.customerName}
-          </span>
-          {returnPayload.saleInvNo && (
-            <span>
-              <b>Ref Sale:</b> {returnPayload.saleInvNo}
-            </span>
-          )}
-          <span>
-            <b>Items:</b> {returnPayload.items.length}
-          </span>
-        </div>
-
-        <div className="scm-amounts">
-          <div className="scm-box sr-box">
-            <div className="scm-box-label">Return Total</div>
-            <div className="scm-box-val">
-              {Number(netTotal).toLocaleString("en-PK")}
-            </div>
-          </div>
-          <div className="scm-box sr-box" style={{ borderLeft: "none" }}>
-            <div className="scm-box-label">Refunded</div>
-            <input
-              ref={paidRef}
-              type="number"
-              className="scm-recv-input"
-              value={paidAmount}
-              onChange={(e) => setPaidAmount(e.target.value)}
-              onFocus={(e) => e.target.select()}
-            />
-          </div>
-          <div
-            className={`scm-box ${balance <= 0 ? "scm-box-change" : "scm-box-due"}`}
-            style={{ borderLeft: "none" }}
-          >
-            <div className="scm-box-label">
-              {balance <= 0 ? "Overpaid" : "Remaining"}
-            </div>
-            <div className="scm-box-val">
-              {balance < 0 && (
-                <span style={{ fontSize: 22, marginRight: 2 }}>−</span>
-              )}
-              {Math.abs(balance).toLocaleString("en-PK")}
-            </div>
-          </div>
-        </div>
-
-        <div className="scm-print-row">
-          <span style={{ color: "#555", marginRight: 4, fontWeight: 700 }}>
-            Print:
-          </span>
-          {["Thermal", "A5", "A4"].map((pt) => (
-            <label
-              key={pt}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 4,
-                cursor: "pointer",
-                fontWeight: 700,
-                color: "#333",
-                fontSize: 11,
-              }}
-            >
-              <input
-                type="radio"
-                name="sr-pt"
-                checked={selPrintType === pt}
-                onChange={() => setSelPrintType(pt)}
-                style={{ accentColor: "#c0392b" }}
-              />
-              {pt}
-            </label>
-          ))}
-        </div>
-
-        <div className="scm-sep" />
-
-        <div className="scm-actions">
-          <button
-            className="xp-btn sr-btn-save-print"
-            style={{ minWidth: 140 }}
-            onClick={() => handleConfirm(true)}
-            disabled={saving}
-          >
-            🖨 Save and Print
-          </button>
-          <button
-            className="xp-btn xp-btn-success"
-            style={{ minWidth: 110 }}
-            onClick={() => handleConfirm(false)}
-            disabled={saving}
-          >
-            💾 Save only
-          </button>
-          <button
-            className="xp-btn"
-            style={{ minWidth: 130 }}
-            onClick={onClose}
-          >
-            ↩ Return to Form
-          </button>
-        </div>
-
-        <div className="scm-hint">
-          ↵ Enter (in Refunded field) = Save &amp; Print &nbsp;|&nbsp; Esc =
-          Return to Form
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* ══════════════════════════════════════════════════════════
-   PRODUCT SEARCH MODAL - PROFESSIONAL DESIGN
+   PRODUCT SEARCH MODAL
 ══════════════════════════════════════════════════════════ */
 function SearchModal({ allProducts, onSelect, onClose }) {
   const [desc, setDesc] = useState("");
@@ -528,156 +313,56 @@ function SearchModal({ allProducts, onSelect, onClose }) {
   };
 
   return (
-    <div
-      className="xp-overlay"
-      onClick={(e) => e.target === e.currentTarget && onClose()}
-      style={{ zIndex: 2000 }}
-    >
-      <div className="xp-modal" style={{ 
-        width: "95%", 
-        maxWidth: "1400px", 
-        height: "85vh",
-        maxHeight: "85vh",
-        display: "flex",
-        flexDirection: "column",
-        borderRadius: "12px",
-        background: "#ffffff",
-        border: "2px solid #000000"
-      }}>
-        <div className="xp-modal-tb" style={{ 
-          background: "#1e40af", 
-          padding: "10px 16px",
-          borderRadius: "10px 10px 0 0"
-        }}>
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 16 16"
-            fill="rgba(255,255,255,0.9)"
-          >
-            <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.044.06.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1 1 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0" />
-          </svg>
+    <div className="xp-overlay" onClick={(e) => e.target === e.currentTarget && onClose()} style={{ zIndex: 2000 }}>
+      <div className="xp-modal" style={{ width: "95%", maxWidth: "1400px", height: "85vh", maxHeight: "85vh", display: "flex", flexDirection: "column", borderRadius: "12px", background: "#ffffff", border: "2px solid #000000" }}>
+        <div className="xp-modal-tb" style={{ background: "#1e40af", padding: "10px 16px", borderRadius: "10px 10px 0 0" }}>
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="rgba(255,255,255,0.9)"><path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.044.06.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1 1 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0"/></svg>
           <span className="xp-modal-title" style={{ fontSize: "15px", fontWeight: "bold", color: "#ffffff" }}>Search Products</span>
           <button className="xp-cap-btn xp-cap-close" onClick={onClose} style={{ color: "#ffffff", fontSize: "18px" }}>✕</button>
         </div>
-        
-        <div className="cs-modal-filters" style={{ 
-          padding: "8px 12px", 
-          gap: "10px", 
-          background: "#f8fafc",
-          borderBottom: "1px solid #000000",
-          flexWrap: "wrap"
-        }}>
+        <div className="cs-modal-filters" style={{ padding: "8px 12px", gap: "10px", background: "#f8fafc", borderBottom: "1px solid #000000", flexWrap: "wrap" }}>
           <div className="cs-modal-filter-grp" style={{ flex: 2, minWidth: "200px" }}>
             <label className="xp-label" style={{ fontSize: "11px", fontWeight: "bold", color: "#000000", marginBottom: "3px", display: "block" }}>Description / Code</label>
-            <input
-              ref={rDesc}
-              type="text"
-              className="xp-input"
-              value={desc}
-              onChange={(e) => setDesc(e.target.value)}
-              onKeyDown={(e) => fk(e, rCat)}
-              autoComplete="off"
-              style={{ height: "32px", fontSize: "12px", border: "1px solid #000000", borderRadius: "4px", width: "100%", padding: "0 8px" }}
-            />
+            <input ref={rDesc} type="text" className="xp-input" value={desc} onChange={(e) => setDesc(e.target.value)} onKeyDown={(e) => fk(e, rCat)} autoComplete="off" style={{ height: "32px", fontSize: "12px", border: "1px solid #000000", borderRadius: "4px", width: "100%", padding: "0 8px" }} />
           </div>
           <div className="cs-modal-filter-grp" style={{ flex: 1, minWidth: "140px" }}>
             <label className="xp-label" style={{ fontSize: "11px", fontWeight: "bold", color: "#000000", marginBottom: "3px", display: "block" }}>Category</label>
-            <input
-              ref={rCat}
-              type="text"
-              className="xp-input"
-              value={cat}
-              onChange={(e) => setCat(e.target.value)}
-              onKeyDown={(e) => fk(e, rCompany)}
-              autoComplete="off"
-              style={{ height: "32px", fontSize: "12px", border: "1px solid #000000", borderRadius: "4px", width: "100%", padding: "0 8px" }}
-            />
+            <input ref={rCat} type="text" className="xp-input" value={cat} onChange={(e) => setCat(e.target.value)} onKeyDown={(e) => fk(e, rCompany)} autoComplete="off" style={{ height: "32px", fontSize: "12px", border: "1px solid #000000", borderRadius: "4px", width: "100%", padding: "0 8px" }} />
           </div>
           <div className="cs-modal-filter-grp" style={{ flex: 1, minWidth: "140px" }}>
             <label className="xp-label" style={{ fontSize: "11px", fontWeight: "bold", color: "#000000", marginBottom: "3px", display: "block" }}>Company</label>
-            <input
-              ref={rCompany}
-              type="text"
-              className="xp-input"
-              value={company}
-              onChange={(e) => setCompany(e.target.value)}
-              onKeyDown={(e) => fk(e, null)}
-              autoComplete="off"
-              style={{ height: "32px", fontSize: "12px", border: "1px solid #000000", borderRadius: "4px", width: "100%", padding: "0 8px" }}
-            />
+            <input ref={rCompany} type="text" className="xp-input" value={company} onChange={(e) => setCompany(e.target.value)} onKeyDown={(e) => fk(e, null)} autoComplete="off" style={{ height: "32px", fontSize: "12px", border: "1px solid #000000", borderRadius: "4px", width: "100%", padding: "0 8px" }} />
           </div>
           <div style={{ display: "flex", alignItems: "flex-end", gap: "6px", paddingBottom: "2px" }}>
             <span style={{ fontSize: "11px", color: "#000000", fontWeight: "bold" }}>{rows.length} result(s)</span>
             <button className="xp-btn xp-btn-sm" onClick={onClose} style={{ fontSize: "11px", padding: "4px 12px", border: "1px solid #000000", borderRadius: "4px", fontWeight: "bold" }}>Close</button>
           </div>
         </div>
-        
         <div className="xp-modal-body" style={{ padding: 0, flex: 1, overflow: "hidden" }}>
           <div className="xp-table-panel" style={{ border: "none", height: "100%" }}>
-            <div className="xp-table-scroll" style={{ 
-              height: "100%", 
-              overflow: "auto",
-              maxHeight: "calc(85vh - 110px)"
-            }}>
-              <table className="xp-table" style={{ 
-                fontSize: "12px", 
-                borderCollapse: "collapse", 
-                width: "100%",
-                border: "1px solid #000000"
-              }}>
-                <thead>
-                  <tr style={{ background: "#f1f5f9", position: "sticky", top: 0, zIndex: 10 }}>
-                    <th style={{ width: 40, padding: "5px 4px", textAlign: "center", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>#</th>
-                    <th style={{ width: 90, padding: "5px 4px", textAlign: "left", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>Barcode</th>
-                    <th style={{ padding: "5px 4px", textAlign: "left", border: "1px solid #000000", fontSize: "13px", fontWeight: "bold", color: "#000000" }}>Product Name</th>
-                    <th style={{ width: 60, padding: "5px 4px", textAlign: "center", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>Meas.</th>
-                    <th style={{ width: 85, padding: "5px 4px", textAlign: "right", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>Rate</th>
-                    <th style={{ width: 65, padding: "5px 4px", textAlign: "right", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>Stock</th>
-                    <th style={{ width: 55, padding: "5px 4px", textAlign: "right", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>Pack</th>
-                    <th style={{ width: 65, padding: "5px 4px", textAlign: "center", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>Rack#</th>
-                  </tr>
-                </thead>
+            <div className="xp-table-scroll" style={{ height: "100%", overflow: "auto", maxHeight: "calc(85vh - 110px)" }}>
+              <table className="xp-table" style={{ fontSize: "12px", borderCollapse: "collapse", width: "100%", border: "1px solid #000000" }}>
+                <thead><tr style={{ background: "#f1f5f9", position: "sticky", top: 0, zIndex: 10 }}>
+                  <th style={{ width: 40, padding: "5px 4px", textAlign: "center", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>#</th>
+                  <th style={{ width: 90, padding: "5px 4px", textAlign: "left", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>Barcode</th>
+                  <th style={{ padding: "5px 4px", textAlign: "left", border: "1px solid #000000", fontSize: "13px", fontWeight: "bold", color: "#000000" }}>Product Name</th>
+                  <th style={{ width: 60, padding: "5px 4px", textAlign: "center", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>Meas.</th>
+                  <th style={{ width: 85, padding: "5px 4px", textAlign: "right", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>Rate</th>
+                  <th style={{ width: 65, padding: "5px 4px", textAlign: "right", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>Stock</th>
+                  <th style={{ width: 55, padding: "5px 4px", textAlign: "right", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>Pack</th>
+                  <th style={{ width: 65, padding: "5px 4px", textAlign: "center", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>Rack#</th>
+                </tr></thead>
                 <tbody ref={tbodyRef} tabIndex={0} onKeyDown={tk}>
-                  {rows.length === 0 && (
-                    <tr>
-                      <td colSpan={8} className="xp-empty" style={{ padding: "30px", textAlign: "center", color: "#000000", fontSize: "12px", fontWeight: "bold" }}>
-                        No products found
-                      </td>
-                    </tr>
-                  )}
+                  {rows.length === 0 && <tr><td colSpan={8} className="xp-empty" style={{ padding: "30px", textAlign: "center", color: "#000000", fontSize: "12px", fontWeight: "bold" }}>No products found</td></tr>}
                   {rows.map((r, i) => (
-                    <tr
-                      key={`${r._id}-${r._pi}`}
-                      style={{
-                        background: i === hiIdx ? "#e5f0ff" : "white",
-                        cursor: "pointer"
-                      }}
-                      onClick={() => setHiIdx(i)}
-                      onDoubleClick={() => onSelect(r)}
-                    >
+                    <tr key={`${r._id}-${r._pi}`} style={{ background: i === hiIdx ? "#e5f0ff" : "white", cursor: "pointer" }} onClick={() => setHiIdx(i)} onDoubleClick={() => onSelect(r)}>
                       <td style={{ padding: "4px 4px", textAlign: "center", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>{i + 1}</td>
-                      <td style={{ padding: "4px 4px", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>
-                        {r.code}
-                      </td>
+                      <td style={{ padding: "4px 4px", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>{r.code}</td>
                       <td style={{ padding: "4px 4px", border: "1px solid #000000", fontSize: "13px", fontWeight: "bold", color: "#000000" }}>
-                        <button className="xp-link-btn" style={{ 
-                          color: "#000000", 
-                          textDecoration: "none", 
-                          fontWeight: "bold", 
-                          fontSize: "13px",
-                          background: "none", 
-                          border: "none", 
-                          cursor: "pointer", 
-                          width: "100%", 
-                          textAlign: "left",
-                          padding: "0"
-                        }}>{r._name}</button>
+                        <button className="xp-link-btn" style={{ color: "#000000", textDecoration: "none", fontWeight: "bold", fontSize: "13px", background: "none", border: "none", cursor: "pointer", width: "100%", textAlign: "left", padding: "0" }}>{r._name}</button>
                       </td>
                       <td style={{ padding: "4px 4px", textAlign: "center", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>{r._meas}</td>
-                      <td style={{ padding: "4px 4px", textAlign: "right", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>
-                        {Number(r._rate).toLocaleString("en-PK")}
-                      </td>
+                      <td style={{ padding: "4px 4px", textAlign: "right", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>{Number(r._rate).toLocaleString("en-PK")}</td>
                       <td style={{ padding: "4px 4px", textAlign: "right", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>{r._stock}</td>
                       <td style={{ padding: "4px 4px", textAlign: "right", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>{r._pack}</td>
                       <td style={{ padding: "4px 4px", textAlign: "center", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>{r.rackNo || "—"}</td>
@@ -688,15 +373,7 @@ function SearchModal({ allProducts, onSelect, onClose }) {
             </div>
           </div>
         </div>
-        <div className="cs-modal-hint" style={{ 
-          padding: "6px 12px", 
-          fontSize: "10px", 
-          color: "#000000", 
-          fontWeight: "bold",
-          borderTop: "1px solid #000000", 
-          background: "#f8fafc",
-          borderRadius: "0 0 10px 10px"
-        }}>
+        <div className="cs-modal-hint" style={{ padding: "6px 12px", fontSize: "10px", color: "#000000", fontWeight: "bold", borderTop: "1px solid #000000", background: "#f8fafc", borderRadius: "0 0 10px 10px" }}>
           <span>↑↓ navigate</span> &nbsp;|&nbsp; <span>Enter / Double-click = select</span> &nbsp;|&nbsp; <span>Esc = close</span> &nbsp;|&nbsp; <span>Tab = filters</span>
         </div>
       </div>
@@ -705,7 +382,7 @@ function SearchModal({ allProducts, onSelect, onClose }) {
 }
 
 /* ══════════════════════════════════════════════════════════
-   SALE INVOICE SEARCH MODAL - PROFESSIONAL DESIGN
+   SALE INVOICE SEARCH MODAL
 ══════════════════════════════════════════════════════════ */
 function SearchSaleModal({ onSelect, onClose, onNext, onPrev, hasNext, hasPrev }) {
   const [searchId, setSearchId] = useState("");
@@ -731,12 +408,8 @@ function SearchSaleModal({ onSelect, onClose, onNext, onPrev, hasNext, hasPrev }
         if (Array.isArray(sales)) {
           if (searchId) {
             const searchIdLower = searchId.toLowerCase();
-            sales = sales.filter(sale => 
-              sale.invoiceNo?.toLowerCase().includes(searchIdLower) ||
-              sale._id?.toLowerCase().includes(searchIdLower)
-            );
+            sales = sales.filter(sale => sale.invoiceNo?.toLowerCase().includes(searchIdLower) || sale._id?.toLowerCase().includes(searchIdLower));
           }
-          
           if (searchPhone) {
             const searchPhoneClean = searchPhone.replace(/\D/g, '');
             sales = sales.filter(sale => {
@@ -745,7 +418,6 @@ function SearchSaleModal({ onSelect, onClose, onNext, onPrev, hasNext, hasPrev }
               return phoneClean.includes(searchPhoneClean);
             });
           }
-          
           if (searchPrice) {
             const priceValue = parseFloat(searchPrice);
             sales = sales.filter(sale => {
@@ -760,14 +432,7 @@ function SearchSaleModal({ onSelect, onClose, onNext, onPrev, hasNext, hasPrev }
               }
             });
           }
-          
-          sales = sales.filter(
-            (sale) =>
-              sale.saleType === "sale" ||
-              sale.type === "sale" ||
-              (!sale.saleType && !sale.type) ||
-              sale.invoiceNo?.startsWith("INV-")
-          );
+          sales = sales.filter((sale) => sale.saleType === "sale" || sale.type === "sale" || (!sale.saleType && !sale.type) || sale.invoiceNo?.startsWith("INV-"));
         }
         setInvoices(sales);
         setTotalInvoices(sales.length);
@@ -790,14 +455,11 @@ function SearchSaleModal({ onSelect, onClose, onNext, onPrev, hasNext, hasPrev }
   const handleFieldKeyDown = (e, fieldType) => {
     if (e.key === "Enter") {
       e.preventDefault();
-      
       if (fieldType === "id") {
         searchPhoneRef.current?.focus();
-      } 
-      else if (fieldType === "phone") {
+      } else if (fieldType === "phone") {
         searchPriceRef.current?.focus();
-      }
-      else if (fieldType === "amount") {
+      } else if (fieldType === "amount") {
         fetchInvoices();
         setTimeout(() => {
           listRef.current?.focus();
@@ -808,42 +470,28 @@ function SearchSaleModal({ onSelect, onClose, onNext, onPrev, hasNext, hasPrev }
   };
 
   const handleListKeyDown = (e) => {
-    if (e.key === "Escape") {
-      onClose();
-      return;
-    }
-    
+    if (e.key === "Escape") { onClose(); return; }
     if (e.key === "ArrowDown") {
       e.preventDefault();
       setHiIdx((prev) => {
         const newIdx = Math.min(prev + 1, invoices.length - 1);
-        setTimeout(() => {
-          const selectedRow = listRef.current?.children[newIdx];
-          selectedRow?.scrollIntoView({ block: "nearest" });
-        }, 50);
+        setTimeout(() => { const selectedRow = listRef.current?.children[newIdx]; selectedRow?.scrollIntoView({ block: "nearest" }); }, 50);
         return newIdx;
       });
       return;
     }
-    
     if (e.key === "ArrowUp") {
       e.preventDefault();
       setHiIdx((prev) => {
         const newIdx = Math.max(prev - 1, 0);
-        setTimeout(() => {
-          const selectedRow = listRef.current?.children[newIdx];
-          selectedRow?.scrollIntoView({ block: "nearest" });
-        }, 50);
+        setTimeout(() => { const selectedRow = listRef.current?.children[newIdx]; selectedRow?.scrollIntoView({ block: "nearest" }); }, 50);
         return newIdx;
       });
       return;
     }
-    
     if (e.key === "Enter") {
       e.preventDefault();
-      if (invoices[hiIdx]) {
-        onSelect(invoices[hiIdx]);
-      }
+      if (invoices[hiIdx]) { onSelect(invoices[hiIdx]); }
       return;
     }
   };
@@ -857,201 +505,67 @@ function SearchSaleModal({ onSelect, onClose, onNext, onPrev, hasNext, hasPrev }
   };
 
   return (
-    <div
-      className="xp-overlay"
-      onClick={(e) => e.target === e.currentTarget && onClose()}
-      style={{ zIndex: 2000 }}
-    >
-      <div className="xp-modal" style={{ 
-        width: "95%", 
-        maxWidth: "1200px", 
-        height: "85vh",
-        maxHeight: "85vh",
-        display: "flex",
-        flexDirection: "column",
-        borderRadius: "12px",
-        background: "#ffffff",
-        border: "2px solid #000000"
-      }}>
-        <div className="xp-modal-tb" style={{ 
-          background: "#1e40af", 
-          padding: "10px 16px",
-          borderRadius: "10px 10px 0 0"
-        }}>
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 16 16"
-            fill="rgba(255,255,255,0.9)"
-          >
-            <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.044.06.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1 1 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0" />
-          </svg>
+    <div className="xp-overlay" onClick={(e) => e.target === e.currentTarget && onClose()} style={{ zIndex: 2000 }}>
+      <div className="xp-modal" style={{ width: "95%", maxWidth: "1200px", height: "85vh", maxHeight: "85vh", display: "flex", flexDirection: "column", borderRadius: "12px", background: "#ffffff", border: "2px solid #000000" }}>
+        <div className="xp-modal-tb" style={{ background: "#1e40af", padding: "10px 16px", borderRadius: "10px 10px 0 0" }}>
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="rgba(255,255,255,0.9)"><path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.044.06.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1 1 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0"/></svg>
           <span className="xp-modal-title" style={{ fontSize: "15px", fontWeight: "bold", color: "#ffffff" }}>Search Sale Invoice</span>
           <button className="xp-cap-btn xp-cap-close" onClick={onClose} style={{ color: "#ffffff", fontSize: "18px" }}>✕</button>
         </div>
-        
-        <div className="cs-modal-filters" style={{ 
-          padding: "12px 16px", 
-          gap: "12px", 
-          background: "#f8fafc",
-          borderBottom: "1px solid #000000",
-          flexWrap: "wrap"
-        }}>
+        <div className="cs-modal-filters" style={{ padding: "12px 16px", gap: "12px", background: "#f8fafc", borderBottom: "1px solid #000000", flexWrap: "wrap" }}>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, width: "100%", marginBottom: 12 }}>
             <div className="cs-modal-filter-grp">
               <label className="xp-label" style={{ fontSize: "11px", fontWeight: "bold", color: "#000000", marginBottom: "3px", display: "block" }}>Invoice # / ID</label>
-              <input
-                ref={searchIdRef}
-                type="text"
-                className="xp-input"
-                value={searchId}
-                onChange={(e) => setSearchId(e.target.value)}
-                onKeyDown={(e) => handleFieldKeyDown(e, "id")}
-                placeholder="Invoice number or ID..."
-                autoComplete="off"
-                style={{ height: "32px", fontSize: "12px", border: "1px solid #000000", borderRadius: "4px", width: "100%", padding: "0 8px" }}
-              />
+              <input ref={searchIdRef} type="text" className="xp-input" value={searchId} onChange={(e) => setSearchId(e.target.value)} onKeyDown={(e) => handleFieldKeyDown(e, "id")} placeholder="Invoice number or ID..." autoComplete="off" style={{ height: "32px", fontSize: "12px", border: "1px solid #000000", borderRadius: "4px", width: "100%", padding: "0 8px" }} />
             </div>
-            
             <div className="cs-modal-filter-grp">
               <label className="xp-label" style={{ fontSize: "11px", fontWeight: "bold", color: "#000000", marginBottom: "3px", display: "block" }}>Customer Phone</label>
-              <input
-                ref={searchPhoneRef}
-                type="tel"
-                className="xp-input"
-                value={searchPhone}
-                onChange={(e) => setSearchPhone(e.target.value)}
-                onKeyDown={(e) => handleFieldKeyDown(e, "phone")}
-                placeholder="Phone number..."
-                autoComplete="off"
-                style={{ height: "32px", fontSize: "12px", border: "1px solid #000000", borderRadius: "4px", width: "100%", padding: "0 8px" }}
-              />
+              <input ref={searchPhoneRef} type="tel" className="xp-input" value={searchPhone} onChange={(e) => setSearchPhone(e.target.value)} onKeyDown={(e) => handleFieldKeyDown(e, "phone")} placeholder="Phone number..." autoComplete="off" style={{ height: "32px", fontSize: "12px", border: "1px solid #000000", borderRadius: "4px", width: "100%", padding: "0 8px" }} />
             </div>
-            
             <div className="cs-modal-filter-grp">
               <label className="xp-label" style={{ fontSize: "11px", fontWeight: "bold", color: "#000000", marginBottom: "3px", display: "block" }}>Amount / Price</label>
               <div style={{ display: "flex", gap: 6 }}>
-                <select
-                  className="xp-input"
-                  value={priceOperator}
-                  onChange={(e) => setPriceOperator(e.target.value)}
-                  style={{ width: 70, height: "32px", border: "1px solid #000000", borderRadius: "4px" }}
-                >
-                  <option value="eq">=</option>
-                  <option value="gt">&gt;</option>
-                  <option value="lt">&lt;</option>
-                  <option value="gte">≥</option>
-                  <option value="lte">≤</option>
+                <select className="xp-input" value={priceOperator} onChange={(e) => setPriceOperator(e.target.value)} style={{ width: 70, height: "32px", border: "1px solid #000000", borderRadius: "4px" }}>
+                  <option value="eq">=</option><option value="gt">&gt;</option><option value="lt">&lt;</option><option value="gte">≥</option><option value="lte">≤</option>
                 </select>
-                <input
-                  ref={searchPriceRef}
-                  type="text"
-                  className="xp-input"
-                  value={searchPrice}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    if (value === '' || /^\d*\.?\d*$/.test(value)) {
-                      setSearchPrice(value);
-                    }
-                  }}
-                  onKeyDown={(e) => handleFieldKeyDown(e, "amount")}
-                  placeholder="Amount..."
-                  style={{ flex: 1, height: "32px", fontSize: "12px", border: "1px solid #000000", borderRadius: "4px", padding: "0 8px" }}
-                />
+                <input ref={searchPriceRef} type="text" className="xp-input" value={searchPrice} onChange={(e) => { const value = e.target.value; if (value === '' || /^\d*\.?\d*$/.test(value)) { setSearchPrice(value); } }} onKeyDown={(e) => handleFieldKeyDown(e, "amount")} placeholder="Amount..." style={{ flex: 1, height: "32px", fontSize: "12px", border: "1px solid #000000", borderRadius: "4px", padding: "0 8px" }} />
               </div>
             </div>
           </div>
-          
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <div style={{ display: "flex", gap: 8 }}>
-              <button className="xp-btn xp-btn-sm" onClick={clearFilters} style={{ fontSize: "11px", padding: "4px 12px", border: "1px solid #000000", borderRadius: "4px", fontWeight: "bold" }}>
-                Clear Filters
-              </button>
-              <button className="xp-btn xp-btn-sm" onClick={fetchInvoices} style={{ fontSize: "11px", padding: "4px 12px", border: "1px solid #000000", borderRadius: "4px", fontWeight: "bold" }}>
-                Search
-              </button>
-              <span style={{ fontSize: "11px", color: "#000000", fontWeight: "bold", alignSelf: "center" }}>
-                {totalInvoices} invoice(s) found
-              </span>
+              <button className="xp-btn xp-btn-sm" onClick={clearFilters} style={{ fontSize: "11px", padding: "4px 12px", border: "1px solid #000000", borderRadius: "4px", fontWeight: "bold" }}>Clear Filters</button>
+              <button className="xp-btn xp-btn-sm" onClick={fetchInvoices} style={{ fontSize: "11px", padding: "4px 12px", border: "1px solid #000000", borderRadius: "4px", fontWeight: "bold" }}>Search</button>
+              <span style={{ fontSize: "11px", color: "#000000", fontWeight: "bold", alignSelf: "center" }}>{totalInvoices} invoice(s) found</span>
             </div>
-            <button className="xp-btn xp-btn-sm" onClick={onClose} style={{ fontSize: "11px", padding: "4px 12px", border: "1px solid #000000", borderRadius: "4px", fontWeight: "bold" }}>
-              Close
-            </button>
+            <button className="xp-btn xp-btn-sm" onClick={onClose} style={{ fontSize: "11px", padding: "4px 12px", border: "1px solid #000000", borderRadius: "4px", fontWeight: "bold" }}>Close</button>
           </div>
         </div>
-        
         <div className="xp-modal-body" style={{ padding: 0, flex: 1, overflow: "hidden" }}>
           <div className="xp-table-panel" style={{ border: "none", height: "100%" }}>
-            <div className="xp-table-scroll" style={{ 
-              height: "100%", 
-              overflow: "auto",
-              maxHeight: "calc(85vh - 150px)"
-            }}>
-              <table className="xp-table" style={{ 
-                fontSize: "12px", 
-                borderCollapse: "collapse", 
-                width: "100%",
-                border: "1px solid #000000"
-              }}>
-                <thead>
-                  <tr style={{ background: "#f1f5f9", position: "sticky", top: 0, zIndex: 10 }}>
-                    <th style={{ width: 40, padding: "8px 4px", textAlign: "center", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>#</th>
-                    <th style={{ padding: "8px 4px", textAlign: "left", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>Invoice #</th>
-                    <th style={{ padding: "8px 4px", textAlign: "left", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>Date</th>
-                    <th style={{ padding: "8px 4px", textAlign: "left", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>Customer Name</th>
-                    <th style={{ padding: "8px 4px", textAlign: "left", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>Phone</th>
-                    <th style={{ width: 100, padding: "8px 4px", textAlign: "right", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>Total Amount</th>
-                    <th style={{ width: 60, padding: "8px 4px", textAlign: "center", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>Items</th>
-                  </tr>
-                </thead>
-                <tbody 
-                  ref={listRef} 
-                  tabIndex={0}
-                  onKeyDown={handleListKeyDown}
-                >
-                  {loading && (
-                    <tr>
-                      <td colSpan={7} className="xp-empty" style={{ padding: "30px", textAlign: "center", color: "#000000", fontSize: "12px", fontWeight: "bold" }}>
-                        Loading...
-                      </td>
-                    </tr>
-                  )}
-                  {!loading && invoices.length === 0 && (
-                    <tr>
-                      <td colSpan={7} className="xp-empty" style={{ padding: "30px", textAlign: "center", color: "#000000", fontSize: "12px", fontWeight: "bold" }}>
-                        No sale invoices found.
-                      </td>
-                    </tr>
-                  )}
+            <div className="xp-table-scroll" style={{ height: "100%", overflow: "auto", maxHeight: "calc(85vh - 150px)" }}>
+              <table className="xp-table" style={{ fontSize: "12px", borderCollapse: "collapse", width: "100%", border: "1px solid #000000" }}>
+                <thead><tr style={{ background: "#f1f5f9", position: "sticky", top: 0, zIndex: 10 }}>
+                  <th style={{ width: 40, padding: "8px 4px", textAlign: "center", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>#</th>
+                  <th style={{ padding: "8px 4px", textAlign: "left", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>Invoice #</th>
+                  <th style={{ padding: "8px 4px", textAlign: "left", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>Date</th>
+                  <th style={{ padding: "8px 4px", textAlign: "left", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>Customer Name</th>
+                  <th style={{ padding: "8px 4px", textAlign: "left", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>Phone</th>
+                  <th style={{ width: 100, padding: "8px 4px", textAlign: "right", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>Total Amount</th>
+                  <th style={{ width: 60, padding: "8px 4px", textAlign: "center", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>Items</th>
+                </tr></thead>
+                <tbody ref={listRef} tabIndex={0} onKeyDown={handleListKeyDown}>
+                  {loading && <tr><td colSpan={7} className="xp-empty" style={{ padding: "30px", textAlign: "center", color: "#000000", fontSize: "12px", fontWeight: "bold" }}>Loading...</td></tr>}
+                  {!loading && invoices.length === 0 && <tr><td colSpan={7} className="xp-empty" style={{ padding: "30px", textAlign: "center", color: "#000000", fontSize: "12px", fontWeight: "bold" }}>No sale invoices found.</td></tr>}
                   {invoices.map((inv, i) => (
-                    <tr
-                      key={inv._id}
-                      style={{
-                        background: i === hiIdx ? "#e5f0ff" : "white",
-                        cursor: "pointer",
-                      }}
-                      onClick={() => setHiIdx(i)}
-                      onDoubleClick={() => onSelect(inv)}
-                    >
+                    <tr key={inv._id} style={{ background: i === hiIdx ? "#e5f0ff" : "white", cursor: "pointer" }} onClick={() => setHiIdx(i)} onDoubleClick={() => onSelect(inv)}>
                       <td style={{ padding: "6px 4px", textAlign: "center", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>{i + 1}</td>
-                      <td style={{ padding: "6px 4px", border: "1px solid #000000", fontSize: "12px", fontWeight: "bold", color: "#000000", fontFamily: "monospace" }}>
-                        {inv.invoiceNo || inv.returnNo || "N/A"}
-                      </td>
-                      <td style={{ padding: "6px 4px", border: "1px solid #000000", fontSize: "11px", color: "#000000" }}>
-                        {inv.invoiceDate?.split("T")[0] || inv.date?.split("T")[0] || "-"}
-                      </td>
-                      <td style={{ padding: "6px 4px", border: "1px solid #000000", fontSize: "12px", fontWeight: "bold", color: "#000000" }}>
-                        {inv.customerName || inv.customer?.name || "COUNTER SALE"}
-                      </td>
-                      <td style={{ padding: "6px 4px", border: "1px solid #000000", fontSize: "11px", color: "#000000" }}>
-                        {inv.customerPhone || inv.customer?.phone || "-"}
-                      </td>
-                      <td style={{ padding: "6px 4px", textAlign: "right", border: "1px solid #000000", fontSize: "12px", fontWeight: "bold", color: "#c0392b" }}>
-                        {Number(inv.netTotal || inv.total || 0).toLocaleString("en-PK")}
-                      </td>
-                      <td style={{ padding: "6px 4px", textAlign: "center", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>
-                        {inv.items?.length || 0}
-                      </td>
+                      <td style={{ padding: "6px 4px", border: "1px solid #000000", fontSize: "12px", fontWeight: "bold", color: "#000000", fontFamily: "monospace" }}>{inv.invoiceNo || inv.returnNo || "N/A"}</td>
+                      <td style={{ padding: "6px 4px", border: "1px solid #000000", fontSize: "11px", color: "#000000" }}>{inv.invoiceDate?.split("T")[0] || inv.date?.split("T")[0] || "-"}</td>
+                      <td style={{ padding: "6px 4px", border: "1px solid #000000", fontSize: "12px", fontWeight: "bold", color: "#000000" }}>{inv.customerName || inv.customer?.name || "COUNTER SALE"}</td>
+                      <td style={{ padding: "6px 4px", border: "1px solid #000000", fontSize: "11px", color: "#000000" }}>{inv.customerPhone || inv.customer?.phone || "-"}</td>
+                      <td style={{ padding: "6px 4px", textAlign: "right", border: "1px solid #000000", fontSize: "12px", fontWeight: "bold", color: "#c0392b" }}>{Number(inv.netTotal || inv.total || 0).toLocaleString("en-PK")}</td>
+                      <td style={{ padding: "6px 4px", textAlign: "center", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>{inv.items?.length || 0}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -1059,19 +573,8 @@ function SearchSaleModal({ onSelect, onClose, onNext, onPrev, hasNext, hasPrev }
             </div>
           </div>
         </div>
-        
-        <div style={{ 
-          display: "flex", 
-          justifyContent: "space-between", 
-          alignItems: "center",
-          padding: "8px 12px",
-          borderTop: "1px solid #000000",
-          background: "#f8fafc",
-          borderRadius: "0 0 10px 10px"
-        }}>
-          <div className="cs-modal-hint" style={{ margin: 0, fontSize: "10px", fontWeight: "bold", color: "#000000" }}>
-            ⬆⬇ = navigate results &nbsp;|&nbsp; Enter = select invoice &nbsp;|&nbsp; Tab between fields &nbsp;|&nbsp; Esc = close
-          </div>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 12px", borderTop: "1px solid #000000", background: "#f8fafc", borderRadius: "0 0 10px 10px" }}>
+          <div className="cs-modal-hint" style={{ margin: 0, fontSize: "10px", fontWeight: "bold", color: "#000000" }}>⬆⬇ = navigate results &nbsp;|&nbsp; Enter = select invoice &nbsp;|&nbsp; Tab between fields &nbsp;|&nbsp; Esc = close</div>
         </div>
       </div>
     </div>
@@ -1084,70 +587,40 @@ function SearchSaleModal({ onSelect, onClose, onNext, onPrev, hasNext, hasPrev }
 function HoldPreviewModal({ bill, onResume, onClose }) {
   if (!bill) return null;
   return (
-    <div
-      className="xp-overlay"
-      onClick={(e) => e.target === e.currentTarget && onClose()}
-    >
-      <div className="xp-modal" style={{ width: 520 }}>
-        <div className="xp-modal-tb">
-          <span className="xp-modal-title">Hold Return — {bill.returnNo}</span>
-          <button className="xp-cap-btn xp-cap-close" onClick={onClose}>
-            ✕
-          </button>
+    <div className="xp-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="xp-modal" style={{ width: 520, border: "2px solid #000000" }}>
+        <div className="xp-modal-tb" style={{ background: "#c0392b" }}>
+          <span className="xp-modal-title" style={{ fontSize: "14px", fontWeight: "bold", color: "#ffffff" }}>Hold Return — {bill.returnNo}</span>
+          <button className="xp-cap-btn xp-cap-close" onClick={onClose} style={{ color: "#ffffff" }}>✕</button>
         </div>
         <div className="xp-modal-body" style={{ padding: 8 }}>
-          <div
-            style={{
-              marginBottom: 6,
-              display: "flex",
-              gap: 16,
-              fontSize: "var(--xp-fs-xs)",
-            }}
-          >
-            <span>
-              <b>Customer:</b> {bill.buyerName}
-            </span>
-            <span>
-              <b>Items:</b> {bill.items.length}
-            </span>
-            <span>
-              <b>Amount:</b>{" "}
-              <span style={{ color: "var(--xp-red)", fontWeight: 700 }}>
-                {Number(bill.amount).toLocaleString("en-PK")}
-              </span>
-            </span>
+          <div style={{ marginBottom: 6, display: "flex", gap: 16, fontSize: "12px" }}>
+            <span><b>Customer:</b> {bill.buyerName}</span>
+            <span><b>Items:</b> {bill.items.length}</span>
+            <span><b>Amount:</b> <span style={{ color: "#dc2626", fontWeight: 700 }}>{Number(bill.amount).toLocaleString("en-PK")}</span></span>
           </div>
           <div className="xp-table-panel" style={{ border: "none" }}>
             <div className="xp-table-scroll" style={{ maxHeight: 280 }}>
-              <table className="xp-table">
-                <thead>
-                  <tr>
-                    <th>#</th>
-                    <th>Code</th>
-                    <th>Name</th>
-                    <th>UOM</th>
-                    <th className="r">Pcs</th>
-                    <th className="r">Rate</th>
-                    <th className="r">Amount</th>
-                  </tr>
-                </thead>
+              <table className="xp-table" style={{ border: "1px solid #000000", width: "100%", borderCollapse: "collapse" }}>
+                <thead><tr style={{ background: "#f1f5f9" }}>
+                  <th style={{ padding: "6px 6px", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>#</th>
+                  <th style={{ padding: "6px 6px", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>Code</th>
+                  <th style={{ padding: "6px 6px", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>Name</th>
+                  <th style={{ padding: "6px 6px", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>UOM</th>
+                  <th style={{ padding: "6px 6px", textAlign: "right", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>Pcs</th>
+                  <th style={{ padding: "6px 6px", textAlign: "right", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>Rate</th>
+                  <th style={{ padding: "6px 6px", textAlign: "right", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>Amount</th>
+                </tr></thead>
                 <tbody>
                   {bill.items.map((r, i) => (
                     <tr key={i}>
-                      <td className="text-muted">{i + 1}</td>
-                      <td className="text-muted">{r.code}</td>
-                      <td>{r.name}</td>
-                      <td className="text-muted">{r.uom}</td>
-                      <td className="r">{r.pcs}</td>
-                      <td className="r">
-                        {Number(r.rate).toLocaleString("en-PK")}
-                      </td>
-                      <td
-                        className="r"
-                        style={{ color: "var(--xp-red)", fontWeight: 700 }}
-                      >
-                        {Number(r.amount).toLocaleString("en-PK")}
-                      </td>
+                      <td style={{ padding: "5px 6px", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>{i + 1}</td>
+                      <td style={{ padding: "5px 6px", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>{r.code}</td>
+                      <td style={{ padding: "5px 6px", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>{r.name}</td>
+                      <td style={{ padding: "5px 6px", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>{r.uom}</td>
+                      <td style={{ padding: "5px 6px", textAlign: "right", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>{r.pcs}</td>
+                      <td style={{ padding: "5px 6px", textAlign: "right", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>{Number(r.rate).toLocaleString("en-PK")}</td>
+                      <td style={{ padding: "5px 6px", textAlign: "right", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#dc2626" }}>{Number(r.amount).toLocaleString("en-PK")}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -1155,24 +628,9 @@ function HoldPreviewModal({ bill, onResume, onClose }) {
             </div>
           </div>
         </div>
-        <div
-          style={{
-            display: "flex",
-            gap: 6,
-            padding: "6px 10px",
-            borderTop: "1px solid var(--xp-silver-5)",
-            justifyContent: "flex-end",
-          }}
-        >
-          <button className="xp-btn xp-btn-sm" onClick={onClose}>
-            Cancel
-          </button>
-          <button
-            className="xp-btn xp-btn-sm sr-btn-resume"
-            onClick={() => onResume(bill.id)}
-          >
-            Resume This Return
-          </button>
+        <div style={{ display: "flex", gap: 6, padding: "6px 10px", borderTop: "1px solid #000000", justifyContent: "flex-end", background: "#f8fafc" }}>
+          <button className="xp-btn xp-btn-sm" onClick={onClose} style={{ fontSize: "11px", padding: "4px 12px", border: "1px solid #000000", fontWeight: "bold" }}>Cancel</button>
+          <button className="xp-btn xp-btn-sm" style={{ background: "#c0392b", color: "white", border: "1px solid #000000", fontWeight: "bold" }} onClick={() => onResume(bill.id)}>Resume This Return</button>
         </div>
       </div>
     </div>
@@ -1182,14 +640,7 @@ function HoldPreviewModal({ bill, onResume, onClose }) {
 /* ══════════════════════════════════════════════════════════
    CUSTOMER DROPDOWN
 ══════════════════════════════════════════════════════════ */
-function CustomerDropdown({
-  allCustomers,
-  value,
-  displayName,
-  customerType,
-  onSelect,
-  onClear,
-}) {
+function CustomerDropdown({ allCustomers, value, displayName, customerType, onSelect, onClear }) {
   const [query, setQuery] = useState("");
   const [originalQuery, setOriginalQuery] = useState("");
   const [ghost, setGhost] = useState("");
@@ -1203,17 +654,13 @@ function CustomerDropdown({
 
   const creditCustomers = allCustomers.filter((c) => {
     const t = (c.customerType || c.type || "").toLowerCase();
-    return (
-      t === "credit" && c.name?.toUpperCase().trim() !== "COUNTER SALE"
-    );
+    return t === "credit" && c.name?.toUpperCase().trim() !== "COUNTER SALE";
   });
 
   const getSuggestions = (searchTerm) => {
     if (!searchTerm.trim()) return [];
     const searchLower = searchTerm.toLowerCase();
-    return creditCustomers.filter(c => 
-      c.name?.toLowerCase().startsWith(searchLower)
-    );
+    return creditCustomers.filter(c => c.name?.toLowerCase().startsWith(searchLower));
   };
 
   useEffect(() => {
@@ -1223,17 +670,13 @@ function CustomerDropdown({
       setShowDropdown(false);
       return;
     }
-
     const matches = getSuggestions(originalQuery);
     setSuggestions(matches);
     setShowDropdown(matches.length > 0);
-    
     if (!isNavigating && matches.length > 0 && matches[0].name) {
       const remaining = matches[0].name.slice(originalQuery.length);
       setGhost(remaining);
-    } else {
-      setGhost("");
-    }
+    } else { setGhost(""); }
   }, [originalQuery, isNavigating]);
 
   const selectCustomer = (customer) => {
@@ -1255,73 +698,34 @@ function CustomerDropdown({
       setOriginalQuery(fullName);
       setGhost("");
       setIsNavigating(false);
-      
       const matchedCustomer = suggestions[0];
-      if (matchedCustomer) {
-        selectCustomer(matchedCustomer);
-      }
+      if (matchedCustomer) selectCustomer(matchedCustomer);
       return;
     }
-    
     if (e.key === "ArrowDown") {
       e.preventDefault();
-      
       if (suggestions.length === 0) return;
-      
       setIsNavigating(true);
       setShowDropdown(true);
-      
-      let newIndex;
-      if (selectedSuggestionIndex === -1) {
-        newIndex = 0;
-      } else {
-        newIndex = selectedSuggestionIndex + 1;
-        if (newIndex >= suggestions.length) {
-          newIndex = 0;
-        }
-      }
-      
+      let newIndex = selectedSuggestionIndex === -1 ? 0 : (selectedSuggestionIndex + 1) % suggestions.length;
       setSelectedSuggestionIndex(newIndex);
-      
       const selectedCustomer = suggestions[newIndex];
-      if (selectedCustomer) {
-        setQuery(selectedCustomer.name);
-        setGhost("");
-      }
+      if (selectedCustomer) { setQuery(selectedCustomer.name); setGhost(""); }
       return;
     }
-    
     if (e.key === "ArrowUp") {
       e.preventDefault();
-      
       if (suggestions.length === 0) return;
-      
       setIsNavigating(true);
       setShowDropdown(true);
-      
-      let newIndex;
-      if (selectedSuggestionIndex === -1) {
-        newIndex = suggestions.length - 1;
-      } else {
-        newIndex = selectedSuggestionIndex - 1;
-        if (newIndex < 0) {
-          newIndex = suggestions.length - 1;
-        }
-      }
-      
+      let newIndex = selectedSuggestionIndex === -1 ? suggestions.length - 1 : (selectedSuggestionIndex - 1 + suggestions.length) % suggestions.length;
       setSelectedSuggestionIndex(newIndex);
-      
       const selectedCustomer = suggestions[newIndex];
-      if (selectedCustomer) {
-        setQuery(selectedCustomer.name);
-        setGhost("");
-      }
+      if (selectedCustomer) { setQuery(selectedCustomer.name); setGhost(""); }
       return;
     }
-    
     if (e.key === "Enter") {
       e.preventDefault();
-      
       if (selectedSuggestionIndex >= 0 && suggestions[selectedSuggestionIndex]) {
         selectCustomer(suggestions[selectedSuggestionIndex]);
       } else if (suggestions.length > 0 && suggestions[0]) {
@@ -1329,7 +733,6 @@ function CustomerDropdown({
       }
       return;
     }
-    
     if (e.key === "Escape") {
       e.preventDefault();
       setQuery("");
@@ -1354,191 +757,43 @@ function CustomerDropdown({
     setIsNavigating(false);
   };
 
-  const typeStyle = customerType && TYPE_COLORS[customerType]
-    ? {
-        background: TYPE_COLORS[customerType].bg,
-        color: TYPE_COLORS[customerType].color,
-        border: `1px solid ${TYPE_COLORS[customerType].border}`,
-      }
-    : null;
+  const typeStyle = customerType && TYPE_COLORS[customerType] ? { background: TYPE_COLORS[customerType].bg, color: TYPE_COLORS[customerType].color, border: `1px solid ${TYPE_COLORS[customerType].border}` } : null;
 
   return (
     <div style={{ position: "relative", flex: 1 }}>
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 4,
-          position: "relative",
-        }}
-      >
-        {typeStyle && (
-          <span className="cdd-type-badge" style={typeStyle}>
-            {customerType}
-          </span>
-        )}
-
-        <div 
-          ref={parentRef}
-          style={{ 
-            position: "relative", 
-            flex: 1,
-            background: isFocused ? "#fffde7" : "transparent",
-            borderRadius: "4px",
-            transition: "background 0.15s ease",
-          }}
-        >
+      <div style={{ display: "flex", alignItems: "center", gap: 4, position: "relative" }}>
+        {typeStyle && <span className="cdd-type-badge" style={typeStyle}>{customerType}</span>}
+        <div ref={parentRef} style={{ position: "relative", flex: 1, background: isFocused ? "#fffde7" : "transparent", borderRadius: "4px", transition: "background 0.15s ease" }}>
           {ghost && !isNavigating && (
-            <div
-              style={{
-                position: "absolute",
-                left: 0,
-                top: "50%",
-                transform: "translateY(-50%)",
-                pointerEvents: "none",
-                whiteSpace: "nowrap",
-                fontSize: "13px",
-                fontFamily: "inherit",
-                display: "flex",
-                zIndex: 2,
-                color: "#a0aec0",
-                opacity: 1,
-                backgroundColor: "transparent",
-                paddingLeft: "4px",
-              }}
-            >
+            <div style={{ position: "absolute", left: 0, top: "50%", transform: "translateY(-50%)", pointerEvents: "none", whiteSpace: "nowrap", fontSize: "13px", fontFamily: "inherit", display: "flex", zIndex: 2, color: "#a0aec0", opacity: 1, backgroundColor: "transparent", paddingLeft: "4px" }}>
               <span style={{ visibility: "hidden", opacity: 1 }}>{originalQuery}</span>
               <span style={{ opacity: 1, color: "#a0aec0" }}>{ghost}</span>
             </div>
           )}
-          
-          <input
-            ref={inputRef}
-            className="sr-cust-input cdd-input"
-            style={{
-              flex: 1,
-              minWidth: 0,
-              cursor: "text",
-              background: "transparent",
-              position: "relative",
-              zIndex: 1,
-              width: "100%",
-              border: "none",
-              outline: "none",
-              padding: "4px",
-            }}
-            value={value ? query || displayName : query}
-            onChange={handleChange}
-            onKeyDown={handleKeyDown}
-            onFocus={() => setIsFocused(true)}
-            onBlur={() => setIsFocused(false)}
-            autoComplete="off"
-            spellCheck={false}
-          />
+          <input ref={inputRef} className="sr-cust-input cdd-input" style={{ flex: 1, minWidth: 0, cursor: "text", background: "transparent", position: "relative", zIndex: 1, width: "100%", border: "none", outline: "none", padding: "4px" }} value={value ? query || displayName : query} onChange={handleChange} onKeyDown={handleKeyDown} onFocus={() => setIsFocused(true)} onBlur={() => setIsFocused(false)} autoComplete="off" spellCheck={false} />
         </div>
-
         {value && (
-          <button
-            className="xp-btn xp-btn-sm xp-btn-danger"
-            style={{
-              height: 22,
-              padding: "0 5px",
-              fontSize: 10,
-              flexShrink: 0,
-            }}
-            onMouseDown={(e) => {
-              e.preventDefault();
-              onClear();
-              setQuery("");
-              setOriginalQuery("");
-              setGhost("");
-              setSuggestions([]);
-              setSelectedSuggestionIndex(-1);
-              setShowDropdown(false);
-              setIsNavigating(false);
-              inputRef.current?.focus();
-            }}
-            title="Clear"
-          >
-            ✕
-          </button>
+          <button className="xp-btn xp-btn-sm xp-btn-danger" style={{ height: 22, padding: "0 5px", fontSize: 10, flexShrink: 0 }} onMouseDown={(e) => { e.preventDefault(); onClear(); setQuery(""); setOriginalQuery(""); setGhost(""); setSuggestions([]); setSelectedSuggestionIndex(-1); setShowDropdown(false); setIsNavigating(false); inputRef.current?.focus(); }} title="Clear">✕</button>
         )}
       </div>
-
       {showDropdown && suggestions.length > 0 && (
-        <div
-          style={{
-            position: "absolute",
-            top: "100%",
-            left: 0,
-            right: 0,
-            backgroundColor: "white",
-            border: "1px solid #e5e7eb",
-            borderRadius: 4,
-            maxHeight: 200,
-            overflowY: "auto",
-            zIndex: 1000,
-            boxShadow: "0 4px 6px -1px rgba(0,0,0,0.1)",
-            marginTop: 2,
-          }}
-        >
+        <div style={{ position: "absolute", top: "100%", left: 0, right: 0, backgroundColor: "white", border: "1px solid #000000", borderRadius: 4, maxHeight: 200, overflowY: "auto", zIndex: 1000, boxShadow: "0 4px 6px -1px rgba(0,0,0,0.1)", marginTop: 2 }}>
           {suggestions.map((customer, idx) => (
-            <div
-              key={customer._id}
-              onClick={() => selectCustomer(customer)}
-              style={{
-                padding: "8px 12px",
-                cursor: "pointer",
-                backgroundColor: idx === selectedSuggestionIndex ? "#e5f0ff" : "white",
-                borderBottom: "1px solid #f3f4f6",
-                fontSize: 13,
-              }}
-              onMouseEnter={() => {
-                setSelectedSuggestionIndex(idx);
-                setIsNavigating(true);
-                setQuery(customer.name);
-                setGhost("");
-              }}
-            >
-              <div style={{ fontWeight: 500, marginBottom: 2 }}>
-                {customer.name}
-              </div>
-              {customer.phone && (
-                <div style={{ fontSize: 10, color: "#6b7280" }}>
-                  📞 {customer.phone}
-                </div>
-              )}
-              {customer.currentBalance > 0 && (
-                <div style={{ fontSize: 10, color: "#ef4444", marginTop: 2 }}>
-                  Balance: PKR {customer.currentBalance.toLocaleString("en-PK")}
-                </div>
-              )}
+            <div key={customer._id} onClick={() => selectCustomer(customer)} style={{ padding: "8px 12px", cursor: "pointer", backgroundColor: idx === selectedSuggestionIndex ? "#e5f0ff" : "white", borderBottom: "1px solid #000000", fontSize: 13 }} onMouseEnter={() => { setSelectedSuggestionIndex(idx); setIsNavigating(true); setQuery(customer.name); setGhost(""); }}>
+              <div style={{ fontWeight: "bold", marginBottom: 2, color: "#000000" }}>{customer.name}</div>
+              {customer.phone && <div style={{ fontSize: 10, color: "#6b7280" }}>📞 {customer.phone}</div>}
+              {customer.currentBalance > 0 && <div style={{ fontSize: 10, color: "#ef4444", marginTop: 2 }}>Balance: PKR {customer.currentBalance.toLocaleString("en-PK")}</div>}
             </div>
           ))}
         </div>
       )}
-      
-      {originalQuery && suggestions.length === 0 && (
-        <div
-          style={{
-            position: "absolute",
-            top: "100%",
-            left: 0,
-            fontSize: 10,
-            color: "#9ca3af",
-            marginTop: 2,
-            padding: "4px 8px",
-          }}
-        >
-          No customer found matching "{originalQuery}"
-        </div>
-      )}
+      {originalQuery && suggestions.length === 0 && <div style={{ position: "absolute", top: "100%", left: 0, fontSize: 10, color: "#9ca3af", marginTop: 2, padding: "4px 8px" }}>No customer found matching "{originalQuery}"</div>}
     </div>
   );
 }
 
 /* ══════════════════════════════════════════════════════════
-   MAIN PAGE — SALE RETURN
+   MAIN PAGE — SALE RETURN (RESPONSIVE)
 ══════════════════════════════════════════════════════════ */
 export default function SaleReturnPage() {
   const [time, setTime] = useState(timeNow());
@@ -1571,8 +826,6 @@ export default function SaleReturnPage() {
   const [printType, setPrintType] = useState("A5");
   const [sendSms, setSendSms] = useState(false);
   const [packingOptions, setPackingOptions] = useState([]);
-  const [showSaveModal, setShowSaveModal] = useState(false);
-  const [pendingPayload, setPendingPayload] = useState(null);
   const [remarks, setRemarks] = useState("");
   const [showRemarksInput, setShowRemarksInput] = useState(false);
   const [creditCustomerSelected, setCreditCustomerSelected] = useState(false);
@@ -1585,6 +838,7 @@ export default function SaleReturnPage() {
   const saleInvRef = useRef(null);
   const packingRef = useRef(null);
   const remarksRef = useRef(null);
+  const paidRef = useRef(null);
 
   useEffect(() => {
     const t = setInterval(() => setTime(timeNow()), 1000);
@@ -1610,13 +864,11 @@ export default function SaleReturnPage() {
       ]);
       if (pRes.data.success) setAllProducts(pRes.data.data);
       if (cRes.data.success) setAllCustomers(cRes.data.data);
-      
       const today = new Date();
       const year = today.getFullYear();
       const month = String(today.getMonth() + 1).padStart(2, '0');
       const date = String(today.getDate()).padStart(2, '0');
       setReturnNo(`RTN-${year}${month}${date}-${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`);
-      
     } catch {
       showMsg("Failed to load data", "error");
     }
@@ -1629,13 +881,7 @@ export default function SaleReturnPage() {
       if (response.data.success) {
         let sales = response.data.data;
         if (Array.isArray(sales)) {
-          sales = sales.filter(
-            (sale) =>
-              sale.saleType === "sale" ||
-              sale.type === "sale" ||
-              (!sale.saleType && !sale.type) ||
-              sale.invoiceNo?.startsWith("INV-")
-          );
+          sales = sales.filter((sale) => sale.saleType === "sale" || sale.type === "sale" || (!sale.saleType && !sale.type) || sale.invoiceNo?.startsWith("INV-"));
         }
         setAllSaleInvoices(sales);
       }
@@ -1672,16 +918,10 @@ export default function SaleReturnPage() {
         }));
         setItems(loadedItems);
         setSaleInvNo(saleData.invoiceNo || saleData.returnNo || "");
-        
-        const index = allSaleInvoices.findIndex(
-          inv => (inv.invoiceNo || inv.returnNo) === (saleData.invoiceNo || saleData.returnNo)
-        );
+        if (saleData.invoiceDate) { setReturnDate(saleData.invoiceDate.split("T")[0]); }
+        const index = allSaleInvoices.findIndex(inv => (inv.invoiceNo || inv.returnNo) === (saleData.invoiceNo || saleData.returnNo));
         setCurrentInvoiceIndex(index);
-        
-        showMsg(
-          `Loaded ${loadedItems.length} items from ${saleData.invoiceNo || saleData.returnNo}`,
-          "success"
-        );
+        showMsg(`Loaded ${loadedItems.length} items from ${saleData.invoiceNo || saleData.returnNo}`, "success");
         setShowSaleSearchModal(false);
         setTimeout(() => searchRef.current?.focus(), 50);
       } catch (error) {
@@ -1689,20 +929,15 @@ export default function SaleReturnPage() {
       }
       return;
     }
-
     if (!saleInvNo.trim()) {
       setShowSaleSearchModal(true);
       return;
     }
-    
     try {
       const r = await api.get(EP.SALES.GET_ALL);
       if (r.data.success && r.data.data) {
         const sale = r.data.data.find(s => s.invoiceNo === saleInvNo.trim());
-        if (!sale) {
-          showMsg("Invoice not found", "error");
-          return;
-        }
+        if (!sale) { showMsg("Invoice not found", "error"); return; }
         if (sale.customerId) {
           setCustomerId(sale.customerId._id || sale.customerId);
           setBuyerName(sale.customerName || "COUNTER SALE");
@@ -1719,41 +954,27 @@ export default function SaleReturnPage() {
           amount: it.amount || 0,
         }));
         setItems(loadedItems);
-        showMsg(
-          `Loaded ${loadedItems.length} items from ${saleInvNo}`,
-          "success"
-        );
-        
-        const index = allSaleInvoices.findIndex(
-          inv => (inv.invoiceNo || inv.returnNo) === saleInvNo.trim()
-        );
+        if (sale.invoiceDate) { setReturnDate(sale.invoiceDate.split("T")[0]); }
+        showMsg(`Loaded ${loadedItems.length} items from ${saleInvNo}`, "success");
+        const index = allSaleInvoices.findIndex(inv => (inv.invoiceNo || inv.returnNo) === saleInvNo.trim());
         setCurrentInvoiceIndex(index);
-        
         setTimeout(() => searchRef.current?.focus(), 50);
-      } else {
-        showMsg("Invoice not found", "error");
-      }
-    } catch {
-      showMsg("Could not load sale invoice", "error");
-    }
+      } else { showMsg("Invoice not found", "error"); }
+    } catch { showMsg("Could not load sale invoice", "error"); }
   };
 
   const loadNextInvoice = () => {
     if (currentInvoiceIndex < allSaleInvoices.length - 1) {
       const nextInvoice = allSaleInvoices[currentInvoiceIndex + 1];
       loadSaleByInv(nextInvoice);
-    } else {
-      showMsg("No more invoices", "info");
-    }
+    } else { showMsg("No more invoices", "info"); }
   };
 
   const loadPrevInvoice = () => {
     if (currentInvoiceIndex > 0) {
       const prevInvoice = allSaleInvoices[currentInvoiceIndex - 1];
       loadSaleByInv(prevInvoice);
-    } else {
-      showMsg("No previous invoices", "info");
-    }
+    } else { showMsg("No previous invoices", "info"); }
   };
 
   const showMsg = (text, type = "success") => {
@@ -1768,8 +989,6 @@ export default function SaleReturnPage() {
     const custType = c.customerType || c.type || "";
     setCustomerType(custType);
     setPrevBalance(c.currentBalance || 0);
-    
-    // Check if credit customer
     if (custType === "credit") {
       setCreditCustomerSelected(true);
       setShowRemarksInput(true);
@@ -1795,10 +1014,7 @@ export default function SaleReturnPage() {
   };
 
   const pickProduct = (product) => {
-    if (!product._id) {
-      showMsg("Product ID missing", "error");
-      return;
-    }
+    if (!product._id) { showMsg("Product ID missing", "error"); return; }
     setPackingOptions(product.packingInfo?.map((pk) => pk.measurement) || []);
     setCurRow({
       productId: product._id,
@@ -1818,32 +1034,17 @@ export default function SaleReturnPage() {
   const updateCurRow = (field, val) => {
     setCurRow((prev) => {
       const u = { ...prev, [field]: val };
-      u.amount =
-        (parseFloat(field === "pcs" ? val : u.pcs) || 0) *
-        (parseFloat(field === "rate" ? val : u.rate) || 0);
+      u.amount = (parseFloat(field === "pcs" ? val : u.pcs) || 0) * (parseFloat(field === "rate" ? val : u.rate) || 0);
       return u;
     });
   };
 
   const addRow = () => {
-    if (!curRow.name) {
-      // Only open product modal on F2 or Enter, not on click
-      return;
-    }
-    if (!curRow.productId) {
-      showMsg("Please select a valid product", "error");
-      return;
-    }
-    if (parseFloat(curRow.pcs) <= 0) {
-      showMsg("Qty must be > 0", "error");
-      return;
-    }
+    if (!curRow.name) return;
+    if (!curRow.productId) { showMsg("Please select a valid product", "error"); return; }
+    if (parseFloat(curRow.pcs) <= 0) { showMsg("Qty must be > 0", "error"); return; }
     if (selItemIdx !== null) {
-      setItems((p) => {
-        const u = [...p];
-        u[selItemIdx] = { ...curRow };
-        return u;
-      });
+      setItems((p) => { const u = [...p]; u[selItemIdx] = { ...curRow }; return u; });
       setSelItemIdx(null);
     } else setItems((p) => [...p, { ...curRow }]);
     resetCurRow();
@@ -1862,14 +1063,10 @@ export default function SaleReturnPage() {
     const r = items[idx];
     setCurRow({ ...r });
     setSearchText(r.name);
-    
     const product = allProducts.find((p) => p._id === r.productId);
     if (product?.packingInfo?.length > 0) {
       setPackingOptions(product.packingInfo.map((pk) => pk.measurement));
-    } else {
-      setPackingOptions([]);
-    }
-    
+    } else { setPackingOptions([]); }
     setTimeout(() => packingRef.current?.focus(), 30);
   };
 
@@ -1883,22 +1080,19 @@ export default function SaleReturnPage() {
 
   const holdBill = () => {
     if (!items.length) return;
-    setHoldBills((p) => [
-      ...p,
-      {
-        id: Date.now(),
-        returnNo,
-        amount: subTotal,
-        items: [...items],
-        customerId,
-        buyerName,
-        buyerCode,
-        customerType,
-        prevBalance,
-        saleInvNo,
-        remarks,
-      },
-    ]);
+    setHoldBills((p) => [...p, {
+      id: Date.now(),
+      returnNo,
+      amount: subTotal,
+      items: [...items],
+      customerId,
+      buyerName,
+      buyerCode,
+      customerType,
+      prevBalance,
+      saleInvNo,
+      remarks,
+    }]);
     fullReset();
     refreshReturnNo();
   };
@@ -1948,219 +1142,132 @@ export default function SaleReturnPage() {
     setRemarks("");
     setCreditCustomerSelected(false);
     setShowRemarksInput(false);
+    setReturnDate(isoDate());
     setTimeout(() => searchRef.current?.focus(), 50);
   };
 
-  const openReturnConfirm = () => {
-    if (!items.length) {
-      alert("Add at least one item");
-      return;
-    }
-    
-    // If credit customer, check if remarks is filled
+  const saveAndPrintDirect = async () => {
+    if (!items.length) { alert("Add at least one item"); return; }
     if (creditCustomerSelected && !remarks.trim()) {
       remarksRef.current?.focus();
       showMsg("Please enter remarks for credit return", "error");
       return;
     }
-    
-    const payload = {
-      returnNo,
-      returnDate,
-      saleInvNo: saleInvNo || "",
-      customerId: customerId || undefined,
-      customerName: buyerName || "COUNTER SALE",
-      customerPhone: buyerCode,
-      items: items.map((r) => ({
-        productId: r.productId || undefined,
-        code: r.code,
-        name: r.name,
-        description: r.name,
-        uom: r.uom,
-        measurement: r.uom,
-        rack: r.rack,
-        pcs: parseFloat(r.pcs) || 1,
-        qty: parseFloat(r.pcs) || 1,
-        rate: parseFloat(r.rate) || 0,
-        disc: 0,
-        amount: parseFloat(r.amount) || 0,
-      })),
-      subTotal,
-      netTotal: subTotal,
-      prevBalance: parseFloat(prevBalance) || 0,
-      paidAmount: parseFloat(paid) || 0,
-      balance,
-      sendSms,
-      printType,
-      remarks: remarks || "",
-      saleType: "return",
-    };
-    setPendingPayload(payload);
-    setShowSaveModal(true);
-  };
-
-  const confirmSave = async (overrides) => {
-    if (!pendingPayload) return;
     setLoading(true);
     try {
-      const finalPayload = {
-        ...pendingPayload,
-        paidAmount: overrides.paidAmount,
-        balance: overrides.balance,
-        printType: overrides.printType,
+      const payload = {
+        invoiceNo: returnNo,
+        invoiceDate: returnDate,
+        returnNo: returnNo,
+        returnDate: returnDate,
+        saleInvNo: saleInvNo || "",
+        customerId: customerId || undefined,
+        customerName: buyerName || "COUNTER SALE",
+        customerPhone: buyerCode,
+        items: items.map((r) => ({
+          productId: r.productId || undefined,
+          code: r.code,
+          name: r.name,
+          description: r.name,
+          uom: r.uom,
+          measurement: r.uom,
+          rack: r.rack,
+          pcs: parseFloat(r.pcs) || 1,
+          qty: parseFloat(r.pcs) || 1,
+          rate: parseFloat(r.rate) || 0,
+          disc: 0,
+          amount: parseFloat(r.amount) || 0,
+        })),
+        subTotal,
+        netTotal: subTotal,
+        prevBalance: parseFloat(prevBalance) || 0,
+        paidAmount: parseFloat(paid) || 0,
+        balance,
+        sendSms,
+        printType,
+        remarks: remarks || "",
+        saleType: "return",
       };
-      const { data } = editId
-        ? await api.put(EP.SALES.UPDATE(editId), finalPayload)
-        : await api.post(EP.SALES.CREATE, finalPayload);
-
+      const { data } = editId ? await api.put(EP.SALES.UPDATE(editId), payload) : await api.post(EP.SALES.CREATE, payload);
       if (data.success) {
-        showMsg(
-          editId
-            ? "Return updated!"
-            : `Saved: ${data.data.returnNo || data.data.invoiceNo}`,
-        );
+        showMsg(editId ? "Return updated!" : `Saved: ${data.data.returnNo || data.data.invoiceNo}`);
         const retObj = {
           returnNo: data.data.returnNo || data.data.invoiceNo || returnNo,
-          returnDate: finalPayload.returnDate,
-          saleInvNo: finalPayload.saleInvNo,
-          customerName: finalPayload.customerName,
-          items: pendingPayload.items,
-          subTotal: finalPayload.subTotal,
-          netTotal: finalPayload.netTotal,
-          paidAmount: overrides.paidAmount,
-          balance: overrides.balance,
+          returnDate: payload.returnDate,
+          saleInvNo: payload.saleInvNo,
+          customerName: payload.customerName,
+          items: payload.items,
+          subTotal: payload.subTotal,
+          netTotal: payload.netTotal,
+          paidAmount: payload.paidAmount,
+          balance: payload.balance,
         };
-        if (overrides.withPrint) doPrint(retObj, overrides.printType);
-        setShowSaveModal(false);
-        setPendingPayload(null);
+        doPrint(retObj, printType);
         fullReset();
         refreshReturnNo();
-      } else {
-        showMsg(data.message, "error");
-      }
+        setTimeout(() => searchRef.current?.focus(), 100);
+      } else { showMsg(data.message, "error"); }
     } catch (e) {
+      console.error("Save error:", e);
       showMsg(e.response?.data?.message || "Save failed", "error");
     }
     setLoading(false);
   };
 
-  // Handle Enter key on remarks field
   const handleRemarksKeyDown = (e) => {
     if (e.key === "Enter") {
       e.preventDefault();
-      if (items.length > 0) {
-        openReturnConfirm();
-      } else {
-        showMsg("Add at least one item first", "error");
-      }
+      if (items.length > 0) { saveAndPrintDirect(); }
+      else { showMsg("Add at least one item first", "error"); }
+    }
+  };
+
+  const handlePaidKeyDown = (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      if (items.length > 0) { saveAndPrintDirect(); }
+      else { showMsg("Add at least one item first", "error"); }
     }
   };
 
   useEffect(() => {
     const handler = (e) => {
-      if (showProductModal || showHoldPreview || showSaveModal) return;
+      if (showProductModal || showHoldPreview) return;
       if (e.key === "*") {
         e.preventDefault();
-        if (items.length === 0) {
-          showMsg("Add at least one item first", "error");
-          return;
-        }
-        openReturnConfirm();
+        if (items.length === 0) { showMsg("Add at least one item first", "error"); return; }
+        saveAndPrintDirect();
       }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [items, showProductModal, showHoldPreview, showSaveModal, creditCustomerSelected, remarks]);
+  }, [items, showProductModal, showHoldPreview, creditCustomerSelected, remarks]);
 
   useEffect(() => {
     const handler = (e) => {
-      // Only open product modal on F2 or Enter, not on click
-      if (e.key === "F2") {
-        e.preventDefault();
-        setShowProductModal(true);
-      }
-      if (e.key === "F4") {
-        e.preventDefault();
-        holdBill();
-      }
-      if (e.key === "F10" || (e.ctrlKey && e.key === "s")) {
-        e.preventDefault();
-        saveRef.current?.click();
-      }
-      if (
-        e.key === "Escape" &&
-        !showProductModal &&
-        !showHoldPreview &&
-        !showSaveModal
-      )
-        resetCurRow();
+      if (e.key === "F2") { e.preventDefault(); setShowProductModal(true); }
+      if (e.key === "F4") { e.preventDefault(); holdBill(); }
+      if (e.key === "F10" || (e.ctrlKey && e.key === "s")) { e.preventDefault(); saveAndPrintDirect(); }
+      if (e.key === "Escape" && !showProductModal && !showHoldPreview) resetCurRow();
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [items, showProductModal, showHoldPreview, showSaveModal]);
+  }, [items, showProductModal, showHoldPreview]);
 
   return (
     <div className="sr-page">
-      {showProductModal && (
-        <SearchModal
-          allProducts={allProducts}
-          onSelect={pickProduct}
-          onClose={() => {
-            setShowProductModal(false);
-            setTimeout(() => searchRef.current?.focus(), 30);
-          }}
-        />
-      )}
-      {showHoldPreview && (
-        <HoldPreviewModal
-          bill={showHoldPreview}
-          onResume={resumeHold}
-          onClose={() => setShowHoldPreview(null)}
-        />
-      )}
-      {showSaveModal && pendingPayload && (
-        <SaveConfirmModal
-          returnPayload={pendingPayload}
-          printType={printType}
-          onConfirm={confirmSave}
-          onClose={() => {
-            setShowSaveModal(false);
-            setPendingPayload(null);
-          }}
-        />
-      )}
-      {showSaleSearchModal && (
-        <SearchSaleModal
-          onSelect={(sale) => loadSaleByInv(sale)}
-          onClose={() => setShowSaleSearchModal(false)}
-          onNext={loadNextInvoice}
-          onPrev={loadPrevInvoice}
-          hasNext={currentInvoiceIndex < allSaleInvoices.length - 1}
-          hasPrev={currentInvoiceIndex > 0}
-        />
-      )}
+      {showProductModal && <SearchModal allProducts={allProducts} onSelect={pickProduct} onClose={() => { setShowProductModal(false); setTimeout(() => searchRef.current?.focus(), 30); }} />}
+      {showHoldPreview && <HoldPreviewModal bill={showHoldPreview} onResume={resumeHold} onClose={() => setShowHoldPreview(null)} />}
+      {showSaleSearchModal && <SearchSaleModal onSelect={(sale) => loadSaleByInv(sale)} onClose={() => setShowSaleSearchModal(false)} onNext={loadNextInvoice} onPrev={loadPrevInvoice} hasNext={currentInvoiceIndex < allSaleInvoices.length - 1} hasPrev={currentInvoiceIndex > 0} />}
 
       {/* TITLEBAR */}
-      <div className="xp-titlebar sr-titlebar">
-        <svg
-          width="15"
-          height="15"
-          viewBox="0 0 16 16"
-          fill="rgba(255,255,255,0.85)"
-        >
-          <path d="M2.146 2.854a.5.5 0 1 1 .708-.708L8 7.293l5.146-5.147a.5.5 0 0 1 .708.708L8.707 8l5.147 5.146a.5.5 0 0 1-.708.708L8 8.707l-5.146 5.147a.5.5 0 0 1-.708-.708z" />
-        </svg>
-        <span className="xp-tb-title">
-          Sale Return — Asim Electric &amp; Electronic Store
-        </span>
+      <div className="xp-titlebar sr-titlebar" style={{ background: "#c0392b" }}>
+        <svg width="15" height="15" viewBox="0 0 16 16" fill="rgba(255,255,255,0.85)"><path d="M2.146 2.854a.5.5 0 1 1 .708-.708L8 7.293l5.146-5.147a.5.5 0 0 1 .708.708L8.707 8l5.147 5.146a.5.5 0 0 1-.708.708L8 8.707l-5.146 5.147a.5.5 0 0 1-.708-.708z"/></svg>
+        <span className="xp-tb-title" style={{ color: "#ffffff", fontSize: "16px", fontWeight: "bold" }}>Sale Return — Asim Electric &amp; Electronic Store</span>
         <div className="xp-tb-actions">
           {editId && <div className="sr-edit-badge">✏ Editing Return</div>}
           <div className="xp-tb-divider" />
-          <div className="sl-shortcut-hints">
-            <span>F2 Product</span>
-            <span>F4 Hold</span>
-            <span>* Save</span>
-          </div>
+          <div className="sl-shortcut-hints"><span>F2 Product</span><span>F4 Hold</span><span>* Save</span></div>
           <div className="xp-tb-divider" />
           <button className="xp-cap-btn">─</button>
           <button className="xp-cap-btn">□</button>
@@ -2168,777 +1275,239 @@ export default function SaleReturnPage() {
         </div>
       </div>
 
-      {msg.text && (
-        <div
-          className={`xp-alert ${msg.type === "success" ? "xp-alert-success" : "xp-alert-error"}`}
-          style={{ margin: "4px 10px 0", flexShrink: 0 }}
-        >
-          {msg.text}
-        </div>
-      )}
+      {msg.text && <div className={`xp-alert ${msg.type === "success" ? "xp-alert-success" : "xp-alert-error"}`} style={{ margin: "4px 10px 0", flexShrink: 0, fontSize: "13px", fontWeight: "500" }}>{msg.text}</div>}
 
       <div className="sr-body">
         <div className="sr-left">
-          {/* Top bar */}
-          <div className="sr-top-bar">
-            <div className="sr-title-box">Sale Return</div>
-            
-            <div className="sr-inv-field-grp">
-              <label>Sale Inv. #</label>
-              <div className="sr-inv-nav-container">
-                <button
-                  className="sr-inv-nav-btn sr-inv-nav-prev"
-                  onClick={loadPrevInvoice}
-                  disabled={currentInvoiceIndex <= 0}
-                  title="Previous Invoice (←)"
-                  type="button"
-                >
-                  ◀
-                </button>
-                
-                <input
-                  ref={saleInvRef}
-                  className="xp-input xp-input-sm sr-inv-input"
-                  value={saleInvNo}
-                  onChange={(e) => setSaleInvNo(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      if (saleInvNo.trim()) {
-                        loadSaleByInv();
-                      } else {
-                        setShowSaleSearchModal(true);
-                      }
-                    }
-                    if (e.key === "ArrowLeft") {
-                      e.preventDefault();
-                      loadPrevInvoice();
-                    }
-                    if (e.key === "ArrowRight") {
-                      e.preventDefault();
-                      loadNextInvoice();
-                    }
-                  }}
-                  placeholder="Enter invoice # and press Enter"
-                  title="Enter invoice number and press Enter to load | ← → arrows for navigation"
-                  style={{ 
-                    minWidth: "200px",
-                    paddingLeft: "32px",
-                    paddingRight: "32px",
-                    textAlign: "center"
-                  }}
-                />
-                
-                <button
-                  className="sr-inv-nav-btn sr-inv-nav-next"
-                  onClick={loadNextInvoice}
-                  disabled={currentInvoiceIndex >= allSaleInvoices.length - 1}
-                  title="Next Invoice (→)"
-                  type="button"
-                >
-                  ▶
-                </button>
+          {/* Top bar - Responsive */}
+          <div className="sr-top-bar" style={{ display: "flex", gap: "8px", alignItems: "flex-end", padding: "6px 10px", background: "#f8fafc", border: "1px solid #000000", borderRadius: "6px", flexWrap: "nowrap", overflowX: "auto", minWidth: "0" }}>
+            <div className="sr-title-box" style={{ padding: "4px 14px", background: "#c0392b", color: "white", borderRadius: "4px", fontWeight: "bold", fontSize: "14px", whiteSpace: "nowrap", flexShrink: 0 }}>Sale Return</div>
+            <div className="sr-inv-field-grp" style={{ display: "flex", flexDirection: "column", gap: "2px", flex: "1", minWidth: "140px" }}>
+              <label style={{ fontSize: "9px", fontWeight: "bold", color: "#000000", textTransform: "uppercase", whiteSpace: "nowrap" }}>Sale Inv. #</label>
+              <div className="sr-inv-nav-container" style={{ position: "relative", display: "inline-block", width: "100%" }}>
+                <button className="sr-inv-nav-btn sr-inv-nav-prev" onClick={loadPrevInvoice} disabled={currentInvoiceIndex <= 0} type="button" style={{ position: "absolute", top: "50%", transform: "translateY(-50%)", background: "#f3f4f6", border: "1px solid #000000", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 0, width: "24px", height: "24px", borderRadius: "4px", color: "#000000", fontSize: "10px", fontWeight: "bold", transition: "all 0.2s ease", zIndex: 2, left: "3px" }}>◀</button>
+                <input ref={saleInvRef} className="xp-input xp-input-sm sr-inv-input" value={saleInvNo} onChange={(e) => setSaleInvNo(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); if (saleInvNo.trim()) { loadSaleByInv(); } else { setShowSaleSearchModal(true); } } if (e.key === "ArrowLeft") { e.preventDefault(); loadPrevInvoice(); } if (e.key === "ArrowRight") { e.preventDefault(); loadNextInvoice(); } }} placeholder="Invoice #" title="Enter invoice number | ← → arrows" style={{ width: "100%", minWidth: "120px", paddingLeft: "28px", paddingRight: "28px", textAlign: "center", border: "1px solid #000000", borderRadius: "4px", height: "30px", fontSize: "11px", fontWeight: "500" }} />
+                <button className="sr-inv-nav-btn sr-inv-nav-next" onClick={loadNextInvoice} disabled={currentInvoiceIndex >= allSaleInvoices.length - 1} type="button" style={{ position: "absolute", top: "50%", transform: "translateY(-50%)", background: "#f3f4f6", border: "1px solid #000000", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 0, width: "24px", height: "24px", borderRadius: "4px", color: "#000000", fontSize: "10px", fontWeight: "bold", transition: "all 0.2s ease", zIndex: 2, right: "3px" }}>▶</button>
               </div>
             </div>
-            
-            <div className="sr-inv-field-grp">
-              <label>Return #</label>
-              <input
-                className="xp-input xp-input-sm sr-inv-input"
-                value={editId ? "EDIT MODE" : returnNo}
-                readOnly
-                style={{ background: "#f5f5f5" }}
-              />
+            <div className="sr-inv-field-grp" style={{ display: "flex", flexDirection: "column", gap: "2px", minWidth: "100px", flexShrink: 0 }}>
+              <label style={{ fontSize: "9px", fontWeight: "bold", color: "#000000", textTransform: "uppercase", whiteSpace: "nowrap" }}>Return #</label>
+              <input className="xp-input xp-input-sm sr-inv-input" value={editId ? "EDIT MODE" : returnNo} readOnly style={{ background: "#f5f5f5", border: "1px solid #000000", borderRadius: "4px", height: "30px", width: "100%", textAlign: "center", fontSize: "11px" }} />
             </div>
-            
-            <div className="sr-inv-field-grp">
-              <label>Date</label>
-              <input
-                type="date"
-                className="xp-input xp-input-sm sr-date-input"
-                value={returnDate}
-                onChange={(e) => setReturnDate(e.target.value)}
-              />
+            <div className="sr-inv-field-grp" style={{ display: "flex", flexDirection: "column", gap: "2px", minWidth: "90px", flexShrink: 0 }}>
+              <label style={{ fontSize: "9px", fontWeight: "bold", color: "#000000", textTransform: "uppercase", whiteSpace: "nowrap" }}>Date</label>
+              <input type="date" className="xp-input xp-input-sm sr-date-input" value={returnDate} readOnly style={{ border: "1px solid #000000", borderRadius: "4px", height: "30px", background: "#f5f5f5", cursor: "not-allowed", width: "100%", fontSize: "11px" }} />
             </div>
-            
-            <div className="sr-inv-field-grp">
-              <label>Time</label>
-              <div className="sr-time-box">{time}</div>
+            <div className="sr-inv-field-grp" style={{ display: "flex", flexDirection: "column", gap: "2px", minWidth: "80px", flexShrink: 0 }}>
+              <label style={{ fontSize: "9px", fontWeight: "bold", color: "#000000", textTransform: "uppercase", whiteSpace: "nowrap" }}>Time</label>
+              <div className="sr-time-box" style={{ border: "1px solid #000000", borderRadius: "4px", height: "30px", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: "bold", background: "#ffffff", fontSize: "11px", padding: "0 6px" }}>{time}</div>
             </div>
           </div>
 
           {/* Entry strip */}
-          <div className="sr-entry-strip">
-            <div className="sr-entry-cell sr-entry-product">
-              <label>
-                Select Product <kbd>F2</kbd>
-              </label>
-              <input
-                ref={searchRef}
-                type="text"
-                className="sr-product-input"
-                style={{ background: "#fffde7", cursor: "text" }}
-                value={searchText}
-                onChange={(e) => setSearchText(e.target.value)}
-                // Product modal only opens on F2 or Enter, not on click
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === "F2") {
-                    e.preventDefault();
-                    setShowProductModal(true);
-                  }
-                }}
-                placeholder="Press F2 or Enter to search..."
-                autoFocus
-              />
+          <div className="sr-entry-strip" style={{ display: "flex", gap: "8px", alignItems: "flex-end", padding: "8px", background: "#f8fafc", border: "1px solid #000000", borderRadius: "6px", flexWrap: "wrap" }}>
+            <div className="sr-entry-cell sr-entry-product" style={{ flex: "2", minWidth: "180px", display: "flex", flexDirection: "column", gap: "4px" }}>
+              <label style={{ fontSize: "10px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>Select Product <kbd>F2</kbd></label>
+              <input ref={searchRef} type="text" className="sr-product-input" style={{ background: "#fffde7", border: "1px solid #000000", borderRadius: "4px", height: "36px", cursor: "text", width: "100%" }} value={searchText} onChange={(e) => setSearchText(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === "F2") { e.preventDefault(); setShowProductModal(true); } }} placeholder="Press F2 or Enter to search..." autoFocus />
             </div>
-            <div className="sr-entry-cell">
-              <label>Packing</label>
-              <input
-                ref={packingRef}
-                type="text"
-                className="xp-input sr-num-input"
-                style={{ width: 70, background: "#fffde7" }}
-                value={curRow.uom}
-                onChange={(e) => setCurRow((p) => ({ ...p, uom: e.target.value }))}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    pcsRef.current?.focus();
-                    return;
-                  }
-                  if (packingOptions.length === 0) return;
-                  
-                  if (e.key === "ArrowDown" || e.key === "ArrowUp") {
-                    e.preventDefault();
-                    const currentIdx = packingOptions.indexOf(curRow.uom);
-                    let nextIdx;
-                    if (e.key === "ArrowDown") {
-                      nextIdx = currentIdx + 1;
-                      if (nextIdx >= packingOptions.length) nextIdx = 0;
-                    } else {
-                      nextIdx = currentIdx - 1;
-                      if (nextIdx < 0) nextIdx = packingOptions.length - 1;
-                    }
-                    const newUom = packingOptions[nextIdx];
-                    
-                    const product = allProducts.find(p => p._id === curRow.productId);
-                    if (product?.packingInfo) {
-                      const pk = product.packingInfo.find(pk => pk.measurement === newUom);
-                      if (pk) {
-                        setCurRow(prev => ({
-                          ...prev,
-                          uom: newUom,
-                          rate: pk.saleRate || 0,
-                          pcs: pk.packing || 1,
-                          amount: (pk.packing || 1) * (pk.saleRate || 0)
-                        }));
-                        return;
-                      }
-                    }
-                    setCurRow(prev => ({ ...prev, uom: newUom }));
-                  }
-                }}
-                onFocus={(e) => {
-                  if (packingOptions.length > 0 && !curRow.uom) {
-                    setCurRow(prev => ({ ...prev, uom: packingOptions[0] }));
-                  }
-                }}
-                autoComplete="off"
-              />
+            <div className="sr-entry-cell" style={{ display: "flex", flexDirection: "column", gap: "4px", minWidth: "70px" }}>
+              <label style={{ fontSize: "10px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>Packing</label>
+              <input ref={packingRef} type="text" className="xp-input sr-num-input" style={{ width: "70px", background: "#fffde7", border: "1px solid #000000", borderRadius: "4px", height: "36px" }} value={curRow.uom} onChange={(e) => setCurRow((p) => ({ ...p, uom: e.target.value }))} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); pcsRef.current?.focus(); return; } if (packingOptions.length === 0) return; if (e.key === "ArrowDown" || e.key === "ArrowUp") { e.preventDefault(); const currentIdx = packingOptions.indexOf(curRow.uom); let nextIdx; if (e.key === "ArrowDown") { nextIdx = currentIdx + 1; if (nextIdx >= packingOptions.length) nextIdx = 0; } else { nextIdx = currentIdx - 1; if (nextIdx < 0) nextIdx = packingOptions.length - 1; } const newUom = packingOptions[nextIdx]; const product = allProducts.find(p => p._id === curRow.productId); if (product?.packingInfo) { const pk = product.packingInfo.find(pk => pk.measurement === newUom); if (pk) { setCurRow(prev => ({ ...prev, uom: newUom, rate: pk.saleRate || 0, pcs: pk.packing || 1, amount: (pk.packing || 1) * (pk.saleRate || 0) })); return; } } setCurRow(prev => ({ ...prev, uom: newUom })); } }} autoComplete="off" />
             </div>
-            <div className="sr-entry-cell">
-              <label>Pcs</label>
-              <input
-                ref={pcsRef}
-                type="number"
-                className="sr-num-input"
-                style={{ width: 60, background: "#fffde7" }}
-                value={curRow.pcs}
-                min={1}
-                onChange={(e) => updateCurRow("pcs", e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && rateRef.current?.focus()}
-                onFocus={(e) => e.target.select()}
-              />
+            <div className="sr-entry-cell" style={{ display: "flex", flexDirection: "column", gap: "4px", minWidth: "60px" }}>
+              <label style={{ fontSize: "10px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>Pcs</label>
+              <input ref={pcsRef} type="number" className="sr-num-input" style={{ width: "60px", background: "#fffde7", border: "1px solid #000000", borderRadius: "4px", height: "36px" }} value={curRow.pcs} min={1} onChange={(e) => updateCurRow("pcs", e.target.value)} onKeyDown={(e) => e.key === "Enter" && rateRef.current?.focus()} onFocus={(e) => e.target.select()} />
             </div>
-            <div className="sr-entry-cell">
-              <label>Rate</label>
-              <input
-                ref={rateRef}
-                type="number"
-                className="sr-num-input"
-                style={{ width: 75, background: "#fffde7" }}
-                value={curRow.rate}
-                min={0}
-                onChange={(e) => updateCurRow("rate", e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && addRef.current?.click()}
-                onFocus={(e) => e.target.select()}
-              />
+            <div className="sr-entry-cell" style={{ display: "flex", flexDirection: "column", gap: "4px", minWidth: "75px" }}>
+              <label style={{ fontSize: "10px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>Rate</label>
+              <input ref={rateRef} type="number" className="sr-num-input" style={{ width: "75px", background: "#fffde7", border: "1px solid #000000", borderRadius: "4px", height: "36px" }} value={curRow.rate} min={0} onChange={(e) => updateCurRow("rate", e.target.value)} onKeyDown={(e) => e.key === "Enter" && addRef.current?.click()} onFocus={(e) => e.target.select()} />
             </div>
-            <div className="sr-entry-cell">
-              <label>Amount</label>
-              <input
-                className="sr-num-input"
-                style={{ width: 80, background: "#fffde7" }}
-                value={Number(curRow.amount || 0).toLocaleString("en-PK")}
-                readOnly
-              />
+            <div className="sr-entry-cell" style={{ display: "flex", flexDirection: "column", gap: "4px", minWidth: "80px" }}>
+              <label style={{ fontSize: "10px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>Amount</label>
+              <input className="sr-num-input" style={{ width: "80px", background: "#f5f5f5", border: "1px solid #000000", borderRadius: "4px", height: "36px", fontWeight: "bold" }} value={Number(curRow.amount || 0).toLocaleString("en-PK")} readOnly />
             </div>
-            <div className="sr-entry-cell sr-entry-btns-cell">
+            <div className="sr-entry-cell sr-entry-btns-cell" style={{ flex: "1", minWidth: "280px" }}>
               <label>&nbsp;</label>
-              <div className="sr-entry-btns">
-                <button className="xp-btn xp-btn-sm" onClick={resetCurRow}>
-                  Reset
-                </button>
-                <button
-                  ref={addRef}
-                  className="xp-btn xp-btn-sm sr-btn-add"
-                  onClick={addRow}
-                >
-                  {selItemIdx !== null ? "Update" : "Add"}
-                </button>
-                <button
-                  className="xp-btn xp-btn-sm"
-                  disabled={selItemIdx === null}
-                  onClick={() =>
-                    selItemIdx !== null && loadRowForEdit(selItemIdx)
-                  }
-                >
-                  Edit
-                </button>
-                <button
-                  className="xp-btn xp-btn-danger xp-btn-sm"
-                  disabled={selItemIdx === null}
-                  onClick={removeRow}
-                >
-                  Remove
-                </button>
+              <div className="sr-entry-btns" style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+                <button className="xp-btn xp-btn-sm" onClick={resetCurRow} style={{ border: "1px solid #000000", borderRadius: "4px", fontWeight: "bold", padding: "4px 10px" }}>Reset</button>
+                <button ref={addRef} className="xp-btn xp-btn-sm sr-btn-add" onClick={addRow} style={{ background: "#22c55e", color: "white", border: "1px solid #000000", borderRadius: "4px", fontWeight: "bold", padding: "4px 10px" }}>{selItemIdx !== null ? "Update" : "Add"}</button>
+                <button className="xp-btn xp-btn-sm" disabled={selItemIdx === null} onClick={() => selItemIdx !== null && loadRowForEdit(selItemIdx)} style={{ border: "1px solid #000000", borderRadius: "4px", fontWeight: "bold", padding: "4px 10px" }}>Edit</button>
+                <button className="xp-btn xp-btn-danger xp-btn-sm" disabled={selItemIdx === null} onClick={removeRow} style={{ background: "#ef4444", color: "white", border: "1px solid #000000", borderRadius: "4px", fontWeight: "bold", padding: "4px 10px" }}>Remove</button>
               </div>
             </div>
           </div>
 
           {/* Table header */}
-          <div className="sr-table-header-bar">
-            <span className="sr-table-lbl">
-              {curRow.name ? (
-                <span className="sr-cur-name-inline">{curRow.name}</span>
-              ) : (
-                "Select Product"
-              )}
-            </span>
-            <span className="sr-table-qty">
-              {totalQty.toLocaleString("en-PK")}
-            </span>
+          <div className="sr-table-header-bar" style={{ display: "flex", justifyContent: "space-between", padding: "4px 8px", background: "#fef3c7", border: "1px solid #000000", borderRadius: "4px" }}>
+            <span className="sr-table-lbl" style={{ fontSize: "11px", fontWeight: "bold", color: "#000000" }}>{curRow.name ? <span className="sr-cur-name-inline" style={{ background: "#fef3c7", padding: "2px 8px", borderRadius: "4px" }}>{curRow.name}</span> : "Select Product"}</span>
+            <span className="sr-table-qty" style={{ fontSize: "11px", fontWeight: "bold", color: "#000000" }}>{totalQty.toLocaleString("en-PK")}</span>
           </div>
 
-          {/* Items table */}
-          <div className="sr-items-wrap">
-            <table className="sr-items-table">
+          {/* Items table - takes maximum space */}
+          <div className="sr-items-wrap" style={{ flex: "1", overflow: "auto", minHeight: "0", border: "1px solid #000000", borderRadius: "6px" }}>
+            <table className="sr-items-table" style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead>
-                <tr>
-                  <th style={{ width: 32 }}>Sr.#</th>
-                  <th style={{ width: 80 }}>Code</th>
-                  <th>Name</th>
-                  <th style={{ width: 65 }}>UOM</th>
-                  <th style={{ width: 55 }} className="r">
-                    Pcs
-                  </th>
-                  <th style={{ width: 80 }} className="r">
-                    Rate
-                  </th>
-                  <th style={{ width: 90 }} className="r">
-                    Amount
-                  </th>
+                <tr style={{ position: "sticky", top: 0, zIndex: 10 }}>
+                  <th style={{ width: "40px", padding: "6px 6px", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000", background: "#f1f5f9" }}>#</th>
+                  <th style={{ width: "80px", padding: "6px 6px", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000", background: "#f1f5f9" }}>Code</th>
+                  <th style={{ padding: "6px 6px", border: "1px solid #000000", fontSize: "12px", fontWeight: "bold", color: "#000000", background: "#f1f5f9" }}>Name</th>
+                  <th style={{ width: "65px", padding: "6px 6px", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000", background: "#f1f5f9" }}>UOM</th>
+                  <th style={{ width: "55px", padding: "6px 6px", textAlign: "right", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000", background: "#f1f5f9" }}>Pcs</th>
+                  <th style={{ width: "80px", padding: "6px 6px", textAlign: "right", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000", background: "#f1f5f9" }}>Rate</th>
+                  <th style={{ width: "90px", padding: "6px 6px", textAlign: "right", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000", background: "#f1f5f9" }}>Amount</th>
                 </tr>
               </thead>
               <tbody>
                 {items.length === 0 && (
                   <tr>
-                    <td
-                      colSpan={7}
-                      className="xp-empty"
-                      style={{ padding: 14 }}
-                    >
-                      Press F2 or Enter to search and add returned products
-                    </td>
+                    <td colSpan={7} className="xp-empty" style={{ padding: "40px", textAlign: "center", color: "#000000", fontSize: "12px", fontWeight: "bold" }}>Press F2 or Enter to search and add returned products</td>
                   </tr>
                 )}
                 {items.map((r, i) => (
-                  <tr
-                    key={i}
-                    className={selItemIdx === i ? "sr-sel-row" : ""}
-                    onClick={() => setSelItemIdx(i === selItemIdx ? null : i)}
-                    onDoubleClick={() => loadRowForEdit(i)}
-                  >
-                    <td
-                      className="muted"
-                      style={{
-                        textAlign: "center",
-                        fontSize: "var(--xp-fs-xs)",
-                      }}
-                    >
-                      {i + 1}
-                    </td>
-                    <td className="muted">{r.code}</td>
-                    <td style={{ fontWeight: 500 }}>{r.name}</td>
-                    <td className="muted">{r.uom}</td>
-                    <td className="r">{r.pcs}</td>
-                    <td className="r">
-                      {Number(r.rate).toLocaleString("en-PK")}
-                    </td>
-                    <td
-                      className="r"
-                      style={{ color: "var(--xp-red)", fontWeight: 600 }}
-                    >
-                      {Number(r.amount).toLocaleString("en-PK")}
-                    </td>
+                  <tr key={i} className={selItemIdx === i ? "sr-sel-row" : ""} onClick={() => setSelItemIdx(i === selItemIdx ? null : i)} onDoubleClick={() => loadRowForEdit(i)} style={{ background: selItemIdx === i ? "#e5f0ff" : "white", cursor: "pointer" }}>
+                    <td style={{ padding: "5px 6px", textAlign: "center", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>{i + 1}</td>
+                    <td style={{ padding: "5px 6px", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>{r.code}</td>
+                    <td style={{ padding: "5px 6px", border: "1px solid #000000", fontSize: "12px", fontWeight: "bold", color: "#000000" }}>{r.name}</td>
+                    <td style={{ padding: "5px 6px", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>{r.uom}</td>
+                    <td style={{ padding: "5px 6px", textAlign: "right", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>{r.pcs}</td>
+                    <td style={{ padding: "5px 6px", textAlign: "right", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>{Number(r.rate).toLocaleString("en-PK")}</td>
+                    <td style={{ padding: "5px 6px", textAlign: "right", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#dc2626" }}>{Number(r.amount).toLocaleString("en-PK")}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
 
-          {/* Summary bar */}
-          <div className="sr-summary-bar">
-            <div className="sr-sum-cell">
-              <label>Total Quantity</label>
-              <input
-                className="sr-sum-val"
-                value={totalQty.toLocaleString("en-PK")}
-                readOnly
-              />
+          {/* Summary bar - Responsive */}
+          <div className="sr-summary-bar" style={{ display: "flex", gap: "8px", padding: "6px 10px", background: "#f8fafc", borderTop: "1px solid #000000", borderBottom: "1px solid #000000", flexWrap: "wrap" }}>
+            <div className="sr-sum-cell" style={{ display: "flex", flexDirection: "column", gap: "2px", flex: "1", minWidth: "70px" }}>
+              <label style={{ fontSize: "9px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>Total Qty</label>
+              <input className="sr-sum-val" value={totalQty.toLocaleString("en-PK")} readOnly style={{ width: "100%", height: "30px", border: "1px solid #000000", borderRadius: "4px", textAlign: "right", fontWeight: "bold", background: "#f5f5f5" }} />
             </div>
-            <div className="sr-sum-cell">
-              <label>Net Amount</label>
-              <input
-                className="sr-sum-val"
-                value={Number(subTotal).toLocaleString("en-PK")}
-                readOnly
-              />
+            <div className="sr-sum-cell" style={{ display: "flex", flexDirection: "column", gap: "2px", flex: "1", minWidth: "80px" }}>
+              <label style={{ fontSize: "9px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>Net Amount</label>
+              <input className="sr-sum-val" value={Number(subTotal).toLocaleString("en-PK")} readOnly style={{ width: "100%", height: "30px", border: "1px solid #000000", borderRadius: "4px", textAlign: "right", fontWeight: "bold", background: "#f5f5f5" }} />
             </div>
-            <div className="sr-sum-cell">
-              <label>Bill Amount</label>
-              <input
-                className="sr-sum-val"
-                value={Number(subTotal).toLocaleString("en-PK")}
-                readOnly
-              />
+            <div className="sr-sum-cell" style={{ display: "flex", flexDirection: "column", gap: "2px", flex: "1", minWidth: "80px" }}>
+              <label style={{ fontSize: "9px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>Bill Amount</label>
+              <input className="sr-sum-val" value={Number(subTotal).toLocaleString("en-PK")} readOnly style={{ width: "100%", height: "30px", border: "1px solid #000000", borderRadius: "4px", textAlign: "right", fontWeight: "bold", background: "#f5f5f5" }} />
             </div>
-            <div className="sr-sum-cell">
-              <label>Paid</label>
-              <input
-                type="number"
-                className="sr-sum-input"
-                style={{ color: "var(--xp-green)", fontWeight: 700, background: "#fffde7" }}
-                value={paid}
-                min={0}
-                onChange={(e) => setPaid(e.target.value)}
-                onFocus={(e) => e.target.select()}
-              />
+            <div className="sr-sum-cell" style={{ display: "flex", flexDirection: "column", gap: "2px", flex: "1", minWidth: "80px" }}>
+              <label style={{ fontSize: "9px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>Refunded</label>
+              <input ref={paidRef} type="number" className="sr-sum-input" style={{ width: "100%", height: "30px", border: "1px solid #000000", borderRadius: "4px", textAlign: "right", fontWeight: "bold", background: "#fffde7", color: "#059669" }} value={paid} min={0} onChange={(e) => setPaid(e.target.value)} onKeyDown={handlePaidKeyDown} onFocus={(e) => e.target.select()} />
             </div>
-            <div className="sr-sum-cell">
-              <label>Balance</label>
-              <input
-                className={`sr-sum-val${balance > 0 ? " danger" : balance < 0 ? " success" : ""}`}
-                value={Number(balance).toLocaleString("en-PK")}
-                readOnly
-              />
+            <div className="sr-sum-cell" style={{ display: "flex", flexDirection: "column", gap: "2px", flex: "1", minWidth: "80px" }}>
+              <label style={{ fontSize: "9px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>Balance</label>
+              <input className={`sr-sum-val${balance > 0 ? " danger" : balance < 0 ? " success" : ""}`} value={Number(balance).toLocaleString("en-PK")} readOnly style={{ width: "100%", height: "30px", border: "1px solid #000000", borderRadius: "4px", textAlign: "right", fontWeight: "bold", color: balance > 0 ? "#dc2626" : "#059669", background: "#f5f5f5" }} />
             </div>
           </div>
 
-          {/* Customer bar */}
-          <div className="sr-customer-bar">
-            <div className="sr-cust-cell">
-              <label>Code</label>
-              <input
-                className="sr-cust-input"
-                style={{ width: 55, background: "#fffde7" }}
-                value={buyerCode}
-                onChange={(e) => setBuyerCode(e.target.value)}
-              />
+          {/* Customer bar - Responsive */}
+          <div className="sr-customer-bar" style={{ display: "flex", gap: "8px", padding: "6px 10px", background: "#f8fafc", borderTop: "1px solid #000000", flexWrap: "wrap" }}>
+            <div className="sr-cust-cell" style={{ display: "flex", flexDirection: "column", gap: "2px", minWidth: "70px" }}>
+              <label style={{ fontSize: "9px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>Code</label>
+              <input className="sr-cust-input" style={{ width: "70px", height: "30px", border: "1px solid #000000", borderRadius: "4px", background: "#fffde7" }} value={buyerCode} onChange={(e) => setBuyerCode(e.target.value)} />
             </div>
-            <div className="sr-cust-cell sr-cust-buyer">
-              <label>Buyer Name</label>
-              <CustomerDropdown
-                allCustomers={allCustomers}
-                value={customerId}
-                displayName={buyerName}
-                customerType={customerType}
-                onSelect={handleCustomerSelect}
-                onClear={handleCustomerClear}
-              />
+            <div className="sr-cust-cell sr-cust-buyer" style={{ display: "flex", flexDirection: "column", gap: "2px", flex: "2", minWidth: "180px" }}>
+              <label style={{ fontSize: "9px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>Buyer Name</label>
+              <div style={{ border: "1px solid #000000", borderRadius: "4px", background: "#ffffff", minHeight: "30px" }}>
+                <CustomerDropdown allCustomers={allCustomers} value={customerId} displayName={buyerName} customerType={customerType} onSelect={handleCustomerSelect} onClear={handleCustomerClear} />
+              </div>
             </div>
-            <div className="sr-cust-cell">
-              <label>Previous Balance</label>
-              <input
-                type="number"
-                className="sr-cust-input"
-                style={{ width: 95, background: "#fffde7" }}
-                value={prevBalance}
-                onChange={(e) => setPrevBalance(e.target.value)}
-                onFocus={(e) => e.target.select()}
-              />
+            <div className="sr-cust-cell" style={{ display: "flex", flexDirection: "column", gap: "2px", minWidth: "90px" }}>
+              <label style={{ fontSize: "9px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>Prev Balance</label>
+              <input type="number" className="sr-cust-input" style={{ width: "90px", height: "30px", border: "1px solid #000000", borderRadius: "4px", background: "#fffde7", textAlign: "right" }} value={prevBalance} onChange={(e) => setPrevBalance(e.target.value)} />
             </div>
-            <div className="sr-cust-cell">
-              <label>Net Receivable</label>
-              <input
-                className="sr-cust-input sr-net-recv"
-                style={{
-                  color: balance > 0 ? "var(--xp-red)" : "var(--xp-green)",
-                  fontWeight: 700,
-                  width: 95,
-                }}
-                value={Number(balance).toLocaleString("en-PK")}
-                readOnly
-              />
+            <div className="sr-cust-cell" style={{ display: "flex", flexDirection: "column", gap: "2px", minWidth: "90px" }}>
+              <label style={{ fontSize: "9px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>Net Receivable</label>
+              <input className="sr-cust-input sr-net-recv" style={{ width: "90px", height: "30px", border: "1px solid #000000", borderRadius: "4px", textAlign: "right", fontWeight: "bold", color: balance > 0 ? "#dc2626" : "#059669", background: "#f5f5f5" }} value={Number(balance).toLocaleString("en-PK")} readOnly />
             </div>
           </div>
 
           {/* Remarks input for credit customer */}
           {showRemarksInput && (
-            <div className="sr-remarks-bar" style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "10px",
-              padding: "8px 12px",
-              background: "#fef3c7",
-              borderRadius: "6px",
-              marginTop: "8px",
-              border: "1px solid #f59e0b"
-            }}>
-              <label style={{ fontWeight: "bold", color: "#92400e", fontSize: "12px" }}>
-                📝 Remarks (Credit Return):
-              </label>
-              <input
-                ref={remarksRef}
-                type="text"
-                className="xp-input"
-                style={{ flex: 1, background: "#fffde7", border: "1px solid #f59e0b" }}
-                value={remarks}
-                onChange={(e) => setRemarks(e.target.value)}
-                onKeyDown={handleRemarksKeyDown}
-                placeholder="Enter reason for credit return..."
-                autoComplete="off"
-              />
-              <span style={{ fontSize: "10px", color: "#92400e" }}>
-                Press Enter to Save & Print
-              </span>
+            <div className="sr-remarks-bar" style={{ display: "flex", alignItems: "center", gap: "10px", padding: "8px 12px", background: "#fef3c7", borderRadius: "6px", marginTop: "8px", border: "1px solid #f59e0b", flexWrap: "wrap" }}>
+              <label style={{ fontWeight: "bold", color: "#92400e", fontSize: "12px" }}>📝 Remarks (Credit Return):</label>
+              <input ref={remarksRef} type="text" className="xp-input" style={{ flex: "1", background: "#fffde7", border: "1px solid #f59e0b", height: "32px", borderRadius: "4px", minWidth: "150px" }} value={remarks} onChange={(e) => setRemarks(e.target.value)} onKeyDown={handleRemarksKeyDown} placeholder="Enter reason for credit return..." autoComplete="off" />
+              <span style={{ fontSize: "10px", color: "#92400e", fontWeight: "bold" }}>Press Enter to Save & Print</span>
             </div>
           )}
         </div>
 
         {/* RIGHT — Hold Bills */}
-        <div className="sr-right">
-          <div className="sr-hold-panel">
-            <div className="sr-hold-title">
-              <span>
-                Hold Bills{" "}
-                <kbd
-                  style={{
-                    fontSize: 9,
-                    background: "rgba(255,255,255,0.2)",
-                    padding: "0 3px",
-                    borderRadius: 2,
-                  }}
-                >
-                  F4
-                </kbd>
-              </span>
-              <span className="sr-hold-cnt">{holdBills.length}</span>
+        <div className="sr-right" style={{ width: "260px", flexShrink: 0 }}>
+          <div className="sr-hold-panel" style={{ border: "1px solid #000000", borderRadius: "6px", background: "#ffffff", height: "100%", display: "flex", flexDirection: "column" }}>
+            <div className="sr-hold-title" style={{ padding: "8px", background: "#c0392b", color: "#ffffff", fontWeight: "bold", borderBottom: "1px solid #000000", display: "flex", justifyContent: "space-between" }}>
+              <span>Hold Bills <kbd style={{ fontSize: 9, background: "rgba(255,255,255,0.2)", padding: "0 3px", borderRadius: 2 }}>F4</kbd></span>
+              <span className="sr-hold-cnt" style={{ background: "#ffffff", color: "#c0392b", padding: "2px 8px", borderRadius: "12px" }}>{holdBills.length}</span>
             </div>
-            <div className="sr-hold-table-wrap">
-              <table className="sr-hold-table">
-                <thead>
-                  <tr>
-                    <th style={{ width: 24 }}>#</th>
-                    <th>Bill #</th>
-                    <th className="r">Amount</th>
-                    <th>Description</th>
-                    <th style={{ width: 22 }}></th>
-                  </tr>
-                </thead>
+            <div className="sr-hold-table-wrap" style={{ overflow: "auto", flex: 1 }}>
+              <table className="sr-hold-table" style={{ width: "100%", borderCollapse: "collapse" }}>
+                <thead><tr><th style={{ width: 30, padding: "6px 4px", border: "1px solid #000000", fontSize: "10px", fontWeight: "bold", color: "#000000", background: "#f1f5f9" }}>#</th><th style={{ padding: "6px 4px", border: "1px solid #000000", fontSize: "10px", fontWeight: "bold", color: "#000000", background: "#f1f5f9" }}>Bill #</th><th style={{ padding: "6px 4px", textAlign: "right", border: "1px solid #000000", fontSize: "10px", fontWeight: "bold", color: "#000000", background: "#f1f5f9" }}>Amount</th><th style={{ padding: "6px 4px", border: "1px solid #000000", fontSize: "10px", fontWeight: "bold", color: "#000000", background: "#f1f5f9" }}>Customer</th><th style={{ width: 25, padding: "6px 4px", border: "1px solid #000000", background: "#f1f5f9" }}></th></tr></thead>
                 <tbody>
-                  {holdBills.length === 0
-                    ? Array.from({ length: 8 }).map((_, i) => (
-                        <tr key={i}>
-                          <td colSpan={5} style={{ height: 22 }} />
-                        </tr>
-                      ))
-                    : holdBills.map((b, i) => (
-                        <tr
-                          key={b.id}
-                          onClick={() => setShowHoldPreview(b)}
-                          onDoubleClick={() => resumeHold(b.id)}
-                          title="Click = preview · Double-click = resume"
-                        >
-                          <td
-                            className="muted"
-                            style={{
-                              textAlign: "center",
-                              fontSize: "var(--xp-fs-xs)",
-                            }}
-                          >
-                            {i + 1}
-                          </td>
-                          <td
-                            style={{
-                              fontFamily: "var(--xp-mono)",
-                              fontSize: "var(--xp-fs-xs)",
-                            }}
-                          >
-                            {b.returnNo}
-                          </td>
-                          <td className="r" style={{ color: "var(--xp-red)" }}>
-                            {Number(b.amount).toLocaleString("en-PK")}
-                          </td>
-                          <td
-                            className="muted"
-                            style={{ fontSize: "var(--xp-fs-xs)" }}
-                          >
-                            {b.buyerName}
-                          </td>
-                          <td style={{ textAlign: "center" }}>
-                            <button
-                              className="xp-btn xp-btn-sm xp-btn-ico"
-                              style={{
-                                width: 18,
-                                height: 18,
-                                fontSize: 9,
-                                color: "var(--xp-red)",
-                              }}
-                              onClick={(e) => deleteHold(b.id, e)}
-                            >
-                              ✕
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
+                  {holdBills.length === 0 ? Array.from({ length: 6 }).map((_, i) => (<tr key={i}><td colSpan={5} style={{ height: "30px", border: "1px solid #000000" }} /></tr>)) : holdBills.map((b, i) => (<tr key={b.id} onClick={() => setShowHoldPreview(b)} onDoubleClick={() => resumeHold(b.id)} style={{ cursor: "pointer" }}><td style={{ padding: "4px 4px", textAlign: "center", border: "1px solid #000000", fontSize: "10px", fontWeight: "bold", color: "#000000" }}>{i + 1}</td><td style={{ padding: "4px 4px", border: "1px solid #000000", fontSize: "10px", fontWeight: "bold", color: "#000000" }}>{b.returnNo}</td><td style={{ padding: "4px 4px", textAlign: "right", border: "1px solid #000000", fontSize: "10px", fontWeight: "bold", color: "#dc2626" }}>{Number(b.amount).toLocaleString("en-PK")}</td><td style={{ padding: "4px 4px", border: "1px solid #000000", fontSize: "10px", fontWeight: "bold", color: "#000000" }}>{b.buyerName}</td><td style={{ padding: "4px 4px", textAlign: "center", border: "1px solid #000000" }}><button onClick={(e) => deleteHold(b.id, e)} style={{ background: "#ef4444", color: "white", border: "1px solid #000000", borderRadius: "3px", width: "18px", height: "18px", fontSize: "10px", cursor: "pointer" }}>✕</button></td></tr>))}
                 </tbody>
               </table>
             </div>
-            <div className="sr-hold-scroll-btns">
-              <button className="xp-btn xp-btn-sm xp-btn-ico">◀</button>
-              <button className="xp-btn xp-btn-sm xp-btn-ico">▶</button>
-            </div>
-            <div style={{ padding: "4px 8px", flexShrink: 0 }}>
-              <button
-                className="xp-btn xp-btn-sm"
-                style={{ width: "100%" }}
-                onClick={holdBill}
-                disabled={!items.length}
-              >
-                Hold Return (F4)
-              </button>
-            </div>
-            <div className="sr-hold-hint">
-              Click = preview · Dbl-click = resume · ✕ = delete
-            </div>
+            <div style={{ padding: "6px 8px" }}><button className="xp-btn xp-btn-sm" style={{ width: "100%", border: "1px solid #000000", fontWeight: "bold", padding: "6px" }} onClick={holdBill} disabled={!items.length}>Hold Return (F4)</button></div>
+            <div className="sr-hold-hint" style={{ padding: "4px 8px", fontSize: "9px", color: "#666", textAlign: "center", borderTop: "1px solid #000000", background: "#f8fafc" }}>Click = preview · Dbl-click = resume · ✕ = delete</div>
           </div>
         </div>
       </div>
 
-      {/* Command bar */}
-      <div className="sr-cmd-bar">
-        <button
-          className="xp-btn xp-btn-sm"
-          onClick={fullReset}
-          disabled={loading}
-        >
-          Refresh
-        </button>
-        <button
-          ref={saveRef}
-          className="xp-btn xp-btn-sm sr-btn-save-primary xp-btn-lg"
-          onClick={openReturnConfirm}
-          disabled={loading}
-        >
-          {loading ? "Saving…" : "Save Record  *"}
-        </button>
-        <button className="xp-btn xp-btn-sm" onClick={() => {}}>
-          Edit Record
-        </button>
-        <button
-          className="xp-btn xp-btn-danger xp-btn-sm"
-          disabled={!editId}
-          onClick={async () => {
-            if (!editId || !window.confirm("Delete this return?")) return;
-            try {
-              await api.delete(EP.SALES.DELETE(editId));
-              showMsg("Return deleted");
-              fullReset();
-              refreshReturnNo();
-            } catch {
-              showMsg("Delete failed", "error");
-            }
-          }}
-        >
-          Delete Record
-        </button>
-        <div className="xp-toolbar-divider" />
-        <div className="sr-cmd-checks">
-          <label className="sr-check-label">
-            <input
-              type="checkbox"
-              checked={sendSms}
-              onChange={(e) => setSendSms(e.target.checked)}
-            />{" "}
-            Send SMS
-          </label>
+      {/* Command bar - Responsive */}
+      <div className="sr-cmd-bar" style={{ display: "flex", gap: "8px", padding: "6px 10px", background: "#ffffff", borderTop: "1px solid #000000", flexWrap: "wrap" }}>
+        <button className="xp-btn xp-btn-sm" onClick={fullReset} disabled={loading} style={{ border: "1px solid #000000", fontWeight: "bold", padding: "4px 10px" }}>Refresh</button>
+        <button className="xp-btn xp-btn-sm sr-btn-save-primary" onClick={saveAndPrintDirect} disabled={loading} style={{ background: "#22c55e", color: "white", border: "1px solid #000000", fontWeight: "bold", padding: "4px 10px" }}>{loading ? "Saving…" : "Save Record  *"}</button>
+        <button className="xp-btn xp-btn-sm" onClick={() => {}} style={{ border: "1px solid #000000", fontWeight: "bold", padding: "4px 10px" }}>Edit Record</button>
+        <button className="xp-btn xp-btn-danger xp-btn-sm" disabled={!editId} onClick={async () => { if (!editId || !window.confirm("Delete this return?")) return; try { await api.delete(EP.SALES.DELETE(editId)); showMsg("Return deleted"); fullReset(); refreshReturnNo(); } catch { showMsg("Delete failed", "error"); } }} style={{ background: "#ef4444", color: "white", border: "1px solid #000000", fontWeight: "bold", padding: "4px 10px" }}>Delete Record</button>
+        <div className="xp-toolbar-divider" style={{ width: "1px", background: "#000000" }} />
+        <div className="sr-cmd-checks" style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
+          <label className="sr-check-label" style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "11px", fontWeight: "bold", color: "#000000" }}><input type="checkbox" checked={sendSms} onChange={(e) => setSendSms(e.target.checked)} /> Send SMS</label>
         </div>
-        <div className="xp-toolbar-divider" />
-        <div className="sr-print-types">
-          {["Thermal", "A4", "A5"].map((pt) => (
-            <label key={pt} className="sr-check-label">
-              <input
-                type="radio"
-                name="sr-print"
-                checked={printType === pt}
-                onChange={() => setPrintType(pt)}
-              />{" "}
-              {pt}
-            </label>
-          ))}
-        </div>
-        <div className="xp-toolbar-divider" />
-        <span className="sr-inv-info">
-          {editId
-            ? "✏ Editing return record"
-            : `${returnNo} | Items: ${items.length} | Total: ${Number(subTotal).toLocaleString("en-PK")}`}
-        </span>
-        <button
-          className="xp-btn xp-btn-sm"
-          style={{ marginLeft: "auto" }}
-          onClick={fullReset}
-        >
-          Close
-        </button>
+        <div className="xp-toolbar-divider" style={{ width: "1px", background: "#000000" }} />
+        <div className="sr-print-types" style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>{["Thermal", "A4", "A5"].map((pt) => (<label key={pt} className="sr-check-label" style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "11px", fontWeight: "bold", color: "#000000" }}><input type="radio" name="sr-print" checked={printType === pt} onChange={() => setPrintType(pt)} /> {pt}</label>))}</div>
+        <div className="xp-toolbar-divider" style={{ width: "1px", background: "#000000" }} />
+        <span className="sr-inv-info" style={{ fontSize: "11px", fontWeight: "bold", color: "#000000" }}>{editId ? "✏ Editing return record" : `${returnNo} | Items: ${items.length} | Total: ${Number(subTotal).toLocaleString("en-PK")}`}</span>
+        <button className="xp-btn xp-btn-sm" style={{ marginLeft: "auto", border: "1px solid #000000", fontWeight: "bold", padding: "4px 10px" }} onClick={fullReset}>Close</button>
       </div>
 
       <style>{`
-        .sr-page {
-          background: #ffffff;
-        }
-        
-        .sr-product-input {
-          background-color: #fffde7 !important;
-          border-color: #000000 !important;
-          cursor: text !important;
-        }
-        
-        .sr-num-input, .sr-sum-input, .sr-cust-input {
-          background-color: #fffde7 !important;
-          border-color: #000000 !important;
-        }
-        
-        .sr-sum-val, .sr-date-input[readonly] {
-          background-color: #f5f5f5 !important;
-          border-color: #000000 !important;
-        }
-        
-        input, .xp-input, .sr-inv-input, .sr-date-input {
-          border-color: #000000 !important;
-          border-width: 1px !important;
-          border-style: solid !important;
-        }
-        
-        .sr-items-table th,
-        .sr-items-table td,
-        .sr-hold-table th,
-        .sr-hold-table td {
-          border-color: #000000 !important;
-          border-width: 1px !important;
-        }
-        
-        .xp-btn, .sr-entry-btns .xp-btn {
-          border-color: #000000 !important;
-          border-width: 1px !important;
-          border-style: solid !important;
-        }
-        
-        .sr-items-table tbody tr.sr-empty-row {
-          display: none;
+        .sr-page { background: #ffffff; height: 100%; display: flex; flex-direction: column; }
+        .sr-body { flex: 1; display: flex; gap: 12px; padding: 12px; overflow: hidden; }
+        .sr-left { flex: 1; display: flex; flex-direction: column; overflow: hidden; gap: 8px; min-width: 0; }
+        .sr-right { width: 260px; flex-shrink: 0; }
+        .sr-items-wrap { flex: 1; overflow: auto; min-height: 0; border: 1px solid #000000; border-radius: 6px; }
+        .sr-items-table { width: 100%; border-collapse: collapse; }
+        .sr-items-table th, .sr-items-table td { border: 1px solid #000000; }
+        .sr-items-table th { background: #f1f5f9; font-weight: bold; color: #000000; position: sticky; top: 0; }
+        .xp-alert { padding: 8px 16px; margin: 8px 16px 0; border-radius: 4px; font-size: 13px; font-weight: 500; }
+        .xp-alert-success { background: #dcfce7; color: #166534; border-left: 4px solid #22c55e; }
+        .xp-alert-error { background: #fee2e2; color: #991b1b; border-left: 4px solid #ef4444; }
+        .text-muted { color: #6b7280; }
+        .r { text-align: right; }
+
+        @media screen and (max-width: 1200px) {
+          .sr-right { width: 240px; }
+          .sr-items-table th, .sr-items-table td { padding: 4px 4px; }
+          .sr-summary-bar, .sr-customer-bar { padding: 4px 8px; }
+          .sr-sum-cell input, .sr-cust-cell input { height: 28px; font-size: 11px; }
+          .sr-top-bar { gap: 6px !important; padding: 4px 6px !important; }
+          .sr-title-box { padding: 2px 10px !important; font-size: 13px !important; }
+          .sr-inv-nav-container { min-width: 140px !important; }
+          .sr-inv-input { height: 28px !important; font-size: 10px !important; padding: 0 24px !important; }
+          .sr-inv-nav-btn { width: 22px !important; height: 22px !important; font-size: 9px !important; }
+          .sr-time-box, .sr-date-input { height: 28px !important; font-size: 10px !important; }
         }
 
-        .sr-inv-nav-container {
-          position: relative;
-          display: inline-block;
-        }
-
-        .sr-inv-nav-btn {
-          position: absolute;
-          top: 50%;
-          transform: translateY(-50%);
-          background: #f3f4f6;
-          border: 1px solid #d1d5db;
-          cursor: pointer;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          padding: 0;
-          width: 26px;
-          height: 26px;
-          border-radius: 4px;
-          color: #4b5563;
-          font-size: 12px;
-          font-weight: bold;
-          transition: all 0.2s ease;
-          z-index: 2;
-        }
-
-        .sr-inv-nav-btn:hover:not(:disabled) {
-          background: #c0392b;
-          border-color: #a93226;
-          color: white;
-          transform: translateY(-50%) scale(1.05);
-        }
-
-        .sr-inv-nav-btn:active:not(:disabled) {
-          transform: translateY(-50%) scale(0.95);
-        }
-
-        .sr-inv-nav-btn:disabled {
-          opacity: 0.5;
-          cursor: not-allowed;
-          background: #e5e7eb;
-          color: #9ca3af;
-        }
-
-        .sr-inv-nav-prev {
-          left: 4px;
-        }
-
-        .sr-inv-nav-next {
-          right: 4px;
-        }
-
-        .sr-inv-input {
-          min-width: 200px !important;
-          text-align: center !important;
-          padding: 6px 32px !important;
-          font-size: 14px !important;
-          font-weight: 500 !important;
-          background: #ffffff !important;
-          border: 1px solid #d1d5db !important;
-          border-radius: 6px !important;
-          transition: all 0.2s ease;
-        }
-
-        .sr-inv-input:hover:not(:disabled) {
-          border-color: #c0392b !important;
-        }
-
-        .sr-inv-input:focus {
-          border-color: #c0392b !important;
-          outline: none;
-          box-shadow: 0 0 0 3px rgba(192, 57, 43, 0.1);
-        }
-
-        .sr-inv-field-grp .xp-btn {
-          display: none;
-        }
-
-        .sr-inv-input[readonly] {
-          background-color: #f5f5f5 !important;
-          cursor: not-allowed;
+        @media screen and (max-width: 1024px) {
+          .sr-right { width: 220px; }
+          .sr-top-bar { gap: 4px !important; padding: 3px 4px !important; }
+          .sr-title-box { padding: 2px 8px !important; font-size: 12px !important; }
+          .sr-inv-nav-container { min-width: 120px !important; }
+          .sr-inv-input { height: 26px !important; font-size: 9px !important; padding: 0 22px !important; }
+          .sr-inv-nav-btn { width: 20px !important; height: 20px !important; font-size: 8px !important; }
+          .sr-time-box, .sr-date-input { height: 26px !important; font-size: 9px !important; }
         }
       `}</style>
     </div>

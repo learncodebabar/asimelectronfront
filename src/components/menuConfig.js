@@ -59,6 +59,7 @@ const MENU_CONFIG = [
   {
     label: "Final Accounts",
     items: [
+      
       { label: "General Ledger", route: "/general-ledger" },
       { label: "Trial Balance", route: "/trial-balance" },
       { label: "Balance Sheet", route: "/balance-sheet" },

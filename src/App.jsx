@@ -22,6 +22,8 @@ import DamageOutPage from "./pages/DamageOutPage.jsx";
 import CashPaymentVoucher from "./pages/CashPaymentVoucher.jsx";
 import SuppliersPage from "./pages/SuppliersPage.jsx";
 import CashReceiptsPage from "./pages/CashReceiptsPage.jsx"; // Add this import
+import GeneralLedgerPage from "./pages/GeneralLedgerPage.jsx";
+
 
 // Create a wrapper component that provides the current location as key
 function AppRoutes() {
@@ -52,6 +54,8 @@ function AppRoutes() {
       <Route path="/sale-return" element={<SaleReturnPage key={`sale-return-${location.pathname}`} />} />
       <Route path="/cash-payment" element={<CashPaymentVoucher key={`cash-payment-${location.pathname}`} />} />
       <Route path="*" element={<ComingSoon key={`coming-soon-${location.pathname}`} />} />
+      <Route path="/general-ledger" element={<GeneralLedgerPage key={`general-ledger-${location.pathname}`} />} />
+      
     </Routes>
   );
 }
