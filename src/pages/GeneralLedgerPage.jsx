@@ -741,220 +741,258 @@ export default function GeneralLedgerPage() {
       <div className="xp-page-body" style={{ padding: "16px", background: "#ffffff", flex: 1, overflow: "auto" }}>
         
         {/* Search Section - ALL IN ONE ROW */}
-        <div style={{
-          background: "#ffffff",
-          borderRadius: "8px",
-          padding: "16px",
-          marginBottom: "20px",
-          border: "2px solid #000000"
-        }}>
-          {/* All fields in one row */}
-          <div style={{ 
-            display: "flex", 
-            gap: "12px", 
-            alignItems: "flex-end", 
-            flexWrap: "wrap",
-            justifyContent: "space-between"
-          }}>
-            {/* From Date */}
-            <div style={{ minWidth: "120px" }}>
-              <label style={{ fontSize: "10px", fontWeight: "bold", color: "#000000", display: "block", marginBottom: "3px", textTransform: "uppercase" }}>From Date</label>
-              <input
-                type="date"
-                className="xp-input"
-                value={fromDate}
-                onChange={(e) => setFromDate(e.target.value)}
-                style={{ height: "34px", padding: "0 8px", fontSize: "11px", border: "1px solid #000000", borderRadius: "4px", width: "120px" }}
-              />
-            </div>
-            
-            {/* To Date */}
-            <div style={{ minWidth: "120px" }}>
-              <label style={{ fontSize: "10px", fontWeight: "bold", color: "#000000", display: "block", marginBottom: "3px", textTransform: "uppercase" }}>To Date</label>
-              <input
-                type="date"
-                className="xp-input"
-                value={toDate}
-                onChange={(e) => setToDate(e.target.value)}
-                style={{ height: "34px", padding: "0 8px", fontSize: "11px", border: "1px solid #000000", borderRadius: "4px", width: "120px" }}
-              />
-            </div>
-            
-            {/* Code Input */}
-            <div style={{ minWidth: "120px" }}>
-              <label style={{ fontSize: "10px", fontWeight: "bold", color: "#000000", display: "block", marginBottom: "3px", textTransform: "uppercase" }}>Code</label>
-              <input
-                ref={codeInputRef}
-                type="text"
-                className="xp-input"
-                value={codeSearch}
-                onChange={(e) => setCodeSearch(e.target.value)}
-                onKeyDown={handleCodeKeyDown}
-                placeholder="Enter code"
-                style={{ 
-                  height: "34px", 
-                  padding: "0 10px", 
-                  fontSize: "12px", 
-                  border: "1px solid #000000", 
-                  borderRadius: "4px",
-                  background: "#fffde7",
-                  width: "100%",
-                  textTransform: "uppercase"
-                }}
-              />
-            </div>
-            
-            {/* Account Title - Takes remaining space with dropdown */}
-            <div style={{ flex: 2, minWidth: "220px", position: "relative" }}>
-              <label style={{ fontSize: "10px", fontWeight: "bold", color: "#000000", display: "block", marginBottom: "3px", textTransform: "uppercase" }}>Account Title</label>
-              <input
-                ref={accountTitleRef}
-                type="text"
-                className="xp-input"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder="Type name - suggestions will appear..."
-                autoComplete="off"
-                style={{ 
-                  width: "100%", 
-                  height: "34px", 
-                  padding: "0 10px", 
-                  fontSize: "12px", 
-                  border: "1px solid #000000", 
-                  borderRadius: "4px",
-                  background: "#fffde7"
-                }}
-              />
-              
-              {/* Dropdown - like CreditCustomersPage */}
-              {showDropdown && filteredEntities.length > 0 && (
-                <div
-                  ref={dropdownRef}
-                  style={{
-                    position: "absolute",
-                    top: "100%",
-                    left: 0,
-                    right: 0,
-                    backgroundColor: "white",
-                    border: "1px solid #000000",
-                    borderRadius: "4px",
-                    maxHeight: "250px",
-                    overflowY: "auto",
-                    zIndex: 1000,
-                    boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
-                    marginTop: "4px"
-                  }}
-                >
-                  {filteredEntities.map((entity, idx) => (
-                    <div
-                      key={entity._id}
-                      onClick={() => selectEntity(entity)}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "10px",
-                        padding: "8px 10px",
-                        cursor: "pointer",
-                        backgroundColor: idx === selectedSuggestionIndex ? "#e5f0ff" : "white",
-                        borderBottom: "1px solid #e2e8f0"
-                      }}
-                      onMouseEnter={() => setSelectedSuggestionIndex(idx)}
-                    >
-                      <div>
-                        {entity.imageFront ? (
-                          <img src={entity.imageFront} alt={entity.name} width="30" height="30" style={{ borderRadius: "50%", objectFit: "cover", border: "1px solid #000000" }} />
-                        ) : (
-                          <div style={{ width: 30, height: 30, borderRadius: "50%", background: "#e2e8f0", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "14px", border: "1px solid #000000" }}>
-                            {activeTab === "customer" ? "👤" : "🏢"}
-                          </div>
-                        )}
-                      </div>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontWeight: "bold", fontSize: "12px", color: "#1e293b" }}>{entity.name}</div>
-                        <div style={{ fontSize: "10px", color: "#64748b" }}>
-                          {entity.code && <span>Code: {entity.code} | </span>}
-                          {entity.phone && <span>📞 {entity.phone}</span>}
-                        </div>
-                      </div>
-                      <div style={{ fontSize: "10px", fontWeight: "bold", color: (entity.currentBalance || 0) > 0 ? "#dc2626" : "#059669" }}>
-                        Bal: PKR {fmt(entity.currentBalance || 0)}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-            
-            {/* Show Transactions Button - At the end */}
-            <div>
-              <button
-                className="xp-btn xp-btn-primary"
-                onClick={() => selectedEntity && loadLedger(selectedEntity._id)}
-                disabled={!selectedEntity || loading}
-                style={{ 
-                  height: "34px", 
-                  padding: "0 20px", 
-                  fontSize: "11px", 
-                  fontWeight: "bold",
-                  background: "#22c55e",
-                  color: "white",
-                  border: "1px solid #000000",
-                  borderRadius: "4px",
-                  cursor: "pointer",
-                  marginBottom: "0",
-                  whiteSpace: "nowrap"
-                }}
-              >
-                {loading ? "Loading..." : "⟳ Show"}
-              </button>
-            </div>
-          </div>
-          
-          {/* Selected Entity Info with Photo */}
-          {selectedEntity && (
-            <div style={{
-              marginTop: "12px",
-              display: "flex",
-              alignItems: "center",
-              gap: "12px",
-              padding: "8px 12px",
-              background: "#f8fafc",
-              borderRadius: "6px",
-              border: "1px solid #000000"
-            }}>
-              {selectedEntity.imageFront ? (
-                <img src={selectedEntity.imageFront} alt={selectedEntity.name} style={{ width: "40px", height: "40px", borderRadius: "50%", objectFit: "cover", border: "1px solid #000000" }} />
-              ) : (
-                <div style={{ width: "40px", height: "40px", borderRadius: "50%", background: "#e2e8f0", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "20px", border: "1px solid #000000" }}>
-                  {activeTab === "customer" ? "👤" : "🏢"}
-                </div>
-              )}
+    {/* Search Section - ALL IN ONE ROW */}
+<div style={{
+  background: "#ffffff",
+  borderRadius: "8px",
+  padding: "12px 16px",
+  marginBottom: "20px",
+  border: "2px solid #000000"
+}}>
+  {/* All fields in one row */}
+  <div style={{ 
+    display: "flex", 
+    gap: "12px", 
+    alignItems: "flex-end", 
+    flexWrap: "wrap"
+  }}>
+    {/* From Date */}
+    <div style={{ minWidth: "130px" }}>
+      <label style={{ fontSize: "10px", fontWeight: "bold", color: "#000000", display: "block", marginBottom: "4px", textTransform: "uppercase" }}>From Date</label>
+      <input
+        type="date"
+        className="xp-input"
+        value={fromDate}
+        onChange={(e) => setFromDate(e.target.value)}
+        style={{ 
+          height: "36px", 
+          padding: "0 10px", 
+          fontSize: "13px", 
+          fontWeight: "500",
+          border: "1px solid #000000", 
+          borderRadius: "4px", 
+          width: "130px",
+          background: "#ffffff"
+        }}
+      />
+    </div>
+    
+    {/* To Date */}
+    <div style={{ minWidth: "130px" }}>
+      <label style={{ fontSize: "10px", fontWeight: "bold", color: "#000000", display: "block", marginBottom: "4px", textTransform: "uppercase" }}>To Date</label>
+      <input
+        type="date"
+        className="xp-input"
+        value={toDate}
+        onChange={(e) => setToDate(e.target.value)}
+        style={{ 
+          height: "36px", 
+          padding: "0 10px", 
+          fontSize: "13px", 
+          fontWeight: "500",
+          border: "1px solid #000000", 
+          borderRadius: "4px", 
+          width: "130px",
+          background: "#ffffff"
+        }}
+      />
+    </div>
+    
+    {/* Code Input */}
+    <div style={{ minWidth: "130px" }}>
+      <label style={{ fontSize: "10px", fontWeight: "bold", color: "#000000", display: "block", marginBottom: "4px", textTransform: "uppercase" }}>Code</label>
+      <div style={{ display: "flex", gap: "6px" }}>
+        <input
+          ref={codeInputRef}
+          type="text"
+          className="xp-input"
+          value={codeSearch}
+          onChange={(e) => setCodeSearch(e.target.value)}
+          onKeyDown={handleCodeKeyDown}
+          placeholder="Enter code"
+          style={{ 
+            height: "36px", 
+            padding: "0 10px", 
+            fontSize: "13px", 
+            fontWeight: "500",
+            border: "1px solid #000000", 
+            borderRadius: "4px",
+            background: "#fffde7",
+            width: "120px",
+            textTransform: "uppercase"
+          }}
+        />
+        <button
+          onClick={handleCodeSearch}
+          style={{
+            height: "36px",
+            padding: "0 16px",
+            background: "#3b82f6",
+            color: "white",
+            border: "1px solid #000000",
+            borderRadius: "4px",
+            fontWeight: "bold",
+            fontSize: "12px",
+            cursor: "pointer",
+            whiteSpace: "nowrap"
+          }}
+        >
+          Search
+        </button>
+      </div>
+    </div>
+    
+    {/* Account Title - Takes remaining space with dropdown */}
+    <div style={{ flex: 2, minWidth: "250px", position: "relative" }}>
+      <label style={{ fontSize: "10px", fontWeight: "bold", color: "#000000", display: "block", marginBottom: "4px", textTransform: "uppercase" }}>Account Title</label>
+      <input
+        ref={accountTitleRef}
+        type="text"
+        className="xp-input"
+        value={searchQuery}
+        onChange={(e) => setSearchQuery(e.target.value)}
+        onKeyDown={handleKeyDown}
+        placeholder="Type name - suggestions will appear..."
+        autoComplete="off"
+        style={{ 
+          width: "100%", 
+          height: "36px", 
+          padding: "0 10px", 
+          fontSize: "13px", 
+          fontWeight: "500",
+          border: "1px solid #000000", 
+          borderRadius: "4px",
+          background: "#fffde7"
+        }}
+      />
+      
+      {/* Dropdown - like CreditCustomersPage */}
+      {showDropdown && filteredEntities.length > 0 && (
+        <div
+          ref={dropdownRef}
+          style={{
+            position: "absolute",
+            top: "100%",
+            left: 0,
+            right: 0,
+            backgroundColor: "white",
+            border: "1px solid #000000",
+            borderRadius: "4px",
+            maxHeight: "250px",
+            overflowY: "auto",
+            zIndex: 1000,
+            boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+            marginTop: "4px"
+          }}
+        >
+          {filteredEntities.map((entity, idx) => (
+            <div
+              key={entity._id}
+              onClick={() => selectEntity(entity)}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "10px",
+                padding: "8px 10px",
+                cursor: "pointer",
+                backgroundColor: idx === selectedSuggestionIndex ? "#e5f0ff" : "white",
+                borderBottom: "1px solid #e2e8f0"
+              }}
+              onMouseEnter={() => setSelectedSuggestionIndex(idx)}
+            >
               <div>
-                <div style={{ fontSize: "13px", fontWeight: "bold", color: "#1e293b" }}>{selectedEntity.name}</div>
+                {entity.imageFront ? (
+                  <img src={entity.imageFront} alt={entity.name} width="30" height="30" style={{ borderRadius: "50%", objectFit: "cover", border: "1px solid #000000" }} />
+                ) : (
+                  <div style={{ width: 30, height: 30, borderRadius: "50%", background: "#e2e8f0", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "14px", border: "1px solid #000000" }}>
+                    {activeTab === "customer" ? "👤" : "🏢"}
+                  </div>
+                )}
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: "bold", fontSize: "12px", color: "#1e293b" }}>{entity.name}</div>
                 <div style={{ fontSize: "10px", color: "#64748b" }}>
-                  Code: {selectedEntity.code || "—"} | Phone: {selectedEntity.phone || "—"} | Type: {activeTab === "customer" ? (selectedEntity.customerType || selectedEntity.type || "Customer") : "Supplier"}
+                  {entity.code && <span>Code: {entity.code} | </span>}
+                  {entity.phone && <span>📞 {entity.phone}</span>}
                 </div>
               </div>
-              <button
-                onClick={clearSelection}
-                style={{
-                  marginLeft: "auto",
-                  background: "#ef4444",
-                  color: "white",
-                  border: "1px solid #000000",
-                  borderRadius: "4px",
-                  padding: "4px 12px",
-                  fontSize: "11px",
-                  fontWeight: "bold",
-                  cursor: "pointer"
-                }}
-              >
-                Clear
-              </button>
+              <div style={{ fontSize: "10px", fontWeight: "bold", color: (entity.currentBalance || 0) > 0 ? "#dc2626" : "#059669" }}>
+                Bal: PKR {fmt(entity.currentBalance || 0)}
+              </div>
             </div>
-          )}
+          ))}
         </div>
+      )}
+    </div>
+    
+    {/* Show Transactions Button - At the end */}
+    <div>
+      <button
+        className="xp-btn xp-btn-primary"
+        onClick={() => selectedEntity && loadLedger(selectedEntity._id)}
+        disabled={!selectedEntity || loading}
+        style={{ 
+          height: "36px", 
+          padding: "0 24px", 
+          fontSize: "12px", 
+          fontWeight: "bold",
+          background: "#22c55e",
+          color: "white",
+          border: "1px solid #000000",
+          borderRadius: "4px",
+          cursor: "pointer",
+          whiteSpace: "nowrap"
+        }}
+      >
+        {loading ? "Loading..." : "⟳ Show"}
+      </button>
+    </div>
+  </div>
+  
+  {/* Selected Entity Info with Photo */}
+  {selectedEntity && (
+    <div style={{
+      marginTop: "12px",
+      display: "flex",
+      alignItems: "center",
+      gap: "12px",
+      padding: "8px 12px",
+      background: "#f8fafc",
+      borderRadius: "6px",
+      border: "1px solid #000000"
+    }}>
+      {selectedEntity.imageFront ? (
+        <img src={selectedEntity.imageFront} alt={selectedEntity.name} style={{ width: "36px", height: "36px", borderRadius: "50%", objectFit: "cover", border: "1px solid #000000" }} />
+      ) : (
+        <div style={{ width: "36px", height: "36px", borderRadius: "50%", background: "#e2e8f0", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "18px", border: "1px solid #000000" }}>
+          {activeTab === "customer" ? "👤" : "🏢"}
+        </div>
+      )}
+      <div>
+        <div style={{ fontSize: "13px", fontWeight: "bold", color: "#1e293b" }}>{selectedEntity.name}</div>
+        <div style={{ fontSize: "10px", color: "#64748b" }}>
+          Code: {selectedEntity.code || "—"} | Phone: {selectedEntity.phone || "—"} | Type: {activeTab === "customer" ? (selectedEntity.customerType || selectedEntity.type || "Customer") : "Supplier"}
+        </div>
+      </div>
+      <button
+        onClick={clearSelection}
+        style={{
+          marginLeft: "auto",
+          background: "#ef4444",
+          color: "white",
+          border: "1px solid #000000",
+          borderRadius: "4px",
+          padding: "4px 12px",
+          fontSize: "11px",
+          fontWeight: "bold",
+          cursor: "pointer"
+        }}
+      >
+        Clear
+      </button>
+    </div>
+  )}
+</div>
         
         {/* Transaction Table */}
         <div style={{
