@@ -73,12 +73,42 @@ export default function GeneralLedgerPage() {
   
   const loadCustomers = async () => {
     try {
-      const { data } = await api.get(EP.CUSTOMERS.GET_ALL);
+      // Use the credit filter endpoint like CreditCustomersPage
+      const { data } = await api.get(EP.CUSTOMERS.GET_ALL + "?type=credit");
       if (data.success) {
-        setCustomers(Array.isArray(data.data) ? data.data : []);
+        // Filter out suppliers from credit customers
+        const creditCustomers = data.data.filter(c => {
+          const type = (c.customerType || c.type || "").toLowerCase();
+          return type !== "supplier";
+        });
+        setCustomers(creditCustomers);
+        console.log("Credit customers loaded:", creditCustomers.length);
+      } else {
+        // Fallback: load all and filter by balance
+        await loadCustomersFallback();
       }
     } catch (err) {
-      console.error("Failed to load customers:", err);
+      console.error("Failed to load credit customers:", err);
+      // Fallback to regular endpoint
+      await loadCustomersFallback();
+    }
+  };
+  
+  const loadCustomersFallback = async () => {
+    try {
+      const { data } = await api.get(EP.CUSTOMERS.GET_ALL);
+      if (data.success) {
+        const allCustomers = data.data.filter(c => {
+          const type = (c.customerType || c.type || "").toLowerCase();
+          return type !== "supplier";
+        });
+        // Filter only credit customers (balance > 0)
+        const creditCustomers = allCustomers.filter(c => (c.currentBalance || 0) > 0);
+        setCustomers(creditCustomers);
+        console.log("Credit customers (fallback):", creditCustomers.length);
+      }
+    } catch (err2) {
+      console.error("Failed to load customers fallback:", err2);
     }
   };
   
@@ -86,11 +116,13 @@ export default function GeneralLedgerPage() {
     try {
       const { data } = await api.get(EP.CUSTOMERS.GET_ALL);
       if (data.success) {
+        // Filter ONLY suppliers
         const suppliersList = data.data.filter(c => {
           const type = (c.customerType || c.type || "").toLowerCase();
           return type === "supplier";
         });
         setSuppliers(suppliersList);
+        console.log("Suppliers loaded:", suppliersList.length);
       }
     } catch (err) {
       console.error("Failed to load suppliers:", err);
@@ -108,7 +140,7 @@ export default function GeneralLedgerPage() {
       selectEntity(found);
       setCodeSearch("");
     } else {
-      alert(`${activeTab === "customer" ? "Customer" : "Supplier"} with code "${code}" not found`);
+      alert(`${activeTab === "customer" ? "Credit Customer" : "Supplier"} with code "${code}" not found`);
       setCodeSearch("");
     }
   };
@@ -277,7 +309,7 @@ export default function GeneralLedgerPage() {
     setLoading(false);
   };
   
-  // Keyboard navigation for dropdown (like CreditCustomersPage)
+  // Keyboard navigation for dropdown
   const handleKeyDown = (e) => {
     if (!showDropdown || filteredEntities.length === 0) return;
     
@@ -306,7 +338,7 @@ export default function GeneralLedgerPage() {
     }
   };
   
-  // Handle Enter key on Code input - move to Account Title
+  // Handle Enter key on Code input
   const handleCodeKeyDown = (e) => {
     if (e.key === "Enter") {
       e.preventDefault();
@@ -488,32 +520,39 @@ export default function GeneralLedgerPage() {
       </body>
       </html>`;
     } else {
-      // Detailed print with items
+      // Detailed print with items in the same row
       let detailedRows = "";
       transactions.forEach((t, i) => {
-        detailedRows += `
-          <tr style="background:#f8fafc">
-            <td style="padding:12px 10px;border:2px solid #000;font-size:14px;font-weight:bold;text-align:center" rowspan="${Math.max(1, t.items?.length || 1)}">${i + 1}</td>
-            <td style="padding:12px 10px;border:2px solid #000;font-size:14px;font-weight:bold" rowspan="${Math.max(1, t.items?.length || 1)}">${t.date}</td>
-            <td style="padding:12px 10px;border:2px solid #000;font-size:14px;font-weight:bold;font-family:monospace" rowspan="${Math.max(1, t.items?.length || 1)}">${t.transactionId}</td>
-            <td style="padding:12px 10px;border:2px solid #000;font-size:14px;font-weight:bold" rowspan="${Math.max(1, t.items?.length || 1)}">${t.transType}</td>
-            <td style="padding:12px 10px;border:2px solid #000;font-size:13px" rowspan="${Math.max(1, t.items?.length || 1)}">${t.remarks || "—"}</td>
-            <td style="padding:12px 10px;border:2px solid #000;text-align:right;font-size:14px;font-weight:bold" rowspan="${Math.max(1, t.items?.length || 1)}">${t.debit > 0 ? `PKR ${fmt(t.debit)}` : "—"}</td>
-            <td style="padding:12px 10px;border:2px solid #000;text-align:right;font-size:14px;font-weight:bold" rowspan="${Math.max(1, t.items?.length || 1)}">${t.credit > 0 ? `PKR ${fmt(t.credit)}` : "—"}</td>
-            <td style="padding:12px 10px;border:2px solid #000;text-align:right;font-size:14px;font-weight:bold" rowspan="${Math.max(1, t.items?.length || 1)}">PKR ${fmt(Math.abs(t.runningBalance))}</td>
-          </tr>
-        `;
-        
         if (t.items && t.items.length > 0) {
-          t.items.forEach((item, idx) => {
-            detailedRows += `
-              <tr style="background:#ffffff">
-                <td colspan="8" style="padding:8px 10px 8px 25px;border:2px solid #ddd;font-size:12px">
-                  📦 ${item.name || item.description} | Code: ${item.code} | Qty: ${item.pcs || item.qty} | Rate: PKR ${fmt(item.rate)} | Amount: PKR ${fmt(item.amount)}
-                </td>
-              </tr>
-            `;
-          });
+          const itemsHtml = t.items.map(item => 
+            `${item.name || item.description} (${item.code}) - Qty:${item.pcs || item.qty} - Rate:${fmt(item.rate)} - Amt:${fmt(item.amount)}`
+          ).join("<br>");
+          
+          detailedRows += `
+            <tr>
+              <td style="padding:12px 10px;border:2px solid #000;font-size:14px;font-weight:bold;text-align:center">${i + 1}</td>
+              <td style="padding:12px 10px;border:2px solid #000;font-size:14px;font-weight:bold">${t.date}</td>
+              <td style="padding:12px 10px;border:2px solid #000;font-size:14px;font-weight:bold;font-family:monospace">${t.transactionId}</td>
+              <td style="padding:12px 10px;border:2px solid #000;font-size:14px;font-weight:bold">${t.transType}</td>
+              <td style="padding:12px 10px;border:2px solid #000;font-size:12px;line-height:1.5">${itemsHtml}</td>
+              <td style="padding:12px 10px;border:2px solid #000;text-align:right;font-size:14px;font-weight:bold">${t.debit > 0 ? `PKR ${fmt(t.debit)}` : "—"}</td>
+              <td style="padding:12px 10px;border:2px solid #000;text-align:right;font-size:14px;font-weight:bold">${t.credit > 0 ? `PKR ${fmt(t.credit)}` : "—"}</td>
+              <td style="padding:12px 10px;border:2px solid #000;text-align:right;font-size:14px;font-weight:bold">PKR ${fmt(Math.abs(t.runningBalance))}</td>
+            </tr>
+          `;
+        } else {
+          detailedRows += `
+            <tr>
+              <td style="padding:12px 10px;border:2px solid #000;font-size:14px;font-weight:bold;text-align:center">${i + 1}</td>
+              <td style="padding:12px 10px;border:2px solid #000;font-size:14px;font-weight:bold">${t.date}</td>
+              <td style="padding:12px 10px;border:2px solid #000;font-size:14px;font-weight:bold;font-family:monospace">${t.transactionId}</td>
+              <td style="padding:12px 10px;border:2px solid #000;font-size:14px;font-weight:bold">${t.transType}</td>
+              <td style="padding:12px 10px;border:2px solid #000;font-size:13px">${t.remarks || "—"}</td>
+              <td style="padding:12px 10px;border:2px solid #000;text-align:right;font-size:14px;font-weight:bold">${t.debit > 0 ? `PKR ${fmt(t.debit)}` : "—"}</td>
+              <td style="padding:12px 10px;border:2px solid #000;text-align:right;font-size:14px;font-weight:bold">${t.credit > 0 ? `PKR ${fmt(t.credit)}` : "—"}</td>
+              <td style="padding:12px 10px;border:2px solid #000;text-align:right;font-size:14px;font-weight:bold">PKR ${fmt(Math.abs(t.runningBalance))}</td>
+            </tr>
+          `;
         }
       });
       
@@ -558,7 +597,7 @@ export default function GeneralLedgerPage() {
           .section-title{font-size:16px;font-weight:bold;margin:20px 0 15px;padding:10px;background:#333;color:#fff;text-transform:uppercase}
           table{width:100%;border-collapse:collapse;margin:15px 0}
           th{background:#555;color:#fff;padding:14px 10px;font-size:14px;border:2px solid #000;text-transform:uppercase;font-weight:bold}
-          td{padding:10px;border:2px solid #000;font-size:13px}
+          td{padding:10px;border:2px solid #000;font-size:13px;vertical-align:top}
           .totals{width:400px;margin-left:auto;margin-top:20px}
           .totals-row{display:flex;justify-content:space-between;padding:10px 0;font-size:14px}
           .totals-row.bold{font-weight:bold;border-top:3px solid #000;margin-top:8px;padding-top:12px;font-size:16px}
@@ -617,7 +656,7 @@ export default function GeneralLedgerPage() {
               <th>DATE</th>
               <th>VOUCHER #</th>
               <th>TYPE</th>
-              <th>REMARKS</th>
+              <th>REMARKS / ITEMS</th>
               <th class="text-right">DEBIT</th>
               <th class="text-right">CREDIT</th>
               <th class="text-right">BALANCE</th>
@@ -717,7 +756,7 @@ export default function GeneralLedgerPage() {
             cursor: "pointer"
           }}
         >
-          👥 Customers
+          👥 Credit Customers
         </button>
         <button
           onClick={() => handleTabChange("supplier")}
@@ -740,259 +779,257 @@ export default function GeneralLedgerPage() {
       {/* Main Content */}
       <div className="xp-page-body" style={{ padding: "16px", background: "#ffffff", flex: 1, overflow: "auto" }}>
         
-        {/* Search Section - ALL IN ONE ROW */}
-    {/* Search Section - ALL IN ONE ROW */}
-<div style={{
-  background: "#ffffff",
-  borderRadius: "8px",
-  padding: "12px 16px",
-  marginBottom: "20px",
-  border: "2px solid #000000"
-}}>
-  {/* All fields in one row */}
-  <div style={{ 
-    display: "flex", 
-    gap: "12px", 
-    alignItems: "flex-end", 
-    flexWrap: "wrap"
-  }}>
-    {/* From Date */}
-    <div style={{ minWidth: "130px" }}>
-      <label style={{ fontSize: "10px", fontWeight: "bold", color: "#000000", display: "block", marginBottom: "4px", textTransform: "uppercase" }}>From Date</label>
-      <input
-        type="date"
-        className="xp-input"
-        value={fromDate}
-        onChange={(e) => setFromDate(e.target.value)}
-        style={{ 
-          height: "36px", 
-          padding: "0 10px", 
-          fontSize: "13px", 
-          fontWeight: "500",
-          border: "1px solid #000000", 
-          borderRadius: "4px", 
-          width: "130px",
-          background: "#ffffff"
-        }}
-      />
-    </div>
-    
-    {/* To Date */}
-    <div style={{ minWidth: "130px" }}>
-      <label style={{ fontSize: "10px", fontWeight: "bold", color: "#000000", display: "block", marginBottom: "4px", textTransform: "uppercase" }}>To Date</label>
-      <input
-        type="date"
-        className="xp-input"
-        value={toDate}
-        onChange={(e) => setToDate(e.target.value)}
-        style={{ 
-          height: "36px", 
-          padding: "0 10px", 
-          fontSize: "13px", 
-          fontWeight: "500",
-          border: "1px solid #000000", 
-          borderRadius: "4px", 
-          width: "130px",
-          background: "#ffffff"
-        }}
-      />
-    </div>
-    
-    {/* Code Input */}
-    <div style={{ minWidth: "130px" }}>
-      <label style={{ fontSize: "10px", fontWeight: "bold", color: "#000000", display: "block", marginBottom: "4px", textTransform: "uppercase" }}>Code</label>
-      <div style={{ display: "flex", gap: "6px" }}>
-        <input
-          ref={codeInputRef}
-          type="text"
-          className="xp-input"
-          value={codeSearch}
-          onChange={(e) => setCodeSearch(e.target.value)}
-          onKeyDown={handleCodeKeyDown}
-          placeholder="Enter code"
-          style={{ 
-            height: "36px", 
-            padding: "0 10px", 
-            fontSize: "13px", 
-            fontWeight: "500",
-            border: "1px solid #000000", 
-            borderRadius: "4px",
-            background: "#fffde7",
-            width: "120px",
-            textTransform: "uppercase"
-          }}
-        />
-        <button
-          onClick={handleCodeSearch}
-          style={{
-            height: "36px",
-            padding: "0 16px",
-            background: "#3b82f6",
-            color: "white",
-            border: "1px solid #000000",
-            borderRadius: "4px",
-            fontWeight: "bold",
-            fontSize: "12px",
-            cursor: "pointer",
-            whiteSpace: "nowrap"
-          }}
-        >
-          Search
-        </button>
-      </div>
-    </div>
-    
-    {/* Account Title - Takes remaining space with dropdown */}
-    <div style={{ flex: 2, minWidth: "250px", position: "relative" }}>
-      <label style={{ fontSize: "10px", fontWeight: "bold", color: "#000000", display: "block", marginBottom: "4px", textTransform: "uppercase" }}>Account Title</label>
-      <input
-        ref={accountTitleRef}
-        type="text"
-        className="xp-input"
-        value={searchQuery}
-        onChange={(e) => setSearchQuery(e.target.value)}
-        onKeyDown={handleKeyDown}
-        placeholder="Type name - suggestions will appear..."
-        autoComplete="off"
-        style={{ 
-          width: "100%", 
-          height: "36px", 
-          padding: "0 10px", 
-          fontSize: "13px", 
-          fontWeight: "500",
-          border: "1px solid #000000", 
-          borderRadius: "4px",
-          background: "#fffde7"
-        }}
-      />
-      
-      {/* Dropdown - like CreditCustomersPage */}
-      {showDropdown && filteredEntities.length > 0 && (
-        <div
-          ref={dropdownRef}
-          style={{
-            position: "absolute",
-            top: "100%",
-            left: 0,
-            right: 0,
-            backgroundColor: "white",
-            border: "1px solid #000000",
-            borderRadius: "4px",
-            maxHeight: "250px",
-            overflowY: "auto",
-            zIndex: 1000,
-            boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
-            marginTop: "4px"
-          }}
-        >
-          {filteredEntities.map((entity, idx) => (
-            <div
-              key={entity._id}
-              onClick={() => selectEntity(entity)}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "10px",
-                padding: "8px 10px",
-                cursor: "pointer",
-                backgroundColor: idx === selectedSuggestionIndex ? "#e5f0ff" : "white",
-                borderBottom: "1px solid #e2e8f0"
-              }}
-              onMouseEnter={() => setSelectedSuggestionIndex(idx)}
-            >
-              <div>
-                {entity.imageFront ? (
-                  <img src={entity.imageFront} alt={entity.name} width="30" height="30" style={{ borderRadius: "50%", objectFit: "cover", border: "1px solid #000000" }} />
-                ) : (
-                  <div style={{ width: 30, height: 30, borderRadius: "50%", background: "#e2e8f0", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "14px", border: "1px solid #000000" }}>
-                    {activeTab === "customer" ? "👤" : "🏢"}
-                  </div>
-                )}
-              </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: "bold", fontSize: "12px", color: "#1e293b" }}>{entity.name}</div>
-                <div style={{ fontSize: "10px", color: "#64748b" }}>
-                  {entity.code && <span>Code: {entity.code} | </span>}
-                  {entity.phone && <span>📞 {entity.phone}</span>}
-                </div>
-              </div>
-              <div style={{ fontSize: "10px", fontWeight: "bold", color: (entity.currentBalance || 0) > 0 ? "#dc2626" : "#059669" }}>
-                Bal: PKR {fmt(entity.currentBalance || 0)}
+        {/* Search Section */}
+        <div style={{
+          background: "#ffffff",
+          borderRadius: "8px",
+          padding: "12px 16px",
+          marginBottom: "20px",
+          border: "2px solid #000000"
+        }}>
+          <div style={{ 
+            display: "flex", 
+            gap: "12px", 
+            alignItems: "flex-end", 
+            flexWrap: "wrap"
+          }}>
+            {/* From Date */}
+            <div style={{ minWidth: "130px" }}>
+              <label style={{ fontSize: "10px", fontWeight: "bold", color: "#000000", display: "block", marginBottom: "4px", textTransform: "uppercase" }}>From Date</label>
+              <input
+                type="date"
+                className="xp-input"
+                value={fromDate}
+                onChange={(e) => setFromDate(e.target.value)}
+                style={{ 
+                  height: "36px", 
+                  padding: "0 10px", 
+                  fontSize: "13px", 
+                  fontWeight: "500",
+                  border: "1px solid #000000", 
+                  borderRadius: "4px", 
+                  width: "130px",
+                  background: "#ffffff"
+                }}
+              />
+            </div>
+            
+            {/* To Date */}
+            <div style={{ minWidth: "130px" }}>
+              <label style={{ fontSize: "10px", fontWeight: "bold", color: "#000000", display: "block", marginBottom: "4px", textTransform: "uppercase" }}>To Date</label>
+              <input
+                type="date"
+                className="xp-input"
+                value={toDate}
+                onChange={(e) => setToDate(e.target.value)}
+                style={{ 
+                  height: "36px", 
+                  padding: "0 10px", 
+                  fontSize: "13px", 
+                  fontWeight: "500",
+                  border: "1px solid #000000", 
+                  borderRadius: "4px", 
+                  width: "130px",
+                  background: "#ffffff"
+                }}
+              />
+            </div>
+            
+            {/* Code Input */}
+            <div style={{ minWidth: "130px" }}>
+              <label style={{ fontSize: "10px", fontWeight: "bold", color: "#000000", display: "block", marginBottom: "4px", textTransform: "uppercase" }}>Code</label>
+              <div style={{ display: "flex", gap: "6px" }}>
+                <input
+                  ref={codeInputRef}
+                  type="text"
+                  className="xp-input"
+                  value={codeSearch}
+                  onChange={(e) => setCodeSearch(e.target.value)}
+                  onKeyDown={handleCodeKeyDown}
+                  placeholder="Enter code"
+                  style={{ 
+                    height: "36px", 
+                    padding: "0 10px", 
+                    fontSize: "13px", 
+                    fontWeight: "500",
+                    border: "1px solid #000000", 
+                    borderRadius: "4px",
+                    background: "#fffde7",
+                    width: "120px",
+                    textTransform: "uppercase"
+                  }}
+                />
+                <button
+                  onClick={handleCodeSearch}
+                  style={{
+                    height: "36px",
+                    padding: "0 16px",
+                    background: "#3b82f6",
+                    color: "white",
+                    border: "1px solid #000000",
+                    borderRadius: "4px",
+                    fontWeight: "bold",
+                    fontSize: "12px",
+                    cursor: "pointer",
+                    whiteSpace: "nowrap"
+                  }}
+                >
+                  Search
+                </button>
               </div>
             </div>
-          ))}
+            
+            {/* Account Title */}
+            <div style={{ flex: 2, minWidth: "250px", position: "relative" }}>
+              <label style={{ fontSize: "10px", fontWeight: "bold", color: "#000000", display: "block", marginBottom: "4px", textTransform: "uppercase" }}>Account Title</label>
+              <input
+                ref={accountTitleRef}
+                type="text"
+                className="xp-input"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder="Type name - suggestions will appear..."
+                autoComplete="off"
+                style={{ 
+                  width: "100%", 
+                  height: "36px", 
+                  padding: "0 10px", 
+                  fontSize: "13px", 
+                  fontWeight: "500",
+                  border: "1px solid #000000", 
+                  borderRadius: "4px",
+                  background: "#fffde7"
+                }}
+              />
+              
+              {/* Dropdown */}
+              {showDropdown && filteredEntities.length > 0 && (
+                <div
+                  ref={dropdownRef}
+                  style={{
+                    position: "absolute",
+                    top: "100%",
+                    left: 0,
+                    right: 0,
+                    backgroundColor: "white",
+                    border: "1px solid #000000",
+                    borderRadius: "4px",
+                    maxHeight: "250px",
+                    overflowY: "auto",
+                    zIndex: 1000,
+                    boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+                    marginTop: "4px"
+                  }}
+                >
+                  {filteredEntities.map((entity, idx) => (
+                    <div
+                      key={entity._id}
+                      onClick={() => selectEntity(entity)}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "10px",
+                        padding: "8px 10px",
+                        cursor: "pointer",
+                        backgroundColor: idx === selectedSuggestionIndex ? "#e5f0ff" : "white",
+                        borderBottom: "1px solid #e2e8f0"
+                      }}
+                      onMouseEnter={() => setSelectedSuggestionIndex(idx)}
+                    >
+                      <div>
+                        {entity.imageFront ? (
+                          <img src={entity.imageFront} alt={entity.name} width="30" height="30" style={{ borderRadius: "50%", objectFit: "cover", border: "1px solid #000000" }} />
+                        ) : (
+                          <div style={{ width: 30, height: 30, borderRadius: "50%", background: "#e2e8f0", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "14px", border: "1px solid #000000" }}>
+                            {activeTab === "customer" ? "👤" : "🏢"}
+                          </div>
+                        )}
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: "bold", fontSize: "12px", color: "#1e293b" }}>{entity.name}</div>
+                        <div style={{ fontSize: "10px", color: "#64748b" }}>
+                          {entity.code && <span>Code: {entity.code} | </span>}
+                          {entity.phone && <span>📞 {entity.phone}</span>}
+                        </div>
+                      </div>
+                      <div style={{ fontSize: "10px", fontWeight: "bold", color: (entity.currentBalance || 0) > 0 ? "#dc2626" : "#059669" }}>
+                        Bal: PKR {fmt(entity.currentBalance || 0)}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            
+            {/* Show Button */}
+            <div>
+              <button
+                className="xp-btn xp-btn-primary"
+                onClick={() => selectedEntity && loadLedger(selectedEntity._id)}
+                disabled={!selectedEntity || loading}
+                style={{ 
+                  height: "36px", 
+                  padding: "0 24px", 
+                  fontSize: "12px", 
+                  fontWeight: "bold",
+                  background: "#22c55e",
+                  color: "white",
+                  border: "1px solid #000000",
+                  borderRadius: "4px",
+                  cursor: "pointer",
+                  whiteSpace: "nowrap"
+                }}
+              >
+                {loading ? "Loading..." : "⟳ Show"}
+              </button>
+            </div>
+          </div>
+          
+          {/* Selected Entity Info */}
+          {selectedEntity && (
+            <div style={{
+              marginTop: "12px",
+              display: "flex",
+              alignItems: "center",
+              gap: "12px",
+              padding: "8px 12px",
+              background: "#f8fafc",
+              borderRadius: "6px",
+              border: "1px solid #000000"
+            }}>
+              {selectedEntity.imageFront ? (
+                <img src={selectedEntity.imageFront} alt={selectedEntity.name} style={{ width: "36px", height: "36px", borderRadius: "50%", objectFit: "cover", border: "1px solid #000000" }} />
+              ) : (
+                <div style={{ width: "36px", height: "36px", borderRadius: "50%", background: "#e2e8f0", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "18px", border: "1px solid #000000" }}>
+                  {activeTab === "customer" ? "👤" : "🏢"}
+                </div>
+              )}
+              <div>
+                <div style={{ fontSize: "13px", fontWeight: "bold", color: "#1e293b" }}>{selectedEntity.name}</div>
+                <div style={{ fontSize: "10px", color: "#64748b" }}>
+                  Code: {selectedEntity.code || "—"} | Phone: {selectedEntity.phone || "—"} | Type: {activeTab === "customer" ? (selectedEntity.customerType || selectedEntity.type || "Credit Customer") : "Supplier"}
+                </div>
+              </div>
+              <button
+                onClick={clearSelection}
+                style={{
+                  marginLeft: "auto",
+                  background: "#ef4444",
+                  color: "white",
+                  border: "1px solid #000000",
+                  borderRadius: "4px",
+                  padding: "4px 12px",
+                  fontSize: "11px",
+                  fontWeight: "bold",
+                  cursor: "pointer"
+                }}
+              >
+                Clear
+              </button>
+            </div>
+          )}
         </div>
-      )}
-    </div>
-    
-    {/* Show Transactions Button - At the end */}
-    <div>
-      <button
-        className="xp-btn xp-btn-primary"
-        onClick={() => selectedEntity && loadLedger(selectedEntity._id)}
-        disabled={!selectedEntity || loading}
-        style={{ 
-          height: "36px", 
-          padding: "0 24px", 
-          fontSize: "12px", 
-          fontWeight: "bold",
-          background: "#22c55e",
-          color: "white",
-          border: "1px solid #000000",
-          borderRadius: "4px",
-          cursor: "pointer",
-          whiteSpace: "nowrap"
-        }}
-      >
-        {loading ? "Loading..." : "⟳ Show"}
-      </button>
-    </div>
-  </div>
-  
-  {/* Selected Entity Info with Photo */}
-  {selectedEntity && (
-    <div style={{
-      marginTop: "12px",
-      display: "flex",
-      alignItems: "center",
-      gap: "12px",
-      padding: "8px 12px",
-      background: "#f8fafc",
-      borderRadius: "6px",
-      border: "1px solid #000000"
-    }}>
-      {selectedEntity.imageFront ? (
-        <img src={selectedEntity.imageFront} alt={selectedEntity.name} style={{ width: "36px", height: "36px", borderRadius: "50%", objectFit: "cover", border: "1px solid #000000" }} />
-      ) : (
-        <div style={{ width: "36px", height: "36px", borderRadius: "50%", background: "#e2e8f0", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "18px", border: "1px solid #000000" }}>
-          {activeTab === "customer" ? "👤" : "🏢"}
-        </div>
-      )}
-      <div>
-        <div style={{ fontSize: "13px", fontWeight: "bold", color: "#1e293b" }}>{selectedEntity.name}</div>
-        <div style={{ fontSize: "10px", color: "#64748b" }}>
-          Code: {selectedEntity.code || "—"} | Phone: {selectedEntity.phone || "—"} | Type: {activeTab === "customer" ? (selectedEntity.customerType || selectedEntity.type || "Customer") : "Supplier"}
-        </div>
-      </div>
-      <button
-        onClick={clearSelection}
-        style={{
-          marginLeft: "auto",
-          background: "#ef4444",
-          color: "white",
-          border: "1px solid #000000",
-          borderRadius: "4px",
-          padding: "4px 12px",
-          fontSize: "11px",
-          fontWeight: "bold",
-          cursor: "pointer"
-        }}
-      >
-        Clear
-      </button>
-    </div>
-  )}
-</div>
         
         {/* Transaction Table */}
         <div style={{
@@ -1020,7 +1057,7 @@ export default function GeneralLedgerPage() {
           
           {!selectedEntity && (
             <div style={{ padding: "40px", textAlign: "center", color: "#94a3b8", fontSize: "13px", fontWeight: "500" }}>
-              🔍 Select a {activeTab === "customer" ? "customer" : "supplier"} by Code or Account Title above
+              🔍 Select a {activeTab === "customer" ? "credit customer" : "supplier"} by Code or Account Title above
             </div>
           )}
           
@@ -1044,62 +1081,60 @@ export default function GeneralLedgerPage() {
                 fontSize: "11px", 
                 border: "2px solid #000000"
               }}>
-       <thead>
-  <tr style={{ background: "#f1f5f9" }}>
-    <th style={{ padding: "6px 3px", textAlign: "center", width: "40px", border: "2px solid #000000", fontSize: "13px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>#</th>
-    <th style={{ padding: "6px 3px", textAlign: "left", border: "2px solid #000000", fontSize: "13px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>Date</th>
-    <th style={{ padding: "6px 3px", textAlign: "left", border: "2px solid #000000", fontSize: "13px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>Voucher #</th>
-    <th style={{ padding: "6px 3px", textAlign: "left", border: "2px solid #000000", fontSize: "13px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>Type</th>
-    <th style={{ padding: "6px 3px", textAlign: "left", border: "2px solid #000000", fontSize: "13px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>Remarks</th>
-    <th style={{ padding: "6px 3px", textAlign: "right", border: "2px solid #000000", fontSize: "13px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>Debit</th>
-    <th style={{ padding: "6px 3px", textAlign: "right", border: "2px solid #000000", fontSize: "13px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>Credit</th>
-    <th style={{ padding: "6px 3px", textAlign: "right", border: "2px solid #000000", fontSize: "13px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>Balance</th>
-  </tr>
-</thead>
-
-<tbody>
-  {transactions.map((t, i) => (
-    <tr key={t._id || i} style={{ borderBottom: "2px solid #000000" }}>
-      <td style={{ padding: "4px 3px", textAlign: "center", border: "1px solid #000000", fontSize: "13px", fontWeight: "bold", color: "#1e293b" }}>{i + 1}</td>
-      <td style={{ padding: "4px 3px", whiteSpace: "nowrap", border: "1px solid #000000", fontSize: "13px", fontWeight: "bold", color: "#1e293b" }}>{t.date}</td>
-      <td style={{ padding: "4px 3px", fontFamily: "monospace", fontWeight: "bold", border: "1px solid #000000", fontSize: "13px", color: "#1e293b" }}>{t.transactionId}</td>
-      <td style={{ padding: "4px 3px", border: "1px solid #000000" }}>
-        <span style={{
-          padding: "2px 8px",
-          borderRadius: "4px",
-          fontSize: "11px",
-          fontWeight: "bold",
-          background: t.type === "sale" ? "#dbeafe" : t.type === "return" ? "#fef3c7" : t.type === "payment" || t.type === "cash-receipt" ? "#dcfce7" : "#fef3c7",
-          border: "1px solid #000000",
-          display: "inline-block"
-        }}>
-          {t.transType}
-        </span>
-      </td>
-      <td style={{ padding: "4px 3px", maxWidth: "200px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", border: "1px solid #000000", fontSize: "13px", fontWeight: "bold", color: "#1e293b" }}>{t.remarks || "—"}</td>
-      <td style={{ padding: "4px 3px", textAlign: "right", fontWeight: "bold", border: "1px solid #000000", fontSize: "13px", color: "#dc2626" }}>
-        {t.debit > 0 ? `PKR ${fmt(t.debit)}` : "—"}
-      </td>
-      <td style={{ padding: "4px 3px", textAlign: "right", fontWeight: "bold", border: "1px solid #000000", fontSize: "13px", color: "#059669" }}>
-        {t.credit > 0 ? `PKR ${fmt(t.credit)}` : "—"}
-      </td>
-      <td style={{ padding: "4px 3px", textAlign: "right", fontWeight: "bold", border: "1px solid #000000", fontSize: "13px", color: t.runningBalance > 0 ? "#dc2626" : "#059669" }}>
-        PKR {fmt(Math.abs(t.runningBalance))}
-      </td>
-    </tr>
-  ))}
-</tbody>
-  
-               <tfoot style={{ background: "#f8fafc", borderTop: "3px solid #000000" }}>
-  <tr>
-    <td colSpan="5" style={{ padding: "6px 3px", textAlign: "right", fontWeight: "bold", border: "1px solid #000000", fontSize: "13px", textTransform: "uppercase", color: "#000000" }}>TOTALS:</td>
-    <td style={{ padding: "6px 3px", textAlign: "right", fontWeight: "bold", border: "1px solid #000000", fontSize: "13px", color: "#dc2626" }}>PKR {fmt(totalDebit)}</td>
-    <td style={{ padding: "6px 3px", textAlign: "right", fontWeight: "bold", border: "1px solid #000000", fontSize: "13px", color: "#059669" }}>PKR {fmt(totalCredit)}</td>
-    <td style={{ padding: "6px 3px", textAlign: "right", fontWeight: "bold", border: "1px solid #000000", fontSize: "13px", color: closingBalance > 0 ? "#dc2626" : "#059669" }}>
-      PKR {fmt(Math.abs(closingBalance))}
-    </td>
-  </tr>
-</tfoot>
+                <thead>
+                  <tr style={{ background: "#f1f5f9" }}>
+                    <th style={{ padding: "6px 3px", textAlign: "center", width: "40px", border: "2px solid #000000", fontSize: "13px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>#</th>
+                    <th style={{ padding: "6px 3px", textAlign: "left", border: "2px solid #000000", fontSize: "13px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>Date</th>
+                    <th style={{ padding: "6px 3px", textAlign: "left", border: "2px solid #000000", fontSize: "13px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>Voucher #</th>
+                    <th style={{ padding: "6px 3px", textAlign: "left", border: "2px solid #000000", fontSize: "13px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>Type</th>
+                    <th style={{ padding: "6px 3px", textAlign: "left", border: "2px solid #000000", fontSize: "13px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>Remarks</th>
+                    <th style={{ padding: "6px 3px", textAlign: "right", border: "2px solid #000000", fontSize: "13px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>Debit</th>
+                    <th style={{ padding: "6px 3px", textAlign: "right", border: "2px solid #000000", fontSize: "13px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>Credit</th>
+                    <th style={{ padding: "6px 3px", textAlign: "right", border: "2px solid #000000", fontSize: "13px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>Balance</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {transactions.map((t, i) => (
+                    <tr key={t._id || i} style={{ borderBottom: "2px solid #000000" }}>
+                      <td style={{ padding: "4px 3px", textAlign: "center", border: "1px solid #000000", fontSize: "13px", fontWeight: "bold", color: "#1e293b" }}>{i + 1}</td>
+                      <td style={{ padding: "4px 3px", whiteSpace: "nowrap", border: "1px solid #000000", fontSize: "13px", fontWeight: "bold", color: "#1e293b" }}>{t.date}</td>
+                      <td style={{ padding: "4px 3px", fontFamily: "monospace", fontWeight: "bold", border: "1px solid #000000", fontSize: "13px", color: "#1e293b" }}>{t.transactionId}</td>
+                      <td style={{ padding: "4px 3px", border: "1px solid #000000" }}>
+                        <span style={{
+                          padding: "2px 8px",
+                          borderRadius: "4px",
+                          fontSize: "11px",
+                          fontWeight: "bold",
+                          background: t.type === "sale" ? "#dbeafe" : t.type === "return" ? "#fef3c7" : t.type === "payment" || t.type === "cash-receipt" ? "#dcfce7" : "#fef3c7",
+                          border: "1px solid #000000",
+                          display: "inline-block"
+                        }}>
+                          {t.transType}
+                        </span>
+                      </td>
+                      <td style={{ padding: "4px 3px", maxWidth: "200px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", border: "1px solid #000000", fontSize: "13px", fontWeight: "bold", color: "#1e293b" }}>{t.remarks || "—"}</td>
+                      <td style={{ padding: "4px 3px", textAlign: "right", fontWeight: "bold", border: "1px solid #000000", fontSize: "13px", color: "#dc2626" }}>
+                        {t.debit > 0 ? `PKR ${fmt(t.debit)}` : "—"}
+                      </td>
+                      <td style={{ padding: "4px 3px", textAlign: "right", fontWeight: "bold", border: "1px solid #000000", fontSize: "13px", color: "#059669" }}>
+                        {t.credit > 0 ? `PKR ${fmt(t.credit)}` : "—"}
+                      </td>
+                      <td style={{ padding: "4px 3px", textAlign: "right", fontWeight: "bold", border: "1px solid #000000", fontSize: "13px", color: t.runningBalance > 0 ? "#dc2626" : "#059669" }}>
+                        PKR {fmt(Math.abs(t.runningBalance))}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot style={{ background: "#f8fafc", borderTop: "3px solid #000000" }}>
+                  <tr>
+                    <td colSpan="5" style={{ padding: "6px 3px", textAlign: "right", fontWeight: "bold", border: "1px solid #000000", fontSize: "13px", textTransform: "uppercase", color: "#000000" }}>TOTALS:</td>
+                    <td style={{ padding: "6px 3px", textAlign: "right", fontWeight: "bold", border: "1px solid #000000", fontSize: "13px", color: "#dc2626" }}>PKR {fmt(totalDebit)}</td>
+                    <td style={{ padding: "6px 3px", textAlign: "right", fontWeight: "bold", border: "1px solid #000000", fontSize: "13px", color: "#059669" }}>PKR {fmt(totalCredit)}</td>
+                    <td style={{ padding: "6px 3px", textAlign: "right", fontWeight: "bold", border: "1px solid #000000", fontSize: "13px", color: closingBalance > 0 ? "#dc2626" : "#059669" }}>
+                      PKR {fmt(Math.abs(closingBalance))}
+                    </td>
+                  </tr>
+                </tfoot>
               </table>
             </div>
           )}
@@ -1110,7 +1145,7 @@ export default function GeneralLedgerPage() {
       <div className="xp-statusbar" style={{ background: "#f8fafc", borderTop: "2px solid #000000", padding: "4px 12px" }}>
         <div className="xp-status-pane" style={{ color: "#1e293b", fontSize: "10px", fontWeight: "500" }}>📊 General Ledger</div>
         <div className="xp-status-pane" style={{ color: "#1e293b", fontSize: "10px", fontWeight: "500" }}>
-          {selectedEntity ? `${activeTab === "customer" ? "Customer" : "Supplier"}: ${selectedEntity.name}` : "No entity selected"}
+          {selectedEntity ? `${activeTab === "customer" ? "Credit Customer" : "Supplier"}: ${selectedEntity.name}` : "No entity selected"}
         </div>
         <div className="xp-status-pane" style={{ color: "#1e293b", fontSize: "10px", fontWeight: "500" }}>
           {transactions.length > 0 && `Balance: PKR ${fmt(Math.abs(closingBalance))}`}
