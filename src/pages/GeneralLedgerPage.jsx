@@ -286,7 +286,6 @@ export default function GeneralLedgerPage() {
       setSelectedSuggestionIndex(prev => 
         prev < filteredEntities.length - 1 ? prev + 1 : prev
       );
-      // Scroll selected item into view
       setTimeout(() => {
         const selectedItem = dropdownRef.current?.children[selectedSuggestionIndex + 1];
         selectedItem?.scrollIntoView({ block: "nearest" });
@@ -347,19 +346,26 @@ export default function GeneralLedgerPage() {
     const totalDebit = transactions.reduce((sum, t) => sum + (t.debit || 0), 0);
     const totalCredit = transactions.reduce((sum, t) => sum + (t.credit || 0), 0);
     const closingBalance = transactions[transactions.length - 1]?.runningBalance || 0;
-    const printDateTime = new Date().toLocaleString("en-PK");
+    const printDateTime = new Date().toLocaleString("en-PK", {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+    const URDU_FONT = `'Noto Nastaliq Urdu','Mehr Nastaliq','Jameel Noori Nastaleeq','Urdu Typesetting',serif`;
     
     if (printType === "simple") {
       const rows = transactions.map((t, i) => `
         <tr>
-          <td style="padding:6px;border:1px solid #000;text-align:center">${i + 1}</td>
-          <td style="padding:6px;border:1px solid #000">${t.date}</td>
-          <td style="padding:6px;border:1px solid #000">${t.transactionId}</td>
-          <td style="padding:6px;border:1px solid #000">${t.transType}</td>
-          <td style="padding:6px;border:1px solid #000">${t.remarks || "—"}</td>
-          <td style="padding:6px;border:1px solid #000;text-align:right">${t.debit > 0 ? `PKR ${fmt(t.debit)}` : "—"}</td>
-          <td style="padding:6px;border:1px solid #000;text-align:right">${t.credit > 0 ? `PKR ${fmt(t.credit)}` : "—"}</td>
-          <td style="padding:6px;border:1px solid #000;text-align:right">PKR ${fmt(Math.abs(t.runningBalance))}</td>
+          <td style="padding:12px 10px;border:2px solid #000;font-size:14px;font-weight:bold;text-align:center">${i + 1}</td>
+          <td style="padding:12px 10px;border:2px solid #000;font-size:14px;font-weight:bold">${t.date}</td>
+          <td style="padding:12px 10px;border:2px solid #000;font-size:14px;font-weight:bold;font-family:monospace">${t.transactionId}</td>
+          <td style="padding:12px 10px;border:2px solid #000;font-size:14px;font-weight:bold">${t.transType}</td>
+          <td style="padding:12px 10px;border:2px solid #000;font-size:13px">${t.remarks || "—"}</td>
+          <td style="padding:12px 10px;border:2px solid #000;text-align:right;font-size:14px;font-weight:bold">${t.debit > 0 ? `PKR ${fmt(t.debit)}` : "—"}</td>
+          <td style="padding:12px 10px;border:2px solid #000;text-align:right;font-size:14px;font-weight:bold">${t.credit > 0 ? `PKR ${fmt(t.credit)}` : "—"}</td>
+          <td style="padding:12px 10px;border:2px solid #000;text-align:right;font-size:14px;font-weight:bold">PKR ${fmt(Math.abs(t.runningBalance))}</td>
         </tr>
       `).join("");
       
@@ -367,81 +373,134 @@ export default function GeneralLedgerPage() {
       <html>
       <head>
         <meta charset="utf-8">
-        <title>Ledger - ${selectedEntity.name}</title>
+        <title>Ledger Statement - ${selectedEntity.name}</title>
         <style>
           *{margin:0;padding:0;box-sizing:border-box}
-          body{font-family:Arial,sans-serif;padding:20px;font-size:12px}
-          .header{text-align:center;margin-bottom:20px;border-bottom:2px solid #000;padding-bottom:10px}
-          .shop-name{font-size:18px;font-weight:bold;margin-bottom:5px}
-          .title{font-size:16px;font-weight:bold;margin:15px 0}
-          .customer-info{background:#f5f5f5;padding:10px;margin:10px 0;border:1px solid #000;display:flex;gap:15px;align-items:center}
-          .customer-photo{width:60px;height:60px;border-radius:50%;object-fit:cover;border:1px solid #000}
-          .date-range{background:#f8fafc;padding:8px;margin:10px 0;border:1px solid #000;text-align:center}
-          table{width:100%;border-collapse:collapse;margin:10px 0}
-          th{background:#f1f5f9;padding:8px;border:1px solid #000;font-weight:bold}
-          td{padding:6px;border:1px solid #000}
-          .totals{width:350px;margin-left:auto;margin-top:15px;border:1px solid #000}
-          .totals-row{display:flex;justify-content:space-between;padding:8px;border-bottom:1px solid #ddd}
-          .totals-row.bold{font-weight:bold;border-top:2px solid #000}
-          .footer{text-align:center;margin-top:20px;padding-top:10px;border-top:1px solid #ddd;font-size:10px}
+          body{font-family:Arial,sans-serif;padding:20px;font-size:14px}
+          
+          .print-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 3px solid #000;
+          }
+          .shop-section {
+            text-align: left;
+            flex: 2;
+          }
+          .customer-section {
+            text-align: right;
+            flex: 1;
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            gap: 15px;
+          }
+          .shop-name{font-size:22px;font-weight:bold;font-family:${URDU_FONT};margin-bottom:8px}
+          .shop-name-en{font-size:16px;font-weight:bold;margin-bottom:5px;text-transform:uppercase}
+          .shop-addr{font-size:11px;color:#444;margin:3px 0}
+          .print-time{font-size:10px;color:#666;margin-top:5px}
+          .customer-photo-small{width:70px;height:70px;border-radius:50%;object-fit:cover;border:3px solid #000}
+          .customer-name{font-size:18px;font-weight:bold;margin-bottom:8px;text-transform:uppercase}
+          .customer-phone{font-size:13px;color:#333}
+          .customer-code{font-size:12px;color:#666}
+          
+          .section-title{font-size:16px;font-weight:bold;margin:20px 0 15px;padding:10px;background:#333;color:#fff;text-transform:uppercase}
+          table{width:100%;border-collapse:collapse;margin:15px 0}
+          th{background:#555;color:#fff;padding:14px 10px;font-size:14px;border:2px solid #000;text-transform:uppercase;font-weight:bold}
+          td{padding:10px;border:2px solid #000;font-size:13px}
+          .totals{width:400px;margin-left:auto;margin-top:20px}
+          .totals-row{display:flex;justify-content:space-between;padding:10px 0;font-size:14px}
+          .totals-row.bold{font-weight:bold;border-top:3px solid #000;margin-top:8px;padding-top:12px;font-size:16px}
+          .footer{text-align:center;margin-top:30px;padding-top:12px;border-top:1px solid #ddd;font-size:11px;color:#666}
+          .text-center{text-align:center}
           .text-right{text-align:right}
+          .red{color:#dc2626}
+          .green{color:#059669}
+          @media print{
+            body{padding:8mm}
+            .print-header{margin-bottom:15px}
+            th,td{padding:8px}
+          }
         </style>
       </head>
       <body>
-        <div class="header">
-          <div class="shop-name">Asim Electric & Electronic Store</div>
-          <div>Main Bazar Nahari Town, Faisalabad</div>
-          <div>Ph: 0300 7262129, 041 8711575</div>
-        </div>
-        <div class="title">LEDGER STATEMENT</div>
-        <div class="customer-info">
-          ${selectedEntity.imageFront ? 
-            `<img src="${selectedEntity.imageFront}" class="customer-photo" alt="${selectedEntity.name}">` : 
-            `<div style="width:60px;height:60px;border-radius:50%;background:#ddd;display:flex;align-items:center;justify-content:center;font-size:30px;border:1px solid #000">${activeTab === "customer" ? "👤" : "🏢"}</div>`
-          }
-          <div>
-            <div style="font-weight:bold;font-size:14px">${selectedEntity.name}</div>
-            <div>Code: ${selectedEntity.code || "—"} | Phone: ${selectedEntity.phone || "—"}</div>
+        <div class="print-header">
+          <div class="shop-section">
+            <div class="shop-name">عاصم الیکٹرک اینڈ الیکٹرونکس سٹور</div>
+            <div class="shop-name-en">ASIM ELECTRIC & ELECTRONIC STORE</div>
+            <div class="shop-addr">Main Bazar Nahari Town, Near Bijli Ghar Stop, Gujranwala Road, Faisalabad</div>
+            <div class="shop-addr">Ph: 0300 7262129, 041 8711575, 0315 7262129</div>
+            <div class="print-time">Printed on: ${printDateTime}</div>
+          </div>
+          <div class="customer-section">
+            ${selectedEntity.imageFront ? 
+              `<img src="${selectedEntity.imageFront}" class="customer-photo-small" alt="${selectedEntity.name}">` : 
+              `<div style="width:70px;height:70px;border-radius:50%;background:#ddd;display:flex;align-items:center;justify-content:center;font-size:35px;border:2px solid #000">${activeTab === "customer" ? "👤" : "🏢"}</div>`
+            }
+            <div>
+              <div class="customer-name">${selectedEntity.name}</div>
+              <div class="customer-phone">📞 ${selectedEntity.phone || "N/A"}</div>
+              <div class="customer-code">🆔 ${selectedEntity.code || "N/A"}</div>
+              <div class="customer-code">📅 Statement Date: ${isoD()}</div>
+            </div>
           </div>
         </div>
-        <div class="date-range">Period: ${fromDate} to ${toDate}</div>
+        
+        <div class="section-title">📋 LEDGER STATEMENT</div>
+        <div class="date-range" style="background:#f8fafc;padding:10px;margin:15px 0;border:2px solid #000;text-align:center;font-size:13px;font-weight:bold">
+          Period: ${fromDate} to ${toDate}
+        </div>
+        
         <table>
           <thead>
             <tr>
-              <th>#</th><th>Date</th><th>Voucher #</th><th>Type</th><th>Remarks</th><th class="text-right">Debit</th><th class="text-right">Credit</th><th class="text-right">Balance</th>
+              <th style="width:45px">#</th>
+              <th>DATE</th>
+              <th>VOUCHER #</th>
+              <th>TYPE</th>
+              <th>REMARKS</th>
+              <th class="text-right">DEBIT</th>
+              <th class="text-right">CREDIT</th>
+              <th class="text-right">BALANCE</th>
             </tr>
           </thead>
           <tbody>${rows}</tbody>
           <tfoot>
             <tr>
-              <td colspan="5" style="text-align:right;font-weight:bold">TOTALS:</td>
-              <td class="text-right" style="font-weight:bold">PKR ${fmt(totalDebit)}</td>
-              <td class="text-right" style="font-weight:bold">PKR ${fmt(totalCredit)}</td>
-              <td class="text-right" style="font-weight:bold">PKR ${fmt(Math.abs(closingBalance))}</td>
+              <td colspan="5" style="text-align:right;font-weight:bold;font-size:14px;padding:12px">TOTALS:</td>
+              <td class="text-right" style="font-weight:bold;font-size:14px">PKR ${fmt(totalDebit)}</td>
+              <td class="text-right" style="font-weight:bold;font-size:14px">PKR ${fmt(totalCredit)}</td>
+              <td class="text-right" style="font-weight:bold;font-size:14px">PKR ${fmt(Math.abs(closingBalance))}</td>
             </tr>
           </tfoot>
         </table>
+        
         <div class="totals">
           <div class="totals-row"><span>Total Debit:</span><span>PKR ${fmt(totalDebit)}</span></div>
           <div class="totals-row"><span>Total Credit:</span><span>PKR ${fmt(totalCredit)}</span></div>
-          <div class="totals-row bold"><span>Closing Balance:</span><span style="color:${closingBalance > 0 ? '#dc2626' : '#059669'}">PKR ${fmt(Math.abs(closingBalance))}</span></div>
+          <div class="totals-row bold"><span>Closing Balance:</span><span class="${closingBalance > 0 ? 'red' : 'green'}">PKR ${fmt(Math.abs(closingBalance))} ${closingBalance > 0 ? '(Receivable)' : '(Payable)'}</span></div>
         </div>
-        <div class="footer">Printed on: ${printDateTime}<br>Software developed by: AppHill / 03222292922</div>
+        
+        <div class="footer">Thank you for your business! | Developed by: AppHill / 03222292922 | www.apphill.pk</div>
       </body>
       </html>`;
     } else {
+      // Detailed print with items
       let detailedRows = "";
       transactions.forEach((t, i) => {
         detailedRows += `
           <tr style="background:#f8fafc">
-            <td style="padding:6px;border:1px solid #000;text-align:center" rowspan="${Math.max(1, t.items?.length || 1)}">${i + 1}</td>
-            <td style="padding:6px;border:1px solid #000" rowspan="${Math.max(1, t.items?.length || 1)}">${t.date}</td>
-            <td style="padding:6px;border:1px solid #000" rowspan="${Math.max(1, t.items?.length || 1)}">${t.transactionId}</td>
-            <td style="padding:6px;border:1px solid #000" rowspan="${Math.max(1, t.items?.length || 1)}">${t.transType}</td>
-            <td style="padding:6px;border:1px solid #000" rowspan="${Math.max(1, t.items?.length || 1)}">${t.remarks || "—"}</td>
-            <td style="padding:6px;border:1px solid #000;text-align:right" rowspan="${Math.max(1, t.items?.length || 1)}">${t.debit > 0 ? `PKR ${fmt(t.debit)}` : "—"}</td>
-            <td style="padding:6px;border:1px solid #000;text-align:right" rowspan="${Math.max(1, t.items?.length || 1)}">${t.credit > 0 ? `PKR ${fmt(t.credit)}` : "—"}</td>
-            <td style="padding:6px;border:1px solid #000;text-align:right" rowspan="${Math.max(1, t.items?.length || 1)}">PKR ${fmt(Math.abs(t.runningBalance))}</td>
+            <td style="padding:12px 10px;border:2px solid #000;font-size:14px;font-weight:bold;text-align:center" rowspan="${Math.max(1, t.items?.length || 1)}">${i + 1}</td>
+            <td style="padding:12px 10px;border:2px solid #000;font-size:14px;font-weight:bold" rowspan="${Math.max(1, t.items?.length || 1)}">${t.date}</td>
+            <td style="padding:12px 10px;border:2px solid #000;font-size:14px;font-weight:bold;font-family:monospace" rowspan="${Math.max(1, t.items?.length || 1)}">${t.transactionId}</td>
+            <td style="padding:12px 10px;border:2px solid #000;font-size:14px;font-weight:bold" rowspan="${Math.max(1, t.items?.length || 1)}">${t.transType}</td>
+            <td style="padding:12px 10px;border:2px solid #000;font-size:13px" rowspan="${Math.max(1, t.items?.length || 1)}">${t.remarks || "—"}</td>
+            <td style="padding:12px 10px;border:2px solid #000;text-align:right;font-size:14px;font-weight:bold" rowspan="${Math.max(1, t.items?.length || 1)}">${t.debit > 0 ? `PKR ${fmt(t.debit)}` : "—"}</td>
+            <td style="padding:12px 10px;border:2px solid #000;text-align:right;font-size:14px;font-weight:bold" rowspan="${Math.max(1, t.items?.length || 1)}">${t.credit > 0 ? `PKR ${fmt(t.credit)}` : "—"}</td>
+            <td style="padding:12px 10px;border:2px solid #000;text-align:right;font-size:14px;font-weight:bold" rowspan="${Math.max(1, t.items?.length || 1)}">PKR ${fmt(Math.abs(t.runningBalance))}</td>
           </tr>
         `;
         
@@ -449,7 +508,7 @@ export default function GeneralLedgerPage() {
           t.items.forEach((item, idx) => {
             detailedRows += `
               <tr style="background:#ffffff">
-                <td colspan="8" style="padding:4px 6px 4px 20px;border:1px solid #000;font-size:10px">
+                <td colspan="8" style="padding:8px 10px 8px 25px;border:2px solid #ddd;font-size:12px">
                   📦 ${item.name || item.description} | Code: ${item.code} | Qty: ${item.pcs || item.qty} | Rate: PKR ${fmt(item.rate)} | Amount: PKR ${fmt(item.amount)}
                 </td>
               </tr>
@@ -465,55 +524,115 @@ export default function GeneralLedgerPage() {
         <title>Detailed Ledger - ${selectedEntity.name}</title>
         <style>
           *{margin:0;padding:0;box-sizing:border-box}
-          body{font-family:Arial,sans-serif;padding:15px;font-size:11px}
-          .header{text-align:center;margin-bottom:15px;border-bottom:2px solid #000;padding-bottom:8px}
-          .shop-name{font-size:16px;font-weight:bold;margin-bottom:3px}
-          .title{font-size:14px;font-weight:bold;margin:10px 0}
-          .customer-info{background:#f5f5f5;padding:8px;margin:8px 0;border:1px solid #000;display:flex;gap:10px;align-items:center}
-          .customer-photo{width:50px;height:50px;border-radius:50%;object-fit:cover;border:1px solid #000}
-          .date-range{background:#f8fafc;padding:6px;margin:8px 0;border:1px solid #000;text-align:center;font-size:10px}
-          table{width:100%;border-collapse:collapse;margin:8px 0;font-size:10px}
-          th{background:#f1f5f9;padding:6px;border:1px solid #000;font-weight:bold}
-          td{padding:5px;border:1px solid #000}
-          .totals{width:300px;margin-left:auto;margin-top:10px;border:1px solid #000}
-          .totals-row{display:flex;justify-content:space-between;padding:5px 8px;border-bottom:1px solid #ddd}
-          .totals-row.bold{font-weight:bold;border-top:2px solid #000}
-          .footer{text-align:center;margin-top:15px;padding-top:8px;border-top:1px solid #ddd;font-size:9px}
+          body{font-family:Arial,sans-serif;padding:20px;font-size:14px}
+          
+          .print-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 3px solid #000;
+          }
+          .shop-section {
+            text-align: left;
+            flex: 2;
+          }
+          .customer-section {
+            text-align: right;
+            flex: 1;
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            gap: 15px;
+          }
+          .shop-name{font-size:22px;font-weight:bold;font-family:${URDU_FONT};margin-bottom:8px}
+          .shop-name-en{font-size:16px;font-weight:bold;margin-bottom:5px;text-transform:uppercase}
+          .shop-addr{font-size:11px;color:#444;margin:3px 0}
+          .print-time{font-size:10px;color:#666;margin-top:5px}
+          .customer-photo-small{width:70px;height:70px;border-radius:50%;object-fit:cover;border:3px solid #000}
+          .customer-name{font-size:18px;font-weight:bold;margin-bottom:8px;text-transform:uppercase}
+          .customer-phone{font-size:13px;color:#333}
+          .customer-code{font-size:12px;color:#666}
+          
+          .section-title{font-size:16px;font-weight:bold;margin:20px 0 15px;padding:10px;background:#333;color:#fff;text-transform:uppercase}
+          table{width:100%;border-collapse:collapse;margin:15px 0}
+          th{background:#555;color:#fff;padding:14px 10px;font-size:14px;border:2px solid #000;text-transform:uppercase;font-weight:bold}
+          td{padding:10px;border:2px solid #000;font-size:13px}
+          .totals{width:400px;margin-left:auto;margin-top:20px}
+          .totals-row{display:flex;justify-content:space-between;padding:10px 0;font-size:14px}
+          .totals-row.bold{font-weight:bold;border-top:3px solid #000;margin-top:8px;padding-top:12px;font-size:16px}
+          .footer{text-align:center;margin-top:30px;padding-top:12px;border-top:1px solid #ddd;font-size:11px;color:#666}
+          .text-center{text-align:center}
           .text-right{text-align:right}
+          .red{color:#dc2626}
+          .green{color:#059669}
+          .statement-note {
+            text-align: center;
+            font-size: 12px;
+            color: #666;
+            margin: 15px 0;
+            font-style: italic;
+            font-weight: bold;
+          }
+          @media print{
+            body{padding:8mm}
+            .print-header{margin-bottom:15px}
+            th,td{padding:8px}
+          }
         </style>
       </head>
       <body>
-        <div class="header">
-          <div class="shop-name">Asim Electric & Electronic Store</div>
-          <div>Main Bazar Nahari Town, Faisalabad</div>
-          <div>Ph: 0300 7262129, 041 8711575</div>
-        </div>
-        <div class="title">DETAILED LEDGER STATEMENT</div>
-        <div class="customer-info">
-          ${selectedEntity.imageFront ? 
-            `<img src="${selectedEntity.imageFront}" class="customer-photo" alt="${selectedEntity.name}">` : 
-            `<div style="width:50px;height:50px;border-radius:50%;background:#ddd;display:flex;align-items:center;justify-content:center;font-size:24px;border:1px solid #000">${activeTab === "customer" ? "👤" : "🏢"}</div>`
-          }
-          <div>
-            <div style="font-weight:bold;font-size:13px">${selectedEntity.name}</div>
-            <div>Code: ${selectedEntity.code || "—"} | Phone: ${selectedEntity.phone || "—"}</div>
+        <div class="print-header">
+          <div class="shop-section">
+            <div class="shop-name">عاصم الیکٹرک اینڈ الیکٹرونکس سٹور</div>
+            <div class="shop-name-en">ASIM ELECTRIC & ELECTRONIC STORE</div>
+            <div class="shop-addr">Main Bazar Nahari Town, Near Bijli Ghar Stop, Gujranwala Road, Faisalabad</div>
+            <div class="shop-addr">Ph: 0300 7262129, 041 8711575, 0315 7262129</div>
+            <div class="print-time">Printed on: ${printDateTime}</div>
+          </div>
+          <div class="customer-section">
+            ${selectedEntity.imageFront ? 
+              `<img src="${selectedEntity.imageFront}" class="customer-photo-small" alt="${selectedEntity.name}">` : 
+              `<div style="width:70px;height:70px;border-radius:50%;background:#ddd;display:flex;align-items:center;justify-content:center;font-size:35px;border:2px solid #000">${activeTab === "customer" ? "👤" : "🏢"}</div>`
+            }
+            <div>
+              <div class="customer-name">${selectedEntity.name}</div>
+              <div class="customer-phone">📞 ${selectedEntity.phone || "N/A"}</div>
+              <div class="customer-code">🆔 ${selectedEntity.code || "N/A"}</div>
+              <div class="customer-code">📅 Statement Date: ${isoD()}</div>
+            </div>
           </div>
         </div>
-        <div class="date-range">Period: ${fromDate} to ${toDate}</div>
+        
+        <div class="statement-note">📋 DETAILED LEDGER STATEMENT (WITH ITEMS)</div>
+        <div class="date-range" style="background:#f8fafc;padding:10px;margin:15px 0;border:2px solid #000;text-align:center;font-size:13px;font-weight:bold">
+          Period: ${fromDate} to ${toDate}
+        </div>
+        
         <table>
           <thead>
             <tr>
-              <th>#</th><th>Date</th><th>Voucher #</th><th>Type</th><th>Remarks</th><th class="text-right">Debit</th><th class="text-right">Credit</th><th class="text-right">Balance</th>
+              <th style="width:45px">#</th>
+              <th>DATE</th>
+              <th>VOUCHER #</th>
+              <th>TYPE</th>
+              <th>REMARKS</th>
+              <th class="text-right">DEBIT</th>
+              <th class="text-right">CREDIT</th>
+              <th class="text-right">BALANCE</th>
             </tr>
           </thead>
           <tbody>${detailedRows}</tbody>
         </table>
+        
         <div class="totals">
           <div class="totals-row"><span>Total Debit:</span><span>PKR ${fmt(totalDebit)}</span></div>
           <div class="totals-row"><span>Total Credit:</span><span>PKR ${fmt(totalCredit)}</span></div>
-          <div class="totals-row bold"><span>Closing Balance:</span><span style="color:${closingBalance > 0 ? '#dc2626' : '#059669'}">PKR ${fmt(Math.abs(closingBalance))}</span></div>
+          <div class="totals-row bold"><span>Closing Balance:</span><span class="${closingBalance > 0 ? 'red' : 'green'}">PKR ${fmt(Math.abs(closingBalance))} ${closingBalance > 0 ? '(Receivable)' : '(Payable)'}</span></div>
         </div>
-        <div class="footer">Printed on: ${printDateTime}<br>Software developed by: AppHill / 03222292922</div>
+        
+        <div class="footer">Thank you for your business! | Developed by: AppHill / 03222292922 | www.apphill.pk</div>
       </body>
       </html>`;
     }
@@ -887,59 +1006,62 @@ export default function GeneralLedgerPage() {
                 fontSize: "11px", 
                 border: "2px solid #000000"
               }}>
-                <thead>
-                  <tr style={{ background: "#f1f5f9" }}>
-                    <th style={{ padding: "6px 5px", textAlign: "center", width: "35px", border: "1px solid #000000", fontSize: "10px", fontWeight: "bold", color: "#000000" }}>#</th>
-                    <th style={{ padding: "6px 5px", textAlign: "left", border: "1px solid #000000", fontSize: "10px", fontWeight: "bold", color: "#000000" }}>Date</th>
-                    <th style={{ padding: "6px 5px", textAlign: "left", border: "1px solid #000000", fontSize: "10px", fontWeight: "bold", color: "#000000" }}>Voucher #</th>
-                    <th style={{ padding: "6px 5px", textAlign: "left", border: "1px solid #000000", fontSize: "10px", fontWeight: "bold", color: "#000000" }}>Type</th>
-                    <th style={{ padding: "6px 5px", textAlign: "left", border: "1px solid #000000", fontSize: "10px", fontWeight: "bold", color: "#000000" }}>Remarks</th>
-                    <th style={{ padding: "6px 5px", textAlign: "right", border: "1px solid #000000", fontSize: "10px", fontWeight: "bold", color: "#000000" }}>Debit</th>
-                    <th style={{ padding: "6px 5px", textAlign: "right", border: "1px solid #000000", fontSize: "10px", fontWeight: "bold", color: "#000000" }}>Credit</th>
-                    <th style={{ padding: "6px 5px", textAlign: "right", border: "1px solid #000000", fontSize: "10px", fontWeight: "bold", color: "#000000" }}>Balance</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {transactions.map((t, i) => (
-                    <tr key={t._id || i} style={{ borderBottom: "1px solid #e2e8f0" }}>
-                      <td style={{ padding: "5px 5px", textAlign: "center", border: "1px solid #000000", fontSize: "10px", fontWeight: "500", color: "#1e293b" }}>{i + 1}</td>
-                      <td style={{ padding: "5px 5px", whiteSpace: "nowrap", border: "1px solid #000000", fontSize: "10px", fontWeight: "500", color: "#1e293b" }}>{t.date}</td>
-                      <td style={{ padding: "5px 5px", fontFamily: "monospace", fontWeight: "bold", border: "1px solid #000000", fontSize: "10px", color: "#1e293b" }}>{t.transactionId}</td>
-                      <td style={{ padding: "5px 5px", border: "1px solid #000000" }}>
-                        <span style={{
-                          padding: "2px 6px",
-                          borderRadius: "3px",
-                          fontSize: "9px",
-                          fontWeight: "bold",
-                          background: t.type === "sale" ? "#dbeafe" : t.type === "return" ? "#fef3c7" : t.type === "payment" || t.type === "cash-receipt" ? "#dcfce7" : "#fef3c7",
-                          border: "1px solid #000000"
-                        }}>
-                          {t.transType}
-                        </span>
-                      </td>
-                      <td style={{ padding: "5px 5px", maxWidth: "150px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", border: "1px solid #000000", fontSize: "10px", color: "#475569" }}>{t.remarks || "—"}</td>
-                      <td style={{ padding: "5px 5px", textAlign: "right", fontWeight: "bold", border: "1px solid #000000", fontSize: "10px", color: "#dc2626" }}>
-                        {t.debit > 0 ? `PKR ${fmt(t.debit)}` : "—"}
-                      </td>
-                      <td style={{ padding: "5px 5px", textAlign: "right", fontWeight: "bold", border: "1px solid #000000", fontSize: "10px", color: "#059669" }}>
-                        {t.credit > 0 ? `PKR ${fmt(t.credit)}` : "—"}
-                      </td>
-                      <td style={{ padding: "5px 5px", textAlign: "right", fontWeight: "bold", border: "1px solid #000000", fontSize: "10px", color: t.runningBalance > 0 ? "#dc2626" : "#059669" }}>
-                        PKR {fmt(Math.abs(t.runningBalance))}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-                <tfoot style={{ background: "#f8fafc", borderTop: "2px solid #000000" }}>
-                  <tr>
-                    <td colSpan="5" style={{ padding: "6px 5px", textAlign: "right", fontWeight: "bold", border: "1px solid #000000", fontSize: "10px", textTransform: "uppercase", color: "#000000" }}>TOTALS:</td>
-                    <td style={{ padding: "6px 5px", textAlign: "right", fontWeight: "bold", border: "1px solid #000000", fontSize: "10px", color: "#dc2626" }}>PKR {fmt(totalDebit)}</td>
-                    <td style={{ padding: "6px 5px", textAlign: "right", fontWeight: "bold", border: "1px solid #000000", fontSize: "10px", color: "#059669" }}>PKR {fmt(totalCredit)}</td>
-                    <td style={{ padding: "6px 5px", textAlign: "right", fontWeight: "bold", border: "1px solid #000000", fontSize: "10px", color: closingBalance > 0 ? "#dc2626" : "#059669" }}>
-                      PKR {fmt(Math.abs(closingBalance))}
-                    </td>
-                  </tr>
-                </tfoot>
+       <thead>
+  <tr style={{ background: "#f1f5f9" }}>
+    <th style={{ padding: "6px 3px", textAlign: "center", width: "40px", border: "2px solid #000000", fontSize: "13px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>#</th>
+    <th style={{ padding: "6px 3px", textAlign: "left", border: "2px solid #000000", fontSize: "13px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>Date</th>
+    <th style={{ padding: "6px 3px", textAlign: "left", border: "2px solid #000000", fontSize: "13px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>Voucher #</th>
+    <th style={{ padding: "6px 3px", textAlign: "left", border: "2px solid #000000", fontSize: "13px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>Type</th>
+    <th style={{ padding: "6px 3px", textAlign: "left", border: "2px solid #000000", fontSize: "13px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>Remarks</th>
+    <th style={{ padding: "6px 3px", textAlign: "right", border: "2px solid #000000", fontSize: "13px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>Debit</th>
+    <th style={{ padding: "6px 3px", textAlign: "right", border: "2px solid #000000", fontSize: "13px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>Credit</th>
+    <th style={{ padding: "6px 3px", textAlign: "right", border: "2px solid #000000", fontSize: "13px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>Balance</th>
+  </tr>
+</thead>
+
+<tbody>
+  {transactions.map((t, i) => (
+    <tr key={t._id || i} style={{ borderBottom: "2px solid #000000" }}>
+      <td style={{ padding: "4px 3px", textAlign: "center", border: "1px solid #000000", fontSize: "13px", fontWeight: "bold", color: "#1e293b" }}>{i + 1}</td>
+      <td style={{ padding: "4px 3px", whiteSpace: "nowrap", border: "1px solid #000000", fontSize: "13px", fontWeight: "bold", color: "#1e293b" }}>{t.date}</td>
+      <td style={{ padding: "4px 3px", fontFamily: "monospace", fontWeight: "bold", border: "1px solid #000000", fontSize: "13px", color: "#1e293b" }}>{t.transactionId}</td>
+      <td style={{ padding: "4px 3px", border: "1px solid #000000" }}>
+        <span style={{
+          padding: "2px 8px",
+          borderRadius: "4px",
+          fontSize: "11px",
+          fontWeight: "bold",
+          background: t.type === "sale" ? "#dbeafe" : t.type === "return" ? "#fef3c7" : t.type === "payment" || t.type === "cash-receipt" ? "#dcfce7" : "#fef3c7",
+          border: "1px solid #000000",
+          display: "inline-block"
+        }}>
+          {t.transType}
+        </span>
+      </td>
+      <td style={{ padding: "4px 3px", maxWidth: "200px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", border: "1px solid #000000", fontSize: "13px", fontWeight: "bold", color: "#1e293b" }}>{t.remarks || "—"}</td>
+      <td style={{ padding: "4px 3px", textAlign: "right", fontWeight: "bold", border: "1px solid #000000", fontSize: "13px", color: "#dc2626" }}>
+        {t.debit > 0 ? `PKR ${fmt(t.debit)}` : "—"}
+      </td>
+      <td style={{ padding: "4px 3px", textAlign: "right", fontWeight: "bold", border: "1px solid #000000", fontSize: "13px", color: "#059669" }}>
+        {t.credit > 0 ? `PKR ${fmt(t.credit)}` : "—"}
+      </td>
+      <td style={{ padding: "4px 3px", textAlign: "right", fontWeight: "bold", border: "1px solid #000000", fontSize: "13px", color: t.runningBalance > 0 ? "#dc2626" : "#059669" }}>
+        PKR {fmt(Math.abs(t.runningBalance))}
+      </td>
+    </tr>
+  ))}
+</tbody>
+  
+               <tfoot style={{ background: "#f8fafc", borderTop: "3px solid #000000" }}>
+  <tr>
+    <td colSpan="5" style={{ padding: "6px 3px", textAlign: "right", fontWeight: "bold", border: "1px solid #000000", fontSize: "13px", textTransform: "uppercase", color: "#000000" }}>TOTALS:</td>
+    <td style={{ padding: "6px 3px", textAlign: "right", fontWeight: "bold", border: "1px solid #000000", fontSize: "13px", color: "#dc2626" }}>PKR {fmt(totalDebit)}</td>
+    <td style={{ padding: "6px 3px", textAlign: "right", fontWeight: "bold", border: "1px solid #000000", fontSize: "13px", color: "#059669" }}>PKR {fmt(totalCredit)}</td>
+    <td style={{ padding: "6px 3px", textAlign: "right", fontWeight: "bold", border: "1px solid #000000", fontSize: "13px", color: closingBalance > 0 ? "#dc2626" : "#059669" }}>
+      PKR {fmt(Math.abs(closingBalance))}
+    </td>
+  </tr>
+</tfoot>
               </table>
             </div>
           )}
