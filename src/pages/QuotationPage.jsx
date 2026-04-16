@@ -78,7 +78,7 @@ const saveQuotationHolds = (quotes) => {
 };
 
 /* ══════════════════════════════════════════════════════════
-   PRINT HTML BUILDER — Quotation Only
+   PRINT HTML BUILDER — Quotation with Quantity and Price
 ══════════════════════════════════════════════════════════ */
 
 const buildQuotationPrintHtml = (quotation, overrides = {}) => {
@@ -86,6 +86,7 @@ const buildQuotationPrintHtml = (quotation, overrides = {}) => {
   const customerPhone = overrides.customerPhone || quotation.customerPhone || "";
   const rows = quotation.items.map((it, i) => ({ ...it, sr: i + 1 }));
   const totalQty = rows.reduce((s, r) => s + (r.pcs || 0), 0);
+  const totalAmount = rows.reduce((s, r) => s + (r.amount || 0), 0);
   const validUntil = overrides.validUntil || "7 days from issue date";
 
   const URDU_FONT = `'Noto Nastaliq Urdu','Mehr Nastaliq','Jameel Noori Nastaleeq','Urdu Typesetting',serif`;
@@ -95,10 +96,13 @@ const buildQuotationPrintHtml = (quotation, overrides = {}) => {
     .map(
       (it) => `
       <tr>
-        <td style="font-size:10px;vertical-align:top;padding:4px">${it.sr}</td>
+        <td style="font-size:10px;vertical-align:top;padding:4px;text-align:center">${it.sr}</td>
         <td style="font-size:10px;vertical-align:top;padding:4px;word-break:break-word">${it.code}</td>
         <td style="font-size:11px;vertical-align:top;padding:4px;word-break:break-word">${it.name}</td>
-        <td style="font-size:10px;vertical-align:top;padding:4px;text-align:center">${it.pcs} ${it.uom || ""}</td>
+        <td style="font-size:10px;vertical-align:top;padding:4px;text-align:center">${it.uom || ""}</td>
+        <td style="font-size:10px;vertical-align:top;padding:4px;text-align:center">${it.pcs}</td>
+        <td style="font-size:10px;vertical-align:top;padding:4px;text-align:right">${Number(it.rate).toLocaleString("en-PK")}</td>
+        <td style="font-size:10px;vertical-align:top;padding:4px;text-align:right"><b>${Number(it.amount).toLocaleString("en-PK")}</b></td>
       </tr>
     `,
     )
@@ -120,14 +124,19 @@ const buildQuotationPrintHtml = (quotation, overrides = {}) => {
     .valid-box{background:#e8f5e9;padding:6px;text-align:center;font-size:9px;font-weight:bold;margin:6px 0;border-radius:4px}
     table{width:100%;border-collapse:collapse}
     thead tr{border-bottom:1px solid #2c5f2d;background:#f5f5f5}
-    th{font-size:10px;font-weight:bold;padding:5px 4px;text-align:left}
-    td{padding:4px;font-size:10px;vertical-align:top;border-bottom:1px solid #eee}
+    th{font-size:9px;font-weight:bold;padding:5px 2px;text-align:left}
+    th.r{text-align:right}
+    th.c{text-align:center}
+    td{padding:4px 2px;font-size:9.5px;vertical-align:top;border-bottom:1px solid #eee}
     .footer{text-align:center;font-size:8px;color:#777;margin-top:10px;border-top:1px dashed #ccc;padding-top:5px}
     .signature{display:flex;justify-content:space-between;margin-top:15px;padding-top:10px}
     .sign-line{text-align:center;font-size:9px}
     .sign-line span{display:inline-block;border-top:1px solid #000;min-width:100px;margin-top:20px;padding-top:3px}
     .terms-box{font-family:${URDU_FONT};direction:rtl;font-size:8px;color:#555;border:1px dashed #ccc;padding:6px;margin-top:8px;line-height:1.8;text-align:right}
-    .price-note{background:#fff3cd;color:#856404;padding:4px;text-align:center;font-size:9px;margin:6px 0;border-radius:4px}
+    .price-note{background:#fff3cd;color:#856404;padding:4px;text-align:center;font-size:8px;margin:6px 0;border-radius:4px}
+    .totals{background:#e8f5e9;padding:6px;margin-top:8px;border-radius:4px}
+    .totals-row{display:flex;justify-content:space-between;font-size:10px;margin:2px 0}
+    .totals-row.bold{font-weight:bold;font-size:11px}
     @media print{@page{size:80mm auto;margin:2mm}body{width:76mm}}
   </style></head><body>
 
@@ -161,10 +170,13 @@ const buildQuotationPrintHtml = (quotation, overrides = {}) => {
     <table>
       <thead>
         <tr>
-          <th style="width:30px">#</th>
-          <th style="width:80px">Code</th>
+          <th style="width:25px;text-align:center">#</th>
+          <th style="width:70px">Code</th>
           <th>Product Description</th>
-          <th style="width:80px;text-align:center">Qty</th>
+          <th style="width:40px;text-align:center">UOM</th>
+          <th style="width:45px;text-align:center">Qty</th>
+          <th style="width:55px;text-align:right">Rate</th>
+          <th style="width:65px;text-align:right">Amount</th>
         </tr>
       </thead>
       <tbody>${itemRows}</tbody>
@@ -172,9 +184,15 @@ const buildQuotationPrintHtml = (quotation, overrides = {}) => {
 
     <hr class="divider-solid">
     
-    <div class="meta-row">
-      <span><b>Total Items:</b> ${rows.length}</span>
-      <span><b>Total Quantity:</b> ${totalQty}</span>
+    <div class="totals">
+      <div class="totals-row">
+        <span><b>Total Items:</b> ${rows.length}</span>
+        <span><b>Total Quantity:</b> ${totalQty}</span>
+      </div>
+      <div class="totals-row bold">
+        <span><b>GRAND TOTAL:</b></span>
+        <span><b>PKR ${totalAmount.toLocaleString("en-PK")}</b></span>
+      </div>
     </div>
 
     <div class="terms-box">
@@ -195,7 +213,7 @@ const buildQuotationPrintHtml = (quotation, overrides = {}) => {
 };
 
 const doPrint = (quotation, overrides = {}) => {
-  const w = window.open("", "_blank", "width=500,height=700");
+  const w = window.open("", "_blank", "width=650,height=800");
   w.document.write(buildQuotationPrintHtml(quotation, overrides));
   w.document.close();
   setTimeout(() => w.print(), 400);
@@ -1266,8 +1284,13 @@ export default function QuotationPage() {
                   type="date"
                   className="xp-input xp-input-sm sl-date-input"
                   value={quoteDate}
-                  onChange={(e) => setQuoteDate(e.target.value)}
-                  style={{ borderColor: "#2c5f2d" }}
+                  readOnly
+                  style={{ 
+                    borderColor: "#2c5f2d",
+                    background: "#f5f5f5",
+                    cursor: "not-allowed",
+                    color: "#888"
+                  }}
                 />
               </div>
               <div className="sl-inv-field-grp">
@@ -1614,74 +1637,50 @@ export default function QuotationPage() {
                 <span className="sl-hold-cnt">{holdQuotes.length}</span>
               </div>
               <div className="sl-hold-table-wrap">
-
-                <tbody>
-  {holdQuotes.length === 0 ? (
-    Array.from({ length: 8 }).map((_, i) => (
-      <tr key={i}>
-        <td colSpan={5} style={{ height: 22 }} />
-      </tr>
-    ))
-  ) : (
-    holdQuotes.map((q, i) => (
-      <tr
-        key={q.id}
-        onClick={() => setShowHoldPreview(q)}
-        onDoubleClick={() => resumeQuotation(q.id)}
-        title="Click = preview · Double-click = resume"
-        style={{ cursor: "pointer" }}
-      >
-        <td
-          className="muted"
-          style={{
-            textAlign: "center",
-            fontSize: "var(--xp-fs-xs)",
-          }}
-        >
-          {i + 1}
-        </td>
-
-        <td
-          style={{
-            fontFamily: "var(--xp-mono)",
-            fontSize: "var(--xp-fs-xs)",
-          }}
-        >
-          {q.quoteNo}
-        </td>
-
-        <td
-          className="r"
-          style={{ color: "#2c5f2d", fontWeight: 600 }}
-        >
-          {Number(q.amount).toLocaleString("en-PK")}
-        </td>
-
-        <td
-          className="muted"
-          style={{ fontSize: "var(--xp-fs-xs)" }}
-        >
-          {q.date}
-        </td>
-
-        <td style={{ textAlign: "center" }}>
-          <button
-            className="xp-btn xp-btn-sm xp-btn-ico"
-            style={{
-              width: 18,
-              height: 18,
-              fontSize: 9,
-              color: "var(--xp-red)",
-            }}
-            onClick={(e) => deleteHold(q.id, e)}
-          >
-            ✕
-          </button>
-        </td>
-      </tr>  
-    ))
-  )}
-</tbody>
+                <table className="sl-hold-table">
+                  <thead>
+                    <tr>
+                      <th style={{ width: 24 }}>#</th>
+                      <th>Quote #</th>
+                      <th className="r">Amount</th>
+                      <th>Date</th>
+                      <th style={{ width: 22 }}></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {holdQuotes.length === 0 ? (
+                      Array.from({ length: 8 }).map((_, i) => (
+                        <tr key={i}>
+                          <td colSpan={5} style={{ height: 22 }} />
+                        </tr>
+                      ))
+                    ) : (
+                      holdQuotes.map((q, i) => (
+                        <tr
+                          key={q.id}
+                          onClick={() => setShowHoldPreview(q)}
+                          onDoubleClick={() => resumeQuotation(q.id)}
+                          title="Click = preview · Double-click = resume"
+                          style={{ cursor: "pointer" }}
+                        >
+                          <td className="muted" style={{ textAlign: "center", fontSize: "var(--xp-fs-xs)" }}>{i + 1}</td>
+                          <td style={{ fontFamily: "var(--xp-mono)", fontSize: "var(--xp-fs-xs)" }}>{q.quoteNo}</td>
+                          <td className="r" style={{ color: "#2c5f2d", fontWeight: 600 }}>{Number(q.amount).toLocaleString("en-PK")}</td>
+                          <td className="muted" style={{ fontSize: "var(--xp-fs-xs)" }}>{q.date}</td>
+                          <td style={{ textAlign: "center" }}>
+                            <button
+                              className="xp-btn xp-btn-sm xp-btn-ico"
+                              style={{ width: 18, height: 18, fontSize: 9, color: "var(--xp-red)" }}
+                              onClick={(e) => deleteHold(q.id, e)}
+                            >
+                              ✕
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
               </div>
               <div style={{ padding: "4px 8px", flexShrink: 0 }}>
                 <button

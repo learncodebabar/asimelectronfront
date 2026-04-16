@@ -125,7 +125,7 @@ const buildPrintHtml = (purchaseReturn, type, overrides = {}) => {
       <div style="font-size:10px;font-weight:bold;margin-bottom:1px">${supplierName}</div>
       ${purchaseReturn.purchaseInvNo ? `<div style="font-size:9px;color:#555">Ref Purchase: ${purchaseReturn.purchaseInvNo}</div>` : ""}
       <hr class="divider-solid">
-      <table>
+      </table>
         <thead><tr><th style="width:20px">#</th><th>Product</th><th class="r">Qty.</th><th class="r">Rate</th><th class="r">Amount</th></tr></thead>
         <tbody>${itemRows}</tbody>
       </table>
@@ -269,7 +269,7 @@ const doPrint = (purchaseReturn, type, overrides = {}) => {
 };
 
 /* ══════════════════════════════════════════════════════════
-   SUPPLIER DROPDOWN
+   SUPPLIER DROPDOWN - Only shows on Arrow keys
 ══════════════════════════════════════════════════════════ */
 function SupplierDropdown({ allSuppliers, value, onSelect, onClear, onAddNew }) {
   const [query, setQuery] = useState("");
@@ -300,7 +300,6 @@ function SupplierDropdown({ allSuppliers, value, onSelect, onClear, onAddNew }) 
 
     const matches = getSuggestions(originalQuery);
     setSuggestions(matches);
-    setShowDropdown(matches.length > 0);
     
     if (!isNavigating && matches.length > 0 && matches[0].name) {
       const remaining = matches[0].name.slice(originalQuery.length);
@@ -420,7 +419,7 @@ function SupplierDropdown({ allSuppliers, value, onSelect, onClear, onAddNew }) 
     setOriginalQuery(newValue);
     if (value && newValue !== value) onClear();
     setSelectedSuggestionIndex(-1);
-    setShowDropdown(true);
+    setShowDropdown(false);
     setIsNavigating(false);
   };
 
@@ -468,7 +467,7 @@ function SupplierDropdown({ allSuppliers, value, onSelect, onClear, onAddNew }) 
               transition: "all 0.15s ease",
             }}
             value={value ? query || value : query}
-            placeholder="Select supplier..."
+            placeholder="Select supplier (Press ↓ to search)"
             onChange={handleChange}
             onKeyDown={handleKeyDown}
             onFocus={(e) => {
@@ -478,6 +477,11 @@ function SupplierDropdown({ allSuppliers, value, onSelect, onClear, onAddNew }) 
             onBlur={(e) => {
               e.target.style.borderColor = "#d1d5db";
               e.target.style.boxShadow = "none";
+              setTimeout(() => {
+                if (!isNavigating) {
+                  setShowDropdown(false);
+                }
+              }, 200);
             }}
             autoComplete="off"
             spellCheck={false}
@@ -515,7 +519,7 @@ function SupplierDropdown({ allSuppliers, value, onSelect, onClear, onAddNew }) 
             left: 0,
             right: 0,
             backgroundColor: "white",
-            border: "1px solid #e5e7eb",
+            border: "1px solid #dc2626",
             borderRadius: 4,
             maxHeight: 200,
             overflowY: "auto",
@@ -690,8 +694,8 @@ function SearchModal({ allProducts, onSelect, onClose }) {
                   )}
                   {rows.map((r, i) => (
                     <tr key={`${r._id}-${r._pi}`} style={{ background: i === hiIdx ? "#fee2e2" : "white", cursor: "pointer" }} onClick={() => setHiIdx(i)} onDoubleClick={() => onSelect(r)}>
-                      <td style={{ padding: "6px 6px", textAlign: "center", border: "1px solid #dc2626", fontSize: "11px", fontWeight: "normal", color: "#000000" }}>{i + 1}</td>
-                      <td style={{ padding: "6px 6px", border: "1px solid #dc2626", fontSize: "11px", fontWeight: "normal", color: "#000000" }}><span className="xp-code">{r.code}</span></td>
+                      <td style={{ padding: "6px 6px", textAlign: "center", border: "1px solid #dc2626", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>{i + 1}</td>
+                      <td style={{ padding: "6px 6px", border: "1px solid #dc2626", fontSize: "11px", fontWeight: "bold", color: "#000000" }}><span className="xp-code">{r.code}</span></td>
                       <td style={{ padding: "6px 6px", border: "1px solid #dc2626", fontSize: "15px", fontWeight: "bold", color: "#000000" }}>
                         <button className="xp-link-btn" style={{ color: "#000000", textDecoration: "none", fontWeight: "bold", fontSize: "15px", background: "none", border: "none", cursor: "pointer", width: "100%", textAlign: "left", padding: "0" }}>{r._name}</button>
                       </td>
@@ -714,7 +718,7 @@ function SearchModal({ allProducts, onSelect, onClose }) {
 }
 
 /* ══════════════════════════════════════════════════════════
-   PURCHASE INVOICE SEARCH MODAL - BOLD UPPERCASE HEADERS
+   PURCHASE INVOICE SEARCH MODAL - BOLD SAME AS PRODUCT MODAL
 ══════════════════════════════════════════════════════════ */
 function SearchPurchaseModal({ onSelect, onClose }) {
   const [searchId, setSearchId] = useState("");
@@ -846,27 +850,42 @@ function SearchPurchaseModal({ onSelect, onClose }) {
           <div className="xp-table-panel" style={{ border: "none", height: "100%" }}>
             <div className="xp-table-scroll" style={{ height: "100%", overflow: "auto", maxHeight: "calc(85vh - 150px)" }}>
               <table className="xp-table" style={{ fontSize: "12px", borderCollapse: "collapse", width: "100%", border: "1px solid #dc2626" }}>
-                <thead><tr style={{ background: "#f1f5f9", position: "sticky", top: 0, zIndex: 10 }}>
-                  <th style={{ width: 40, padding: "8px 4px", textAlign: "center", border: "1px solid #dc2626", fontSize: "11px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>#</th>
-                  <th style={{ padding: "8px 4px", textAlign: "left", border: "1px solid #dc2626", fontSize: "11px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>INVOICE #</th>
-                  <th style={{ padding: "8px 4px", textAlign: "left", border: "1px solid #dc2626", fontSize: "11px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>DATE</th>
-                  <th style={{ padding: "8px 4px", textAlign: "left", border: "1px solid #dc2626", fontSize: "11px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>SUPPLIER NAME</th>
-                  <th style={{ padding: "8px 4px", textAlign: "left", border: "1px solid #dc2626", fontSize: "11px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>PHONE</th>
-                  <th style={{ width: 100, padding: "8px 4px", textAlign: "right", border: "1px solid #dc2626", fontSize: "11px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>TOTAL AMOUNT</th>
-                  <th style={{ width: 60, padding: "8px 4px", textAlign: "center", border: "1px solid #dc2626", fontSize: "11px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>ITEMS</th>
-                </tr></thead>
+                <thead>
+                  <tr style={{ background: "#f1f5f9", position: "sticky", top: 0, zIndex: 10 }}>
+                    <th style={{ width: 50, padding: "8px 6px", textAlign: "center", border: "1px solid #dc2626", fontSize: "12px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>SR.#</th>
+                    <th style={{ padding: "8px 6px", textAlign: "left", border: "1px solid #dc2626", fontSize: "12px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>INVOICE #</th>
+                    <th style={{ padding: "8px 6px", textAlign: "left", border: "1px solid #dc2626", fontSize: "12px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>DATE</th>
+                    <th style={{ padding: "8px 6px", textAlign: "left", border: "1px solid #dc2626", fontSize: "12px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>SUPPLIER NAME</th>
+                    <th style={{ padding: "8px 6px", textAlign: "left", border: "1px solid #dc2626", fontSize: "12px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>PHONE</th>
+                    <th style={{ width: 120, padding: "8px 6px", textAlign: "right", border: "1px solid #dc2626", fontSize: "12px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>TOTAL AMOUNT</th>
+                    <th style={{ width: 60, padding: "8px 6px", textAlign: "center", border: "1px solid #dc2626", fontSize: "12px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>ITEMS</th>
+                  </tr>
+                </thead>
                 <tbody ref={listRef} tabIndex={0} onKeyDown={handleListKeyDown}>
-                  {loading && <tr><td colSpan={7} className="xp-empty" style={{ padding: "30px", textAlign: "center", color: "#000000", fontSize: "12px", fontWeight: "bold" }}>LOADING...</td></tr>}
-                  {!loading && invoices.length === 0 && <tr><td colSpan={7} className="xp-empty" style={{ padding: "30px", textAlign: "center", color: "#000000", fontSize: "12px", fontWeight: "bold" }}>NO PURCHASE INVOICES FOUND.</td></tr>}
+                  {loading && (
+                    <tr>
+                      <td colSpan={7} className="xp-empty" style={{ padding: "30px", textAlign: "center", color: "#000000", fontSize: "12px", fontWeight: "bold" }}>LOADING...</td>
+                    </tr>
+                  )}
+                  {!loading && invoices.length === 0 && (
+                    <tr>
+                      <td colSpan={7} className="xp-empty" style={{ padding: "30px", textAlign: "center", color: "#000000", fontSize: "12px", fontWeight: "bold" }}>NO PURCHASE INVOICES FOUND.</td>
+                    </tr>
+                  )}
                   {invoices.map((inv, i) => (
-                    <tr key={inv._id} style={{ background: i === hiIdx ? "#fee2e2" : "white", cursor: "pointer" }} onClick={() => setHiIdx(i)} onDoubleClick={() => onSelect(inv)}>
-                      <td style={{ padding: "6px 4px", textAlign: "center", border: "1px solid #dc2626", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>{i + 1}</td>
-                      <td style={{ padding: "6px 4px", border: "1px solid #dc2626", fontSize: "12px", fontWeight: "bold", color: "#000000", fontFamily: "monospace" }}>{inv.invoiceNo || "N/A"}</td>
-                      <td style={{ padding: "6px 4px", border: "1px solid #dc2626", fontSize: "11px", color: "#000000" }}>{inv.invoiceDate?.split("T")[0] || "-"}</td>
-                      <td style={{ padding: "6px 4px", border: "1px solid #dc2626", fontSize: "12px", fontWeight: "bold", color: "#000000" }}>{inv.supplierName || "N/A"}</td>
-                      <td style={{ padding: "6px 4px", border: "1px solid #dc2626", fontSize: "11px", color: "#000000" }}>{inv.supplierPhone || "-"}</td>
-                      <td style={{ padding: "6px 4px", textAlign: "right", border: "1px solid #dc2626", fontSize: "12px", fontWeight: "bold", color: "#dc2626" }}>{Number(inv.netTotal || inv.total || 0).toLocaleString("en-PK")}</td>
-                      <td style={{ padding: "6px 4px", textAlign: "center", border: "1px solid #dc2626", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>{inv.items?.length || 0}</td>
+                    <tr 
+                      key={inv._id} 
+                      style={{ background: i === hiIdx ? "#fee2e2" : "white", cursor: "pointer" }} 
+                      onClick={() => setHiIdx(i)} 
+                      onDoubleClick={() => onSelect(inv)}
+                    >
+                      <td style={{ padding: "6px 6px", textAlign: "center", border: "1px solid #dc2626", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>{i + 1}</td>
+                      <td style={{ padding: "6px 6px", border: "1px solid #dc2626", fontSize: "13px", fontWeight: "bold", color: "#000000", fontFamily: "monospace" }}>{inv.invoiceNo || "N/A"}</td>
+                      <td style={{ padding: "6px 6px", border: "1px solid #dc2626", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>{inv.invoiceDate?.split("T")[0] || "-"}</td>
+                      <td style={{ padding: "6px 6px", border: "1px solid #dc2626", fontSize: "13px", fontWeight: "bold", color: "#000000" }}>{inv.supplierName || "N/A"}</td>
+                      <td style={{ padding: "6px 6px", border: "1px solid #dc2626", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>{inv.supplierPhone || "-"}</td>
+                      <td style={{ padding: "6px 6px", textAlign: "right", border: "1px solid #dc2626", fontSize: "13px", fontWeight: "bold", color: "#dc2626" }}>{Number(inv.netTotal || inv.total || 0).toLocaleString("en-PK")}</td>
+                      <td style={{ padding: "6px 6px", textAlign: "center", border: "1px solid #dc2626", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>{inv.items?.length || 0}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -963,6 +982,7 @@ export default function PurchaseReturnPage() {
   const [supplierId, setSupplierId] = useState("");
   const [supplierName, setSupplierName] = useState("");
   const [supplierCode, setSupplierCode] = useState("");
+  const [supplierCodeInput, setSupplierCodeInput] = useState("");
   const [refundAmount, setRefundAmount] = useState(0);
   const [printType, setPrintType] = useState("Thermal");
   const [editId, setEditId] = useState(null);
@@ -982,6 +1002,22 @@ export default function PurchaseReturnPage() {
   const purchaseInvRef = useRef(null);
   const packingRef = useRef(null);
   const refundRef = useRef(null);
+  const supplierCodeInputRef = useRef(null);
+
+  // Handle supplier code search
+  const handleSupplierCodeSearch = async () => {
+    const code = supplierCodeInputRef.current?.value.trim();
+    if (!code) return;
+    
+    const found = allSuppliers.find(s => s.code?.toLowerCase() === code.toLowerCase());
+    if (found) {
+      handleSupplierSelect(found);
+      if (supplierCodeInputRef.current) supplierCodeInputRef.current.value = "";
+      showMsg(`Supplier found: ${found.name}`, "success");
+    } else {
+      showMsg(`No supplier found with code: ${code}`, "error");
+    }
+  };
 
   useEffect(() => {
     const t = setInterval(() => setTime(timeNow()), 1000);
@@ -1472,7 +1508,7 @@ export default function PurchaseReturnPage() {
         {msg.text && <div className={`xp-alert ${msg.type === "success" ? "xp-alert-success" : "xp-alert-error"}`} style={{ margin: "4px 10px 0", flexShrink: 0 }}>{msg.text}</div>}
 
         <div className="sl-body">
-          <div className="sl-left" style={{ width: "100%" }}>
+          <div className="sl-left">
             <div className="sl-top-bar">
               <div className="sl-sale-title-box" style={{ background: "#dc2626", border: "1px solid #991b1b" }}>PURCHASE RETURN</div>
               
@@ -1508,7 +1544,18 @@ export default function PurchaseReturnPage() {
               
               <div className="sl-inv-field-grp">
                 <label>DATE</label>
-                <input type="date" className="xp-input xp-input-sm sl-date-input" value={returnDate} onChange={(e) => setReturnDate(e.target.value)} style={{ borderColor: "#dc2626" }} />
+                <input 
+                  type="date" 
+                  className="xp-input xp-input-sm sl-date-input" 
+                  value={returnDate} 
+                  readOnly
+                  style={{ 
+                    borderColor: "#dc2626",
+                    background: "#f5f5f5",
+                    cursor: "not-allowed",
+                    color: "#888"
+                  }} 
+                />
               </div>
               
               <div className="sl-inv-field-grp">
@@ -1626,7 +1673,20 @@ export default function PurchaseReturnPage() {
               
               <div className="sl-cust-cell" style={{ width: 120 }}>
                 <label>SUPPLIER CODE</label>
-                <input type="text" className="sl-cust-input" style={{ width: 100, background: "#fffde7", borderColor: "#dc2626" }} value={supplierCode} readOnly placeholder="CODE" />
+                <input 
+                  ref={supplierCodeInputRef}
+                  type="text" 
+                  className="sl-cust-input" 
+                  style={{ width: 100, background: "#fffde7", borderColor: "#dc2626" }} 
+                  placeholder="Enter code"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      handleSupplierCodeSearch();
+                    }
+                  }}
+                  autoComplete="off"
+                />
               </div>
               
               <div className="sl-cust-cell" style={{ flex: 2 }}>
@@ -1659,77 +1719,76 @@ export default function PurchaseReturnPage() {
               </div>
             </div>
           </div>
-           {/* Right panel - Hold Bills */}
-        <div className="sl-right">
-          <div className="sl-hold-panel">
-            <div className="sl-hold-title" style={{ background: "#dc2626" }}>
-              <span>HOLD BILLS <kbd style={{ fontSize: 9, background: "rgba(255,255,255,0.2)", padding: "0 3px", borderRadius: 2 }}>F4</kbd></span>
-              <span className="sl-hold-cnt">{holdBills.length}</span>
-            </div>
-            <div className="sl-hold-table-wrap">
-              <table className="sl-hold-table">
-                <thead>
-                  <tr>
-                    <th style={{ width: 24 }}>#</th>
-                    <th>RETURN #</th>
-                    <th className="r">AMOUNT</th>
-                    <th>SUPPLIER</th>
-                    <th style={{ width: 22 }}></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {holdBills.length === 0 ? (
-                    Array.from({ length: 8 }).map((_, i) => (
-                      <tr key={i}>
-                        <td colSpan={5} style={{ height: 22 }} />
-                      </tr>
-                    ))
-                  ) : (
-                    holdBills.map((b, i) => (
-                      <tr
-                        key={b.id}
-                        onClick={() => setShowHoldPreview(b)}
-                        onDoubleClick={() => resumeHold(b.id)}
-                        title="CLICK = PREVIEW · DOUBLE-CLICK = RESUME"
-                        style={{ cursor: "pointer" }}
-                      >
-                        <td className="muted" style={{ textAlign: "center", fontSize: "var(--xp-fs-xs)" }}>{i + 1}</td>
-                        <td style={{ fontFamily: "var(--xp-mono)", fontSize: "var(--xp-fs-xs)" }}>{b.returnNo}</td>
-                        <td className="r" style={{ color: "#dc2626" }}>{fmt(b.amount)}</td>
-                        <td className="muted" style={{ fontSize: "var(--xp-fs-xs)" }}>{b.supplierName || "N/A"}</td>
-                        <td style={{ textAlign: "center" }}>
-                          <button
-                            className="xp-btn xp-btn-sm xp-btn-ico"
-                            style={{ width: 18, height: 18, fontSize: 9, color: "var(--xp-red)" }}
-                            onClick={(e) => deleteHold(b.id, e)}
-                          >
-                            ✕
-                          </button>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-            <div style={{ padding: "4px 8px", flexShrink: 0 }}>
-              <button
-                className="xp-btn xp-btn-sm"
-                style={{ width: "100%", background: "#dc2626", color: "white", borderColor: "#991b1b" }}
-                onClick={holdBill}
-                disabled={!items.length}
-              >
-                HOLD BILL (F4)
-              </button>
-            </div>
-            <div className="sl-hold-hint" style={{ padding: "4px 8px", fontSize: 10, color: "#666", textAlign: "center", borderTop: "1px solid #e5e7eb" }}>
-              CLICK = PREVIEW · DOUBLE-CLICK = RESUME · ✕ = DELETE
+
+          {/* Right panel - Hold Bills */}
+          <div className="sl-right">
+            <div className="sl-hold-panel">
+              <div className="sl-hold-title" style={{ background: "#dc2626" }}>
+                <span>HOLD BILLS <kbd style={{ fontSize: 9, background: "rgba(255,255,255,0.2)", padding: "0 3px", borderRadius: 2 }}>F4</kbd></span>
+                <span className="sl-hold-cnt">{holdBills.length}</span>
+              </div>
+              <div className="sl-hold-table-wrap">
+                <table className="sl-hold-table">
+                  <thead>
+                    <tr>
+                      <th style={{ width: 24 }}>#</th>
+                      <th>RETURN #</th>
+                      <th className="r">AMOUNT</th>
+                      <th>SUPPLIER</th>
+                      <th style={{ width: 22 }}></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {holdBills.length === 0 ? (
+                      Array.from({ length: 8 }).map((_, i) => (
+                        <tr key={i}>
+                          <td colSpan={5} style={{ height: 22 }} />
+                        </tr>
+                      ))
+                    ) : (
+                      holdBills.map((b, i) => (
+                        <tr
+                          key={b.id}
+                          onClick={() => setShowHoldPreview(b)}
+                          onDoubleClick={() => resumeHold(b.id)}
+                          title="CLICK = PREVIEW · DOUBLE-CLICK = RESUME"
+                          style={{ cursor: "pointer" }}
+                        >
+                          <td className="muted" style={{ textAlign: "center", fontSize: "var(--xp-fs-xs)" }}>{i + 1}</td>
+                          <td style={{ fontFamily: "var(--xp-mono)", fontSize: "var(--xp-fs-xs)" }}>{b.returnNo}</td>
+                          <td className="r" style={{ color: "#dc2626" }}>{fmt(b.amount)}</td>
+                          <td className="muted" style={{ fontSize: "var(--xp-fs-xs)" }}>{b.supplierName || "N/A"}</td>
+                          <td style={{ textAlign: "center" }}>
+                            <button
+                              className="xp-btn xp-btn-sm xp-btn-ico"
+                              style={{ width: 18, height: 18, fontSize: 9, color: "var(--xp-red)" }}
+                              onClick={(e) => deleteHold(b.id, e)}
+                            >
+                              ✕
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+              <div style={{ padding: "4px 8px", flexShrink: 0 }}>
+                <button
+                  className="xp-btn xp-btn-sm"
+                  style={{ width: "100%", background: "#dc2626", color: "white", borderColor: "#991b1b" }}
+                  onClick={holdBill}
+                  disabled={!items.length}
+                >
+                  HOLD BILL (F4)
+                </button>
+              </div>
+              <div className="sl-hold-hint" style={{ padding: "4px 8px", fontSize: 10, color: "#666", textAlign: "center", borderTop: "1px solid #e5e7eb" }}>
+                CLICK = PREVIEW · DOUBLE-CLICK = RESUME · ✕ = DELETE
+              </div>
             </div>
           </div>
         </div>
-        </div>
-
-       
 
         <div className="sl-cmd-bar">
           <button className="xp-btn xp-btn-sm" onClick={fullReset} disabled={loading}>🆕 NEW RETURN</button>

@@ -1,4 +1,4 @@
-// pages/DamageInPage.jsx - Updated with sequential numbers starting from 1
+// pages/DamageInPage.jsx - Updated with same font size/weight as Purchase Return
 import { useState, useEffect, useRef, useCallback } from "react";
 import api from "../api/api.js";
 import EP from "../api/apiEndpoints.js";
@@ -188,7 +188,7 @@ const doPrint = (record) => {
 };
 
 /* ══════════════════════════════════════════════════════════
-   PRODUCT SEARCH MODAL - With Supplier filter
+   PRODUCT SEARCH MODAL - With Supplier filter (Same font size/weight as Purchase Return)
 ══════════════════════════════════════════════════════════ */
 function SearchModal({ allProducts, onSelect, onClose }) {
   const [desc, setDesc] = useState("");
@@ -325,7 +325,7 @@ function SearchModal({ allProducts, onSelect, onClose }) {
           >
             <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.044.06.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1 1 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0" />
           </svg>
-          <span className="xp-modal-title" style={{ fontSize: "15px", fontWeight: "bold", color: "#ffffff" }}>Search Products for Damage In</span>
+          <span className="xp-modal-title" style={{ fontSize: "15px", fontWeight: "bold", color: "#ffffff" }}>SEARCH PRODUCTS (DAMAGE IN)</span>
           <button className="xp-cap-btn xp-cap-close" onClick={onClose} style={{ color: "#ffffff", fontSize: "18px" }}>✕</button>
         </div>
         
@@ -337,7 +337,7 @@ function SearchModal({ allProducts, onSelect, onClose }) {
           flexWrap: "wrap"
         }}>
           <div className="cs-modal-filter-grp" style={{ flex: 2, minWidth: "200px" }}>
-            <label className="xp-label" style={{ fontSize: "11px", fontWeight: "bold", color: "#000000", marginBottom: "3px", display: "block" }}>Description / Code</label>
+            <label className="xp-label" style={{ fontSize: "11px", fontWeight: "bold", color: "#000000", marginBottom: "3px", display: "block" }}>DESCRIPTION / CODE</label>
             <input
               ref={rDesc}
               type="text"
@@ -350,7 +350,7 @@ function SearchModal({ allProducts, onSelect, onClose }) {
             />
           </div>
           <div className="cs-modal-filter-grp" style={{ flex: 1, minWidth: "140px" }}>
-            <label className="xp-label" style={{ fontSize: "11px", fontWeight: "bold", color: "#000000", marginBottom: "3px", display: "block" }}>Category</label>
+            <label className="xp-label" style={{ fontSize: "11px", fontWeight: "bold", color: "#000000", marginBottom: "3px", display: "block" }}>CATEGORY</label>
             <input
               ref={rCat}
               type="text"
@@ -363,7 +363,7 @@ function SearchModal({ allProducts, onSelect, onClose }) {
             />
           </div>
           <div className="cs-modal-filter-grp" style={{ flex: 1, minWidth: "140px" }}>
-            <label className="xp-label" style={{ fontSize: "11px", fontWeight: "bold", color: "#000000", marginBottom: "3px", display: "block" }}>Company</label>
+            <label className="xp-label" style={{ fontSize: "11px", fontWeight: "bold", color: "#000000", marginBottom: "3px", display: "block" }}>COMPANY</label>
             <input
               ref={rCompany}
               type="text"
@@ -376,7 +376,7 @@ function SearchModal({ allProducts, onSelect, onClose }) {
             />
           </div>
           <div className="cs-modal-filter-grp" style={{ flex: 1, minWidth: "140px" }}>
-            <label className="xp-label" style={{ fontSize: "11px", fontWeight: "bold", color: "#000000", marginBottom: "3px", display: "block" }}>Supplier</label>
+            <label className="xp-label" style={{ fontSize: "11px", fontWeight: "bold", color: "#000000", marginBottom: "3px", display: "block" }}>SUPPLIER</label>
             <input
               ref={rSupplier}
               type="text"
@@ -389,8 +389,8 @@ function SearchModal({ allProducts, onSelect, onClose }) {
             />
           </div>
           <div style={{ display: "flex", alignItems: "flex-end", gap: "6px", paddingBottom: "2px" }}>
-            <span style={{ fontSize: "11px", color: "#b71c1c", fontWeight: "bold" }}>{rows.length} result(s)</span>
-            <button className="xp-btn xp-btn-sm" onClick={onClose} style={{ fontSize: "11px", padding: "4px 12px", border: "1px solid #b71c1c", borderRadius: "4px", fontWeight: "bold" }}>Close</button>
+            <span style={{ fontSize: "11px", color: "#b71c1c", fontWeight: "bold" }}>{rows.length} RESULT(S)</span>
+            <button className="xp-btn xp-btn-sm" onClick={onClose} style={{ fontSize: "11px", padding: "4px 12px", border: "1px solid #b71c1c", borderRadius: "4px", fontWeight: "bold" }}>CLOSE</button>
           </div>
         </div>
         
@@ -401,72 +401,73 @@ function SearchModal({ allProducts, onSelect, onClose }) {
               overflow: "auto",
               maxHeight: "calc(85vh - 110px)"
             }}>
-             <table
-  className="xp-table"
-  style={{
-    fontSize: "12px",
-    borderCollapse: "collapse",
-    width: "100%",
-    border: "1px solid #b71c1c",
-  }}
->
-  <thead>
-    <tr
-      style={{
-        background: "#f1f5f9",
-        position: "sticky",
-        top: 0,
-        zIndex: 10,
-      }}
-    >
-      <th style={{ width: 40, textAlign: "center" }}>#</th>
-      <th style={{ width: 90, textAlign: "left" }}>Barcode</th>
-      <th style={{ textAlign: "left" }}>Product Name</th>
-      <th style={{ width: 60, textAlign: "center" }}>Meas.</th>
-      <th style={{ width: 85, textAlign: "right" }}>Rate</th>
-      <th style={{ width: 65, textAlign: "right" }}>Stock</th>
-      <th style={{ width: 55, textAlign: "right" }}>Pack</th>
-      <th style={{ width: 65, textAlign: "center" }}>Rack#</th>
-      <th style={{ width: 100, textAlign: "left" }}>Supplier</th>
-    </tr>
-  </thead>
-
-  <tbody ref={tbodyRef} tabIndex={0} onKeyDown={tk}>
-    {rows.length === 0 && (
-      <tr>
-        <td colSpan={9} style={{ textAlign: "center" }}>
-          No products found
-        </td>
-      </tr>
-    )}
-
-    {rows.map((r, i) => (
-      <tr
-        key={`${r._id}-${r._pi}`}
-        style={{
-          background: i === hiIdx ? "#ffebee" : "white",
-          cursor: "pointer",
-        }}
-        onClick={() => setHiIdx(i)}
-        onDoubleClick={() => onSelect(r)}
-      >
-        <td style={{ textAlign: "center" }}>{i + 1}</td>
-        <td>{r.code}</td>
-        <td>{r._name}</td>
-        <td style={{ textAlign: "center" }}>{r._meas}</td>
-        <td style={{ textAlign: "right" }}>
-          {Number(r._rate).toLocaleString("en-PK")}
-        </td>
-        <td style={{ textAlign: "right" }}>{r._stock}</td>
-        <td style={{ textAlign: "right" }}>{r._pack}</td>
-        <td style={{ textAlign: "center" }}>
-          {r.rackNo || "—"}
-        </td>
-        <td>{r.supplierName || r.supplier || "—"}</td>
-      </tr>
-    ))}
-  </tbody>
-</table>
+              <table className="xp-table" style={{ 
+                fontSize: "12px", 
+                borderCollapse: "collapse", 
+                width: "100%",
+                border: "1px solid #b71c1c"
+              }}>
+                <thead>
+                  <tr style={{ background: "#f1f5f9", position: "sticky", top: 0, zIndex: 10 }}>
+                    <th style={{ width: 40, padding: "8px 6px", textAlign: "center", border: "1px solid #b71c1c", fontSize: "12px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>SR.#</th>
+                    <th style={{ width: 100, padding: "8px 6px", textAlign: "left", border: "1px solid #b71c1c", fontSize: "12px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>BARCODE</th>
+                    <th style={{ padding: "8px 6px", textAlign: "left", border: "1px solid #b71c1c", fontSize: "12px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>NAME</th>
+                    <th style={{ width: 60, padding: "8px 6px", textAlign: "center", border: "1px solid #b71c1c", fontSize: "12px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>MEAS.</th>
+                    <th style={{ width: 85, padding: "8px 6px", textAlign: "right", border: "1px solid #b71c1c", fontSize: "12px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>RATE</th>
+                    <th style={{ width: 65, padding: "8px 6px", textAlign: "right", border: "1px solid #b71c1c", fontSize: "12px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>STOCK</th>
+                    <th style={{ width: 55, padding: "8px 6px", textAlign: "right", border: "1px solid #b71c1c", fontSize: "12px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>PACK</th>
+                    <th style={{ width: 65, padding: "8px 6px", textAlign: "center", border: "1px solid #b71c1c", fontSize: "12px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>RACK#</th>
+                    <th style={{ width: 100, padding: "8px 6px", textAlign: "left", border: "1px solid #b71c1c", fontSize: "12px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>SUPPLIER</th>
+                  </tr>
+                </thead>
+                <tbody ref={tbodyRef} tabIndex={0} onKeyDown={tk}>
+                  {rows.length === 0 && (
+                    <tr>
+                      <td colSpan={9} className="xp-empty" style={{ padding: "30px", textAlign: "center", color: "#b71c1c", fontSize: "12px", fontWeight: "bold" }}>
+                        NO PRODUCTS FOUND
+                      </td>
+                    </tr>
+                  )}
+                  {rows.map((r, i) => (
+                    <tr
+                      key={`${r._id}-${r._pi}`}
+                      style={{
+                        background: i === hiIdx ? "#ffebee" : "white",
+                        cursor: "pointer"
+                      }}
+                      onClick={() => setHiIdx(i)}
+                      onDoubleClick={() => onSelect(r)}
+                    >
+                      <td style={{ padding: "6px 6px", textAlign: "center", border: "1px solid #b71c1c", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>{i + 1}</td>
+                      <td style={{ padding: "6px 6px", border: "1px solid #b71c1c", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>
+                        {r.code}
+                      </td>
+                      <td style={{ padding: "6px 6px", border: "1px solid #b71c1c", fontSize: "15px", fontWeight: "bold", color: "#000000" }}>
+                        <button className="xp-link-btn" style={{ 
+                          color: "#000000", 
+                          textDecoration: "none", 
+                          fontWeight: "bold", 
+                          fontSize: "15px",
+                          background: "none", 
+                          border: "none", 
+                          cursor: "pointer", 
+                          width: "100%", 
+                          textAlign: "left",
+                          padding: "0"
+                        }}>{r._name}</button>
+                      </td>
+                      <td style={{ padding: "6px 6px", textAlign: "center", border: "1px solid #b71c1c", fontSize: "15px", fontWeight: "bold", color: "#000000" }}>{r._meas}</td>
+                      <td style={{ padding: "6px 6px", textAlign: "right", border: "1px solid #b71c1c", fontSize: "15px", fontWeight: "bold", color: "#000000" }}>
+                        {Number(r._rate).toLocaleString("en-PK")}
+                      </td>
+                      <td style={{ padding: "6px 6px", textAlign: "right", border: "1px solid #b71c1c", fontSize: "15px", fontWeight: "bold", color: "#000000" }}>{r._stock}</td>
+                      <td style={{ padding: "6px 6px", textAlign: "right", border: "1px solid #b71c1c", fontSize: "15px", fontWeight: "bold", color: "#000000" }}>{r._pack}</td>
+                      <td style={{ padding: "6px 6px", textAlign: "center", border: "1px solid #b71c1c", fontSize: "15px", fontWeight: "bold", color: "#000000" }}>{r.rackNo || "—"}</td>
+                      <td style={{ padding: "6px 6px", border: "1px solid #b71c1c", fontSize: "13px", fontWeight: "bold", color: "#000000" }}>{r.supplierName || r.supplier || "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
         </div>
@@ -479,7 +480,7 @@ function SearchModal({ allProducts, onSelect, onClose }) {
           background: "#f8fafc",
           borderRadius: "0 0 10px 10px"
         }}>
-          <span>↑↓ navigate</span> &nbsp;|&nbsp; <span>Enter / Double-click = select</span> &nbsp;|&nbsp; <span>Esc = close</span> &nbsp;|&nbsp; <span>Tab = filters</span>
+          <span>↑↓ NAVIGATE</span> &nbsp;|&nbsp; <span>ENTER / DOUBLE-CLICK = SELECT</span> &nbsp;|&nbsp; <span>ESC = CLOSE</span> &nbsp;|&nbsp; <span>TAB = FILTERS</span>
         </div>
       </div>
     </div>
@@ -499,7 +500,7 @@ function DamageInHoldPreviewModal({ record, onResume, onClose }) {
     >
       <div className="xp-modal" style={{ width: 560 }}>
         <div className="xp-modal-tb" style={{ background: "#b71c1c" }}>
-          <span className="xp-modal-title">Held Damage Record — {record.damageNo}</span>
+          <span className="xp-modal-title">HOLD DAMAGE RECORD — {record.damageNo}</span>
           <button className="xp-cap-btn xp-cap-close" onClick={onClose}>
             ✕
           </button>
@@ -514,13 +515,13 @@ function DamageInHoldPreviewModal({ record, onResume, onClose }) {
             }}
           >
             <span>
-              <b>Supplier:</b> {record.supplierName || "N/A"}
+              <b>SUPPLIER:</b> {record.supplierName || "N/A"}
             </span>
             <span>
-              <b>Items:</b> {record.items.length}
+              <b>ITEMS:</b> {record.items.length}
             </span>
             <span>
-              <b>Amount:</b>{" "}
+              <b>AMOUNT:</b>{" "}
               <span style={{ color: "#b71c1c", fontWeight: 700 }}>
                 {fmt(total)}
               </span>
@@ -532,13 +533,13 @@ function DamageInHoldPreviewModal({ record, onResume, onClose }) {
                 <thead>
                   <tr>
                     <th>#</th>
-                    <th>Code</th>
-                    <th>Name</th>
+                    <th>CODE</th>
+                    <th>NAME</th>
                     <th>UOM</th>
-                    <th className="r">Pcs</th>
-                    <th className="r">Rate</th>
-                    <th className="r">Amount</th>
-                    <th>Reason</th>
+                    <th className="r">PCS</th>
+                    <th className="r">RATE</th>
+                    <th className="r">AMOUNT</th>
+                    <th>REASON</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -571,14 +572,14 @@ function DamageInHoldPreviewModal({ record, onResume, onClose }) {
           }}
         >
           <button className="xp-btn xp-btn-sm" onClick={onClose}>
-            Cancel
+            CANCEL
           </button>
           <button
             className="xp-btn xp-btn-primary xp-btn-sm"
             style={{ background: "#b71c1c", borderColor: "#8b0000" }}
             onClick={() => onResume(record.id)}
           >
-            Resume This Record
+            RESUME THIS RECORD
           </button>
         </div>
       </div>
@@ -995,15 +996,15 @@ export default function DamageInPage() {
             <path d="M7.002 11a1 1 0 1 1 2 0 1 1 0 0 1-2 0M7.1 4.995a.905.905 0 1 1 1.8 0l-.35 3.507a.552.552 0 0 1-1.1 0z" />
           </svg>
           <span className="xp-tb-title">
-            Damage In — Asim Electric &amp; Electronic Store
+            DAMAGE IN — ASIM ELECTRIC &amp; ELECTRONIC STORE
           </span>
           <div className="xp-tb-actions">
             <div className="xp-tb-divider" />
             <div className="sl-shortcut-hints">
-              <span>F2 Product</span>
-              <span>F4 Hold</span>
-              <span>↑/↓ Navigate</span>
-              <span>* Save</span>
+              <span>F2 PRODUCT</span>
+              <span>F4 HOLD</span>
+              <span>↑/↓ NAVIGATE</span>
+              <span>* SAVE</span>
             </div>
             <div className="xp-tb-divider" />
             <button className="xp-cap-btn">─</button>
@@ -1036,10 +1037,10 @@ export default function DamageInPage() {
           <div className="sl-left">
             {/* Header with Navigation */}
             <div className="sl-top-bar">
-              <div className="sl-sale-title-box" style={{ background: "#b71c1c" }}>Damage In</div>
+              <div className="sl-sale-title-box" style={{ background: "#b71c1c" }}>DAMAGE IN</div>
               
               <div className="sl-inv-field-grp">
-                <label>Damage ID</label>
+                <label>DAMAGE ID</label>
                 <div className="sl-inv-nav-container">
                   <button
                     className="sl-inv-nav-btn sl-inv-nav-prev"
@@ -1087,17 +1088,22 @@ export default function DamageInPage() {
               </div>
               
               <div className="sl-inv-field-grp">
-                <label>Date</label>
+                <label>DATE</label>
                 <input
                   type="date"
                   className="xp-input xp-input-sm sl-date-input"
                   value={damageDate}
-                  onChange={(e) => setDamageDate(e.target.value)}
-                  style={{ borderColor: "#b71c1c" }}
+                  readOnly
+                  style={{ 
+                    borderColor: "#b71c1c",
+                    background: "#f5f5f5",
+                    cursor: "not-allowed",
+                    color: "#888"
+                  }}
                 />
               </div>
               <div className="sl-inv-field-grp">
-                <label>Time</label>
+                <label>TIME</label>
                 <div className="sl-time-box">{time}</div>
               </div>
             </div>
@@ -1106,7 +1112,7 @@ export default function DamageInPage() {
             <div className="sl-entry-strip">
               <div className="sl-entry-cell sl-entry-product">
                 <label>
-                  Select Damaged Product <kbd>F2</kbd>
+                  SELECT DAMAGED PRODUCT <kbd>F2</kbd>
                 </label>
                 <div style={{ position: "relative", flex: 1 }}>
                   <input
@@ -1233,7 +1239,7 @@ export default function DamageInPage() {
                 </div>
               </div>
               <div className="sl-entry-cell">
-                <label>Pcs</label>
+                <label>PCS</label>
                 <input
                   ref={pcsRef}
                   type="text"
@@ -1247,7 +1253,7 @@ export default function DamageInPage() {
                 />
               </div>
               <div className="sl-entry-cell">
-                <label>Rate</label>
+                <label>RATE</label>
                 <input
                   ref={rateRef}
                   type="text"
@@ -1261,7 +1267,7 @@ export default function DamageInPage() {
                 />
               </div>
               <div className="sl-entry-cell">
-                <label>Amount</label>
+                <label>AMOUNT</label>
                 <input
                   ref={amountRef}
                   type="text"
@@ -1279,7 +1285,7 @@ export default function DamageInPage() {
                 />
               </div>
               <div className="sl-entry-cell">
-                <label>Reason</label>
+                <label>REASON</label>
                 <input
                   ref={reasonRef}
                   type="text"
@@ -1295,7 +1301,7 @@ export default function DamageInPage() {
                 <label>&nbsp;</label>
                 <div className="sl-entry-btns">
                   <button className="xp-btn xp-btn-sm" onClick={resetCurRow}>
-                    Reset
+                    RESET
                   </button>
                   <button
                     ref={addRef}
@@ -1303,7 +1309,7 @@ export default function DamageInPage() {
                     style={{ background: "#b71c1c", borderColor: "#8b0000" }}
                     onClick={addRow}
                   >
-                    {selItemIdx !== null ? "Update" : "Add"}
+                    {selItemIdx !== null ? "UPDATE" : "ADD"}
                   </button>
                   <button
                     className="xp-btn xp-btn-sm"
@@ -1312,14 +1318,14 @@ export default function DamageInPage() {
                       selItemIdx !== null && loadRowForEdit(selItemIdx)
                     }
                   >
-                    Edit
+                    EDIT
                   </button>
                   <button
                     className="xp-btn xp-btn-danger xp-btn-sm"
                     disabled={selItemIdx === null}
                     onClick={removeRow}
                   >
-                    Remove
+                    REMOVE
                   </button>
                 </div>
               </div>
@@ -1331,11 +1337,11 @@ export default function DamageInPage() {
                 {curRow.name ? (
                   <span className="sl-cur-name-inline">{curRow.name}</span>
                 ) : (
-                  "Select Damaged Product"
+                  "SELECT DAMAGED PRODUCT"
                 )}
               </span>
               <span className="sl-table-qty">
-                Total Qty: {totalQty.toLocaleString("en-PK")}
+                TOTAL QTY: {totalQty.toLocaleString("en-PK")}
               </span>
             </div>
 
@@ -1344,27 +1350,27 @@ export default function DamageInPage() {
               <table className="sl-items-table">
                 <thead>
                   <tr>
-                    <th style={{ width: 32 }}>Sr.#</th>
-                    <th style={{ width: 72 }}>Code</th>
-                    <th>Product Name</th>
+                    <th style={{ width: 32 }}>SR.#</th>
+                    <th style={{ width: 72 }}>CODE</th>
+                    <th>PRODUCT NAME</th>
                     <th style={{ width: 55 }} className="r">
-                      Pcs
+                      PCS
                     </th>
                     <th style={{ width: 80 }} className="r">
-                      Rate
+                      RATE
                     </th>
                     <th style={{ width: 90 }} className="r">
-                      Amount
+                      AMOUNT
                     </th>
-                    <th style={{ width: 120 }}>Damage Reason</th>
-                    <th style={{ width: 50 }}>Rack</th>
+                    <th style={{ width: 120 }}>DAMAGE REASON</th>
+                    <th style={{ width: 50 }}>RACK</th>
                   </tr>
                 </thead>
                 <tbody>
                   {items.length === 0 && (
                     <tr>
                       <td colSpan={8} className="xp-empty" style={{ padding: 14 }}>
-                        ⚠ Search and add damaged products
+                        ⚠ SEARCH AND ADD DAMAGED PRODUCTS
                       </td>
                     </tr>
                   )}
@@ -1396,15 +1402,15 @@ export default function DamageInPage() {
             {/* Summary bar */}
             <div className="sl-summary-bar">
               <div className="sl-sum-cell">
-                <label>Total Qty</label>
+                <label>TOTAL QTY</label>
                 <input className="sl-sum-val" value={totalQty.toLocaleString("en-PK")} readOnly />
               </div>
               <div className="sl-sum-cell">
-                <label>Total Damage Value</label>
+                <label>TOTAL DAMAGE VALUE</label>
                 <input className="sl-sum-val" style={{ color: "#b71c1c", fontWeight: "bold", fontSize: "16px" }} value={fmt(subTotal)} readOnly />
               </div>
               <div className="sl-sum-cell" style={{ flex: 2 }}>
-                <label style={{ color: "#666" }}>Press * or Ctrl+S to save</label>
+                <label style={{ color: "#666" }}>PRESS * OR CTRL+S TO SAVE</label>
               </div>
             </div>
           </div>
@@ -1414,7 +1420,7 @@ export default function DamageInPage() {
             <div className="sl-hold-panel">
               <div className="sl-hold-title" style={{ background: "#b71c1c" }}>
                 <span>
-                  📋 Damage Hold{" "}
+                  📋 DAMAGE HOLD{" "}
                   <kbd style={{ fontSize: 9, background: "rgba(255,255,255,0.2)", padding: "0 3px", borderRadius: 2 }}>F4</kbd>
                 </span>
                 <span className="sl-hold-cnt">{holdRecords.length}</span>
@@ -1424,9 +1430,9 @@ export default function DamageInPage() {
                   <thead>
                     <tr>
                       <th style={{ width: 24 }}>#</th>
-                      <th>Damage ID</th>
-                      <th className="r">Amount</th>
-                      <th>Date</th>
+                      <th>DAMAGE ID</th>
+                      <th className="r">AMOUNT</th>
+                      <th>DATE</th>
                       <th style={{ width: 22 }}></th>
                     </tr>
                   </thead>
@@ -1442,7 +1448,7 @@ export default function DamageInPage() {
                           onClick={() => setShowHoldPreview(r)}
                           onDoubleClick={() => resumeRecord(r.id)}
                           style={{ cursor: "pointer" }}
-                          title="Click = preview · Double-click = resume"
+                          title="CLICK = PREVIEW · DOUBLE-CLICK = RESUME"
                         >
                           <td className="muted" style={{ textAlign: "center", fontSize: "var(--xp-fs-xs)" }}>{i + 1}</td>
                           <td style={{ fontFamily: "var(--xp-mono)", fontSize: "var(--xp-fs-xs)" }}>{r.damageNo}</td>
@@ -1470,14 +1476,14 @@ export default function DamageInPage() {
                   onClick={holdRecord}
                   disabled={!items.length}
                 >
-                  📌 Hold Damage Record (F4)
+                  📌 HOLD DAMAGE RECORD (F4)
                 </button>
               </div>
             </div>
             
             <div style={{ marginTop: 8, padding: "8px", background: "#ffebee", borderRadius: 6, textAlign: "center" }}>
               <span style={{ fontSize: 11, color: "#b71c1c" }}>
-                💡 Tip: Press <kbd style={{ background: "#fff", padding: "2px 6px", borderRadius: 3 }}>*</kbd> or <kbd style={{ background: "#fff", padding: "2px 6px", borderRadius: 3 }}>Ctrl+S</kbd> to save damage record
+                💡 TIP: PRESS <kbd style={{ background: "#fff", padding: "2px 6px", borderRadius: 3 }}>*</kbd> OR <kbd style={{ background: "#fff", padding: "2px 6px", borderRadius: 3 }}>CTRL+S</kbd> TO SAVE DAMAGE RECORD
               </span>
             </div>
           </div>
@@ -1486,7 +1492,7 @@ export default function DamageInPage() {
         {/* Commands bar */}
         <div className="sl-cmd-bar">
           <button className="xp-btn xp-btn-sm" onClick={fullReset} disabled={loading}>
-            🆕 New Record
+            🆕 NEW RECORD
           </button>
           <button
             ref={saveRef}
@@ -1495,24 +1501,24 @@ export default function DamageInPage() {
             onClick={saveDamageRecord}
             disabled={loading || items.length === 0}
           >
-            {loading ? "Saving…" : "💾 Save Damage Record  *"}
+            {loading ? "SAVING…" : "💾 SAVE DAMAGE RECORD  *"}
           </button>
           <div className="xp-toolbar-divider" />
           <span className="sl-inv-info">
-            ⚠ {damageNo} | Items: {items.length} | Total Damage: PKR {fmt(subTotal)}
+            ⚠ {damageNo} | ITEMS: {items.length} | TOTAL DAMAGE: PKR {fmt(subTotal)}
           </span>
           <button className="xp-btn xp-btn-sm" style={{ marginLeft: "auto" }} onClick={fullReset}>
-            Close
+            CLOSE
           </button>
         </div>
 
         {/* Status bar */}
         <div className="xp-statusbar">
           <div className="xp-status-pane">⚠ {damageNo}</div>
-          <div className="xp-status-pane">Items: {items.length}</div>
-          <div className="xp-status-pane">Qty: {totalQty}</div>
-          <div className="xp-status-pane">Damage Value: PKR {fmt(subTotal)}</div>
-          <div className="xp-status-pane">Hold: {holdRecords.length}</div>
+          <div className="xp-status-pane">ITEMS: {items.length}</div>
+          <div className="xp-status-pane">QTY: {totalQty}</div>
+          <div className="xp-status-pane">DAMAGE VALUE: PKR {fmt(subTotal)}</div>
+          <div className="xp-status-pane">HOLD: {holdRecords.length}</div>
         </div>
       </div>
 
