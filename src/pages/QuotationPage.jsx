@@ -1,31 +1,368 @@
+// pages/QuotationPage.jsx - Updated with Next/Prev navigation
 import { useState, useEffect, useRef, useCallback } from "react";
 import api from "../api/api.js";
 import EP from "../api/apiEndpoints.js";
 import "../styles/theme.css";
-import "../styles/ManualPurchasePage.css";
-import "../styles/QuotationPage.css";
+import "../styles/SalePage.css";
 
+/* ── helpers ── */
+const timeNow = () =>
+  new Date().toLocaleTimeString("en-US", {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
 const isoDate = () => new Date().toISOString().split("T")[0];
-const addDays = (d, n) => {
-  const dt = new Date(d);
-  dt.setDate(dt.getDate() + n);
-  return dt.toISOString().split("T")[0];
-};
 const fmt = (n) => Number(n || 0).toLocaleString("en-PK");
-const SHOP_NAME = "Asim Electric and Electronic Store";
+const QUOTATION_HOLD_KEY = "asim_quotation_holds_v1";
+const QUOTATIONS_STORAGE_KEY = "asim_quotations_v1";
+
 const EMPTY_ROW = {
+  productId: "",
   code: "",
-  description: "",
-  measurement: "",
-  qty: 1,
+  name: "",
+  uom: "",
+  rack: "",
+  pcs: 1,
   rate: 0,
-  disc: 0,
   amount: 0,
 };
 
-/* ─────────────────────────────────────────────────────────────
-   SEARCH MODAL
-───────────────────────────────────────────────────────────── */
+const SHOP_INFO = {
+  name: "عاصم الیکٹرک اینڈ الیکٹرونکس سٹور",
+  nameEn: "Asim Electric & Electronic Store",
+  address: "مین بازار نہاری ٹاؤن نزد بجلی گھر سٹاپ گوجرانوالہ روڈ فیصل آباد",
+  phone1: "Faqir Hussain 0300 7262129",
+  phone2: "PTCL 041 8711575",
+  phone3: "Shop 0315 7262129",
+  urduBanner:
+    "یہاں پر چانک فراڈ کی وارپس، جانچ فلک، وارنگ سیلز اور ریکارڈ کے تمام اخیری ہول سیل ریٹ پر دستیاب ہے۔",
+  urduTerms:
+    "یہ کوٹیشن 7 دن کے لیے موثر ہے۔\nقیمتوں میں تبدیلی ہو سکتی ہے۔\nآرڈر کی تصدیق کے لیے پیشگی ادائیگی درکار ہوگی۔",
+  devBy:
+    "Software developed by: Creative Babar / 03098325271 or visit website www.digitalglobalschool.com",
+};
+
+/* ── localStorage helpers for saved quotations ── */
+const loadSavedQuotations = () => {
+  try {
+    return JSON.parse(localStorage.getItem(QUOTATIONS_STORAGE_KEY) || "[]");
+  } catch {
+    return [];
+  }
+};
+
+const saveQuotationToStorage = (quotation) => {
+  try {
+    const existing = loadSavedQuotations();
+    existing.push({ ...quotation, savedAt: new Date().toISOString() });
+    localStorage.setItem(QUOTATIONS_STORAGE_KEY, JSON.stringify(existing));
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+const loadQuotationHolds = () => {
+  try {
+    return JSON.parse(localStorage.getItem(QUOTATION_HOLD_KEY) || "[]");
+  } catch {
+    return [];
+  }
+};
+
+const saveQuotationHolds = (quotes) => {
+  try {
+    localStorage.setItem(QUOTATION_HOLD_KEY, JSON.stringify(quotes));
+  } catch {}
+};
+
+/* ══════════════════════════════════════════════════════════
+   PRINT HTML BUILDER — Quotation Only
+══════════════════════════════════════════════════════════ */
+
+const buildQuotationPrintHtml = (quotation, overrides = {}) => {
+  const customerName = overrides.customerName || quotation.customerName || "GUEST CUSTOMER";
+  const customerPhone = overrides.customerPhone || quotation.customerPhone || "";
+  const rows = quotation.items.map((it, i) => ({ ...it, sr: i + 1 }));
+  const totalQty = rows.reduce((s, r) => s + (r.pcs || 0), 0);
+  const validUntil = overrides.validUntil || "7 days from issue date";
+
+  const URDU_FONT = `'Noto Nastaliq Urdu','Mehr Nastaliq','Jameel Noori Nastaleeq','Urdu Typesetting',serif`;
+  const GOOGLE_FONT_LINK = `<link href="https://fonts.googleapis.com/css2?family=Noto+Nastaliq+Urdu:wght@400;700&display=swap" rel="stylesheet">`;
+
+  const itemRows = rows
+    .map(
+      (it) => `
+      <tr>
+        <td style="font-size:10px;vertical-align:top;padding:4px">${it.sr}</td>
+        <td style="font-size:10px;vertical-align:top;padding:4px;word-break:break-word">${it.code}</td>
+        <td style="font-size:11px;vertical-align:top;padding:4px;word-break:break-word">${it.name}</td>
+        <td style="font-size:10px;vertical-align:top;padding:4px;text-align:center">${it.pcs} ${it.uom || ""}</td>
+      </tr>
+    `,
+    )
+    .join("");
+
+  return `<!DOCTYPE html><html><head><meta charset="utf-8">${GOOGLE_FONT_LINK}<style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:Arial,Helvetica,sans-serif;font-size:11px;width:80mm;margin:0 auto;padding:3mm;color:#000}
+    .urdu{font-family:${URDU_FONT};direction:rtl;text-align:center}
+    .shop-urdu{font-size:18px;font-weight:bold;text-align:center;margin-bottom:3px;font-family:${URDU_FONT};direction:rtl}
+    .shop-addr{font-size:9px;text-align:center;margin-bottom:2px;font-family:${URDU_FONT};direction:rtl}
+    .shop-phones{font-size:8.5px;text-align:center;font-weight:bold;margin-bottom:4px}
+    .banner{background:#2c5f2d;color:#fff;font-size:8px;text-align:center;padding:3px;margin:3px 0;font-family:${URDU_FONT};direction:rtl}
+    .header{text-align:center;border-bottom:2px solid #2c5f2d;padding-bottom:5px;margin-bottom:8px}
+    .quotation-title{font-size:22px;font-weight:bold;margin:5px 0;letter-spacing:2px;color:#2c5f2d}
+    .meta-row{display:flex;justify-content:space-between;margin:4px 0;font-size:9px}
+    .divider-dash{border:none;border-top:1px dashed #666;margin:4px 0}
+    .divider-solid{border:none;border-top:1px solid #2c5f2d;margin:4px 0}
+    .valid-box{background:#e8f5e9;padding:6px;text-align:center;font-size:9px;font-weight:bold;margin:6px 0;border-radius:4px}
+    table{width:100%;border-collapse:collapse}
+    thead tr{border-bottom:1px solid #2c5f2d;background:#f5f5f5}
+    th{font-size:10px;font-weight:bold;padding:5px 4px;text-align:left}
+    td{padding:4px;font-size:10px;vertical-align:top;border-bottom:1px solid #eee}
+    .footer{text-align:center;font-size:8px;color:#777;margin-top:10px;border-top:1px dashed #ccc;padding-top:5px}
+    .signature{display:flex;justify-content:space-between;margin-top:15px;padding-top:10px}
+    .sign-line{text-align:center;font-size:9px}
+    .sign-line span{display:inline-block;border-top:1px solid #000;min-width:100px;margin-top:20px;padding-top:3px}
+    .terms-box{font-family:${URDU_FONT};direction:rtl;font-size:8px;color:#555;border:1px dashed #ccc;padding:6px;margin-top:8px;line-height:1.8;text-align:right}
+    .price-note{background:#fff3cd;color:#856404;padding:4px;text-align:center;font-size:9px;margin:6px 0;border-radius:4px}
+    @media print{@page{size:80mm auto;margin:2mm}body{width:76mm}}
+  </style></head><body>
+
+    <div class="header">
+      <div class="shop-urdu">${SHOP_INFO.name}</div>
+      <div class="shop-addr">${SHOP_INFO.address}</div>
+      <div class="shop-phones">${SHOP_INFO.phone1} | ${SHOP_INFO.phone2}</div>
+      <div class="quotation-title">📄 QUOTATION</div>
+      <div class="banner">${SHOP_INFO.urduBanner}</div>
+    </div>
+
+    <div class="meta-row">
+      <span><b>Quote No:</b> ${quotation.quoteNo}</span>
+      <span><b>Date:</b> ${quotation.quoteDate}</span>
+    </div>
+    <div class="meta-row">
+      <span><b>Customer:</b> ${customerName}</span>
+      ${customerPhone ? `<span><b>Phone:</b> ${customerPhone}</span>` : ""}
+    </div>
+    
+    <div class="valid-box">
+      ⏰ Valid Until: ${validUntil}
+    </div>
+    
+    <div class="price-note">
+      💰 Prices are subject to change without notice. Final prices will be confirmed at time of order.
+    </div>
+    
+    <hr class="divider-dash">
+
+    <table>
+      <thead>
+        <tr>
+          <th style="width:30px">#</th>
+          <th style="width:80px">Code</th>
+          <th>Product Description</th>
+          <th style="width:80px;text-align:center">Qty</th>
+        </tr>
+      </thead>
+      <tbody>${itemRows}</tbody>
+    </table>
+
+    <hr class="divider-solid">
+    
+    <div class="meta-row">
+      <span><b>Total Items:</b> ${rows.length}</span>
+      <span><b>Total Quantity:</b> ${totalQty}</span>
+    </div>
+
+    <div class="terms-box">
+      <strong>کوٹیشن کی شرائط:</strong><br>
+      یہ کوٹیشن 7 دن کے لیے موثر ہے۔ قیمتوں میں تبدیلی ہو سکتی ہے۔ آرڈر کی تصدیق کے لیے پیشگی ادائیگی درکار ہوگی۔
+    </div>
+
+    <div class="signature">
+      <div class="sign-line">Prepared By<span></span></div>
+      <div class="sign-line">Customer Signature<span></span></div>
+    </div>
+
+    <div class="footer">
+      ${SHOP_INFO.devBy}
+    </div>
+
+  </body></html>`;
+};
+
+const doPrint = (quotation, overrides = {}) => {
+  const w = window.open("", "_blank", "width=500,height=700");
+  w.document.write(buildQuotationPrintHtml(quotation, overrides));
+  w.document.close();
+  setTimeout(() => w.print(), 400);
+};
+
+/* ══════════════════════════════════════════════════════════
+   CUSTOMER INFO MODAL - Focus flow: Name → Phone → Save
+══════════════════════════════════════════════════════════ */
+function CustomerInfoModal({
+  onConfirm,
+  onClose,
+}) {
+  const [customerName, setCustomerName] = useState("");
+  const [customerPhone, setCustomerPhone] = useState("");
+  const [validDays, setValidDays] = useState(7);
+  const nameRef = useRef(null);
+  const phoneRef = useRef(null);
+
+  useEffect(() => {
+    setTimeout(() => nameRef.current?.focus(), 80);
+  }, []);
+
+  useEffect(() => {
+    const h = (e) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", h);
+    return () => window.removeEventListener("keydown", h);
+  }, []);
+
+  const handleNameKeyDown = (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      phoneRef.current?.focus();
+    }
+  };
+
+  const handlePhoneKeyDown = (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      handleConfirm();
+    }
+  };
+
+  const handleConfirm = () => {
+    const finalName = customerName.trim() || "GUEST CUSTOMER";
+    onConfirm({
+      customerName: finalName,
+      customerPhone: customerPhone.trim(),
+      validDays,
+    });
+  };
+
+  return (
+    <div className="scm-overlay">
+      <div className="scm-window" style={{ maxWidth: 450 }}>
+        <div className="scm-tb" style={{ background: "#2c5f2d" }}>
+          <svg
+            width="13"
+            height="13"
+            viewBox="0 0 16 16"
+            fill="rgba(255,255,255,0.85)"
+          >
+            <path d="M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6m2-3a2 2 0 1 1-4 0 2 2 0 0 1 4 0m4 8c0 1-1 1-1 1H3s-1 0-1-1 1-4 6-4 6 3 6 4m-1-.004c-.001-.246-.154-.986-.832-1.664C11.516 10.68 10.289 10 8 10s-3.516.68-4.168 1.332c-.678.678-.83 1.418-.832 1.664z" />
+          </svg>
+          <span className="scm-tb-title">Customer Information</span>
+          <button className="xp-cap-btn xp-cap-close" onClick={onClose}>
+            ✕
+          </button>
+        </div>
+
+        <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: 20 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <label className="xp-label" style={{ fontWeight: 600, fontSize: 13 }}>
+              Customer Name <span style={{ color: "#dc2626" }}>*</span>
+            </label>
+            <input
+              ref={nameRef}
+              type="text"
+              className="xp-input"
+              style={{ fontSize: 15, padding: "10px 14px", borderRadius: 6 }}
+              value={customerName}
+              onChange={(e) => setCustomerName(e.target.value)}
+              placeholder="Enter customer name"
+              onKeyDown={handleNameKeyDown}
+              autoFocus
+            />
+            <div style={{ fontSize: 11, color: "#6b7280", marginTop: 2 }}>
+              Press Enter to go to phone number
+            </div>
+          </div>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <label className="xp-label" style={{ fontWeight: 600, fontSize: 13 }}>
+              Phone Number <span style={{ color: "#9ca3af", fontSize: 11 }}>(Optional)</span>
+            </label>
+            <input
+              ref={phoneRef}
+              type="text"
+              className="xp-input"
+              style={{ fontSize: 15, padding: "10px 14px", borderRadius: 6 }}
+              value={customerPhone}
+              onChange={(e) => setCustomerPhone(e.target.value)}
+              placeholder="Enter phone number (optional)"
+              onKeyDown={handlePhoneKeyDown}
+            />
+            <div style={{ fontSize: 11, color: "#6b7280", marginTop: 2 }}>
+              Press Enter to save and print quotation
+            </div>
+          </div>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <label className="xp-label" style={{ fontWeight: 600, fontSize: 13 }}>
+              Quotation Valid For
+            </label>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <input
+                type="number"
+                className="xp-input"
+                style={{ width: 90, fontSize: 15, padding: "10px 14px", textAlign: "center", borderRadius: 6 }}
+                value={validDays}
+                onChange={(e) => setValidDays(parseInt(e.target.value) || 7)}
+                min={1}
+                max={90}
+              />
+              <span style={{ fontSize: 14 }}>days</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="scm-sep" />
+
+        <div className="scm-actions">
+          <button
+            className="xp-btn"
+            style={{ minWidth: 120, padding: "8px 16px" }}
+            onClick={onClose}
+          >
+            Cancel (Esc)
+          </button>
+          <button
+            className="xp-btn xp-btn-primary"
+            style={{ 
+              minWidth: 160, 
+              background: "#2c5f2d", 
+              borderColor: "#1e4620",
+              padding: "8px 16px"
+            }}
+            onClick={handleConfirm}
+          >
+            Save & Print Quotation
+          </button>
+        </div>
+        <div className="scm-hint">
+          ⏎ Enter to navigate • Esc to cancel
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════
+   PRODUCT SEARCH MODAL
+══════════════════════════════════════════════════════════ */
 function SearchModal({ allProducts, onSelect, onClose }) {
   const [desc, setDesc] = useState("");
   const [cat, setCat] = useState("");
@@ -38,10 +375,10 @@ function SearchModal({ allProducts, onSelect, onClose }) {
   const tbodyRef = useRef(null);
 
   const buildFlat = useCallback((products, d, c, co) => {
+    const res = [];
     const ld = d.trim().toLowerCase(),
       lc = c.trim().toLowerCase(),
       lo = co.trim().toLowerCase();
-    const res = [];
     products.forEach((p) => {
       const ok =
         (!ld ||
@@ -83,11 +420,13 @@ function SearchModal({ allProducts, onSelect, onClose }) {
     rDesc.current?.focus();
     setRows(buildFlat(allProducts, "", "", ""));
   }, [allProducts, buildFlat]);
+
   useEffect(() => {
     const f = buildFlat(allProducts, desc, cat, company);
     setRows(f);
     setHiIdx(f.length > 0 ? 0 : -1);
   }, [desc, cat, company, allProducts, buildFlat]);
+
   useEffect(() => {
     if (tbodyRef.current && hiIdx >= 0)
       tbodyRef.current.children[hiIdx]?.scrollIntoView({ block: "nearest" });
@@ -129,25 +468,45 @@ function SearchModal({ allProducts, onSelect, onClose }) {
     <div
       className="xp-overlay"
       onClick={(e) => e.target === e.currentTarget && onClose()}
+      style={{ zIndex: 2000 }}
     >
-      <div className="xp-modal xp-modal-lg">
-        <div className="xp-modal-tb">
+      <div className="xp-modal" style={{ 
+        width: "95%", 
+        maxWidth: "1400px", 
+        height: "85vh",
+        maxHeight: "85vh",
+        display: "flex",
+        flexDirection: "column",
+        borderRadius: "12px",
+        background: "#ffffff",
+        border: "2px solid #2c5f2d"
+      }}>
+        <div className="xp-modal-tb" style={{ 
+          background: "#2c5f2d", 
+          padding: "10px 16px",
+          borderRadius: "10px 10px 0 0"
+        }}>
           <svg
-            width="13"
-            height="13"
+            width="14"
+            height="14"
             viewBox="0 0 16 16"
-            fill="rgba(255,255,255,0.8)"
+            fill="rgba(255,255,255,0.9)"
           >
             <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.044.06.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1 1 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0" />
           </svg>
-          <span className="xp-modal-title">Search Products</span>
-          <button className="xp-cap-btn xp-cap-close" onClick={onClose}>
-            ✕
-          </button>
+          <span className="xp-modal-title" style={{ fontSize: "15px", fontWeight: "bold", color: "#ffffff" }}>Search Products</span>
+          <button className="xp-cap-btn xp-cap-close" onClick={onClose} style={{ color: "#ffffff", fontSize: "18px" }}>✕</button>
         </div>
-        <div className="cs-modal-filters">
-          <div className="cs-modal-filter-grp">
-            <label className="xp-label">Description / Code</label>
+        
+        <div className="cs-modal-filters" style={{ 
+          padding: "8px 12px", 
+          gap: "10px", 
+          background: "#f8fafc",
+          borderBottom: "1px solid #2c5f2d",
+          flexWrap: "wrap"
+        }}>
+          <div className="cs-modal-filter-grp" style={{ flex: 2, minWidth: "200px" }}>
+            <label className="xp-label" style={{ fontSize: "11px", fontWeight: "bold", color: "#000000", marginBottom: "3px", display: "block" }}>Description / Code</label>
             <input
               ref={rDesc}
               type="text"
@@ -155,12 +514,12 @@ function SearchModal({ allProducts, onSelect, onClose }) {
               value={desc}
               onChange={(e) => setDesc(e.target.value)}
               onKeyDown={(e) => fk(e, rCat)}
-              placeholder="Name / code…"
               autoComplete="off"
+              style={{ height: "32px", fontSize: "12px", border: "1px solid #2c5f2d", borderRadius: "4px", width: "100%", padding: "0 8px" }}
             />
           </div>
-          <div className="cs-modal-filter-grp">
-            <label className="xp-label">Category</label>
+          <div className="cs-modal-filter-grp" style={{ flex: 1, minWidth: "140px" }}>
+            <label className="xp-label" style={{ fontSize: "11px", fontWeight: "bold", color: "#000000", marginBottom: "3px", display: "block" }}>Category</label>
             <input
               ref={rCat}
               type="text"
@@ -168,12 +527,12 @@ function SearchModal({ allProducts, onSelect, onClose }) {
               value={cat}
               onChange={(e) => setCat(e.target.value)}
               onKeyDown={(e) => fk(e, rCompany)}
-              placeholder="e.g. SMALL"
               autoComplete="off"
+              style={{ height: "32px", fontSize: "12px", border: "1px solid #2c5f2d", borderRadius: "4px", width: "100%", padding: "0 8px" }}
             />
           </div>
-          <div className="cs-modal-filter-grp">
-            <label className="xp-label">Company</label>
+          <div className="cs-modal-filter-grp" style={{ flex: 1, minWidth: "140px" }}>
+            <label className="xp-label" style={{ fontSize: "11px", fontWeight: "bold", color: "#000000", marginBottom: "3px", display: "block" }}>Company</label>
             <input
               ref={rCompany}
               type="text"
@@ -181,38 +540,45 @@ function SearchModal({ allProducts, onSelect, onClose }) {
               value={company}
               onChange={(e) => setCompany(e.target.value)}
               onKeyDown={(e) => fk(e, null)}
-              placeholder="e.g. LUX"
               autoComplete="off"
+              style={{ height: "32px", fontSize: "12px", border: "1px solid #2c5f2d", borderRadius: "4px", width: "100%", padding: "0 8px" }}
             />
           </div>
-          <div style={{ display: "flex", alignItems: "flex-end", gap: 6 }}>
-            <span style={{ fontSize: "var(--xp-fs-xs)", color: "#555" }}>
-              {rows.length} result(s)
-            </span>
-            <button className="xp-btn xp-btn-sm" onClick={onClose}>
-              Close
-            </button>
+          <div style={{ display: "flex", alignItems: "flex-end", gap: "6px", paddingBottom: "2px" }}>
+            <span style={{ fontSize: "11px", color: "#2c5f2d", fontWeight: "bold" }}>{rows.length} result(s)</span>
+            <button className="xp-btn xp-btn-sm" onClick={onClose} style={{ fontSize: "11px", padding: "4px 12px", border: "1px solid #2c5f2d", borderRadius: "4px", fontWeight: "bold" }}>Close</button>
           </div>
         </div>
-        <div className="xp-modal-body" style={{ padding: 0 }}>
-          <div className="xp-table-panel" style={{ border: "none" }}>
-            <div className="xp-table-scroll">
-              <table className="xp-table">
+        
+        <div className="xp-modal-body" style={{ padding: 0, flex: 1, overflow: "hidden" }}>
+          <div className="xp-table-panel" style={{ border: "none", height: "100%" }}>
+            <div className="xp-table-scroll" style={{ 
+              height: "100%", 
+              overflow: "auto",
+              maxHeight: "calc(85vh - 110px)"
+            }}>
+              <table className="xp-table" style={{ 
+                fontSize: "12px", 
+                borderCollapse: "collapse", 
+                width: "100%",
+                border: "1px solid #2c5f2d"
+              }}>
                 <thead>
-                  <tr>
-                    <th style={{ width: 36 }}>Sr.#</th>
-                    <th>Barcode</th>
-                    <th>Name</th>
-                    <th>Meas.</th>
-                    <th className="r">Rate</th>
-                    <th className="r">Stock</th>
-                    <th className="r">Pack</th>
+                  <tr style={{ background: "#f1f5f9", position: "sticky", top: 0, zIndex: 10 }}>
+                    <th style={{ width: 40, padding: "5px 4px", textAlign: "center", border: "1px solid #2c5f2d", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>#</th>
+                    <th style={{ width: 90, padding: "5px 4px", textAlign: "left", border: "1px solid #2c5f2d", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>Barcode</th>
+                    <th style={{ padding: "5px 4px", textAlign: "left", border: "1px solid #2c5f2d", fontSize: "13px", fontWeight: "bold", color: "#000000" }}>Product Name</th>
+                    <th style={{ width: 60, padding: "5px 4px", textAlign: "center", border: "1px solid #2c5f2d", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>Meas.</th>
+                    <th style={{ width: 85, padding: "5px 4px", textAlign: "right", border: "1px solid #2c5f2d", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>Rate</th>
+                    <th style={{ width: 65, padding: "5px 4px", textAlign: "right", border: "1px solid #2c5f2d", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>Stock</th>
+                    <th style={{ width: 55, padding: "5px 4px", textAlign: "right", border: "1px solid #2c5f2d", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>Pack</th>
+                    <th style={{ width: 65, padding: "5px 4px", textAlign: "center", border: "1px solid #2c5f2d", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>Rack#</th>
                   </tr>
                 </thead>
                 <tbody ref={tbodyRef} tabIndex={0} onKeyDown={tk}>
                   {rows.length === 0 && (
                     <tr>
-                      <td colSpan={7} className="xp-empty">
+                      <td colSpan={8} className="xp-empty" style={{ padding: "30px", textAlign: "center", color: "#2c5f2d", fontSize: "12px", fontWeight: "bold" }}>
                         No products found
                       </td>
                     </tr>
@@ -221,22 +587,37 @@ function SearchModal({ allProducts, onSelect, onClose }) {
                     <tr
                       key={`${r._id}-${r._pi}`}
                       style={{
-                        background: i === hiIdx ? "#c3d9f5" : undefined,
+                        background: i === hiIdx ? "#e8f5e9" : "white",
+                        cursor: "pointer"
                       }}
                       onClick={() => setHiIdx(i)}
                       onDoubleClick={() => onSelect(r)}
                     >
-                      <td className="text-muted">{i + 1}</td>
-                      <td>
-                        <span className="xp-code">{r.code}</span>
+                      <td style={{ padding: "4px 4px", textAlign: "center", border: "1px solid #2c5f2d", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>{i + 1}</td>
+                      <td style={{ padding: "4px 4px", border: "1px solid #2c5f2d", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>
+                        {r.code}
                       </td>
-                      <td>
-                        <button className="xp-link-btn">{r._name}</button>
+                      <td style={{ padding: "4px 4px", border: "1px solid #2c5f2d", fontSize: "13px", fontWeight: "bold", color: "#000000" }}>
+                        <button className="xp-link-btn" style={{ 
+                          color: "#000000", 
+                          textDecoration: "none", 
+                          fontWeight: "bold", 
+                          fontSize: "13px",
+                          background: "none", 
+                          border: "none", 
+                          cursor: "pointer", 
+                          width: "100%", 
+                          textAlign: "left",
+                          padding: "0"
+                        }}>{r._name}</button>
                       </td>
-                      <td className="text-muted">{r._meas}</td>
-                      <td className="r xp-amt">{fmt(r._rate)}</td>
-                      <td className="r">{r._stock}</td>
-                      <td className="r">{r._pack}</td>
+                      <td style={{ padding: "4px 4px", textAlign: "center", border: "1px solid #2c5f2d", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>{r._meas}</td>
+                      <td style={{ padding: "4px 4px", textAlign: "right", border: "1px solid #2c5f2d", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>
+                        {Number(r._rate).toLocaleString("en-PK")}
+                      </td>
+                      <td style={{ padding: "4px 4px", textAlign: "right", border: "1px solid #2c5f2d", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>{r._stock}</td>
+                      <td style={{ padding: "4px 4px", textAlign: "right", border: "1px solid #2c5f2d", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>{r._pack}</td>
+                      <td style={{ padding: "4px 4px", textAlign: "center", border: "1px solid #2c5f2d", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>{r.rackNo || "—"}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -244,213 +625,120 @@ function SearchModal({ allProducts, onSelect, onClose }) {
             </div>
           </div>
         </div>
-        <div className="cs-modal-hint">
-          ↑↓ navigate &nbsp;|&nbsp; Enter / Double-click = select &nbsp;|&nbsp;
-          Esc = close &nbsp;|&nbsp; Tab = filters
+        <div className="cs-modal-hint" style={{ 
+          padding: "6px 12px", 
+          fontSize: "10px", 
+          color: "#2c5f2d", 
+          fontWeight: "bold",
+          borderTop: "1px solid #2c5f2d", 
+          background: "#f8fafc",
+          borderRadius: "0 0 10px 10px"
+        }}>
+          <span>↑↓ navigate</span> &nbsp;|&nbsp; <span>Enter / Double-click = select</span> &nbsp;|&nbsp; <span>Esc = close</span> &nbsp;|&nbsp; <span>Tab = filters</span>
         </div>
       </div>
     </div>
   );
 }
 
-/* ─────────────────────────────────────────────────────────────
-   PRINT / PREVIEW MODAL
-───────────────────────────────────────────────────────────── */
-function PrintModal({ quote, onClose }) {
-  const {
-    custName,
-    custPhone,
-    qtNo,
-    qtDate,
-    validTill,
-    rows,
-    extraDisc,
-    remarks,
-  } = quote;
-  const subTotal = rows.reduce((s, r) => s + (r.amount || 0), 0);
-  const discAmt = Math.round((subTotal * (extraDisc || 0)) / 100);
-  const netTotal = subTotal - discAmt;
-
-  const doPrint = () => {
-    const itemRows = rows
-      .map(
-        (it, i) =>
-          `<tr><td>${i + 1}</td><td>${it.description}</td><td>${it.measurement || ""}</td><td align="right">${it.qty}</td><td align="right">${Number(it.rate).toLocaleString()}</td><td align="right">${it.disc || 0}%</td><td align="right"><b>${Number(it.amount).toLocaleString()}</b></td></tr>`,
-      )
-      .join("");
-    const win = window.open("", "_blank", "width=900,height=700");
-    win.document
-      .write(`<!DOCTYPE html><html><head><title>Quotation ${qtNo}</title>
-    <style>body{font-family:Arial,sans-serif;font-size:12px;padding:20px}h2,h3{margin:0 0 4px;text-align:center}table{width:100%;border-collapse:collapse;margin-top:10px}th,td{border:1px solid #ccc;padding:5px}th{background:#e8e8e8}.meta{display:flex;gap:16px;flex-wrap:wrap;margin:8px 0;padding:6px 10px;background:#f5f5f5;border:1px solid #ddd}.tots{float:right;min-width:220px;margin-top:10px}.tr{display:flex;justify-content:space-between;padding:2px 0}.tr.b{font-weight:bold;border-top:1px solid #000;margin-top:4px}.thanks{text-align:center;margin-top:30px;font-size:11px;color:#888;clear:both}</style>
-    </head><body>
-    <h2>${SHOP_NAME}</h2><h3>PRICE QUOTATION</h3>
-    <div class="meta"><span><b>Quotation #:</b> ${qtNo}</span><span><b>Date:</b> ${qtDate}</span>${validTill ? `<span><b>Valid Till:</b> ${validTill}</span>` : ""}${custName ? `<span><b>Customer:</b> ${custName}</span>` : ""}${custPhone ? `<span><b>Phone:</b> ${custPhone}</span>` : ""}</div>
-    <table><thead><tr><th>#</th><th>Description</th><th>Meas.</th><th align="right">Qty</th><th align="right">Rate</th><th align="right">Disc%</th><th align="right">Amount</th></tr></thead><tbody>${itemRows}</tbody></table>
-    <div class="tots"><div class="tr"><span>Sub Total</span><span>${Number(subTotal).toLocaleString()}</span></div>${discAmt > 0 ? `<div class="tr"><span>Discount (${extraDisc}%)</span><span>-${Number(discAmt).toLocaleString()}</span></div>` : ""}<div class="tr b"><span>Net Total</span><span>Rs. ${Number(netTotal).toLocaleString()}</span></div></div>
-    ${remarks ? `<p style="clear:both"><b>Note:</b> ${remarks}</p>` : ""}
-    <div class="thanks">Thank you — ${SHOP_NAME}</div></body></html>`);
-    win.document.close();
-    setTimeout(() => win.print(), 400);
-  };
-
-  const doWhatsApp = () => {
-    const lines = rows
-      .map(
-        (it, i) =>
-          `${i + 1}. ${it.description}${it.measurement ? " (" + it.measurement + ")" : ""}\n   Qty: ${it.qty} × Rs.${Number(it.rate).toLocaleString()}${it.disc > 0 ? " - " + it.disc + "%" : ""} = *Rs.${Number(it.amount).toLocaleString()}*`,
-      )
-      .join("\n");
-    const msg =
-      `*${SHOP_NAME}*\n📋 *QUOTATION #${qtNo}*\n📅 Date: ${qtDate}${validTill ? " | Valid Till: " + validTill : ""}\n` +
-      (custName ? `👤 Customer: ${custName}\n` : "") +
-      (custPhone ? `📞 Phone: ${custPhone}\n` : "") +
-      `${"─".repeat(30)}\n${lines}\n${"─".repeat(30)}\n` +
-      (discAmt > 0
-        ? `Sub Total: Rs.${Number(subTotal).toLocaleString()}\nDiscount (${extraDisc}%): -Rs.${Number(discAmt).toLocaleString()}\n`
-        : "") +
-      `*Net Total: Rs.${Number(netTotal).toLocaleString()}*\n` +
-      (remarks ? `📝 ${remarks}\n` : "") +
-      `_Prices valid${validTill ? " till " + validTill : " as quoted"}_`;
-    const phone = custPhone?.replace(/[^0-9]/g, "");
-    const url = phone
-      ? `https://wa.me/92${phone.replace(/^0/, "")}?text=${encodeURIComponent(msg)}`
-      : `https://wa.me/?text=${encodeURIComponent(msg)}`;
-    window.open(url, "_blank");
-  };
-
+/* ══════════════════════════════════════════════════════════
+   QUOTATION HOLD PREVIEW MODAL
+══════════════════════════════════════════════════════════ */
+function QuotationHoldPreviewModal({ quote, onResume, onClose }) {
+  if (!quote) return null;
   return (
     <div
       className="xp-overlay"
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      <div className="xp-modal xp-modal-lg">
-        <div className="xp-modal-tb">
-          <svg
-            width="13"
-            height="13"
-            viewBox="0 0 16 16"
-            fill="rgba(255,255,255,0.8)"
-          >
-            <path d="M14 4.5V14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2h5.5zm-3 0A1.5 1.5 0 0 1 9.5 3V1L14 5.5z" />
-          </svg>
-          <span className="xp-modal-title">
-            Quotation #{qtNo}
-            {custName ? " — " + custName : ""}
-          </span>
+      <div className="xp-modal" style={{ width: 560 }}>
+        <div className="xp-modal-tb" style={{ background: "#2c5f2d" }}>
+          <span className="xp-modal-title">Held Quotation — {quote.quoteNo}</span>
           <button className="xp-cap-btn xp-cap-close" onClick={onClose}>
             ✕
           </button>
         </div>
-
-        <div className="xp-modal-body">
-          <div className="qt-inv-preview">
-            <div className="qt-inv-shop">{SHOP_NAME}</div>
-            <div className="qt-inv-sub">◆ Price Quotation ◆</div>
-            <div className="qt-inv-meta">
-              <span>
-                Qt #: <strong>{qtNo}</strong>
+        <div className="xp-modal-body" style={{ padding: 8 }}>
+          <div
+            style={{
+              marginBottom: 6,
+              display: "flex",
+              gap: 16,
+              fontSize: "var(--xp-fs-xs)",
+            }}
+          >
+            <span>
+              <b>Customer:</b> {quote.customerName}
+            </span>
+            <span>
+              <b>Items:</b> {quote.items.length}
+            </span>
+            <span>
+              <b>Amount:</b>{" "}
+              <span style={{ color: "#2c5f2d", fontWeight: 700 }}>
+                {Number(quote.amount).toLocaleString("en-PK")}
               </span>
-              <span>
-                Date: <strong>{qtDate}</strong>
-              </span>
-              {validTill && (
-                <span>
-                  Valid Till: <span className="qt-valid-till">{validTill}</span>
-                </span>
-              )}
-              {custName && (
-                <span>
-                  Customer: <strong>{custName}</strong>
-                </span>
-              )}
-              {custPhone && (
-                <span>
-                  Phone: <strong>{custPhone}</strong>
-                </span>
-              )}
-            </div>
-            <div className="xp-table-panel">
+            </span>
+          </div>
+          <div className="xp-table-panel" style={{ border: "none" }}>
+            <div className="xp-table-scroll" style={{ maxHeight: 300 }}>
               <table className="xp-table">
                 <thead>
                   <tr>
                     <th>#</th>
-                    <th>Description</th>
-                    <th>Meas.</th>
-                    <th className="r">Qty</th>
+                    <th>Code</th>
+                    <th>Name</th>
+                    <th>UOM</th>
+                    <th className="r">Pcs</th>
                     <th className="r">Rate</th>
-                    <th className="r">Disc%</th>
                     <th className="r">Amount</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {rows.map((it, i) => (
+                  {quote.items.map((r, i) => (
                     <tr key={i}>
                       <td className="text-muted">{i + 1}</td>
-                      <td>{it.description}</td>
-                      <td className="text-muted">{it.measurement}</td>
-                      <td className="r">{it.qty}</td>
-                      <td className="r xp-amt">{fmt(it.rate)}</td>
-                      <td className="r">{it.disc || 0}%</td>
-                      <td className="r xp-amt">{fmt(it.amount)}</td>
+                      <td className="text-muted">{r.code}</td>
+                      <td>{r.name}</td>
+                      <td className="text-muted">{r.uom}</td>
+                      <td className="r">{r.pcs}</td>
+                      <td className="r">
+                        {Number(r.rate).toLocaleString("en-PK")}
+                      </td>
+                      <td
+                        className="r"
+                        style={{
+                          color: "#2c5f2d",
+                          fontWeight: 700,
+                        }}
+                      >
+                        {Number(r.amount).toLocaleString("en-PK")}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
-            <div className="qt-inv-totals">
-              <div className="qt-inv-total-row">
-                <span>Sub Total</span>
-                <span className="inv-val">{fmt(subTotal)}</span>
-              </div>
-              {discAmt > 0 && (
-                <div className="qt-inv-total-row danger">
-                  <span>Discount ({extraDisc}%)</span>
-                  <span className="inv-val">-{fmt(discAmt)}</span>
-                </div>
-              )}
-              <div className="qt-inv-total-row bold">
-                <span>Net Total</span>
-                <span className="inv-val">Rs. {fmt(netTotal)}</span>
-              </div>
-            </div>
-            {(validTill || remarks) && (
-              <div
-                style={{
-                  marginTop: 12,
-                  fontSize: "var(--xp-fs-xs)",
-                  color: "#555",
-                }}
-              >
-                {validTill && (
-                  <div>
-                    ⏳ Valid till: <strong>{validTill}</strong>
-                  </div>
-                )}
-                {remarks && <div>📝 {remarks}</div>}
-              </div>
-            )}
-            <div className="qt-inv-thanks">
-              Thank you for your inquiry — {SHOP_NAME}
-            </div>
           </div>
         </div>
-
-        <div className="xp-modal-footer">
-          <button className="xp-btn xp-btn-sm" onClick={doPrint}>
-            <svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor">
-              <path d="M2.5 8a.5.5 0 1 0 0-1 .5.5 0 0 0 0 1" />
-              <path d="M5 1a2 2 0 0 0-2 2v2H2a2 2 0 0 0-2 2v3a2 2 0 0 0 2 2h1v1a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2v-1h1a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-1V3a2 2 0 0 0-2-2z" />
-            </svg>
-            Print / PDF
+        <div
+          style={{
+            display: "flex",
+            gap: 6,
+            padding: "6px 10px",
+            borderTop: "1px solid var(--xp-silver-5)",
+            justifyContent: "flex-end",
+          }}
+        >
+          <button className="xp-btn xp-btn-sm" onClick={onClose}>
+            Cancel
           </button>
-          <button className="xp-btn xp-btn-wa xp-btn-sm" onClick={doWhatsApp}>
-            <svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor">
-              <path d="M13.601 2.326A7.85 7.85 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c0 1.399.366 2.76 1.057 3.965L0 16l4.204-1.102a7.9 7.9 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.9 7.9 0 0 0 13.6 2.326z" />
-            </svg>
-            WhatsApp{custPhone ? " → " + custPhone : ""}
-          </button>
-          <button className="xp-btn xp-btn-lg" onClick={onClose}>
-            Close
+          <button
+            className="xp-btn xp-btn-primary xp-btn-sm"
+            style={{ background: "#2c5f2d", borderColor: "#1e4620" }}
+            onClick={() => onResume(quote.id)}
+          >
+            Resume This Quotation
           </button>
         </div>
       </div>
@@ -458,989 +746,1103 @@ function PrintModal({ quote, onClose }) {
   );
 }
 
-/* ─────────────────────────────────────────────────────────────
-   MAIN PAGE
-───────────────────────────────────────────────────────────── */
+/* ══════════════════════════════════════════════════════════
+   MAIN QUOTATION PAGE with Navigation
+══════════════════════════════════════════════════════════ */
 export default function QuotationPage() {
-  const getNextQtNo = () => {
-    const n = parseInt(localStorage.getItem("qt_counter") || "0") + 1;
-    localStorage.setItem("qt_counter", String(n));
-    return `Q-${String(n).padStart(5, "0")}`;
-  };
 
-  const [qtNo, setQtNo] = useState(() => {
-    const n = parseInt(localStorage.getItem("qt_counter") || "0") + 1;
-    return `Q-${String(n).padStart(5, "0")}`;
-  });
-  const [qtDate, setQtDate] = useState(isoDate());
-  const [validTill, setValidTill] = useState(() => addDays(isoDate(), 7));
-  const [custName, setCustName] = useState("");
-  const [custPhone, setCustPhone] = useState("");
-  const [rows, setRows] = useState([{ ...EMPTY_ROW }]);
-  const [activeRow, setActiveRow] = useState(0);
-  const [extraDisc, setExtraDisc] = useState(0);
-  const [remarks, setRemarks] = useState("");
-  const [products, setProducts] = useState([]);
-  const [showSearch, setShowSearch] = useState(false);
+  const [time, setTime] = useState(timeNow());
+  const [allProducts, setAllProducts] = useState([]);
+  const [allQuotations, setAllQuotations] = useState([]);
+  const [showProductModal, setShowProductModal] = useState(false);
+  const [showHoldPreview, setShowHoldPreview] = useState(null);
   const [searchText, setSearchText] = useState("");
-  const [showPrint, setShowPrint] = useState(false);
+  const [curRow, setCurRow] = useState({ ...EMPTY_ROW });
+  const [items, setItems] = useState([]);
+  const [quoteDate, setQuoteDate] = useState(isoDate());
+  const [quoteNo, setQuoteNo] = useState("QTN-00001");
+  const amountRef = useRef(null);
+
+  const [holdQuotes, setHoldQuotes] = useState(() => loadQuotationHolds());
+  const [selItemIdx, setSelItemIdx] = useState(null);
   const [msg, setMsg] = useState({ text: "", type: "" });
-  const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [packingOptions, setPackingOptions] = useState([]);
+  const [showCustomerModal, setShowCustomerModal] = useState(false);
+  const [pendingSaveData, setPendingSaveData] = useState(null);
+  const [editId, setEditId] = useState(null);
 
-  /* Saved quotations list */
-  const [savedQuotes, setSavedQuotes] = useState([]);
-  const [loadingQuotes, setLoadingQuotes] = useState(false);
-  const [selQuoteId, setSelQuoteId] = useState(null);
-  const [qtSearch, setQtSearch] = useState("");
+  const [productSuggestions, setProductSuggestions] = useState([]);
+  const [showProductSuggestions, setShowProductSuggestions] = useState(false);
+  const [selectedProductSuggestionIdx, setSelectedProductSuggestionIdx] = useState(-1);
 
-  const custNameRef = useRef(null);
-  const custPhRef = useRef(null);
   const searchRef = useRef(null);
-  const extraDiscRef = useRef(null);
+  const pcsRef = useRef(null);
+  const rateRef = useRef(null);
+  const addRef = useRef(null);
   const saveRef = useRef(null);
-  const rowRefs = useRef([]);
-
-  const subTotal = rows.reduce((s, r) => s + (r.amount || 0), 0);
-  const discAmt = Math.round((subTotal * (extraDisc || 0)) / 100);
-  const netTotal = subTotal - discAmt;
 
   useEffect(() => {
-    fetchProducts();
-    fetchQuotes();
+    const t = setInterval(() => setTime(timeNow()), 1000);
+    return () => clearInterval(t);
   }, []);
+  
+  useEffect(() => {
+    fetchData();
+    loadAllQuotations();
+  }, []);
+  
+  useEffect(() => {
+    saveQuotationHolds(holdQuotes);
+  }, [holdQuotes]);
 
   useEffect(() => {
-    const h = (e) => {
-      if (e.key === "F3") {
-        e.preventDefault();
-        setShowSearch(true);
-      }
-      if (e.key === "F5") {
-        e.preventDefault();
-        handlePreview();
-      }
-      if (e.key === "F2") {
-        e.preventDefault();
-        resetForm();
-      }
-    };
-    window.addEventListener("keydown", h);
-    return () => window.removeEventListener("keydown", h);
-  }, [rows, custName, custPhone, extraDisc, remarks, qtDate, validTill]);
-
-  const fetchProducts = async () => {
-    try {
-      const { data } = await api.get(EP.PRODUCTS.GET_ALL);
-      if (data.success) setProducts(data.data);
-    } catch {}
-  };
-
-  /* ── Saved Quotations API ── */
-  const fetchQuotes = async (search = "") => {
-    setLoadingQuotes(true);
-    try {
-      const { data } = await api.get(EP.QUOTATIONS.GET_ALL_SEARCH(search));
-      if (data.success) setSavedQuotes(data.data || []);
-    } catch {
-      setSavedQuotes([]);
-    }
-    setLoadingQuotes(false);
-  };
-
-  const handleSaveQuote = async () => {
-    const validRows = rows.filter((r) => r.description && r.qty > 0);
-    if (!validRows.length) {
-      showMsg("Add at least one product", "error");
+    if (!searchText.trim()) {
+      setProductSuggestions([]);
+      setShowProductSuggestions(false);
       return;
     }
-    setSaving(true);
-    try {
-      const payload = {
-        qtNo,
-        qtDate,
-        validTill,
-        custName,
-        custPhone,
-        items: validRows,
-        subTotal,
-        discAmt,
-        netTotal,
-        extraDisc: Number(extraDisc),
-        remarks,
-      };
-      const { data } = await api.post(EP.QUOTATIONS.CREATE, payload);
-      if (data.success) {
-        showMsg(`Saved: ${data.data.qtNo}`);
-        fetchQuotes(qtSearch);
-      } else showMsg(data.message || "Save failed", "error");
-    } catch (e) {
-      showMsg(e.response?.data?.message || "Save failed", "error");
-    }
-    setSaving(false);
-  };
+    
+    const q = searchText.trim().toLowerCase();
+    const matches = allProducts.filter(p => 
+      p.code?.toLowerCase().includes(q) ||
+      p.description?.toLowerCase().includes(q) ||
+      p.category?.toLowerCase().includes(q) ||
+      p.company?.toLowerCase().includes(q)
+    ).slice(0, 10);
+    
+    setProductSuggestions(matches);
+    setShowProductSuggestions(matches.length > 0 && !curRow.name);
+    setSelectedProductSuggestionIdx(-1);
+  }, [searchText, allProducts, curRow.name]);
 
-  // 3. handleDeleteQuote — DELETE
-  const handleDeleteQuote = async () => {
-    if (!selQuoteId) return showMsg("Select a quotation first", "error");
-    if (!confirm("Delete this quotation?")) return;
+  const subTotal = items.reduce((s, r) => s + (parseFloat(r.amount) || 0), 0);
+  const totalQty = items.reduce((s, r) => s + (parseFloat(r.pcs) || 0), 0);
+
+  const fetchData = async () => {
+    setLoading(true);
     try {
-      const { data } = await api.delete(EP.QUOTATIONS.DELETE(selQuoteId));
-      if (data.success) {
-        showMsg("Deleted");
-        setSelQuoteId(null);
-        fetchQuotes(qtSearch);
-      } else showMsg(data.message || "Delete failed", "error");
+      const [pRes, quoteRes] = await Promise.all([
+        api.get(EP.PRODUCTS.GET_ALL),
+        api.get(EP.SALES.NEXT_INVOICE).catch(() => ({ data: { success: true, data: { invoiceNo: "QTN-00001" } } })),
+      ]);
+      if (pRes.data.success) setAllProducts(pRes.data.data);
+      const nextQuote = quoteRes.data?.data?.invoiceNo || "QTN-00001";
+      setQuoteNo(nextQuote);
     } catch {
-      showMsg("Delete failed", "error");
+      showMsg("Failed to load data", "error");
     }
+    setLoading(false);
   };
 
-  const handleLoadQuote = (q) => {
-    setQtNo(q.qtNo);
-    setQtDate(q.qtDate);
-    setValidTill(q.validTill || "");
-    setCustName(q.custName || "");
-    setCustPhone(q.custPhone || "");
-    setRows(q.items?.length ? q.items : [{ ...EMPTY_ROW }]);
-    setExtraDisc(q.extraDisc || 0);
-    setRemarks(q.remarks || "");
-    setSearchText("");
-    setSelQuoteId(q._id);
-    showMsg(`Loaded: ${q.qtNo}`);
-    window.scrollTo(0, 0);
+  const loadAllQuotations = () => {
+    const saved = loadSavedQuotations();
+    setAllQuotations(saved);
+  };
+
+  const refreshQuoteNo = async () => {
+    try {
+      const r = await api.get(EP.SALES.NEXT_INVOICE);
+      if (r.data.success) setQuoteNo(r.data.data.invoiceNo);
+    } catch {}
   };
 
   const showMsg = (text, type = "success") => {
     setMsg({ text, type });
-    setTimeout(() => setMsg({ text: "", type: "" }), 3000);
+    setTimeout(() => setMsg({ text: "", type: "" }), 3500);
   };
-
-  const handleProductSelect = (product) => {
-    const qty = rows[activeRow]?.qty || 1;
-    const rate = product._rate || 0;
-    setRows((prev) => {
-      const next = [...prev];
-      next[activeRow] = {
-        ...next[activeRow],
-        code: product.code || "",
-        description: product._name || product.description || "",
-        measurement: product._meas || "",
-        qty,
-        rate,
-        disc: next[activeRow]?.disc || 0,
-        amount: qty * rate,
-      };
-      return next;
+  
+  const pickProduct = (product) => {
+    if (!product._id) {
+      showMsg("Product ID missing", "error");
+      return;
+    }
+    setPackingOptions(product.packingInfo?.map((pk) => pk.measurement) || []);
+    setCurRow({
+      productId: product._id,
+      code: product.code || "",
+      name: product._name || product.description || "",
+      uom: product._meas || "",
+      rack: product.rack || "",
+      pcs: product._pack || 1,
+      rate: product._rate || 0,
+      amount: (product._pack || 1) * (product._rate || 0),
     });
-    setSearchText(product._name || product.description || "");
-    setShowSearch(false);
-    setTimeout(() => rowRefs.current[activeRow]?.qty?.focus(), 30);
+    setSearchText(product.code || "");
+    setShowProductModal(false);
+    setShowProductSuggestions(false);
+    setTimeout(() => pcsRef.current?.focus(), 30);
   };
 
-  const updateRow = (i, field, val) => {
-    setRows((prev) => {
-      const next = [...prev];
-      const r = { ...next[i], [field]: val };
-      if (["qty", "rate", "disc"].includes(field)) {
-        const q = field === "qty" ? Number(val) : Number(r.qty);
-        const rt = field === "rate" ? Number(val) : Number(r.rate);
-        const d = field === "disc" ? Number(val) : Number(r.disc);
-        r.amount = Math.round(q * rt * (1 - d / 100));
-      }
-      next[i] = r;
-      return next;
+  const updateCurRow = (field, val) => {
+    setCurRow((prev) => {
+      const u = { ...prev, [field]: val };
+      u.amount =
+        (parseFloat(field === "pcs" ? val : u.pcs) || 0) *
+        (parseFloat(field === "rate" ? val : u.rate) || 0);
+      return u;
     });
   };
 
-  const addRowAfter = (i) => {
-    setRows((p) => {
-      const n = [...p];
-      n.splice(i + 1, 0, { ...EMPTY_ROW });
-      return n;
-    });
-    setActiveRow(i + 1);
-    setSearchText("");
-    setTimeout(() => setShowSearch(true), 30);
-  };
-  const deleteRow = (i) => {
-    if (rows.length === 1) {
-      setRows([{ ...EMPTY_ROW }]);
+  const addRow = () => {
+    if (!curRow.name) {
+      setShowProductModal(true);
       return;
     }
-    setRows((p) => p.filter((_, idx) => idx !== i));
-    setActiveRow(Math.max(0, i - 1));
-  };
-
-  const onRowKeyDown = (e, i, field) => {
-    if (e.key === "F3") {
-      e.preventDefault();
-      setActiveRow(i);
-      setShowSearch(true);
+    if (!curRow.productId) {
+      showMsg("Please select a valid product", "error");
       return;
     }
-    if (e.key === "Delete" && e.ctrlKey) {
-      e.preventDefault();
-      deleteRow(i);
+    if (parseFloat(curRow.pcs) <= 0) {
+      showMsg("Qty must be > 0", "error");
       return;
     }
-    if (e.key === "Enter") {
-      e.preventDefault();
-      const order = [
-        "code",
-        "description",
-        "measurement",
-        "qty",
-        "rate",
-        "disc",
-      ];
-      const fi = order.indexOf(field);
-      if (fi < order.length - 1) rowRefs.current[i]?.[order[fi + 1]]?.focus();
-      else if (i === rows.length - 1) addRowAfter(i);
-      else rowRefs.current[i + 1]?.code?.focus();
-    }
-  };
-
-  const onCodeBlur = (i, code) => {
-    if (!code.trim()) return;
-    const found = products.find(
-      (p) => p.code?.toLowerCase() === code.toLowerCase(),
-    );
-    if (found) {
-      const pk = found.packingInfo?.[0] || {};
-      const desc = [found.category, found.description, found.company]
-        .filter(Boolean)
-        .join(" ");
-      setRows((prev) => {
-        const next = [...prev];
-        next[i] = {
-          ...next[i],
-          description: desc,
-          measurement: pk.measurement || "",
-          rate: pk.saleRate || 0,
-          amount: (next[i].qty || 1) * (pk.saleRate || 0),
-        };
-        return next;
+    if (selItemIdx !== null) {
+      setItems((p) => {
+        const u = [...p];
+        u[selItemIdx] = { ...curRow };
+        return u;
       });
-      setTimeout(() => rowRefs.current[i]?.qty?.focus(), 20);
-    }
+      setSelItemIdx(null);
+    } else setItems((p) => [...p, { ...curRow }]);
+    resetCurRow();
   };
 
-  const handlePreview = () => {
-    const validRows = rows.filter((r) => r.description && r.qty > 0);
-    if (!validRows.length) {
-      showMsg("Add at least one product", "error");
+  const resetCurRow = () => {
+    setCurRow({ ...EMPTY_ROW });
+    setSearchText("");
+    setPackingOptions([]);
+    setSelItemIdx(null);
+    setShowProductSuggestions(false);
+    setTimeout(() => searchRef.current?.focus(), 30);
+  };
+
+  const loadRowForEdit = (idx) => {
+    setSelItemIdx(idx);
+    const r = items[idx];
+    setCurRow({ ...r });
+    setSearchText(r.name);
+
+    const product = allProducts.find((p) => p._id === r.productId);
+    if (product?.packingInfo?.length > 0) {
+      setPackingOptions(product.packingInfo.map((pk) => pk.measurement));
+    } else {
+      setPackingOptions([]);
+    }
+
+    setTimeout(() => pcsRef.current?.focus(), 30);
+  };
+
+  const removeRow = () => {
+    if (selItemIdx === null) return;
+    setItems((p) => p.filter((_, i) => i !== selItemIdx));
+    resetCurRow();
+  };
+
+  const holdQuotation = () => {
+    if (!items.length) return;
+    setHoldQuotes((p) => [
+      ...p,
+      {
+        id: Date.now(),
+        quoteNo,
+        amount: subTotal,
+        items: [...items],
+        customerName: "Held Quotation",
+        date: quoteDate,
+      },
+    ]);
+    fullReset();
+    refreshQuoteNo();
+    showMsg("Quotation held successfully", "success");
+  };
+
+  const resumeQuotation = (holdId) => {
+    const quote = holdQuotes.find((q) => q.id === holdId);
+    if (!quote) return;
+    setItems(quote.items);
+    setQuoteNo(quote.quoteNo);
+    setQuoteDate(quote.date || isoDate());
+    setHoldQuotes((p) => p.filter((q) => q.id !== holdId));
+    setShowHoldPreview(null);
+    resetCurRow();
+    showMsg(`Resumed quotation: ${quote.quoteNo}`, "success");
+  };
+
+  const deleteHold = (holdId, e) => {
+    e.stopPropagation();
+    if (window.confirm("Delete this held quotation?"))
+      setHoldQuotes((p) => p.filter((q) => q.id !== holdId));
+  };
+
+  const fullReset = () => {
+    setItems([]);
+    setCurRow({ ...EMPTY_ROW });
+    setSearchText("");
+    setPackingOptions([]);
+    setSelItemIdx(null);
+    setMsg({ text: "", type: "" });
+    setShowProductSuggestions(false);
+    setEditId(null);
+    refreshQuoteNo();
+    setQuoteDate(isoDate());
+    setTimeout(() => searchRef.current?.focus(), 50);
+  };
+  
+  const buildPayload = () => ({
+    quoteNo,
+    quoteDate,
+    items: items.map((r) => ({
+      productId: r.productId || undefined,
+      code: r.code,
+      name: r.name,
+      description: r.name,
+      uom: r.uom,
+      measurement: r.uom,
+      rack: r.rack,
+      pcs: parseFloat(r.pcs) || 1,
+      qty: parseFloat(r.pcs) || 1,
+      rate: parseFloat(r.rate) || 0,
+      disc: 0,
+      amount: parseFloat(r.amount) || 0,
+    })),
+    subTotal,
+    netTotal: subTotal,
+  });
+  
+  const openSaveQuotation = () => {
+    if (!items.length) {
+      alert("Please add at least one item to save quotation");
       return;
     }
-    setShowPrint(true);
+    const payload = buildPayload();
+    setPendingSaveData(payload);
+    setShowCustomerModal(true);
+  };
+  
+  const saveQuotationWithCustomer = async (customerInfo) => {
+    if (!pendingSaveData) return;
+    setLoading(true);
+    
+    try {
+      const finalQuotation = {
+        ...pendingSaveData,
+        customerName: customerInfo.customerName,
+        customerPhone: customerInfo.customerPhone,
+        savedAt: new Date().toISOString(),
+        validDays: customerInfo.validDays,
+      };
+      
+      const saved = saveQuotationToStorage(finalQuotation);
+      
+      if (saved) {
+        showMsg(`Quotation saved: ${pendingSaveData.quoteNo} for ${customerInfo.customerName}`, "success");
+        loadAllQuotations();
+        
+        doPrint(finalQuotation, { 
+          customerName: customerInfo.customerName,
+          customerPhone: customerInfo.customerPhone,
+          validUntil: `${customerInfo.validDays} days from issue date`
+        });
+        
+        fullReset();
+        await refreshQuoteNo();
+      } else {
+        showMsg("Failed to save quotation", "error");
+      }
+    } catch (e) {
+      showMsg("Save failed", "error");
+    }
+    
+    setLoading(false);
+    setShowCustomerModal(false);
+    setPendingSaveData(null);
   };
 
-  const resetForm = () => {
-    const newNo = getNextQtNo();
-    setQtNo(newNo);
-    setQtDate(isoDate());
-    setValidTill(addDays(isoDate(), 7));
-    setCustName("");
-    setCustPhone("");
-    setRows([{ ...EMPTY_ROW }]);
-    setActiveRow(0);
-    setExtraDisc(0);
-    setRemarks("");
-    setSearchText("");
-    setSelQuoteId(null);
-    setTimeout(() => custNameRef.current?.focus(), 30);
+  const loadQuotationForEdit = (quotation) => {
+    setEditId(quotation.quoteNo);
+    setQuoteNo(quotation.quoteNo);
+    setQuoteDate(quotation.quoteDate);
+    
+    const loadedItems = (quotation.items || []).map((it) => ({
+      productId: it.productId || "",
+      code: it.code || "",
+      name: it.name || it.description || "",
+      uom: it.uom || it.measurement || "",
+      rack: it.rack || "",
+      pcs: it.pcs || it.qty || 1,
+      rate: it.rate || 0,
+      amount: it.amount || 0,
+    }));
+    setItems(loadedItems);
+    
+    resetCurRow();
+    showMsg(`✏ Editing Quotation ${quotation.quoteNo}`, "success");
+    setTimeout(() => searchRef.current?.focus(), 50);
   };
 
-  const handleQtSearch = (v) => {
-    setQtSearch(v);
-    clearTimeout(window._qtSearchTimer);
-    window._qtSearchTimer = setTimeout(() => fetchQuotes(v), 300);
+  const navQuotation = async (dir) => {
+    if (allQuotations.length === 0) {
+      loadAllQuotations();
+      return;
+    }
+    
+    const curIdx = allQuotations.findIndex((q) => q.quoteNo === quoteNo);
+    let nextIdx = dir === "prev" ? curIdx - 1 : curIdx + 1;
+    nextIdx = Math.max(0, Math.min(nextIdx, allQuotations.length - 1));
+    
+    if (nextIdx === curIdx) return;
+    if (nextIdx >= 0 && nextIdx < allQuotations.length) {
+      loadQuotationForEdit(allQuotations[nextIdx]);
+    }
   };
 
-  const quoteObj = {
-    qtNo,
-    qtDate,
-    validTill,
-    custName,
-    custPhone,
-    rows: rows.filter((r) => r.description && r.qty > 0),
-    extraDisc,
-    remarks,
-  };
+  useEffect(() => {
+    const handler = (e) => {
+      if (showProductModal || showHoldPreview || showCustomerModal) return;
+
+      if (e.key === "F2") {
+        e.preventDefault();
+        setShowProductModal(true);
+      }
+      if (e.key === "F4") {
+        e.preventDefault();
+        holdQuotation();
+      }
+      if (e.key === "*" || (e.ctrlKey && e.key === "s")) {
+        e.preventDefault();
+        if (items.length > 0) {
+          saveRef.current?.click();
+        }
+      }
+      if (e.key === "ArrowUp" && !editId) {
+        e.preventDefault();
+        navQuotation("prev");
+      }
+      if (e.key === "ArrowDown" && !editId) {
+        e.preventDefault();
+        navQuotation("next");
+      }
+      if (e.key === "Escape") resetCurRow();
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [items, showProductModal, showHoldPreview, showCustomerModal, allQuotations, quoteNo, editId]);
 
   return (
-    <div className="qt-page">
-      {showSearch && (
-        <SearchModal
-          allProducts={products}
-          onSelect={handleProductSelect}
-          onClose={() => setShowSearch(false)}
-        />
-      )}
-      {showPrint && (
-        <PrintModal quote={quoteObj} onClose={() => setShowPrint(false)} />
-      )}
-
-      {/* ── Titlebar ── */}
-      <div className="xp-titlebar">
-        <svg
-          width="15"
-          height="15"
-          viewBox="0 0 16 16"
-          fill="rgba(255,255,255,0.85)"
-        >
-          <path d="M14 4.5V14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2h5.5zm-3 0A1.5 1.5 0 0 1 9.5 3V1L14 5.5zM4.5 7a.5.5 0 0 0 0 1h7a.5.5 0 0 0 0-1zm0 2.5a.5.5 0 0 0 0 1h7a.5.5 0 0 0 0-1zm0 2.5a.5.5 0 0 0 0 1h4a.5.5 0 0 0 0-1z" />
-        </svg>
-        <span className="xp-tb-title">Price Quotation — {SHOP_NAME}</span>
-        <div className="xp-tb-actions">
-          <div className="xp-tb-divider" />
-          <button className="xp-cap-btn" title="Minimize">
-            ─
-          </button>
-          <button className="xp-cap-btn" title="Maximize">
-            □
-          </button>
-          <button className="xp-cap-btn xp-cap-close" title="Close">
-            ✕
-          </button>
-        </div>
-      </div>
-
-      {/* ── Alert ── */}
-      {msg.text && (
-        <div
-          className={`xp-alert ${msg.type === "success" ? "xp-alert-success" : "xp-alert-error"}`}
-          style={{ margin: "4px 10px 0" }}
-        >
-          {msg.text}
-        </div>
-      )}
-
-      <div className="qt-body">
-        {/* ── Header ── */}
-        <div className="qt-header">
-          <div className="qt-header-title">
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 16 16"
-              fill="var(--xp-blue-dark)"
-            >
-              <path d="M14 4.5V14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2h5.5zm-3 0A1.5 1.5 0 0 1 9.5 3V1L14 5.5zM4.5 7a.5.5 0 0 0 0 1h7a.5.5 0 0 0 0-1zm0 2.5a.5.5 0 0 0 0 1h7a.5.5 0 0 0 0-1zm0 2.5a.5.5 0 0 0 0 1h4a.5.5 0 0 0 0-1z" />
-            </svg>
-            Quotation / Price Estimate
-          </div>
-          <div className="qt-field-pair">
-            <label>Qt #</label>
-            <input
-              className="xp-input"
-              style={{ width: 100 }}
-              value={qtNo}
-              readOnly
-              tabIndex={-1}
-            />
-          </div>
-          <div className="qt-field-pair">
-            <label>Date</label>
-            <input
-              type="date"
-              className="xp-input"
-              style={{ width: 136 }}
-              value={qtDate}
-              onChange={(e) => setQtDate(e.target.value)}
-              tabIndex={-1}
-            />
-          </div>
-          <div className="qt-field-pair">
-            <label>Valid Till</label>
-            <input
-              type="date"
-              className="xp-input"
-              style={{ width: 136 }}
-              value={validTill}
-              onChange={(e) => setValidTill(e.target.value)}
-              tabIndex={-1}
-            />
-          </div>
-          {validTill && (
-            <div className="qt-valid-badge">
-              <svg
-                width="10"
-                height="10"
-                viewBox="0 0 16 16"
-                fill="currentColor"
-              >
-                <path d="M10.854 7.146a.5.5 0 0 1 0 .708l-3 3a.5.5 0 0 1-.708 0l-1.5-1.5a.5.5 0 1 1 .708-.708L7.5 9.793l2.646-2.647a.5.5 0 0 1 .708 0" />
-                <path d="M3.5 0a.5.5 0 0 1 .5.5V1h8V.5a.5.5 0 0 1 1 0V1h1a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V3a2 2 0 0 1 2-2h1V.5a.5.5 0 0 1 .5-.5M2 2a1 1 0 0 0-1 1v1h14V3a1 1 0 0 0-1-1zm13 3H1v9a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1z" />
-              </svg>
-              Valid: {validTill}
-            </div>
-          )}
-        </div>
-
-        {/* ── Customer Strip ── */}
-        <div className="qt-customer-strip">
-          <label>Customer</label>
-          <input
-            ref={custNameRef}
-            className="qt-cust-input"
-            value={custName}
-            onChange={(e) => setCustName(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") custPhRef.current?.focus();
+    <>
+      <div className="sl-page quotation-page">
+        {showProductModal && (
+          <SearchModal
+            allProducts={allProducts}
+            onSelect={pickProduct}
+            onClose={() => {
+              setShowProductModal(false);
+              setTimeout(() => searchRef.current?.focus(), 30);
             }}
-            placeholder="Name (optional)…"
-            tabIndex={1}
           />
-          <label>Phone</label>
-          <input
-            ref={custPhRef}
-            className="qt-cust-input"
-            style={{ maxWidth: 150 }}
-            value={custPhone}
-            onChange={(e) => setCustPhone(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") setShowSearch(true);
+        )}
+        {showHoldPreview && (
+          <QuotationHoldPreviewModal
+            quote={showHoldPreview}
+            onResume={resumeQuotation}
+            onClose={() => setShowHoldPreview(null)}
+          />
+        )}
+        {showCustomerModal && (
+          <CustomerInfoModal
+            onConfirm={saveQuotationWithCustomer}
+            onClose={() => {
+              setShowCustomerModal(false);
+              setPendingSaveData(null);
             }}
-            placeholder="03xx-xxxxxxx"
-            tabIndex={2}
           />
-          <span className="qt-wa-hint">← for WhatsApp direct send</span>
-
-          <div className="xp-toolbar-divider" />
-          <div className="qt-key-hints">
-            <span>
-              <span className="k">F3</span> Search
-            </span>
-            <span>
-              <span className="k">F5</span> Preview
-            </span>
-            <span>
-              <span className="k">F2</span> New
-            </span>
-            <span>
-              <span className="k">Ctrl+Del</span> Remove Row
-            </span>
-          </div>
-        </div>
-
-        {/* ── Product select bar ── */}
-        <div className="qt-product-bar">
-          <label>Select Product</label>
-          <input
-            ref={searchRef}
-            type="text"
-            className="qt-product-input"
-            value={searchText}
-            onChange={(e) => setSearchText(e.target.value)}
-            onClick={() => setShowSearch(true)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === "ArrowDown") {
-                e.preventDefault();
-                setShowSearch(true);
-              }
-            }}
-            placeholder="Click or press Enter / F3 to search products…"
-            readOnly={!!searchText}
-            tabIndex={3}
-          />
-          {searchText && (
-            <button
-              className="xp-btn xp-btn-sm"
-              onClick={() => setSearchText("")}
-              tabIndex={-1}
-            >
-              ✕ Clear
-            </button>
-          )}
-          <button
-            className="xp-btn xp-btn-primary xp-btn-sm"
-            onClick={() => setShowSearch(true)}
-            tabIndex={-1}
+        )}
+        
+        <div className="xp-titlebar" style={{ background: "#2c5f2d" }}>
+          <svg
+            width="15"
+            height="15"
+            viewBox="0 0 16 16"
+            fill="rgba(255,255,255,0.85)"
           >
-            <svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor">
-              <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.044.06.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1 1 0 0 0-.115-.1z" />
-            </svg>
-            F3
-          </button>
+            <path d="M0 4a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2zm2-1a1 1 0 0 0-1 1v1h14V4a1 1 0 0 0-1-1zm13 4H1v5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1zM2 10h2a1 1 0 0 1 0 2H2a1 1 0 0 1 0-2m4 0h6a1 1 0 0 1 0 2H6a1 1 0 0 1 0-2" />
+          </svg>
+          <span className="xp-tb-title">
+            Quotation — Asim Electric &amp; Electronic Store
+          </span>
+          <div className="xp-tb-actions">
+            <div className="xp-tb-divider" />
+            <div className="sl-shortcut-hints">
+              <span>F2 Product</span>
+              <span>F4 Hold</span>
+              <span>↑/↓ Navigate</span>
+              <span>* Save</span>
+            </div>
+            <div className="xp-tb-divider" />
+            <button className="xp-cap-btn">─</button>
+            <button
+              className="xp-cap-btn"
+              onClick={() => {
+                if (!document.fullscreenElement) {
+                  document.documentElement.requestFullscreen();
+                } else {
+                  document.exitFullscreen();
+                }
+              }}
+            >
+              □
+            </button>
+            <button className="xp-cap-btn xp-cap-close">✕</button>
+          </div>
         </div>
 
-        {/* ── Items Table ── */}
-        <div className="qt-items-panel">
-          <table className="qt-items-table">
-            <thead>
-              <tr>
-                <th style={{ width: 30 }}>#</th>
-                <th style={{ width: 75 }}>Code</th>
-                <th>Description</th>
-                <th style={{ width: 65 }}>Meas.</th>
-                <th style={{ width: 60 }} className="r">
-                  Qty
-                </th>
-                <th style={{ width: 80 }} className="r">
-                  Rate
-                </th>
-                <th style={{ width: 55 }} className="r">
-                  Disc%
-                </th>
-                <th style={{ width: 90 }} className="r">
-                  Amount
-                </th>
-                <th style={{ width: 26 }}></th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row, i) => {
-                if (!rowRefs.current[i]) rowRefs.current[i] = {};
-                return (
-                  <tr
-                    key={i}
-                    className={activeRow === i ? "qt-active-row" : ""}
-                    onClick={() => setActiveRow(i)}
+        {msg.text && (
+          <div
+            className={`xp-alert ${msg.type === "success" ? "xp-alert-success" : "xp-alert-error"}`}
+            style={{ margin: "4px 10px 0", flexShrink: 0 }}
+          >
+            {msg.text}
+          </div>
+        )}
+
+        <div className="sl-body">
+          <div className="sl-left">
+            {/* Header with Navigation */}
+            <div className="sl-top-bar">
+              <div className="sl-sale-title-box" style={{ background: "#2c5f2d" }}>Quotation</div>
+              
+              <div className="sl-inv-field-grp">
+                <label>Quote #</label>
+                <div className="sl-inv-nav-container">
+                  <button
+                    className="sl-inv-nav-btn sl-inv-nav-prev"
+                    onClick={() => navQuotation("prev")}
+                    title="Previous Quotation (↑)"
+                    type="button"
                   >
-                    <td
-                      className="text-muted"
-                      style={{
-                        textAlign: "center",
-                        fontSize: "var(--xp-fs-xs)",
-                      }}
+                    ◀
+                  </button>
+                  
+                  <input
+                    className="xp-input xp-input-sm sl-inv-input-large"
+                    style={{ borderColor: "#2c5f2d" }}
+                    value={quoteNo}
+                    onChange={(e) => setQuoteNo(e.target.value)}
+                    onKeyDown={async (e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        const val = quoteNo.trim();
+                        if (!val) return;
+                        const found = allQuotations.find((q) => q.quoteNo === val);
+                        if (found) {
+                          loadQuotationForEdit(found);
+                        } else {
+                          showMsg(`Quotation "${val}" not found`, "error");
+                        }
+                      }
+                      if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+                        e.preventDefault();
+                        navQuotation(e.key === "ArrowUp" ? "prev" : "next");
+                      }
+                    }}
+                    onFocus={(e) => e.target.select()}
+                  />
+                  
+                  <button
+                    className="sl-inv-nav-btn sl-inv-nav-next"
+                    onClick={() => navQuotation("next")}
+                    title="Next Quotation (↓)"
+                    type="button"
+                  >
+                    ▶
+                  </button>
+                </div>
+              </div>
+              
+              <div className="sl-inv-field-grp">
+                <label>Date</label>
+                <input
+                  type="date"
+                  className="xp-input xp-input-sm sl-date-input"
+                  value={quoteDate}
+                  onChange={(e) => setQuoteDate(e.target.value)}
+                  style={{ borderColor: "#2c5f2d" }}
+                />
+              </div>
+              <div className="sl-inv-field-grp">
+                <label>Time</label>
+                <div className="sl-time-box">{time}</div>
+              </div>
+            </div>
+
+            {/* Entry strip */}
+            <div className="sl-entry-strip">
+              <div className="sl-entry-cell sl-entry-product">
+                <label>
+                  Select Product <kbd>F2</kbd>
+                </label>
+                <div style={{ position: "relative", flex: 1 }}>
+                  <input
+                    ref={searchRef}
+                    type="text"
+                    className="sl-product-input"
+                    style={{ width: "100%", background: "#fffde7", borderColor: "#2c5f2d" }}
+                    placeholder="Search by code, name, category..."
+                    value={searchText}
+                    onKeyDown={(e) => {
+                      if (e.key === "ArrowDown") {
+                        e.preventDefault();
+                        if (productSuggestions.length > 0) {
+                          setSelectedProductSuggestionIdx(prev => 
+                            prev < productSuggestions.length - 1 ? prev + 1 : prev
+                          );
+                          setShowProductSuggestions(true);
+                        } else {
+                          setShowProductModal(true);
+                        }
+                      }
+                      if (e.key === "ArrowUp") {
+                        e.preventDefault();
+                        setSelectedProductSuggestionIdx(prev => prev > 0 ? prev - 1 : -1);
+                      }
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        if (selectedProductSuggestionIdx >= 0 && productSuggestions[selectedProductSuggestionIdx]) {
+                          const found = productSuggestions[selectedProductSuggestionIdx];
+                          const pk = found.packingInfo?.[0];
+                          pickProduct({
+                            ...found,
+                            _pi: 0,
+                            _meas: pk?.measurement || "",
+                            _rate: pk?.saleRate || 0,
+                            _pack: pk?.packing || 1,
+                            _stock: pk?.openingQty || 0,
+                            _name: [found.category, found.description, found.company].filter(Boolean).join(" "),
+                          });
+                          setProductSuggestions([]);
+                          setShowProductSuggestions(false);
+                        } else if (searchText.trim()) {
+                          const q = searchText.trim().toLowerCase();
+                          let found = allProducts.find(p => p.code?.toLowerCase() === q);
+                          if (!found) {
+                            found = allProducts.find(p => 
+                              p.description?.toLowerCase().includes(q) ||
+                              p.name?.toLowerCase().includes(q)
+                            );
+                          }
+                          if (found) {
+                            const pk = found.packingInfo?.[0];
+                            pickProduct({
+                              ...found,
+                              _pi: 0,
+                              _meas: pk?.measurement || "",
+                              _rate: pk?.saleRate || 0,
+                              _pack: pk?.packing || 1,
+                              _stock: pk?.openingQty || 0,
+                              _name: [found.category, found.description, found.company].filter(Boolean).join(" "),
+                            });
+                          } else {
+                            setShowProductModal(true);
+                          }
+                        } else {
+                          setShowProductModal(true);
+                        }
+                      }
+                      if (e.key === "Escape") {
+                        setShowProductSuggestions(false);
+                      }
+                    }}
+                    onChange={(e) => {
+                      setSearchText(e.target.value);
+                      if (curRow.name) {
+                        setCurRow({ ...EMPTY_ROW });
+                        setPackingOptions([]);
+                      }
+                    }}
+                    autoFocus
+                  />
+                  {showProductSuggestions && productSuggestions.length > 0 && (
+                    <div style={{
+                      position: "absolute",
+                      top: "100%",
+                      left: 0,
+                      right: 0,
+                      background: "white",
+                      border: "1px solid #2c5f2d",
+                      borderRadius: 4,
+                      maxHeight: 200,
+                      overflowY: "auto",
+                      zIndex: 100,
+                      boxShadow: "0 2px 8px rgba(0,0,0,0.1)"
+                    }}>
+                      {productSuggestions.map((p, idx) => (
+                        <div
+                          key={p._id}
+                          style={{
+                            padding: "6px 10px",
+                            cursor: "pointer",
+                            background: idx === selectedProductSuggestionIdx ? "#e8f5e9" : "white",
+                            borderBottom: "1px solid #eee"
+                          }}
+                          onClick={() => {
+                            const pk = p.packingInfo?.[0];
+                            pickProduct({
+                              ...p,
+                              _pi: 0,
+                              _meas: pk?.measurement || "",
+                              _rate: pk?.saleRate || 0,
+                              _pack: pk?.packing || 1,
+                              _stock: pk?.openingQty || 0,
+                              _name: [p.category, p.description, p.company].filter(Boolean).join(" "),
+                            });
+                          }}
+                        >
+                          <div style={{ fontWeight: 500 }}>{p.code} - {p.description}</div>
+                          <div style={{ fontSize: 10, color: "#666" }}>{p.category} | {p.company}</div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className="sl-entry-cell">
+                <label>Pcs</label>
+                <input
+                  ref={pcsRef}
+                  type="text"
+                  className="sl-num-input"
+                  style={{ width: 60, background: "#fffde7", borderColor: "#2c5f2d" }}
+                  value={curRow.pcs}
+                  min={1}
+                  onChange={(e) => updateCurRow("pcs", e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && rateRef.current?.focus()}
+                  onFocus={(e) => e.target.select()}
+                />
+              </div>
+              <div className="sl-entry-cell">
+                <label>Rate</label>
+                <input
+                  ref={rateRef}
+                  type="text"
+                  className="sl-num-input"
+                  style={{ width: 75, background: "#fffde7", borderColor: "#2c5f2d" }}
+                  value={curRow.rate}
+                  min={0}
+                  onChange={(e) => updateCurRow("rate", e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && amountRef.current?.focus()}
+                  onFocus={(e) => e.target.select()}
+                />
+              </div>
+              <div className="sl-entry-cell">
+                <label>Amount</label>
+                <input
+                  ref={amountRef}
+                  type="text"
+                  className="sl-num-input"
+                  style={{ width: 80, background: "#fffde7", borderColor: "#2c5f2d" }}
+                  value={curRow.amount || 0}
+                  onChange={(e) =>
+                    setCurRow((p) => ({
+                      ...p,
+                      amount: parseFloat(e.target.value) || 0,
+                    }))
+                  }
+                  onFocus={(e) => e.target.select()}
+                  onKeyDown={(e) => e.key === "Enter" && addRef.current?.click()}
+                />
+              </div>
+              <div className="sl-entry-cell sl-entry-btns-cell">
+                <label>&nbsp;</label>
+                <div className="sl-entry-btns">
+                  <button className="xp-btn xp-btn-sm" onClick={resetCurRow}>
+                    Reset
+                  </button>
+                  <button
+                    ref={addRef}
+                    className="xp-btn xp-btn-primary xp-btn-sm"
+                    style={{ background: "#2c5f2d", borderColor: "#1e4620" }}
+                    onClick={addRow}
+                  >
+                    {selItemIdx !== null ? "Update" : "Add"}
+                  </button>
+                  <button
+                    className="xp-btn xp-btn-sm"
+                    disabled={selItemIdx === null}
+                    onClick={() =>
+                      selItemIdx !== null && loadRowForEdit(selItemIdx)
+                    }
+                  >
+                    Edit
+                  </button>
+                  <button
+                    className="xp-btn xp-btn-danger xp-btn-sm"
+                    disabled={selItemIdx === null}
+                    onClick={removeRow}
+                  >
+                    Remove
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Table header */}
+            <div className="sl-table-header-bar">
+              <span className="sl-table-lbl">
+                {curRow.name ? (
+                  <span className="sl-cur-name-inline">{curRow.name}</span>
+                ) : (
+                  "Select Product"
+                )}
+              </span>
+              <span className="sl-table-qty">
+                Total Qty: {totalQty.toLocaleString("en-PK")}
+              </span>
+            </div>
+
+            {/* Items table */}
+            <div className="sl-items-wrap">
+              <table className="sl-items-table">
+                <thead>
+                  <tr>
+                    <th style={{ width: 32 }}>Sr.#</th>
+                    <th style={{ width: 72 }}>Code</th>
+                    <th>Name</th>
+                    <th style={{ width: 65 }}>UOM</th>
+                    <th style={{ width: 55 }} className="r">
+                      Pcs
+                    </th>
+                    <th style={{ width: 80 }} className="r">
+                      Rate
+                    </th>
+                    <th style={{ width: 90 }} className="r">
+                      Amount
+                    </th>
+                    <th style={{ width: 50 }}>Rack</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {items.length === 0 && (
+                    <tr>
+                      <td
+                        colSpan={8}
+                        className="xp-empty"
+                        style={{ padding: 14 }}
+                      >
+                        🔍 Search and add products to create quotation
+                       </td>
+                    </tr>
+                  )}
+                  {items.map((r, i) => (
+                    <tr
+                      key={i}
+                      className={selItemIdx === i ? "sl-sel-row" : ""}
+                      onClick={() => setSelItemIdx(i === selItemIdx ? null : i)}
+                      onDoubleClick={() => loadRowForEdit(i)}
                     >
-                      {i + 1}
-                    </td>
-                    <td>
-                      <input
-                        className="qt-cell w-code"
-                        ref={(el) => (rowRefs.current[i].code = el)}
-                        value={row.code}
-                        onChange={(e) => updateRow(i, "code", e.target.value)}
-                        onBlur={(e) => onCodeBlur(i, e.target.value)}
-                        onKeyDown={(e) => onRowKeyDown(e, i, "code")}
-                        tabIndex={100 + i * 10 + 1}
-                      />
-                    </td>
-                    <td>
-                      <input
-                        className="qt-cell w-desc"
-                        ref={(el) => (rowRefs.current[i].description = el)}
-                        value={row.description}
-                        onChange={(e) =>
-                          updateRow(i, "description", e.target.value)
-                        }
-                        onKeyDown={(e) => {
-                          if (e.key === "F3") {
-                            e.preventDefault();
-                            setActiveRow(i);
-                            setShowSearch(true);
-                          } else onRowKeyDown(e, i, "description");
-                        }}
-                        tabIndex={100 + i * 10 + 2}
-                      />
-                    </td>
-                    <td>
-                      <input
-                        className="qt-cell w-meas"
-                        ref={(el) => (rowRefs.current[i].measurement = el)}
-                        value={row.measurement}
-                        onChange={(e) =>
-                          updateRow(i, "measurement", e.target.value)
-                        }
-                        onKeyDown={(e) => onRowKeyDown(e, i, "measurement")}
-                        tabIndex={100 + i * 10 + 3}
-                      />
-                    </td>
-                    <td>
-                      <input
-                        type="number"
-                        className="qt-cell w-sm"
-                        ref={(el) => (rowRefs.current[i].qty = el)}
-                        value={row.qty}
-                        onChange={(e) => updateRow(i, "qty", e.target.value)}
-                        onKeyDown={(e) => onRowKeyDown(e, i, "qty")}
-                        tabIndex={100 + i * 10 + 4}
-                      />
-                    </td>
-                    <td>
-                      <input
-                        type="number"
-                        className="qt-cell w-md"
-                        ref={(el) => (rowRefs.current[i].rate = el)}
-                        value={row.rate}
-                        onChange={(e) => updateRow(i, "rate", e.target.value)}
-                        onKeyDown={(e) => onRowKeyDown(e, i, "rate")}
-                        tabIndex={100 + i * 10 + 5}
-                      />
-                    </td>
-                    <td>
-                      <input
-                        type="number"
-                        className="qt-cell w-sm"
-                        ref={(el) => (rowRefs.current[i].disc = el)}
-                        value={row.disc}
-                        onChange={(e) => updateRow(i, "disc", e.target.value)}
-                        onKeyDown={(e) => onRowKeyDown(e, i, "disc")}
-                        tabIndex={100 + i * 10 + 6}
-                      />
-                    </td>
-                    <td className="amt">{fmt(row.amount)}</td>
-                    <td style={{ textAlign: "center" }}>
-                      <button
-                        className="xp-btn xp-btn-sm xp-btn-ico"
-                        onClick={() => deleteRow(i)}
-                        tabIndex={-1}
+                      <td
+                        className="muted"
                         style={{
-                          width: 20,
-                          height: 20,
-                          fontSize: 9,
-                          color: "var(--xp-red)",
+                          textAlign: "center",
+                          fontSize: "var(--xp-fs-xs)",
                         }}
                       >
-                        ✕
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-
-        {/* ── Bottom ── */}
-        <div className="qt-bottom">
-          {/* Left: notes + buttons */}
-          <div className="qt-actions-col">
-            <div className="qt-notes-row">
-              <label>Notes</label>
-              <input
-                className="qt-notes-input"
-                value={remarks}
-                onChange={(e) => setRemarks(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") extraDiscRef.current?.focus();
-                }}
-                placeholder="e.g. Prices valid for 7 days, bulk discount available…"
-                tabIndex={90}
-              />
+                        {i + 1}
+                      </td>
+                      <td className="muted">{r.code}</td>
+                      <td style={{ fontWeight: 500 }}>{r.name}</td>
+                      <td className="muted">{r.uom}</td>
+                      <td className="r">{r.pcs}</td>
+                      <td className="r">
+                        {Number(r.rate).toLocaleString("en-PK")}
+                      </td>
+                      <td
+                        className="r"
+                        style={{ color: "#2c5f2d", fontWeight: 600 }}
+                      >
+                        {Number(r.amount).toLocaleString("en-PK")}
+                       </td>
+                      <td className="muted">{r.rack} </td>
+                    </tr>
+                  ))}
+                </tbody>
+               </table>
             </div>
-            <div className="qt-btn-row">
-              <button
-                className="xp-btn xp-btn-sm"
-                onClick={() => setShowSearch(true)}
-                tabIndex={-1}
-              >
-                <svg
-                  width="11"
-                  height="11"
-                  viewBox="0 0 16 16"
-                  fill="currentColor"
-                >
-                  <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398z" />
-                </svg>
-                F3 Search
-              </button>
-              <button
-                className="xp-btn xp-btn-sm"
-                onClick={resetForm}
-                tabIndex={-1}
-              >
-                <svg
-                  width="11"
-                  height="11"
-                  viewBox="0 0 16 16"
-                  fill="currentColor"
-                >
-                  <path d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2z" />
-                  <path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466" />
-                </svg>
-                F2 New
-              </button>
-              <button
-                className="xp-btn xp-btn-sm"
-                onClick={handlePreview}
-                tabIndex={91}
-              >
-                <svg
-                  width="11"
-                  height="11"
-                  viewBox="0 0 16 16"
-                  fill="currentColor"
-                >
-                  <path d="M10.5 8a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0" />
-                  <path d="M0 8s3-5.5 8-5.5S16 8 16 8s-3 5.5-8 5.5S0 8 0 8m8 3.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7" />
-                </svg>
-                F5 Preview
-              </button>
-              <button
-                className="xp-btn xp-btn-wa xp-btn-sm"
-                onClick={() => {
-                  if (!rows.some((r) => r.description && r.qty > 0)) {
-                    showMsg("Add at least one product", "error");
-                    return;
-                  }
-                  setShowPrint(true);
-                }}
-                tabIndex={92}
-              >
-                <svg
-                  width="11"
-                  height="11"
-                  viewBox="0 0 16 16"
-                  fill="currentColor"
-                >
-                  <path d="M13.601 2.326A7.85 7.85 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c0 1.399.366 2.76 1.057 3.965L0 16l4.204-1.102a7.9 7.9 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.9 7.9 0 0 0 13.6 2.326z" />
-                </svg>
-                WhatsApp
-              </button>
-              {/* SAVE to DB */}
-              <button
-                ref={saveRef}
-                className="xp-btn xp-btn-primary xp-btn-sm"
-                onClick={handleSaveQuote}
-                disabled={saving}
-                tabIndex={93}
-              >
-                <svg
-                  width="11"
-                  height="11"
-                  viewBox="0 0 16 16"
-                  fill="currentColor"
-                >
-                  <path d="M2 1a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1H9.5a1 1 0 0 0-1 1v7.293l2.646-2.647a.5.5 0 0 1 .708.708l-3.5 3.5a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 1 1 .708-.708L7.5 9.293V2a2 2 0 0 1 2-2H14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2z" />
-                </svg>
-                {saving ? "Saving…" : "Save Quotation"}
-              </button>
+
+            {/* Summary bar */}
+            <div className="sl-summary-bar">
+              <div className="sl-sum-cell">
+                <label>Total Qty</label>
+                <input
+                  className="sl-sum-val"
+                  value={totalQty.toLocaleString("en-PK")}
+                  readOnly
+                />
+              </div>
+              <div className="sl-sum-cell">
+                <label>Total Amount</label>
+                <input
+                  className="sl-sum-val"
+                  style={{ color: "#2c5f2d", fontWeight: "bold", fontSize: "16px" }}
+                  value={Number(subTotal).toLocaleString("en-PK")}
+                  readOnly
+                />
+              </div>
+              <div className="sl-sum-cell" style={{ flex: 2 }}>
+                <label style={{ color: "#666" }}>Press * or Ctrl+S to save</label>
+              </div>
             </div>
           </div>
 
-          {/* Right: totals */}
-          <div className="qt-totals-box">
-            <div className="qt-total-row">
-              <label>Sub Total</label>
-              <span className="qt-val">{fmt(subTotal)}</span>
-            </div>
-            <div className="qt-total-row">
-              <label>Extra Disc%</label>
-              <input
-                ref={extraDiscRef}
-                type="number"
-                className="qt-disc-input"
-                value={extraDisc}
-                onChange={(e) => setExtraDisc(e.target.value)}
-                tabIndex={89}
-              />
-            </div>
-            {discAmt > 0 && (
-              <div className="qt-total-row">
-                <label>Disc Amt</label>
-                <span className="qt-val danger">-{fmt(discAmt)}</span>
+          {/* Right panel - Hold Quotations */}
+          <div className="sl-right">
+            <div className="sl-hold-panel">
+              <div className="sl-hold-title" style={{ background: "#2c5f2d" }}>
+                <span>
+                  📋 Quotation Hold{" "}
+                  <kbd
+                    style={{
+                      fontSize: 9,
+                      background: "rgba(255,255,255,0.2)",
+                      padding: "0 3px",
+                      borderRadius: 2,
+                    }}
+                  >
+                    F4
+                  </kbd>
+                </span>
+                <span className="sl-hold-cnt">{holdQuotes.length}</span>
               </div>
-            )}
-            <div className="qt-total-row highlight">
-              <label>Net Total</label>
-              <span className="qt-val">PKR {fmt(netTotal)}</span>
+              <div className="sl-hold-table-wrap">
+
+                <tbody>
+  {holdQuotes.length === 0 ? (
+    Array.from({ length: 8 }).map((_, i) => (
+      <tr key={i}>
+        <td colSpan={5} style={{ height: 22 }} />
+      </tr>
+    ))
+  ) : (
+    holdQuotes.map((q, i) => (
+      <tr
+        key={q.id}
+        onClick={() => setShowHoldPreview(q)}
+        onDoubleClick={() => resumeQuotation(q.id)}
+        title="Click = preview · Double-click = resume"
+        style={{ cursor: "pointer" }}
+      >
+        <td
+          className="muted"
+          style={{
+            textAlign: "center",
+            fontSize: "var(--xp-fs-xs)",
+          }}
+        >
+          {i + 1}
+        </td>
+
+        <td
+          style={{
+            fontFamily: "var(--xp-mono)",
+            fontSize: "var(--xp-fs-xs)",
+          }}
+        >
+          {q.quoteNo}
+        </td>
+
+        <td
+          className="r"
+          style={{ color: "#2c5f2d", fontWeight: 600 }}
+        >
+          {Number(q.amount).toLocaleString("en-PK")}
+        </td>
+
+        <td
+          className="muted"
+          style={{ fontSize: "var(--xp-fs-xs)" }}
+        >
+          {q.date}
+        </td>
+
+        <td style={{ textAlign: "center" }}>
+          <button
+            className="xp-btn xp-btn-sm xp-btn-ico"
+            style={{
+              width: 18,
+              height: 18,
+              fontSize: 9,
+              color: "var(--xp-red)",
+            }}
+            onClick={(e) => deleteHold(q.id, e)}
+          >
+            ✕
+          </button>
+        </td>
+      </tr>  
+    ))
+  )}
+</tbody>
+              </div>
+              <div style={{ padding: "4px 8px", flexShrink: 0 }}>
+                <button
+                  className="xp-btn xp-btn-sm"
+                  style={{ width: "100%", background: "#2c5f2d", color: "white", borderColor: "#1e4620" }}
+                  onClick={holdQuotation}
+                  disabled={!items.length}
+                >
+                  📌 Hold Quotation (F4)
+                </button>
+              </div>
             </div>
-            <div className="qt-total-row">
-              <label>Items</label>
-              <span className="qt-val">
-                {rows.filter((r) => r.description).length}
+            
+            <div style={{ marginTop: 8, padding: "8px", background: "#e8f5e9", borderRadius: 6, textAlign: "center" }}>
+              <span style={{ fontSize: 11, color: "#2c5f2d" }}>
+                💡 Tip: Press <kbd style={{ background: "#fff", padding: "2px 6px", borderRadius: 3 }}>*</kbd> or <kbd style={{ background: "#fff", padding: "2px 6px", borderRadius: 3 }}>Ctrl+S</kbd> to save quotation
               </span>
             </div>
           </div>
         </div>
 
-        {/* ── Saved Quotations ── */}
-        <div className="qt-saved-section">
-          <div className="qt-saved-header">
-            <span className="qt-saved-title">
-              <svg
-                width="11"
-                height="11"
-                viewBox="0 0 16 16"
-                fill="currentColor"
-                style={{ marginRight: 4 }}
-              >
-                <path d="M14 4.5V14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2h5.5zm-3 0A1.5 1.5 0 0 1 9.5 3V1L14 5.5zM4.5 7a.5.5 0 0 0 0 1h7a.5.5 0 0 0 0-1zm0 2.5a.5.5 0 0 0 0 1h7a.5.5 0 0 0 0-1zm0 2.5a.5.5 0 0 0 0 1h4a.5.5 0 0 0 0-1z" />
-              </svg>
-              Saved Quotations
-            </span>
-            <div className="xp-search-wrap" style={{ flex: 1, maxWidth: 300 }}>
-              <svg
-                className="xp-search-icon"
-                width="12"
-                height="12"
-                viewBox="0 0 16 16"
-                fill="currentColor"
-              >
-                <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.044.06.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1 1 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0" />
-              </svg>
-              <input
-                className="xp-input"
-                value={qtSearch}
-                onChange={(e) => handleQtSearch(e.target.value)}
-                placeholder="Search Qt# / customer…"
-              />
-            </div>
-            <span style={{ fontSize: "var(--xp-fs-xs)", color: "#666" }}>
-              {savedQuotes.length} record(s)
-            </span>
-            <button
-              className="xp-btn xp-btn-sm"
-              onClick={() => fetchQuotes(qtSearch)}
-              disabled={loadingQuotes}
-            >
-              <svg
-                width="11"
-                height="11"
-                viewBox="0 0 16 16"
-                fill="currentColor"
-              >
-                <path d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2z" />
-                <path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466" />
-              </svg>
-              Refresh
-            </button>
-            <button
-              className="xp-btn xp-btn-sm"
-              onClick={() => {
-                if (!selQuoteId)
-                  return showMsg("Select a quotation first", "error");
-                const q = savedQuotes.find((x) => x._id === selQuoteId);
-                if (q) handleLoadQuote(q);
-              }}
-            >
-              <svg
-                width="11"
-                height="11"
-                viewBox="0 0 16 16"
-                fill="currentColor"
-              >
-                <path d="M12.146.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1 0 .708l-10 10a.5.5 0 0 1-.168.11l-5 2a.5.5 0 0 1-.65-.65l2-5a.5.5 0 0 1 .11-.168z" />
-              </svg>
-              Load
-            </button>
-            <button
-              className="xp-btn xp-btn-danger xp-btn-sm"
-              onClick={handleDeleteQuote}
-              disabled={!selQuoteId}
-            >
-              <svg
-                width="11"
-                height="11"
-                viewBox="0 0 16 16"
-                fill="currentColor"
-              >
-                <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5" />
-                <path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1z" />
-              </svg>
-              Delete
-            </button>
-          </div>
-
-          <div className="qt-saved-table-wrap">
-            <table className="qt-saved-table">
-              <thead>
-                <tr>
-                  <th style={{ width: 32 }}>#</th>
-                  <th style={{ width: 90 }}>Qt #</th>
-                  <th style={{ width: 90 }}>Date</th>
-                  <th style={{ width: 90 }}>Valid Till</th>
-                  <th>Customer</th>
-                  <th>Phone</th>
-                  <th className="r" style={{ width: 80 }}>
-                    Items
-                  </th>
-                  <th className="r" style={{ width: 110 }}>
-                    Net Total
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {loadingQuotes && (
-                  <tr>
-                    <td colSpan={8} className="xp-loading">
-                      Loading…
-                    </td>
-                  </tr>
-                )}
-                {!loadingQuotes && savedQuotes.length === 0 && (
-                  <tr>
-                    <td colSpan={8} className="xp-empty">
-                      No saved quotations
-                    </td>
-                  </tr>
-                )}
-                {!loadingQuotes &&
-                  savedQuotes.map((q, i) => (
-                    <tr
-                      key={q._id}
-                      className={selQuoteId === q._id ? "qt-sel-row" : ""}
-                      onClick={() => setSelQuoteId(q._id)}
-                      onDoubleClick={() => handleLoadQuote(q)}
-                    >
-                      <td
-                        className="text-muted"
-                        style={{
-                          fontSize: "var(--xp-fs-xs)",
-                          textAlign: "center",
-                        }}
-                      >
-                        {i + 1}
-                      </td>
-                      <td>
-                        <span className="xp-code">{q.qtNo}</span>
-                      </td>
-                      <td className="text-muted">{q.qtDate}</td>
-                      <td>
-                        {q.validTill ? (
-                          <span
-                            className="xp-badge"
-                            style={{
-                              background: "#fef3c7",
-                              color: "#78350f",
-                              border: "1px solid #fcd34d",
-                              fontSize: 10,
-                            }}
-                          >
-                            {q.validTill}
-                          </span>
-                        ) : (
-                          <span className="text-muted">—</span>
-                        )}
-                      </td>
-                      <td>
-                        {q.custName || (
-                          <span className="text-muted">Counter</span>
-                        )}
-                      </td>
-                      <td className="text-muted">{q.custPhone || "—"}</td>
-                      <td className="r">{q.items?.length || 0}</td>
-                      <td className="r xp-amt">{fmt(q.netTotal)}</td>
-                    </tr>
-                  ))}
-              </tbody>
-            </table>
-          </div>
+        {/* Commands bar */}
+        <div className="sl-cmd-bar">
+          <button
+            className="xp-btn xp-btn-sm"
+            onClick={fullReset}
+            disabled={loading}
+          >
+            🆕 New Quotation
+          </button>
+          <button
+            ref={saveRef}
+            className="xp-btn xp-btn-primary xp-btn-lg"
+            style={{ background: "#2c5f2d", borderColor: "#1e4620" }}
+            onClick={openSaveQuotation}
+            disabled={loading || items.length === 0}
+          >
+            {loading ? "Saving…" : "💾 Save Quotation  *"}
+          </button>
+          <div className="xp-toolbar-divider" />
+          <span className={`sl-inv-info`}>
+            📄 {quoteNo} | Items: {items.length} | Total: PKR {Number(subTotal).toLocaleString("en-PK")}
+          </span>
+          <button
+            className="xp-btn xp-btn-sm"
+            style={{ marginLeft: "auto" }}
+            onClick={fullReset}
+          >
+            Close
+          </button>
         </div>
       </div>
 
-      {/* ── Status Bar ── */}
-      <div className="xp-statusbar">
-        <div className="xp-status-pane">
-          <svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor">
-            <path d="M14 4.5V14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2h5.5zm-3 0A1.5 1.5 0 0 1 9.5 3V1L14 5.5z" />
-          </svg>{" "}
-          {qtNo}
-        </div>
-        <div className="xp-status-pane">{custName || "No customer"}</div>
-        <div className="xp-status-pane">
-          Items: {rows.filter((r) => r.description).length}
-        </div>
-        <div className="xp-status-pane">
-          Net:{" "}
-          <strong style={{ fontFamily: "var(--xp-mono)", marginLeft: 3 }}>
-            PKR {fmt(netTotal)}
-          </strong>
-        </div>
-        <div className="xp-status-pane">{savedQuotes.length} saved</div>
-      </div>
-    </div>
+      <style>{`
+      .quotation-page {
+        background: #ffffff;
+      }
+      
+      .quotation-page input, 
+      .quotation-page .xp-input, 
+      .quotation-page .sl-product-input, 
+      .quotation-page .sl-num-input, 
+      .quotation-page .sl-sum-input, 
+      .quotation-page .sl-cust-input,
+      .quotation-page .sl-inv-input-large,
+      .quotation-page .sl-date-input {
+        border-color: #2c5f2d !important;
+        border-width: 1px !important;
+        border-style: solid !important;
+      }
+      
+      .quotation-page .sl-items-table th,
+      .quotation-page .sl-items-table td,
+      .quotation-page .sl-hold-table th,
+      .quotation-page .sl-hold-table td {
+        border-color: #2c5f2d !important;
+        border-width: 1px !important;
+      }
+      
+      .quotation-page .sl-items-table thead th {
+        background: #2c5f2d !important;
+        color: white !important;
+      }
+      
+      .quotation-page tr.sl-sel-row td {
+        background-color: #e8f5e9 !important;
+      }
+      
+      .quotation-page .sl-hold-title {
+        background: #2c5f2d !important;
+        color: white !important;
+      }
+      
+      .quotation-page .sl-summary-bar {
+        border-top: 1px solid #2c5f2d;
+        margin-top: 4px;
+      }
+
+      /* Navigation buttons inside input */
+      .sl-inv-nav-container {
+        position: relative;
+        display: inline-block;
+      }
+
+      .sl-inv-nav-btn {
+        position: absolute;
+        top: 50%;
+        transform: translateY(-50%);
+        background: #f3f4f6;
+        border: 1px solid #d1d5db;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0;
+        width: 26px;
+        height: 26px;
+        border-radius: 4px;
+        color: #4b5563;
+        font-size: 12px;
+        font-weight: bold;
+        transition: all 0.2s ease;
+        z-index: 2;
+      }
+
+      .sl-inv-nav-btn:hover {
+        background: #2c5f2d;
+        border-color: #1e4620;
+        color: white;
+        transform: translateY(-50%) scale(1.05);
+      }
+
+      .sl-inv-nav-btn:active {
+        transform: translateY(-50%) scale(0.95);
+      }
+
+      .sl-inv-nav-prev {
+        left: 4px;
+      }
+
+      .sl-inv-nav-next {
+        right: 4px;
+      }
+
+      .sl-inv-input-large {
+        width: 180px !important;
+        text-align: center !important;
+        padding: 6px 32px !important;
+        font-size: 18px !important;
+        font-weight: bold !important;
+        background: #ffffff !important;
+        border: 1px solid #d1d5db !important;
+        border-radius: 6px !important;
+      }
+
+      .sl-inv-input-large:focus {
+        border-color: #2c5f2d !important;
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(44, 95, 45, 0.1);
+      }
+      `}</style>
+    </>
   );
 }

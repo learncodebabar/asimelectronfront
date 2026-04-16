@@ -38,7 +38,7 @@ const SHOP_INFO = {
   urduTerms:
     "الیکٹرانک اور چانٹا کے سپیئر پارٹس کی واپسی یا تبدیلی ہر صورت ممکن نہیں ہوگی۔\nبلی ہوئی آئٹم، پکلاہوا اکا ول واپس قابل واپسی نہیں ہے۔\nبارک کے سامان کی واپس کی صورت میں (7) دن کے اند پہلی ہوگی۔\nکل پیلی کلائی کی تمام واپسی قابل قبول نہیں ہوگی۔",
   devBy:
-    "Software developed by: AppHill / 03222292922 or visit website www.apphill.pk",
+    "Software developed by: Creative Babar / 03098325271 or visit website www.digitalglobalschool.com",
 };
 
 /* ══════════════════════════════════════════════════════════

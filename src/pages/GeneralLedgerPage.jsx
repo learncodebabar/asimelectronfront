@@ -516,7 +516,7 @@ export default function GeneralLedgerPage() {
           <div class="totals-row bold"><span>Closing Balance:</span><span class="${closingBalance > 0 ? 'red' : 'green'}">PKR ${fmt(Math.abs(closingBalance))} ${closingBalance > 0 ? '(Receivable)' : '(Payable)'}</span></div>
         </div>
         
-        <div class="footer">Thank you for your business! | Developed by: AppHill / 03222292922 | www.apphill.pk</div>
+        <div class="footer">Thank you for your business! | Developed by: Creative Babar / 03098325271| www.digitalglobalschool..com</div>
       </body>
       </html>`;
     } else {
@@ -671,7 +671,7 @@ export default function GeneralLedgerPage() {
           <div class="totals-row bold"><span>Closing Balance:</span><span class="${closingBalance > 0 ? 'red' : 'green'}">PKR ${fmt(Math.abs(closingBalance))} ${closingBalance > 0 ? '(Receivable)' : '(Payable)'}</span></div>
         </div>
         
-        <div class="footer">Thank you for your business! | Developed by: AppHill / 03222292922 | www.apphill.pk</div>
+        <div class="footer">Thank you for your business! | Developed by: Creative Babar / 03098325271| www.digitalglobalschool..com</div>
       </body>
       </html>`;
     }

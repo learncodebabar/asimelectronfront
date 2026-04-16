@@ -1,4 +1,4 @@
-// pages/CashReceiptPage.jsx - Complete file with fixed table fonts
+// pages/CashReceiptPage.jsx - Complete file with fixed API endpoints
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../api/api.js";
@@ -392,23 +392,18 @@ export default function CashReceiptPage() {
       showMsg("Invalid customer selected", "error");
       return;
     }
-    try {
-      const freshCustomer = await api.get(EP.CUSTOMERS.GET_ONE(customer._id));
-      if (freshCustomer.data.success) {
-        const cust = freshCustomer.data.data;
-        setCustomerId(cust._id);
-        setCustomerCode(cust.code || "");
-        setBuyerName(cust.name);
-        setCustomerType(cust.customerType || cust.type || "");
-        setSelectedCustomer(cust);
-        setErrors({ ...errors, customer: "" });
-        loadTransactionHistory(cust._id);
-        setTimeout(() => remarksRef.current?.focus(), 100);
-      }
-    } catch (error) {
-      console.error("Failed to fetch customer details:", error);
-      showMsg("Failed to load customer data", "error");
-    }
+    
+    // Use the customer data directly from the list instead of fetching again
+    // This avoids the API call that might be failing
+    const cust = customer;
+    setCustomerId(cust._id);
+    setCustomerCode(cust.code || "");
+    setBuyerName(cust.name);
+    setCustomerType(cust.customerType || cust.type || "");
+    setSelectedCustomer(cust);
+    setErrors({ ...errors, customer: "" });
+    loadTransactionHistory(cust._id);
+    setTimeout(() => remarksRef.current?.focus(), 100);
   };
   
   const handleCustomerClear = () => {
@@ -458,22 +453,33 @@ export default function CashReceiptPage() {
   };
   
   const validateAmountReceived = (value) => {
+    if (!value || value === "" || value === null) {
+      setErrors(prev => ({ ...prev, amountReceived: "Amount is required" }));
+      return false;
+    }
+    
     const amount = parseFloat(value);
-    if (!value || value === "") {
-      setErrors({ ...errors, amountReceived: "Amount is required" });
+    if (isNaN(amount)) {
+      setErrors(prev => ({ ...prev, amountReceived: "Valid amount is required" }));
       return false;
     }
-    if (isNaN(amount) || amount <= 0) {
-      setErrors({ ...errors, amountReceived: "Valid amount > 0 required" });
+    
+    if (amount <= 0) {
+      setErrors(prev => ({ ...prev, amountReceived: "Amount must be greater than 0" }));
       return false;
     }
-    setErrors({ ...errors, amountReceived: "" });
+    
+    setErrors(prev => ({ ...prev, amountReceived: "" }));
     return true;
   };
   
   const handleAmountReceivedChange = (value) => {
     setAmountReceived(value);
-    validateAmountReceived(value);
+    if (value && value !== "") {
+      validateAmountReceived(value);
+    } else {
+      setErrors(prev => ({ ...prev, amountReceived: "" }));
+    }
   };
   
   useEffect(() => {
@@ -503,22 +509,43 @@ export default function CashReceiptPage() {
     }
   };
   
+  const resetForm = () => {
+    setReceiptId(generateReceiptNo());
+    setInvoiceAmount("");
+    setAmountReceived("");
+    setRemainingBalance(0);
+    setRemarks("");
+    setTimeout(() => {
+      amountReceivedRef.current?.focus();
+    }, 100);
+  };
+  
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
     if (!selectedCustomer) {
-      setErrors({ ...errors, customer: "Select a customer" });
+      setErrors(prev => ({ ...prev, customer: "Select a customer" }));
       showMsg("Please select a customer", "error");
+      amountReceivedRef.current?.focus();
       return;
     }
-    if (!validateAmountReceived(amountReceived)) {
+    
+    if (!amountReceived || amountReceived === "") {
+      setErrors(prev => ({ ...prev, amountReceived: "Amount is required" }));
       amountReceivedRef.current?.focus();
       return;
     }
     
     const received = parseFloat(amountReceived);
+    if (isNaN(received) || received <= 0) {
+      setErrors(prev => ({ ...prev, amountReceived: "Valid amount > 0 required" }));
+      amountReceivedRef.current?.focus();
+      return;
+    }
+    
     const invAmount = parseFloat(invoiceAmount) || 0;
     if (invAmount > 0 && received > invAmount) {
-      setErrors({ ...errors, amountReceived: `Cannot exceed invoice amount (PKR ${fmt(invAmount)})` });
+      setErrors(prev => ({ ...prev, amountReceived: `Cannot exceed invoice amount (PKR ${fmt(invAmount)})` }));
       amountReceivedRef.current?.focus();
       return;
     }
@@ -543,19 +570,19 @@ export default function CashReceiptPage() {
       const { data } = await api.post(EP.CASH_RECEIPTS.CREATE, payload);
       if (data.success) {
         showMsg(`✓ Receipt ${receiptId} recorded! Amount: PKR ${fmt(received)}`, "success");
-        setReceiptId(generateReceiptNo());
-        setInvoiceAmount("");
-        setAmountReceived("");
-        setRemainingBalance(0);
-        setRemarks("");
+        
         if (selectedCustomer) {
           await loadTransactionHistory(selectedCustomer._id);
-          const updatedCustomer = { ...selectedCustomer, currentBalance: (selectedCustomer.currentBalance || 0) + remainingBalance };
+          const updatedCustomer = { 
+            ...selectedCustomer, 
+            currentBalance: (selectedCustomer.currentBalance || 0) + remainingBalance 
+          };
           setSelectedCustomer(updatedCustomer);
           setCustomerCode(updatedCustomer.code || "");
           setBuyerName(updatedCustomer.name);
         }
-        amountReceivedRef.current?.focus();
+        
+        resetForm();
       } else {
         showMsg(data.message || "Failed to save receipt", "error");
       }
@@ -582,7 +609,6 @@ export default function CashReceiptPage() {
       )}
       
       <div className="xp-page-body" style={{ padding: "12px 16px", background: "#ffffff" }}>
-        {/* Main Form - ALL IN ONE ROW */}
         <div style={{
           background: "#ffffff",
           borderRadius: "8px",
@@ -597,7 +623,6 @@ export default function CashReceiptPage() {
               alignItems: "flex-end",
               flexWrap: "wrap"
             }}>
-              {/* Receipt ID */}
               <div style={{ width: "160px" }}>
                 <label style={{ fontSize: "11px", fontWeight: "bold", color: "#000000", display: "block", marginBottom: "4px", textTransform: "uppercase" }}>Receipt ID</label>
                 <input
@@ -618,7 +643,6 @@ export default function CashReceiptPage() {
                 />
               </div>
               
-              {/* Date */}
               <div style={{ width: "130px" }}>
                 <label style={{ fontSize: "11px", fontWeight: "bold", color: "#000000", display: "block", marginBottom: "4px", textTransform: "uppercase" }}>Date</label>
                 <input
@@ -629,7 +653,6 @@ export default function CashReceiptPage() {
                 />
               </div>
               
-              {/* Customer Code */}
               <div style={{ width: "130px" }}>
                 <label style={{ fontSize: "11px", fontWeight: "bold", color: "#000000", display: "block", marginBottom: "4px", textTransform: "uppercase" }}>Customer Code</label>
                 <input
@@ -657,7 +680,6 @@ export default function CashReceiptPage() {
                 />
               </div>
               
-              {/* Account Title */}
               <div style={{ minWidth: "240px", flex: 2 }}>
                 <label style={{ fontSize: "11px", fontWeight: "bold", color: "#000000", display: "block", marginBottom: "4px", textTransform: "uppercase" }}>Account Title <span style={{ color: "#ef4444" }}>*</span></label>
                 <div style={{
@@ -680,7 +702,6 @@ export default function CashReceiptPage() {
                 {errors.customer && <div style={{ fontSize: "10px", color: "#ef4444", marginTop: "3px", fontWeight: "500" }}>{errors.customer}</div>}
               </div>
               
-              {/* Remarks */}
               <div style={{ minWidth: "150px", flex: 1 }}>
                 <label style={{ fontSize: "11px", fontWeight: "bold", color: "#000000", display: "block", marginBottom: "4px", textTransform: "uppercase" }}>Remarks</label>
                 <input
@@ -694,7 +715,6 @@ export default function CashReceiptPage() {
                 />
               </div>
               
-              {/* Invoice Amount */}
               <div style={{ width: "120px" }}>
                 <label style={{ fontSize: "11px", fontWeight: "bold", color: "#000000", display: "block", marginBottom: "4px", textTransform: "uppercase" }}>Invoice Amt</label>
                 <input
@@ -704,11 +724,11 @@ export default function CashReceiptPage() {
                   onChange={(e) => setInvoiceAmount(e.target.value)}
                   onKeyDown={handleInvoiceAmountKeyDown}
                   placeholder="0"
+                  step="1"
                   style={{ height: "38px", padding: "0 10px", fontSize: "14px", fontWeight: "bold", textAlign: "right", border: "1px solid #000000", borderRadius: "4px", width: "100%" }}
                 />
               </div>
               
-              {/* Amount Received */}
               <div style={{ width: "140px" }}>
                 <label style={{ fontSize: "11px", fontWeight: "bold", color: "#000000", display: "block", marginBottom: "4px", textTransform: "uppercase" }}>Amount Received <span style={{ color: "#ef4444" }}>*</span></label>
                 <input
@@ -733,7 +753,6 @@ export default function CashReceiptPage() {
                 {errors.amountReceived && <div style={{ fontSize: "10px", color: "#ef4444", marginTop: "3px", fontWeight: "500" }}>{errors.amountReceived}</div>}
               </div>
               
-              {/* Save Button */}
               <div>
                 <button
                   ref={submitRef}
@@ -757,7 +776,6 @@ export default function CashReceiptPage() {
               </div>
             </div>
             
-            {/* Remaining Balance */}
             {invoiceAmount && parseFloat(invoiceAmount) > 0 && (
               <div style={{
                 marginTop: "12px",
@@ -776,7 +794,6 @@ export default function CashReceiptPage() {
               </div>
             )}
             
-            {/* Customer Info */}
             {selectedCustomer && (
               <div style={{
                 marginTop: "12px",
@@ -805,7 +822,6 @@ export default function CashReceiptPage() {
           </form>
         </div>
         
-        {/* Transaction History Table */}
         <div style={{
           background: "#ffffff",
           borderRadius: "8px",
@@ -842,65 +858,64 @@ export default function CashReceiptPage() {
             <div style={{ padding: "40px", textAlign: "center", fontSize: "13px", color: "#94a3b8", fontWeight: "500" }}>📭 No transactions found</div>
           )}
           
-         {!loading && transactions.length > 0 && (
-  <div style={{ overflowX: "auto" }}>
-    <table style={{ 
-      width: "100%", 
-      borderCollapse: "collapse", 
-      fontSize: "13px", 
-      border: "2px solid #000000"
-    }}>
-      <thead>
-        <tr style={{ background: "#f1f5f9" }}>
-          <th style={{ padding: "4px 4px", textAlign: "center", width: "40px", border: "1px solid #000000", fontSize: "13px", fontWeight: "bold", textTransform: "uppercase" }}>#</th>
-          <th style={{ padding: "4px 4px", textAlign: "left", border: "1px solid #000000", fontSize: "13px", fontWeight: "bold", textTransform: "uppercase" }}>Date</th>
-          <th style={{ padding: "4px 4px", textAlign: "left", border: "1px solid #000000", fontSize: "13px", fontWeight: "bold", textTransform: "uppercase" }}>Transaction ID</th>
-          <th style={{ padding: "4px 4px", textAlign: "left", border: "1px solid #000000", fontSize: "13px", fontWeight: "bold", textTransform: "uppercase" }}>Type</th>
-          <th style={{ padding: "4px 4px", textAlign: "left", border: "1px solid #000000", fontSize: "13px", fontWeight: "bold", textTransform: "uppercase" }}>Remarks</th>
-          <th style={{ padding: "4px 4px", textAlign: "right", border: "1px solid #000000", fontSize: "13px", fontWeight: "bold", textTransform: "uppercase" }}>Invoice Amt</th>
-          <th style={{ padding: "4px 4px", textAlign: "right", border: "1px solid #000000", fontSize: "13px", fontWeight: "bold", textTransform: "uppercase" }}>Amount</th>
-          <th style={{ padding: "4px 4px", textAlign: "right", border: "1px solid #000000", fontSize: "13px", fontWeight: "bold", textTransform: "uppercase" }}>Balance</th>
-        </tr>
-      </thead>
-      <tbody>
-        {transactions.map((t, i) => (
-          <tr key={t._id || i}>
-            <td style={{ padding: "3px 4px", textAlign: "center", border: "1px solid #000000", fontSize: "13px", fontWeight: "600" }}>{i + 1}</td>
-            <td style={{ padding: "3px 4px", whiteSpace: "nowrap", border: "1px solid #000000", fontSize: "13px", fontWeight: "600" }}>{t.date}</td>
-            <td style={{ padding: "3px 4px", fontFamily: "monospace", fontWeight: "bold", border: "1px solid #000000", fontSize: "13px" }}>{t.transactionId}</td>
-            <td style={{ padding: "3px 4px", border: "1px solid #000000" }}>
-              <span style={{
-                padding: "2px 8px",
-                borderRadius: "3px",
-                fontSize: "11px",
-                fontWeight: "bold",
-                background: t.type === "sale" ? "#dbeafe" : t.type === "payment" ? "#dcfce7" : "#fef3c7",
-                border: "1px solid #000000",
-                display: "inline-block"
-              }}>{t.transType}</span>
-            </td>
-            <td style={{ padding: "3px 4px", maxWidth: "200px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", border: "1px solid #000000", fontSize: "13px", fontWeight: "600" }}>{t.remarks || "—"}</td>
-            <td style={{ padding: "3px 4px", textAlign: "right", fontWeight: "bold", border: "1px solid #000000", fontSize: "13px" }}>{t.invoiceAmount > 0 ? `PKR ${fmt(t.invoiceAmount)}` : "—"}</td>
-            <td style={{ padding: "3px 4px", textAlign: "right", fontWeight: "bold", color: "#059669", border: "1px solid #000000", fontSize: "13px" }}>{t.amount > 0 ? `PKR ${fmt(t.amount)}` : "—"}</td>
-            <td style={{ padding: "3px 4px", textAlign: "right", fontWeight: "bold", color: t.balance > 0 ? "#dc2626" : "#059669", border: "1px solid #000000", fontSize: "13px" }}>{t.balance !== undefined ? `PKR ${fmt(Math.abs(t.balance))}` : "—"}</td>
-          </tr>
-        ))}
-      </tbody>
-      <tfoot style={{ background: "#f1f5f9" }}>
-        <tr>
-          <td colSpan="5" style={{ padding: "4px 4px", textAlign: "right", fontWeight: "bold", border: "1px solid #000000", fontSize: "13px", textTransform: "uppercase" }}>TOTALS:</td>
-          <td style={{ padding: "4px 4px", textAlign: "right", fontWeight: "bold", border: "1px solid #000000", fontSize: "13px" }}>PKR {fmt(transactions.reduce((sum, t) => sum + (t.invoiceAmount || 0), 0))}</td>
-          <td style={{ padding: "4px 4px", textAlign: "right", fontWeight: "bold", color: "#059669", border: "1px solid #000000", fontSize: "13px" }}>PKR {fmt(transactions.reduce((sum, t) => sum + (t.amount || 0), 0))}</td>
-          <td style={{ padding: "4px 4px", textAlign: "right", border: "1px solid #000000" }}></td>
-        </tr>
-      </tfoot>
-    </table>
-  </div>
-)}
+          {!loading && transactions.length > 0 && (
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ 
+                width: "100%", 
+                borderCollapse: "collapse", 
+                fontSize: "13px", 
+                border: "2px solid #000000"
+              }}>
+                <thead>
+                  <tr style={{ background: "#f1f5f9" }}>
+                    <th style={{ padding: "4px 4px", textAlign: "center", width: "40px", border: "1px solid #000000", fontSize: "13px", fontWeight: "bold", textTransform: "uppercase" }}>#</th>
+                    <th style={{ padding: "4px 4px", textAlign: "left", border: "1px solid #000000", fontSize: "13px", fontWeight: "bold", textTransform: "uppercase" }}>Date</th>
+                    <th style={{ padding: "4px 4px", textAlign: "left", border: "1px solid #000000", fontSize: "13px", fontWeight: "bold", textTransform: "uppercase" }}>Transaction ID</th>
+                    <th style={{ padding: "4px 4px", textAlign: "left", border: "1px solid #000000", fontSize: "13px", fontWeight: "bold", textTransform: "uppercase" }}>Type</th>
+                    <th style={{ padding: "4px 4px", textAlign: "left", border: "1px solid #000000", fontSize: "13px", fontWeight: "bold", textTransform: "uppercase" }}>Remarks</th>
+                    <th style={{ padding: "4px 4px", textAlign: "right", border: "1px solid #000000", fontSize: "13px", fontWeight: "bold", textTransform: "uppercase" }}>Invoice Amt</th>
+                    <th style={{ padding: "4px 4px", textAlign: "right", border: "1px solid #000000", fontSize: "13px", fontWeight: "bold", textTransform: "uppercase" }}>Amount</th>
+                    <th style={{ padding: "4px 4px", textAlign: "right", border: "1px solid #000000", fontSize: "13px", fontWeight: "bold", textTransform: "uppercase" }}>Balance</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {transactions.map((t, i) => (
+                    <tr key={t._id || i}>
+                      <td style={{ padding: "3px 4px", textAlign: "center", border: "1px solid #000000", fontSize: "13px", fontWeight: "600" }}>{i + 1}</td>
+                      <td style={{ padding: "3px 4px", whiteSpace: "nowrap", border: "1px solid #000000", fontSize: "13px", fontWeight: "600" }}>{t.date}</td>
+                      <td style={{ padding: "3px 4px", fontFamily: "monospace", fontWeight: "bold", border: "1px solid #000000", fontSize: "13px" }}>{t.transactionId}</td>
+                      <td style={{ padding: "3px 4px", border: "1px solid #000000" }}>
+                        <span style={{
+                          padding: "2px 8px",
+                          borderRadius: "3px",
+                          fontSize: "11px",
+                          fontWeight: "bold",
+                          background: t.type === "sale" ? "#dbeafe" : t.type === "payment" ? "#dcfce7" : "#fef3c7",
+                          border: "1px solid #000000",
+                          display: "inline-block"
+                        }}>{t.transType}</span>
+                      </td>
+                      <td style={{ padding: "3px 4px", maxWidth: "200px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", border: "1px solid #000000", fontSize: "13px", fontWeight: "600" }}>{t.remarks || "—"}</td>
+                      <td style={{ padding: "3px 4px", textAlign: "right", fontWeight: "bold", border: "1px solid #000000", fontSize: "13px" }}>{t.invoiceAmount > 0 ? `PKR ${fmt(t.invoiceAmount)}` : "—"}</td>
+                      <td style={{ padding: "3px 4px", textAlign: "right", fontWeight: "bold", color: "#059669", border: "1px solid #000000", fontSize: "13px" }}>{t.amount > 0 ? `PKR ${fmt(t.amount)}` : "—"}</td>
+                      <td style={{ padding: "3px 4px", textAlign: "right", fontWeight: "bold", color: t.balance > 0 ? "#dc2626" : "#059669", border: "1px solid #000000", fontSize: "13px" }}>{t.balance !== undefined ? `PKR ${fmt(Math.abs(t.balance))}` : "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot style={{ background: "#f1f5f9" }}>
+                  <tr>
+                    <td colSpan="5" style={{ padding: "4px 4px", textAlign: "right", fontWeight: "bold", border: "1px solid #000000", fontSize: "13px", textTransform: "uppercase" }}>TOTALS:</td>
+                    <td style={{ padding: "4px 4px", textAlign: "right", fontWeight: "bold", border: "1px solid #000000", fontSize: "13px" }}>PKR {fmt(transactions.reduce((sum, t) => sum + (t.invoiceAmount || 0), 0))}</td>
+                    <td style={{ padding: "4px 4px", textAlign: "right", fontWeight: "bold", color: "#059669", border: "1px solid #000000", fontSize: "13px" }}>PKR {fmt(transactions.reduce((sum, t) => sum + (t.amount || 0), 0))}</td>
+                    <td style={{ padding: "4px 4px", textAlign: "right", border: "1px solid #000000" }}></td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          )}
         </div>
       </div>
       
-      {/* Status Bar */}
       <div className="xp-statusbar" style={{ background: "#f8fafc", borderTop: "2px solid #000000", padding: "6px 16px" }}>
         <div className="xp-status-pane" style={{ color: "#1e293b", fontSize: "11px", fontWeight: "500" }}>💰 Cash Receipt Voucher</div>
         <div className="xp-status-pane" style={{ color: "#1e293b", fontSize: "11px", fontWeight: "500" }}>{selectedCustomer ? selectedCustomer.name : "No customer selected"}</div>

@@ -186,7 +186,7 @@ const buildCustomerStatementHtml = (customer, sales, rawPurchases, payments) => 
       <div class="totals-row bold"><span>OUTSTANDING BALANCE:</span><span class="red">PKR ${fmt(outstanding)}</span></div>
     </div>
     
-    <div class="footer">Thank you for your business! | Developed by: AppHill / 03222292922 | www.apphill.pk</div>
+    <div class="footer">Thank you for your business! | Developed by: Creative Babar / 03098325271| www.digitalglobalschool..com</div>
   </body>
   </html>`;
 };
@@ -359,7 +359,7 @@ const buildSimpleStatementHtml = (customer, sales, rawPurchases, payments) => {
       <div class="totals-row bold"><span>OUTSTANDING BALANCE:</span><span class="red">PKR ${fmt(outstanding)}</span></div>
     </div>
     
-    <div class="footer">Thank you for your business! | Developed by: AppHill / 03222292922 | www.apphill.pk</div>
+    <div class="footer">Thank you for your business! | Developed by: Creative Babar / 03098325271| www.digitalglobalschool..com</div>
   </body>
   </html>`;
 };
@@ -483,7 +483,7 @@ const buildInvoiceHtml = (invoice, customer) => {
       <div class="totals-row"><span>PAID:</span><span>PKR ${fmt(invoice.paidAmount || 0)}</span></div>
       <div class="totals-row bold ${(invoice.balance || 0) > 0 ? 'red' : 'green'}"><span>BALANCE:</span><span>PKR ${fmt(invoice.balance || 0)}</span></div>
     </div>
-    <div class="footer">Thank you for your business! | Developed by: AppHill / 03222292922</div>
+    <div class="footer">Thank you for your business! | Developed by: Creative Babar / 03098325271</div>
   </body>
   </html>`;
 };
