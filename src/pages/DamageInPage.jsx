@@ -1,4 +1,4 @@
-// pages/DamageInPage.jsx - Updated with same font size/weight as Purchase Return
+// pages/DamageInPage.jsx - Using Database API instead of localStorage
 import { useState, useEffect, useRef, useCallback } from "react";
 import api from "../api/api.js";
 import EP from "../api/apiEndpoints.js";
@@ -15,7 +15,6 @@ const timeNow = () =>
 const isoDate = () => new Date().toISOString().split("T")[0];
 const fmt = (n) => Number(n || 0).toLocaleString("en-PK");
 const DAMAGE_IN_HOLD_KEY = "asim_damage_in_hold_v1";
-const DAMAGE_IN_STORAGE_KEY = "asim_damage_in_records_v1";
 
 const EMPTY_ROW = {
   productId: "",
@@ -39,7 +38,7 @@ const SHOP_INFO = {
   devBy: "Software developed by: Creative Babar / 03098325271 or visit website www.digitalglobalschool.com",
 };
 
-/* ── localStorage helpers ── */
+/* ── localStorage helpers for Holds only ── */
 const loadDamageInHolds = () => {
   try {
     return JSON.parse(localStorage.getItem(DAMAGE_IN_HOLD_KEY) || "[]");
@@ -52,25 +51,6 @@ const saveDamageInHolds = (records) => {
   try {
     localStorage.setItem(DAMAGE_IN_HOLD_KEY, JSON.stringify(records));
   } catch {}
-};
-
-const loadDamageInRecords = () => {
-  try {
-    return JSON.parse(localStorage.getItem(DAMAGE_IN_STORAGE_KEY) || "[]");
-  } catch {
-    return [];
-  }
-};
-
-const saveDamageInRecord = (record) => {
-  try {
-    const existing = loadDamageInRecords();
-    existing.push({ ...record, savedAt: new Date().toISOString() });
-    localStorage.setItem(DAMAGE_IN_STORAGE_KEY, JSON.stringify(existing));
-    return true;
-  } catch {
-    return false;
-  }
 };
 
 /* ══════════════════════════════════════════════════════════
@@ -96,7 +76,7 @@ const buildDamageInPrintHtml = (record) => {
         <td style="font-size:10px;vertical-align:top;padding:4px;text-align:right">${fmt(it.rate)}</td>
         <td style="font-size:10px;vertical-align:top;padding:4px;text-align:right"><b>${fmt(it.amount)}</b></td>
         <td style="font-size:9px;vertical-align:top;padding:4px">${it.reason || "—"}</td>
-      </tr>
+      </table>
     `,
     )
     .join("");
@@ -138,10 +118,6 @@ const buildDamageInPrintHtml = (record) => {
     <div class="meta-row">
       <span><b>Damage ID:</b> ${record.damageNo}</span>
       <span><b>Date:</b> ${record.damageDate}</span>
-    </div>
-    <div class="meta-row">
-      <span><b>Supplier:</b> ${record.supplierName || "N/A"}</span>
-      <span><b>Reference:</b> ${record.reference || "—"}</span>
     </div>
     <hr class="divider-dash">
 
@@ -188,7 +164,7 @@ const doPrint = (record) => {
 };
 
 /* ══════════════════════════════════════════════════════════
-   PRODUCT SEARCH MODAL - With Supplier filter (Same font size/weight as Purchase Return)
+   PRODUCT SEARCH MODAL - With Supplier filter
 ══════════════════════════════════════════════════════════ */
 function SearchModal({ allProducts, onSelect, onClose }) {
   const [desc, setDesc] = useState("");
@@ -515,9 +491,6 @@ function DamageInHoldPreviewModal({ record, onResume, onClose }) {
             }}
           >
             <span>
-              <b>SUPPLIER:</b> {record.supplierName || "N/A"}
-            </span>
-            <span>
               <b>ITEMS:</b> {record.items.length}
             </span>
             <span>
@@ -588,7 +561,7 @@ function DamageInHoldPreviewModal({ record, onResume, onClose }) {
 }
 
 /* ══════════════════════════════════════════════════════════
-   MAIN PAGE — DAMAGE IN with Sequential Numbers
+   MAIN PAGE — DAMAGE IN with Sequential Numbers & Database Storage
 ══════════════════════════════════════════════════════════ */
 export default function DamageInPage() {
   const [time, setTime] = useState(timeNow());
@@ -600,7 +573,7 @@ export default function DamageInPage() {
   const [curRow, setCurRow] = useState({ ...EMPTY_ROW });
   const [items, setItems] = useState([]);
   const [damageDate, setDamageDate] = useState(isoDate());
-  const [damageNo, setDamageNo] = useState("1");
+  const [damageNo, setDamageNo] = useState("");
   const amountRef = useRef(null);
   const reasonRef = useRef(null);
 
@@ -628,7 +601,7 @@ export default function DamageInPage() {
   
   useEffect(() => {
     fetchProducts();
-    loadAllRecords();
+    fetchDamageInRecords();
   }, []);
   
   useEffect(() => {
@@ -669,29 +642,27 @@ export default function DamageInPage() {
     setLoading(false);
   };
 
-  const loadAllRecords = () => {
-    const saved = loadDamageInRecords();
-    setAllRecords(saved);
-  };
-
-  const fetchNextDamageNo = async () => {
-    const records = loadDamageInRecords();
-    const holds = loadDamageInHolds();
-    const allItems = [...records, ...holds];
-    
-    if (allItems.length > 0) {
-      // Find the maximum number from all records and holds
-      let maxNum = 0;
-      allItems.forEach(item => {
-        const num = parseInt(item.damageNo);
-        if (!isNaN(num) && num > maxNum) {
-          maxNum = num;
+  const fetchDamageInRecords = async () => {
+    setLoading(true);
+    try {
+      const response = await api.get(EP.DAMAGE.GET_ALL);
+      if (response.data.success) {
+        setAllRecords(response.data.data);
+        // Calculate next damage number
+        if (response.data.data.length > 0) {
+          const maxNum = Math.max(...response.data.data.map(r => parseInt(r.damageNo) || 0));
+          setDamageNo(String(maxNum + 1));
+        } else {
+          setDamageNo("1");
         }
-      });
-      setDamageNo(String(maxNum + 1));
-    } else {
+      } else {
+        setDamageNo("1");
+      }
+    } catch (error) {
+      console.error("Failed to fetch damage records:", error);
       setDamageNo("1");
     }
+    setLoading(false);
   };
 
   const showMsg = (text, type = "success") => {
@@ -792,13 +763,11 @@ export default function DamageInPage() {
         damageDate,
         amount: subTotal,
         items: [...items],
-        supplierName: "",
-        reference: "",
       },
     ]);
     showMsg(`Damage record held: ${damageNo}`);
     fullReset();
-    fetchNextDamageNo();
+    fetchDamageInRecords();
   };
 
   const resumeRecord = (holdId) => {
@@ -828,7 +797,7 @@ export default function DamageInPage() {
     setMsg({ text: "", type: "" });
     setShowProductSuggestions(false);
     setEditId(null);
-    fetchNextDamageNo();
+    fetchDamageInRecords();
     setDamageDate(isoDate());
     setTimeout(() => searchRef.current?.focus(), 50);
   };
@@ -844,12 +813,14 @@ export default function DamageInPage() {
       uom: r.uom,
       rack: r.rack,
       pcs: parseFloat(r.pcs) || 1,
+      qty: parseFloat(r.pcs) || 1,
       rate: parseFloat(r.rate) || 0,
       amount: parseFloat(r.amount) || 0,
       reason: r.reason || "",
     })),
     totalQty,
     totalAmount: subTotal,
+    type: "damage_in",
   });
   
   const saveDamageRecord = async () => {
@@ -861,33 +832,36 @@ export default function DamageInPage() {
     setLoading(true);
     
     try {
-      const finalRecord = {
-        ...buildPayload(),
-        supplierName: "Walk-in Damage",
-        reference: "",
-        savedAt: new Date().toISOString(),
-      };
+      const payload = buildPayload();
       
-      const saved = saveDamageInRecord(finalRecord);
-      
-      if (saved) {
-        showMsg(`Damage record saved: ${damageNo}`, "success");
-        loadAllRecords();
-        doPrint(finalRecord);
-        fullReset();
-        await fetchNextDamageNo();
+      let response;
+      if (editId) {
+        response = await api.put(EP.DAMAGE.UPDATE(editId), payload);
       } else {
-        showMsg("Failed to save damage record", "error");
+        response = await api.post(EP.DAMAGE.CREATE, payload);
       }
-    } catch (e) {
-      showMsg("Save failed", "error");
+      
+      if (response.data.success) {
+        showMsg(editId ? `Damage record updated: ${damageNo}` : `Damage record saved: ${damageNo}`, "success");
+        
+        const savedRecord = response.data.data;
+        doPrint(savedRecord);
+        
+        fullReset();
+        await fetchDamageInRecords();
+      } else {
+        showMsg(response.data.message || "Failed to save damage record", "error");
+      }
+    } catch (error) {
+      console.error("Save error:", error);
+      showMsg(error.response?.data?.message || "Save failed", "error");
     }
     
     setLoading(false);
   };
 
   const loadRecordForEdit = (record) => {
-    setEditId(record.damageNo);
+    setEditId(record._id);
     setDamageNo(record.damageNo);
     setDamageDate(record.damageDate);
     
@@ -911,11 +885,10 @@ export default function DamageInPage() {
 
   const navRecord = (dir) => {
     if (allRecords.length === 0) {
-      loadAllRecords();
+      fetchDamageInRecords();
       return;
     }
     
-    // Sort records by damage number numerically
     const sortedRecords = [...allRecords].sort((a, b) => {
       const numA = parseInt(a.damageNo);
       const numB = parseInt(b.damageNo);
@@ -930,6 +903,30 @@ export default function DamageInPage() {
     if (nextIdx >= 0 && nextIdx < sortedRecords.length) {
       loadRecordForEdit(sortedRecords[nextIdx]);
     }
+  };
+
+  const deleteRecord = async () => {
+    if (!editId) {
+      showMsg("No record selected to delete", "error");
+      return;
+    }
+    
+    if (!window.confirm(`Delete damage record ${damageNo}?`)) return;
+    
+    setLoading(true);
+    try {
+      const response = await api.delete(EP.DAMAGE.DELETE(editId));
+      if (response.data.success) {
+        showMsg(`Damage record ${damageNo} deleted`, "success");
+        fullReset();
+        await fetchDamageInRecords();
+      } else {
+        showMsg(response.data.message || "Delete failed", "error");
+      }
+    } catch (error) {
+      showMsg("Delete failed", "error");
+    }
+    setLoading(false);
   };
 
   useEffect(() => {
@@ -1093,13 +1090,8 @@ export default function DamageInPage() {
                   type="date"
                   className="xp-input xp-input-sm sl-date-input"
                   value={damageDate}
-                  readOnly
-                  style={{ 
-                    borderColor: "#b71c1c",
-                    background: "#f5f5f5",
-                    cursor: "not-allowed",
-                    color: "#888"
-                  }}
+                  onChange={(e) => setDamageDate(e.target.value)}
+                  style={{ borderColor: "#b71c1c" }}
                 />
               </div>
               <div className="sl-inv-field-grp">
@@ -1120,7 +1112,7 @@ export default function DamageInPage() {
                     type="text"
                     className="sl-product-input"
                     style={{ width: "100%", background: "#fffde7", borderColor: "#b71c1c" }}
-                    placeholder="Search by code, name, category, company, supplier..."
+                    placeholder="Search by code, name, category, company..."
                     value={searchText}
                     onKeyDown={(e) => {
                       if (e.key === "ArrowDown") {
@@ -1231,7 +1223,7 @@ export default function DamageInPage() {
                           }}
                         >
                           <div style={{ fontWeight: 500 }}>{p.code} - {p.description}</div>
-                          <div style={{ fontSize: 10, color: "#666" }}>{p.category} | {p.company} | Supplier: {p.supplierName || "—"}</div>
+                          <div style={{ fontSize: 10, color: "#666" }}>{p.category} | {p.company}</div>
                         </div>
                       ))}
                     </div>
@@ -1386,7 +1378,7 @@ export default function DamageInPage() {
                       </td>
                       <td className="muted">{r.code}</td>
                       <td style={{ fontWeight: 500 }}>{r.name}</td>
-                      <td className="r">{r.pcs}</td>
+                      <td className="r">{r.pcs} {r.uom}</td>
                       <td className="r">{fmt(r.rate)}</td>
                       <td className="r" style={{ color: "#b71c1c", fontWeight: 600 }}>
                         {fmt(r.amount)}
@@ -1483,7 +1475,7 @@ export default function DamageInPage() {
             
             <div style={{ marginTop: 8, padding: "8px", background: "#ffebee", borderRadius: 6, textAlign: "center" }}>
               <span style={{ fontSize: 11, color: "#b71c1c" }}>
-                💡 TIP: PRESS <kbd style={{ background: "#fff", padding: "2px 6px", borderRadius: 3 }}>*</kbd> OR <kbd style={{ background: "#fff", padding: "2px 6px", borderRadius: 3 }}>CTRL+S</kbd> TO SAVE DAMAGE RECORD
+                💡 TIP: PRESS <kbd style={{ background: "#fff", padding: "2px 6px", borderRadius: 3 }}>*</kbd> OR <kbd style={{ background: "#fff", padding: "2px 6px", borderRadius: 3 }}>CTRL+S</kbd> TO SAVE
               </span>
             </div>
           </div>
@@ -1502,6 +1494,13 @@ export default function DamageInPage() {
             disabled={loading || items.length === 0}
           >
             {loading ? "SAVING…" : "💾 SAVE DAMAGE RECORD  *"}
+          </button>
+          <button
+            className="xp-btn xp-btn-danger xp-btn-sm"
+            onClick={deleteRecord}
+            disabled={!editId || loading}
+          >
+            🗑 DELETE RECORD
           </button>
           <div className="xp-toolbar-divider" />
           <span className="sl-inv-info">
