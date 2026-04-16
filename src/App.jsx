@@ -7,6 +7,7 @@ import CreditSalePage from "./pages/CreditSalePage.jsx";
 import CustomersPage from "./pages/CustomersPage.jsx";
 import SaleHistoryPage from "./pages/SaleHistoryPage.jsx";
 import SaleReturnPage from "./pages/SaleReturnPage.jsx";
+import PurchaseReturnPage from "./pages/PurchaseReturnPage.jsx";
 import ComingSoon from "./pages/ComingSoon.jsx";
 import CreditCustomersPage from "./pages/CreditCustomersPage.jsx";
 import QuotationPage from "./pages/QuotationPage.jsx";
@@ -21,8 +22,9 @@ import DamageInPage from "./pages/DamageInPage.jsx";
 import DamageOutPage from "./pages/DamageOutPage.jsx";
 import CashPaymentVoucher from "./pages/CashPaymentVoucher.jsx";
 import SuppliersPage from "./pages/SuppliersPage.jsx";
-import CashReceiptsPage from "./pages/CashReceiptsPage.jsx"; // Add this import
+import CashReceiptsPage from "./pages/CashReceiptsPage.jsx";
 import GeneralLedgerPage from "./pages/GeneralLedgerPage.jsx";
+import PurchaseReturnListPage from "./pages/PurchaseReturnListPage.jsx";
 
 
 // Create a wrapper component that provides the current location as key
@@ -36,7 +38,7 @@ function AppRoutes() {
       <Route path="/debit-sale" element={<DebitSalePage key={`debit-sale-${location.pathname}`} />} />
       <Route path="/debit-customers" element={<DebitCustomersPage key={`debit-customers-${location.pathname}`} />} />
       <Route path="/credit-customers" element={<CreditCustomersPage key={`credit-customers-${location.pathname}`} />} />
-      <Route path="/cash-receipts" element={<CashReceiptsPage key={`cash-receipts-${location.pathname}`} />} /> {/* Add this route */}
+      <Route path="/cash-receipts" element={<CashReceiptsPage key={`cash-receipts-${location.pathname}`} />} />
       <Route path="/suppliers" element={<SuppliersPage key={`suppliers-${location.pathname}`} />} />
       <Route path="/quotation-page" element={<QuotationPage key={`quotation-${location.pathname}`} />} />
       <Route path="/journal-page" element={<JournalVoucherPage key={`journal-${location.pathname}`} />} />
@@ -52,6 +54,8 @@ function AppRoutes() {
       <Route path="/customers" element={<CustomersPage key={`customers-${location.pathname}`} />} />
       <Route path="/sale-history" element={<SaleHistoryPage key={`sale-history-${location.pathname}`} />} />
       <Route path="/sale-return" element={<SaleReturnPage key={`sale-return-${location.pathname}`} />} />
+      <Route path="/purchase-return" element={<PurchaseReturnPage key={`purchase-return-${location.pathname}`} />} />
+      <Route path="/purchase-return-list" element={<PurchaseReturnListPage key={`purchase-return-list-${location.pathname}`} />} />
       <Route path="/cash-payment" element={<CashPaymentVoucher key={`cash-payment-${location.pathname}`} />} />
       <Route path="*" element={<ComingSoon key={`coming-soon-${location.pathname}`} />} />
       <Route path="/general-ledger" element={<GeneralLedgerPage key={`general-ledger-${location.pathname}`} />} />

@@ -1,4 +1,3 @@
-// components/menuConfig.js
 const MENU_CONFIG = [
   {
     label: "Define",
@@ -23,12 +22,13 @@ const MENU_CONFIG = [
       { label: "Manual Purchase Bill", route: "/manual-purchase" },
       { label: "───" },
       { label: "Sale Return", route: "/sale-return" },
+      { label: "Purchase Return", route: "/purchase-return" },
       { label: "Quotation", route: "/quotation-page", shortcut: "Ctrl+Q" },
       { label: "───" },
       { label: "Journal Voucher", route: "/journal-page", shortcut: "Ctrl+J" },
       { label: "Raw Sale", route: "/raw-sale" },
       { label: "Damage In", route: "/damage-in" },
-      { label: "Damage Out", route: "damage-out" },
+      { label: "Damage Out", route: "/damage-out" },
       { label: "Raw Purchase", route: "/raw-purchase" },
       { label: "Purchase", route: "/purchase" },
     ],
@@ -49,6 +49,7 @@ const MENU_CONFIG = [
       { label: "Sale History", route: "/sale-history" },
       { label: "Sale List", route: "/sale-list" },
       { label: "Purchase List", route: "/purchase-list" },
+      { label: "Purchase Return List", route: "/purchase-return-list" },
       { label: "───" },
       { label: "Daily Sale Report", route: "/daily-sale" },
       { label: "Stock Report", route: "/stock-report" },
