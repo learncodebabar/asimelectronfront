@@ -1,3 +1,4 @@
+// pages/ManualSalePage.jsx
 import { useState, useEffect, useRef, useCallback } from "react";
 import api from "../api/api.js";
 import EP from "../api/apiEndpoints.js";
@@ -7,1017 +8,926 @@ import "../styles/ManualPurchasePage.css";
 const isoDate = () => new Date().toISOString().split("T")[0];
 const fmt = (n) => Number(n || 0).toLocaleString("en-PK");
 const SHOP = "Asim Electric and Electronic Store";
+
 const EMPTY_ROW = {
   code: "",
+  accountTitle: "",
   description: "",
-  measurement: "",
-  qty: 1,
-  rate: 0,
-  disc: 0,
-  amount: 0,
-};
-
-/* ─────────────────────────────────────────────────────────────
-   PRODUCT SEARCH MODAL
-───────────────────────────────────────────────────────────── */
-function SearchModal({ allProducts, onSelect, onClose }) {
-  const [desc, setDesc] = useState("");
-  const [cat, setCat] = useState("");
-  const [company, setCompany] = useState("");
-  const [rows, setRows] = useState([]);
-  const [hiIdx, setHiIdx] = useState(0);
-  const rDesc = useRef(null);
-  const rCat = useRef(null);
-  const rCompany = useRef(null);
-  const tbodyRef = useRef(null);
-
-  const buildFlat = useCallback((products, d, c, co) => {
-    const ld = d.trim().toLowerCase(),
-      lc = c.trim().toLowerCase(),
-      lo = co.trim().toLowerCase();
-    const res = [];
-    products.forEach((p) => {
-      const ok =
-        (!ld ||
-          p.description?.toLowerCase().includes(ld) ||
-          p.code?.toLowerCase().includes(ld)) &&
-        (!lc || p.category?.toLowerCase().includes(lc)) &&
-        (!lo || p.company?.toLowerCase().includes(lo));
-      if (!ok) return;
-      const _name = [p.category, p.description, p.company]
-        .filter(Boolean)
-        .join(" ");
-      if (p.packingInfo?.length > 0)
-        p.packingInfo.forEach((pk, i) =>
-          res.push({
-            ...p,
-            _pi: i,
-            _meas: pk.measurement,
-            _rate: pk.saleRate,
-            _pack: pk.packing,
-            _stock: pk.openingQty || 0,
-            _name,
-          }),
-        );
-      else
-        res.push({
-          ...p,
-          _pi: 0,
-          _meas: "",
-          _rate: 0,
-          _pack: 1,
-          _stock: 0,
-          _name,
-        });
-    });
-    return res;
-  }, []);
-
-  useEffect(() => {
-    rDesc.current?.focus();
-    setRows(buildFlat(allProducts, "", "", ""));
-  }, [allProducts, buildFlat]);
-  useEffect(() => {
-    const f = buildFlat(allProducts, desc, cat, company);
-    setRows(f);
-    setHiIdx(f.length > 0 ? 0 : -1);
-  }, [desc, cat, company, allProducts, buildFlat]);
-  useEffect(() => {
-    if (tbodyRef.current && hiIdx >= 0)
-      tbodyRef.current.children[hiIdx]?.scrollIntoView({ block: "nearest" });
-  }, [hiIdx]);
-
-  const fk = (e, nr) => {
-    if (e.key === "Escape") {
-      onClose();
-      return;
-    }
-    if (e.key === "Enter" || e.key === "ArrowDown") {
-      e.preventDefault();
-      nr
-        ? nr.current?.focus()
-        : (tbodyRef.current?.focus(), setHiIdx((h) => Math.max(0, h)));
-    }
-  };
-  const tk = (e) => {
-    if (e.key === "ArrowDown") {
-      e.preventDefault();
-      setHiIdx((i) => Math.min(i + 1, rows.length - 1));
-    }
-    if (e.key === "ArrowUp") {
-      e.preventDefault();
-      setHiIdx((i) => Math.max(i - 1, 0));
-    }
-    if (e.key === "Enter") {
-      e.preventDefault();
-      if (hiIdx >= 0 && rows[hiIdx]) onSelect(rows[hiIdx]);
-    }
-    if (e.key === "Escape") onClose();
-    if (e.key === "Tab") {
-      e.preventDefault();
-      rDesc.current?.focus();
-    }
-  };
-
-  return (
-    <div
-      className="xp-overlay"
-      onClick={(e) => e.target === e.currentTarget && onClose()}
-    >
-      <div className="xp-modal xp-modal-lg">
-        <div className="xp-modal-tb">
-          <svg
-            width="13"
-            height="13"
-            viewBox="0 0 16 16"
-            fill="rgba(255,255,255,0.8)"
-          >
-            <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.044.06.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1 1 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0" />
-          </svg>
-          <span className="xp-modal-title">Search Products (Sale Rate)</span>
-          <button className="xp-cap-btn xp-cap-close" onClick={onClose}>
-            ✕
-          </button>
-        </div>
-
-        <div className="cs-modal-filters">
-          <div className="cs-modal-filter-grp">
-            <label className="xp-label">Description / Code</label>
-            <input
-              ref={rDesc}
-              type="text"
-              className="xp-input"
-              value={desc}
-              onChange={(e) => setDesc(e.target.value)}
-              onKeyDown={(e) => fk(e, rCat)}
-              placeholder="Name / code…"
-              autoComplete="off"
-            />
-          </div>
-          <div className="cs-modal-filter-grp">
-            <label className="xp-label">Category</label>
-            <input
-              ref={rCat}
-              type="text"
-              className="xp-input"
-              value={cat}
-              onChange={(e) => setCat(e.target.value)}
-              onKeyDown={(e) => fk(e, rCompany)}
-              placeholder="e.g. SMALL"
-              autoComplete="off"
-            />
-          </div>
-          <div className="cs-modal-filter-grp">
-            <label className="xp-label">Company</label>
-            <input
-              ref={rCompany}
-              type="text"
-              className="xp-input"
-              value={company}
-              onChange={(e) => setCompany(e.target.value)}
-              onKeyDown={(e) => fk(e, null)}
-              placeholder="e.g. LUX"
-              autoComplete="off"
-            />
-          </div>
-          <div style={{ display: "flex", alignItems: "flex-end", gap: 6 }}>
-            <span
-              style={{
-                fontSize: "var(--xp-fs-xs)",
-                color: "#555",
-                whiteSpace: "nowrap",
-              }}
-            >
-              {rows.length} result(s)
-            </span>
-            <button className="xp-btn xp-btn-sm" onClick={onClose}>
-              Close
-            </button>
-          </div>
-        </div>
-
-        <div className="xp-modal-body" style={{ padding: 0 }}>
-          <div className="xp-table-panel" style={{ border: "none" }}>
-            <div className="xp-table-scroll">
-              <table className="xp-table">
-                <thead>
-                  <tr>
-                    <th style={{ width: 36 }}>Sr.#</th>
-                    <th>Barcode</th>
-                    <th>Name</th>
-                    <th>Meas.</th>
-                    <th className="r">Sale Rate</th>
-                    <th className="r">Stock</th>
-                    <th className="r">Pack</th>
-                  </tr>
-                </thead>
-                <tbody ref={tbodyRef} tabIndex={0} onKeyDown={tk}>
-                  {rows.length === 0 && (
-                    <tr>
-                      <td colSpan={7} className="xp-empty">
-                        No products found
-                      </td>
-                    </tr>
-                  )}
-                  {rows.map((r, i) => (
-                    <tr
-                      key={`${r._id}-${r._pi}`}
-                      style={{
-                        background: i === hiIdx ? "#c3d9f5" : undefined,
-                      }}
-                      onClick={() => setHiIdx(i)}
-                      onDoubleClick={() => onSelect(r)}
-                    >
-                      <td className="text-muted">{i + 1}</td>
-                      <td>
-                        <span className="xp-code">{r.code}</span>
-                      </td>
-                      <td>
-                        <button className="xp-link-btn">{r._name}</button>
-                      </td>
-                      <td className="text-muted">{r._meas}</td>
-                      <td className="r xp-amt success">{fmt(r._rate)}</td>
-                      <td className="r">{r._stock}</td>
-                      <td className="r">{r._pack}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-
-        <div className="cs-modal-hint">
-          ↑↓ navigate &nbsp;|&nbsp; Enter / Double-click = select &nbsp;|&nbsp;
-          Esc = close &nbsp;|&nbsp; Tab = filters
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* ─────────────────────────────────────────────────────────────
-   PRINT & SHARE
-───────────────────────────────────────────────────────────── */
-function printBill(bill) {
-  const rows = bill.items
-    .map(
-      (it, i) =>
-        `<tr><td>${i + 1}</td><td>${it.description}</td><td>${it.measurement || ""}</td><td align="right">${it.qty}</td><td align="right">${Number(it.rate).toLocaleString()}</td><td align="right">${it.disc || 0}%</td><td align="right"><b>${Number(it.amount).toLocaleString()}</b></td></tr>`,
-    )
-    .join("");
-  const win = window.open("", "_blank", "width=820,height=640");
-  win.document
-    .write(`<!DOCTYPE html><html><head><title>Sale Bill ${bill.billNo}</title>
-  <style>body{font-family:Arial,sans-serif;font-size:12px;padding:18px}h2,h3{margin:0 0 4px}table{width:100%;border-collapse:collapse;margin-top:10px}th,td{border:1px solid #ccc;padding:5px}th{background:#e8e8e8}.meta{display:flex;gap:16px;flex-wrap:wrap;margin:8px 0}.tots{float:right;min-width:200px;margin-top:10px}.tr{display:flex;justify-content:space-between;padding:2px 0}.tr.b{font-weight:bold;border-top:1px solid #000;margin-top:4px}.thanks{text-align:center;margin-top:30px;font-size:11px;color:#888;clear:both}</style></head><body>
-  <h2>${SHOP}</h2><h3>SALE BILL</h3>
-  <div class="meta"><span><b>Bill #:</b> ${bill.billNo}</span><span><b>Date:</b> ${bill.date}</span>${bill.custName ? `<span><b>Customer:</b> ${bill.custName}</span>` : ""}${bill.custPhone ? `<span><b>Phone:</b> ${bill.custPhone}</span>` : ""}</div>
-  <table><thead><tr><th>#</th><th>Description</th><th>Meas</th><th align="right">Qty</th><th align="right">Rate</th><th align="right">Disc%</th><th align="right">Amount</th></tr></thead><tbody>${rows}</tbody></table>
-  <div class="tots"><div class="tr"><span>Sub Total</span><span>${Number(bill.subTotal).toLocaleString()}</span></div>${bill.discAmt > 0 ? `<div class="tr"><span>Discount (${bill.extraDisc}%)</span><span>-${Number(bill.discAmt).toLocaleString()}</span></div>` : ""}<div class="tr b"><span>Net Total</span><span>Rs. ${Number(bill.netTotal).toLocaleString()}</span></div></div>
-  ${bill.remarks ? `<p style="clear:both"><b>Note:</b> ${bill.remarks}</p>` : ""}
-  <div class="thanks">Thank you! — ${SHOP}</div></body></html>`);
-  win.document.close();
-  setTimeout(() => win.print(), 400);
-}
-
-function shareWA(bill) {
-  const lines = bill.items
-    .map(
-      (it, i) =>
-        `${i + 1}. ${it.description}${it.measurement ? " (" + it.measurement + ")" : ""}  ${it.qty}×${Number(it.rate).toLocaleString()}${it.disc > 0 ? " -" + it.disc + "%" : ""} = *${Number(it.amount).toLocaleString()}*`,
-    )
-    .join("\n");
-  const msg =
-    `*${SHOP}*\n🧾 *Sale Bill #${bill.billNo}*\n📅 ${bill.date}\n` +
-    (bill.custName ? `👤 ${bill.custName}  ` : "") +
-    (bill.custPhone ? `📞 ${bill.custPhone}` : "") +
-    `\n${"─".repeat(26)}\n${lines}\n${"─".repeat(26)}\n` +
-    (bill.discAmt > 0
-      ? `Sub Total: ${Number(bill.subTotal).toLocaleString()}\nDiscount: -${Number(bill.discAmt).toLocaleString()}\n`
-      : "") +
-    `*Net Total: Rs. ${Number(bill.netTotal).toLocaleString()}*\n_Thank you!_`;
-  const ph = bill.custPhone?.replace(/[^0-9]/g, "");
-  const url = ph
-    ? `https://wa.me/92${ph.replace(/^0/, "")}?text=${encodeURIComponent(msg)}`
-    : `https://wa.me/?text=${encodeURIComponent(msg)}`;
-  window.open(url, "_blank");
-}
-
-const getNextNo = () => {
-  const n = parseInt(localStorage.getItem("msale_counter") || "0") + 1;
-  localStorage.setItem("msale_counter", String(n));
-  return `MS-${String(n).padStart(5, "0")}`;
+  invoiceNo: "",
+  credit: 0,
 };
 
 /* ─────────────────────────────────────────────────────────────
    MAIN PAGE
 ───────────────────────────────────────────────────────────── */
 export default function ManualSalePage() {
-  const initNo = () => {
-    const n = parseInt(localStorage.getItem("msale_counter") || "0") + 1;
-    return `MS-${String(n).padStart(5, "0")}`;
-  };
-
-  const [billNo, setBillNo] = useState(initNo);
   const [date, setDate] = useState(isoDate());
-  const [custName, setCustName] = useState("");
-  const [custPhone, setCustPhone] = useState("");
-  const [rows, setRows] = useState([{ ...EMPTY_ROW }]);
-  const [activeRow, setActiveRow] = useState(0);
-  const [extraDisc, setExtraDisc] = useState(0);
-  const [remarks, setRemarks] = useState("");
-  const [products, setProducts] = useState([]);
-  const [showSearch, setShowSearch] = useState(false);
+  const [customers, setCustomers] = useState([]);
+  const [salesRecords, setSalesRecords] = useState([]);
+  const [filterStartDate, setFilterStartDate] = useState(isoDate());
+  const [filterEndDate, setFilterEndDate] = useState(isoDate());
+  const [filterAccountTitle, setFilterAccountTitle] = useState("");
   const [msg, setMsg] = useState({ text: "", type: "" });
+  const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-
-  const custRef = useRef(null);
-  const phoneRef = useRef(null);
-  const discRef = useRef(null);
-  const saveRef = useRef(null);
-  const rowRefs = useRef([]);
-
-  const subTotal = rows.reduce((s, r) => s + (r.amount || 0), 0);
-  const discAmt = Math.round((subTotal * (extraDisc || 0)) / 100);
-  const netTotal = subTotal - discAmt;
+  
+  // Form Rows
+  const [row1, setRow1] = useState({ ...EMPTY_ROW });
+  const [row2, setRow2] = useState({ ...EMPTY_ROW });
+  
+  // Saved entries list
+  const [entries, setEntries] = useState([]);
+  
+  // Refs for Row 1
+  const code1Ref = useRef(null);
+  const title1Ref = useRef(null);
+  const desc1Ref = useRef(null);
+  const inv1Ref = useRef(null);
+  const credit1Ref = useRef(null);
+  
+  // Refs for Row 2
+  const code2Ref = useRef(null);
+  const title2Ref = useRef(null);
+  const desc2Ref = useRef(null);
+  const inv2Ref = useRef(null);
+  const credit2Ref = useRef(null);
+  
+  // Suggestion states for Row 1
+  const [suggestions1, setSuggestions1] = useState([]);
+  const [showSuggestions1, setShowSuggestions1] = useState(false);
+  const [selectedIdx1, setSelectedIdx1] = useState(-1);
+  const [activeField1, setActiveField1] = useState(null);
+  
+  // Suggestion states for Row 2
+  const [suggestions2, setSuggestions2] = useState([]);
+  const [showSuggestions2, setShowSuggestions2] = useState(false);
+  const [selectedIdx2, setSelectedIdx2] = useState(-1);
+  const [activeField2, setActiveField2] = useState(null);
 
   useEffect(() => {
-    fetchProducts();
+    fetchCustomers();
+    fetchSalesRecords();
+    // Focus on first field
+    setTimeout(() => code1Ref.current?.focus(), 100);
   }, []);
-  useEffect(() => {
-    const h = (e) => {
-      if (e.key === "F3") {
-        e.preventDefault();
-        setShowSearch(true);
-      }
-      if (e.key === "F5") {
-        e.preventDefault();
-        handleSave();
-      }
-      if (e.key === "F2") {
-        e.preventDefault();
-        resetForm();
-      }
-    };
-    window.addEventListener("keydown", h);
-    return () => window.removeEventListener("keydown", h);
-  }, [rows, custName, custPhone, extraDisc, remarks]);
 
-  const fetchProducts = async () => {
+  const fetchCustomers = async () => {
     try {
-      const { data } = await api.get(EP.PRODUCTS.GET_ALL);
-      if (data.success) setProducts(data.data);
-    } catch {}
+      const { data } = await api.get(EP.CUSTOMERS.GET_ALL);
+      if (data.success) {
+        setCustomers(data.data);
+      }
+    } catch (error) {
+      console.error("Failed to fetch customers:", error);
+    }
   };
+
+  const fetchSalesRecords = async () => {
+    setLoading(true);
+    try {
+      const { data } = await api.get(EP.SALES.GET_ALL);
+      if (data.success) {
+        setSalesRecords(data.data);
+      }
+    } catch (error) {
+      console.error("Failed to fetch sales records:", error);
+    }
+    setLoading(false);
+  };
+
   const showMsg = (text, type = "success") => {
     setMsg({ text, type });
     setTimeout(() => setMsg({ text: "", type: "" }), 3000);
   };
 
-  const handleProductSelect = (product) => {
-    const qty = rows[activeRow]?.qty || 1;
-    const rate = product._rate || 0;
-    setRows((prev) => {
-      const next = [...prev];
-      next[activeRow] = {
-        ...next[activeRow],
-        code: product.code || "",
-        description: product._name || product.description || "",
-        measurement: product._meas || "",
-        qty,
-        rate,
-        disc: next[activeRow]?.disc || 0,
-        amount: Math.round(qty * rate),
-      };
-      return next;
-    });
-    setShowSearch(false);
-    setTimeout(() => {
-      ensureRef(activeRow);
-      rowRefs.current[activeRow]?.qty?.focus();
-    }, 30);
+  const searchCustomers = (searchText) => {
+    if (!searchText.trim()) return [];
+    const q = searchText.trim().toLowerCase();
+    return customers.filter(c => 
+      c.code?.toLowerCase().includes(q) ||
+      c.name?.toLowerCase().includes(q)
+    ).slice(0, 10);
   };
 
-  const ensureRef = (i) => {
-    if (!rowRefs.current[i]) rowRefs.current[i] = {};
+  // Row 1 handlers
+  const handleCodeChange1 = (value) => {
+    setRow1(prev => ({ ...prev, code: value }));
+    if (!value.trim()) {
+      setSuggestions1([]);
+      setShowSuggestions1(false);
+      return;
+    }
+    const matches = searchCustomers(value);
+    setSuggestions1(matches);
+    setShowSuggestions1(matches.length > 0);
+    setSelectedIdx1(-1);
+    setActiveField1('code');
   };
 
-  const updateRow = (i, field, val) => {
-    setRows((prev) => {
-      const next = [...prev];
-      const r = { ...next[i], [field]: val };
-      if (["qty", "rate", "disc"].includes(field)) {
-        const q = field === "qty" ? Number(val) : Number(r.qty);
-        const rt = field === "rate" ? Number(val) : Number(r.rate);
-        const d = field === "disc" ? Number(val) : Number(r.disc);
-        r.amount = Math.round(q * rt * (1 - d / 100));
+  const handleTitleChange1 = (value) => {
+    setRow1(prev => ({ ...prev, accountTitle: value }));
+    if (!value.trim()) {
+      setSuggestions1([]);
+      setShowSuggestions1(false);
+      return;
+    }
+    const matches = searchCustomers(value);
+    setSuggestions1(matches);
+    setShowSuggestions1(matches.length > 0);
+    setSelectedIdx1(-1);
+    setActiveField1('title');
+  };
+
+  // Row 2 handlers
+  const handleCodeChange2 = (value) => {
+    setRow2(prev => ({ ...prev, code: value }));
+    if (!value.trim()) {
+      setSuggestions2([]);
+      setShowSuggestions2(false);
+      return;
+    }
+    const matches = searchCustomers(value);
+    setSuggestions2(matches);
+    setShowSuggestions2(matches.length > 0);
+    setSelectedIdx2(-1);
+    setActiveField2('code');
+  };
+
+  const handleTitleChange2 = (value) => {
+    setRow2(prev => ({ ...prev, accountTitle: value }));
+    if (!value.trim()) {
+      setSuggestions2([]);
+      setShowSuggestions2(false);
+      return;
+    }
+    const matches = searchCustomers(value);
+    setSuggestions2(matches);
+    setShowSuggestions2(matches.length > 0);
+    setSelectedIdx2(-1);
+    setActiveField2('title');
+  };
+
+  const selectCustomer = (customer, isRow1) => {
+    if (isRow1) {
+      setRow1(prev => ({ 
+        ...prev, 
+        code: customer.code || "",
+        accountTitle: customer.name
+      }));
+      setSuggestions1([]);
+      setShowSuggestions1(false);
+      setTimeout(() => desc1Ref.current?.focus(), 50);
+    } else {
+      setRow2(prev => ({ 
+        ...prev, 
+        code: customer.code || "",
+        accountTitle: customer.name
+      }));
+      setSuggestions2([]);
+      setShowSuggestions2(false);
+      setTimeout(() => desc2Ref.current?.focus(), 50);
+    }
+  };
+
+  const handleSuggestionKeyDown = (e, isRow1) => {
+    const suggestions = isRow1 ? suggestions1 : suggestions2;
+    const setSelected = isRow1 ? setSelectedIdx1 : setSelectedIdx2;
+    const selected = isRow1 ? selectedIdx1 : selectedIdx2;
+    
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setSelected(prev => prev < suggestions.length - 1 ? prev + 1 : prev);
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setSelected(prev => prev > 0 ? prev - 1 : -1);
+    } else if (e.key === "Enter" && selected >= 0 && suggestions[selected]) {
+      e.preventDefault();
+      selectCustomer(suggestions[selected], isRow1);
+    } else if (e.key === "Escape") {
+      if (isRow1) {
+        setShowSuggestions1(false);
+        setSuggestions1([]);
+      } else {
+        setShowSuggestions2(false);
+        setSuggestions2([]);
       }
-      next[i] = r;
-      return next;
-    });
+    }
   };
 
-  const addRowAfter = (i) => {
-    setRows((p) => {
-      const n = [...p];
-      n.splice(i + 1, 0, { ...EMPTY_ROW });
-      return n;
-    });
-    setActiveRow(i + 1);
-    setTimeout(() => setShowSearch(true), 30);
-  };
-  const deleteRow = (i) => {
-    if (rows.length === 1) {
-      setRows([{ ...EMPTY_ROW }]);
-      return;
+  const updateRow = (row, field, val, isRow1) => {
+    const newVal = field === "credit" ? parseFloat(val) || 0 : val;
+    if (isRow1) {
+      setRow1(prev => ({ ...prev, [field]: newVal }));
+    } else {
+      setRow2(prev => ({ ...prev, [field]: newVal }));
     }
-    setRows((p) => p.filter((_, idx) => idx !== i));
-    setActiveRow(Math.max(0, i - 1));
   };
 
-  const onKey = (e, i, field) => {
-    if (e.key === "Delete" && e.ctrlKey) {
-      e.preventDefault();
-      deleteRow(i);
-      return;
-    }
-    if (e.key === "F3") {
-      e.preventDefault();
-      setActiveRow(i);
-      setShowSearch(true);
-      return;
-    }
+  // Handle Enter key navigation for Row 1
+  const handleRow1KeyDown = (e, field) => {
     if (e.key === "Enter") {
       e.preventDefault();
-      if (field === "desc") {
-        setActiveRow(i);
-        setShowSearch(true);
-      } else {
-        const order = ["qty", "rate", "disc"];
-        const fi = order.indexOf(field);
-        if (fi < order.length - 1) {
-          ensureRef(i);
-          rowRefs.current[i]?.[order[fi + 1]]?.focus();
-        } else if (i === rows.length - 1) {
-          addRowAfter(i);
-        } else {
-          ensureRef(i + 1);
-          setActiveRow(i + 1);
-          setTimeout(() => setShowSearch(true), 30);
-        }
+      
+      switch(field) {
+        case 'code':
+          if (row1.code && !row1.accountTitle) {
+            // Try to find customer by code
+            const customer = customers.find(c => c.code === row1.code);
+            if (customer) {
+              selectCustomer(customer, true);
+            } else {
+              title1Ref.current?.focus();
+            }
+          } else {
+            title1Ref.current?.focus();
+          }
+          break;
+        case 'title':
+          if (row1.accountTitle && !row1.code) {
+            const customer = customers.find(c => c.name === row1.accountTitle);
+            if (customer) {
+              selectCustomer(customer, true);
+            } else {
+              desc1Ref.current?.focus();
+            }
+          } else {
+            desc1Ref.current?.focus();
+          }
+          break;
+        case 'desc':
+          inv1Ref.current?.focus();
+          break;
+        case 'inv':
+          credit1Ref.current?.focus();
+          break;
+        case 'credit':
+          // After credit amount, move to Row 2 Code field
+          if (row1.accountTitle && row1.credit > 0) {
+            // Auto-save row1? Or just move to next
+            code2Ref.current?.focus();
+          } else {
+            code2Ref.current?.focus();
+          }
+          break;
+        default:
+          break;
       }
     }
   };
 
-  const getBill = () => ({
-    billNo,
-    date,
-    custName,
-    custPhone,
-    items: rows.filter((r) => r.description && r.qty > 0),
-    subTotal,
-    discAmt,
-    netTotal,
-    extraDisc,
-    remarks,
-  });
+  // Handle Enter key navigation for Row 2
+  const handleRow2KeyDown = (e, field) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      
+      switch(field) {
+        case 'code':
+          if (row2.code && !row2.accountTitle) {
+            const customer = customers.find(c => c.code === row2.code);
+            if (customer) {
+              selectCustomer(customer, false);
+            } else {
+              title2Ref.current?.focus();
+            }
+          } else {
+            title2Ref.current?.focus();
+          }
+          break;
+        case 'title':
+          if (row2.accountTitle && !row2.code) {
+            const customer = customers.find(c => c.name === row2.accountTitle);
+            if (customer) {
+              selectCustomer(customer, false);
+            } else {
+              desc2Ref.current?.focus();
+            }
+          } else {
+            desc2Ref.current?.focus();
+          }
+          break;
+        case 'desc':
+          inv2Ref.current?.focus();
+          break;
+        case 'inv':
+          credit2Ref.current?.focus();
+          break;
+        case 'credit':
+          // After credit amount, trigger save if both rows have data
+          if ((row1.accountTitle && row1.credit > 0) || (row2.accountTitle && row2.credit > 0)) {
+            saveAllEntries();
+          }
+          break;
+        default:
+          break;
+      }
+    }
+  };
 
-  const handleSave = () => {
-    const bill = getBill();
-    if (!bill.items.length) {
-      showMsg("Add at least one item", "error");
+  const saveAllEntries = async () => {
+    // Check if at least one row has customer and amount (description is optional)
+    const hasRow1Data = row1.accountTitle && row1.credit > 0;
+    const hasRow2Data = row2.accountTitle && row2.credit > 0;
+    
+    if (!hasRow1Data && !hasRow2Data) {
+      showMsg("Please fill at least one entry with customer and amount", "error");
       return;
     }
+
     setSaving(true);
-    printBill(bill);
-    showMsg(`Bill ${bill.billNo} ready`);
-    setTimeout(() => {
-      resetForm();
-      setSaving(false);
-    }, 400);
+    const savedEntries = [];
+    
+    try {
+      // Save Row 1 if filled
+      if (hasRow1Data) {
+        const customer = customers.find(c => 
+          c.name === row1.accountTitle || c.code === row1.code
+        );
+        
+        const payload1 = {
+          invoiceNo: row1.invoiceNo || `MANUAL-${Date.now()}-1`,
+          invoiceDate: date,
+          customerId: customer?._id,
+          customerName: row1.accountTitle,
+          customerPhone: "",
+          items: [{
+            productId: "",
+            code: row1.code,
+            name: row1.description || "Manual entry",
+            description: row1.description || "Manual entry",
+            uom: "",
+            pcs: 1,
+            qty: 1,
+            rate: row1.credit,
+            amount: row1.credit,
+          }],
+          subTotal: row1.credit,
+          extraDisc: 0,
+          netTotal: row1.credit,
+          prevBalance: 0,
+          paidAmount: row1.credit,
+          balance: 0,
+          paymentMode: "Cash",
+          saleSource: "cash",
+          remarks: `Manual entry - ${row1.description || "No description"}`,
+          saleType: "sale",
+        };
+        
+        const response1 = await api.post(EP.SALES.CREATE, payload1);
+        if (response1.data.success) {
+          savedEntries.push({ ...row1, type: "DEBIT", description: row1.description || "Manual entry" });
+        }
+      }
+      
+      // Save Row 2 if filled
+      if (hasRow2Data) {
+        const customer = customers.find(c => 
+          c.name === row2.accountTitle || c.code === row2.code
+        );
+        
+        const payload2 = {
+          invoiceNo: row2.invoiceNo || `MANUAL-${Date.now()}-2`,
+          invoiceDate: date,
+          customerId: customer?._id,
+          customerName: row2.accountTitle,
+          customerPhone: "",
+          items: [{
+            productId: "",
+            code: row2.code,
+            name: row2.description || "Manual entry",
+            description: row2.description || "Manual entry",
+            uom: "",
+            pcs: 1,
+            qty: 1,
+            rate: row2.credit,
+            amount: row2.credit,
+          }],
+          subTotal: row2.credit,
+          extraDisc: 0,
+          netTotal: row2.credit,
+          prevBalance: 0,
+          paidAmount: row2.credit,
+          balance: 0,
+          paymentMode: "Credit",
+          saleSource: "credit",
+          remarks: `Manual entry - ${row2.description || "No description"}`,
+          saleType: "sale",
+        };
+        
+        const response2 = await api.post(EP.SALES.CREATE, payload2);
+        if (response2.data.success) {
+          savedEntries.push({ ...row2, type: "CREDIT", description: row2.description || "Manual entry" });
+        }
+      }
+      
+      if (savedEntries.length > 0) {
+        showMsg(`${savedEntries.length} record(s) saved successfully`, "success");
+        
+        // Add to entries list
+        setEntries(prev => [...prev, ...savedEntries.map(e => ({ ...e, id: Date.now() + Math.random() }))]);
+        
+        // Reset forms
+        setRow1({ ...EMPTY_ROW });
+        setRow2({ ...EMPTY_ROW });
+        setSuggestions1([]);
+        setSuggestions2([]);
+        setShowSuggestions1(false);
+        setShowSuggestions2(false);
+        
+        await fetchSalesRecords();
+        code1Ref.current?.focus();
+      }
+    } catch (error) {
+      console.error("Save error:", error);
+      showMsg("Failed to save records", "error");
+    }
+    setSaving(false);
   };
 
   const resetForm = () => {
-    setBillNo(getNextNo());
-    setDate(isoDate());
-    setCustName("");
-    setCustPhone("");
-    setRows([{ ...EMPTY_ROW }]);
-    setActiveRow(0);
-    setExtraDisc(0);
-    setRemarks("");
-    setTimeout(() => custRef.current?.focus(), 30);
+    setRow1({ ...EMPTY_ROW });
+    setRow2({ ...EMPTY_ROW });
+    setEntries([]);
+    setSuggestions1([]);
+    setSuggestions2([]);
+    setShowSuggestions1(false);
+    setShowSuggestions2(false);
+    setSelectedIdx1(-1);
+    setSelectedIdx2(-1);
+    setTimeout(() => code1Ref.current?.focus(), 50);
+  };
+
+  const calculateTotal = () => {
+    return entries.reduce((sum, e) => sum + (e.credit || 0), 0);
+  };
+
+  // Filtered sales records
+  const filteredSales = salesRecords.filter(sale => {
+    const saleDate = sale.invoiceDate;
+    const matchesDate = saleDate >= filterStartDate && saleDate <= filterEndDate;
+    const matchesAccount = !filterAccountTitle.trim() || 
+      (sale.customerName?.toLowerCase().includes(filterAccountTitle.toLowerCase()));
+    return matchesDate && matchesAccount;
+  }).sort((a, b) => new Date(b.invoiceDate) - new Date(a.invoiceDate));
+
+  const totalFilteredAmount = filteredSales.reduce((sum, sale) => sum + (sale.netTotal || 0), 0);
+
+  const renderSuggestions = (isRow1) => {
+    const suggestions = isRow1 ? suggestions1 : suggestions2;
+    const show = isRow1 ? showSuggestions1 : showSuggestions2;
+    const selected = isRow1 ? selectedIdx1 : selectedIdx2;
+    
+    if (!show || suggestions.length === 0) return null;
+    
+    return (
+      <div style={{
+        position: "absolute",
+        top: "100%",
+        left: 0,
+        right: 0,
+        background: "white",
+        border: "2px solid #1e40af",
+        borderRadius: "6px",
+        maxHeight: "250px",
+        overflowY: "auto",
+        zIndex: 100,
+        boxShadow: "0 4px 12px rgba(0,0,0,0.15)"
+      }}>
+        {suggestions.map((c, idx) => (
+          <div
+            key={c._id}
+            style={{
+              padding: "8px 12px",
+              cursor: "pointer",
+              background: idx === selected ? "#e5f0ff" : "white",
+              borderBottom: "1px solid #eee"
+            }}
+            onClick={() => selectCustomer(c, isRow1)}
+          >
+            <div style={{ fontWeight: "bold", fontSize: "13px" }}>
+              {c.code && <span style={{ color: "#1e40af" }}>[{c.code}]</span>} {c.name}
+            </div>
+            <div style={{ fontSize: "10px", color: "#666" }}>
+              Phone: {c.phone || "—"} | Balance: {fmt(c.currentBalance || 0)}
+            </div>
+          </div>
+        ))}
+      </div>
+    );
   };
 
   return (
-    <div className="mp-page">
-      {showSearch && (
-        <SearchModal
-          allProducts={products}
-          onSelect={handleProductSelect}
-          onClose={() => setShowSearch(false)}
-        />
-      )}
-
-      {/* ── Titlebar ── */}
-      <div className="xp-titlebar">
-        <svg
-          width="15"
-          height="15"
-          viewBox="0 0 16 16"
-          fill="rgba(255,255,255,0.85)"
-        >
-          <path d="M9 5.5a.5.5 0 0 0-1 0V7H6.5a.5.5 0 0 0 0 1H8v1.5a.5.5 0 0 0 1 0V8h1.5a.5.5 0 0 0 0-1H9z" />
-          <path d="M.5 1a.5.5 0 0 0 0 1h1.11l.401 1.607 1.498 7.985A.5.5 0 0 0 4 12h1a2 2 0 1 0 0 4 2 2 0 0 0 0-4h7a2 2 0 1 0 0 4 2 2 0 0 0 0-4h1a.5.5 0 0 0 .491-.408l1.5-8A.5.5 0 0 0 14.5 3H2.89l-.405-1.621A.5.5 0 0 0 2 1z" />
+    <div className="mp-page" style={{ background: "#ffffff", height: "100vh", display: "flex", flexDirection: "column" }}>
+      {/* Titlebar */}
+      <div className="xp-titlebar" style={{ background: "#1e40af", flexShrink: 0 }}>
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="rgba(255,255,255,0.85)">
+          <path d="M9 5.5a.5.5 0 0 0-1 0V7H6.5a.5.5 0 0 0 0 1H8v1.5a.5.5 0 0 0 1 0V8h1.5a.5.5 0 0 0 0-1H9z"/>
+          <path d="M.5 1a.5.5 0 0 0 0 1h1.11l.401 1.607 1.498 7.985A.5.5 0 0 0 4 12h1a2 2 0 1 0 0 4 2 2 0 0 0 0-4h7a2 2 0 1 0 0 4 2 2 0 0 0 0-4h1a.5.5 0 0 0 .491-.408l1.5-8A.5.5 0 0 0 14.5 3H2.89l-.405-1.621A.5.5 0 0 0 2 1z"/>
         </svg>
-        <span className="xp-tb-title">Manual Sale Bill — {SHOP}</span>
+        <span className="xp-tb-title" style={{ fontSize: "13px" }}>Manual Sale Bill (Credit/Debit) — {SHOP}</span>
         <div className="xp-tb-actions">
-          <div className="xp-tb-divider" />
-          <button className="xp-cap-btn" title="Minimize">
-            ─
-          </button>
-          <button className="xp-cap-btn" title="Maximize">
-            □
-          </button>
-          <button className="xp-cap-btn xp-cap-close" title="Close">
-            ✕
-          </button>
+          <button className="xp-cap-btn">─</button>
+          <button className="xp-cap-btn" onClick={() => document.documentElement.requestFullscreen()}>□</button>
+          <button className="xp-cap-btn xp-cap-close">✕</button>
         </div>
       </div>
 
-      {/* ── Alert ── */}
       {msg.text && (
-        <div
-          className={`xp-alert ${msg.type === "success" ? "xp-alert-success" : "xp-alert-error"}`}
-          style={{ margin: "4px 10px 0" }}
-        >
+        <div className={`xp-alert ${msg.type === "success" ? "xp-alert-success" : "xp-alert-error"}`} style={{ margin: "2px 8px 0", fontSize: "11px", padding: "4px 8px", flexShrink: 0 }}>
           {msg.text}
         </div>
       )}
 
-      <div className="mp-body">
-        {/* ── Header ── */}
-        <div className="mp-header">
-          <div className="mp-header-title">
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 16 16"
-              fill="var(--xp-blue-dark)"
-            >
-              <path d="M9 5.5a.5.5 0 0 0-1 0V7H6.5a.5.5 0 0 0 0 1H8v1.5a.5.5 0 0 0 1 0V8h1.5a.5.5 0 0 0 0-1H9z" />
-              <path d="M.5 1a.5.5 0 0 0 0 1h1.11l.401 1.607 1.498 7.985A.5.5 0 0 0 4 12h1a2 2 0 1 0 0 4 2 2 0 0 0 0-4h7a2 2 0 1 0 0 4 2 2 0 0 0 0-4h1a.5.5 0 0 0 .491-.408l1.5-8A.5.5 0 0 0 14.5 3H2.89l-.405-1.621A.5.5 0 0 0 2 1z" />
-            </svg>
-            Manual Sale Bill
+      {/* Main Body */}
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", padding: "8px", overflow: "hidden" }}>
+        
+        {/* Filter Bar */}
+        <div style={{ 
+          background: "#f8fafc", 
+          padding: "6px 10px", 
+          borderRadius: "6px", 
+          marginBottom: "8px",
+          border: "1px solid #e5e7eb",
+          flexShrink: 0,
+          display: "flex",
+          gap: "10px",
+          alignItems: "center",
+          flexWrap: "wrap"
+        }}>
+          <span style={{ fontWeight: "bold", fontSize: "12px" }}>📅 Filter:</span>
+          <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+            <label style={{ fontSize: "10px", fontWeight: "bold" }}>From</label>
+            <input type="date" style={{ width: "110px", padding: "4px", fontSize: "11px", borderRadius: "4px", border: "1px solid #ccc" }} value={filterStartDate} onChange={(e) => setFilterStartDate(e.target.value)} />
           </div>
-          <div className="mp-field-pair">
-            <label>Bill #</label>
-            <input
-              className="xp-input"
-              style={{ width: 110 }}
-              value={billNo}
-              readOnly
-              tabIndex={-1}
+          <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+            <label style={{ fontSize: "10px", fontWeight: "bold" }}>To</label>
+            <input type="date" style={{ width: "110px", padding: "4px", fontSize: "11px", borderRadius: "4px", border: "1px solid #ccc" }} value={filterEndDate} onChange={(e) => setFilterEndDate(e.target.value)} />
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: "4px", flex: 1, maxWidth: "250px" }}>
+            <label style={{ fontSize: "10px", fontWeight: "bold" }}>Account Title</label>
+            <input 
+              type="text" 
+              style={{ flex: 1, padding: "4px", fontSize: "11px", borderRadius: "4px", border: "1px solid #ccc" }} 
+              placeholder="Search by customer name..."
+              value={filterAccountTitle} 
+              onChange={(e) => setFilterAccountTitle(e.target.value)}
             />
           </div>
-          <div className="mp-field-pair">
-            <label>Date</label>
-            <input
-              type="date"
-              className="xp-input"
-              style={{ width: 140 }}
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              tabIndex={-1}
-            />
+          <button className="xp-btn xp-btn-sm" style={{ padding: "2px 8px", fontSize: "10px" }} onClick={fetchSalesRecords}>Refresh</button>
+          <button className="xp-btn xp-btn-sm" style={{ padding: "2px 8px", fontSize: "10px" }} onClick={resetForm}>Reset</button>
+          <span style={{ marginLeft: "auto", fontWeight: "bold", fontSize: "11px" }}>
+            Total: <span style={{ color: "#1e40af" }}>{fmt(totalFilteredAmount)}</span>
+          </span>
+        </div>
+
+        {/* Row 1 - Debit Entry */}
+        <div style={{ 
+          background: "#f8fafc", 
+          border: "2px solid #1e40af", 
+          borderRadius: "6px", 
+          padding: "8px 10px", 
+          marginBottom: "8px",
+          flexShrink: 0
+        }}>
+          <div style={{ fontWeight: "bold", fontSize: "12px", marginBottom: "6px", color: "#1e40af" }}>
+            📝 Entry #1 (Debit Entry - Cash Sale)
+          </div>
+          <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", alignItems: "flex-start" }}>
+            <div style={{ flex: 1, minWidth: "100px", position: "relative" }}>
+              <label style={{ fontSize: "10px", fontWeight: "bold", display: "block", marginBottom: "2px" }}>Code</label>
+              <input
+                ref={code1Ref}
+                type="text"
+                className="xp-input"
+                style={{ fontSize: "11px", padding: "5px", borderColor: "#1e40af" }}
+                value={row1.code}
+                onChange={(e) => handleCodeChange1(e.target.value)}
+                onKeyDown={(e) => {
+                  handleSuggestionKeyDown(e, true);
+                  handleRow1KeyDown(e, 'code');
+                }}
+                onFocus={() => {
+                  if (row1.code) {
+                    const matches = searchCustomers(row1.code);
+                    setSuggestions1(matches);
+                    setShowSuggestions1(matches.length > 0);
+                    setActiveField1('code');
+                  }
+                }}
+                placeholder="Customer code"
+                autoComplete="off"
+              />
+              {activeField1 === 'code' && renderSuggestions(true)}
+            </div>
+            <div style={{ flex: 2, minWidth: "180px", position: "relative" }}>
+              <label style={{ fontSize: "10px", fontWeight: "bold", display: "block", marginBottom: "2px" }}>Account Title *</label>
+              <input
+                ref={title1Ref}
+                type="text"
+                className="xp-input"
+                style={{ fontSize: "11px", padding: "5px", borderColor: "#1e40af" }}
+                value={row1.accountTitle}
+                onChange={(e) => handleTitleChange1(e.target.value)}
+                onKeyDown={(e) => {
+                  handleSuggestionKeyDown(e, true);
+                  handleRow1KeyDown(e, 'title');
+                }}
+                onFocus={() => {
+                  if (row1.accountTitle) {
+                    const matches = searchCustomers(row1.accountTitle);
+                    setSuggestions1(matches);
+                    setShowSuggestions1(matches.length > 0);
+                    setActiveField1('title');
+                  }
+                }}
+                placeholder="Customer name"
+                autoComplete="off"
+              />
+              {activeField1 === 'title' && renderSuggestions(true)}
+            </div>
+            <div style={{ flex: 2, minWidth: "150px" }}>
+              <label style={{ fontSize: "10px", fontWeight: "bold", display: "block", marginBottom: "2px" }}>Description (Optional)</label>
+              <input
+                ref={desc1Ref}
+                type="text"
+                className="xp-input"
+                style={{ fontSize: "11px", padding: "5px", borderColor: "#1e40af" }}
+                value={row1.description}
+                onChange={(e) => updateRow(row1, "description", e.target.value, true)}
+                onKeyDown={(e) => handleRow1KeyDown(e, 'desc')}
+                placeholder="Optional description"
+              />
+            </div>
+            <div style={{ flex: 1, minWidth: "100px" }}>
+              <label style={{ fontSize: "10px", fontWeight: "bold", display: "block", marginBottom: "2px" }}>Invoice #</label>
+              <input
+                ref={inv1Ref}
+                type="text"
+                className="xp-input"
+                style={{ fontSize: "11px", padding: "5px", borderColor: "#1e40af" }}
+                value={row1.invoiceNo}
+                onChange={(e) => updateRow(row1, "invoiceNo", e.target.value, true)}
+                onKeyDown={(e) => handleRow1KeyDown(e, 'inv')}
+                placeholder="Optional"
+              />
+            </div>
+            <div style={{ flex: 1, minWidth: "120px" }}>
+              <label style={{ fontSize: "10px", fontWeight: "bold", display: "block", marginBottom: "2px" }}>Debit Amount (PKR) *</label>
+              <input
+                ref={credit1Ref}
+                type="number"
+                className="xp-input"
+                style={{ fontSize: "11px", padding: "5px", textAlign: "right", fontWeight: "bold", borderColor: "#1e40af" }}
+                value={row1.credit}
+                onChange={(e) => updateRow(row1, "credit", e.target.value, true)}
+                onKeyDown={(e) => handleRow1KeyDown(e, 'credit')}
+                placeholder="0.00"
+              />
+            </div>
           </div>
         </div>
 
-        {/* ── Customer Strip ── */}
-        <div className="mp-supplier-strip">
-          <label>Customer</label>
-          <input
-            ref={custRef}
-            className="mp-supplier-input"
-            value={custName}
-            onChange={(e) => setCustName(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") phoneRef.current?.focus();
-            }}
-            placeholder="Customer name (optional)…"
-            tabIndex={1}
-          />
+        {/* Row 2 - Credit Entry */}
+        <div style={{ 
+          background: "#f8fafc", 
+          border: "2px solid #16a34a", 
+          borderRadius: "6px", 
+          padding: "8px 10px", 
+          marginBottom: "8px",
+          flexShrink: 0
+        }}>
+          <div style={{ fontWeight: "bold", fontSize: "12px", marginBottom: "6px", color: "#16a34a" }}>
+            📝 Entry #2 (Credit Entry - Credit Sale)
+          </div>
+          <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", alignItems: "flex-start" }}>
+            <div style={{ flex: 1, minWidth: "100px", position: "relative" }}>
+              <label style={{ fontSize: "10px", fontWeight: "bold", display: "block", marginBottom: "2px" }}>Code</label>
+              <input
+                ref={code2Ref}
+                type="text"
+                className="xp-input"
+                style={{ fontSize: "11px", padding: "5px", borderColor: "#16a34a" }}
+                value={row2.code}
+                onChange={(e) => handleCodeChange2(e.target.value)}
+                onKeyDown={(e) => {
+                  handleSuggestionKeyDown(e, false);
+                  handleRow2KeyDown(e, 'code');
+                }}
+                onFocus={() => {
+                  if (row2.code) {
+                    const matches = searchCustomers(row2.code);
+                    setSuggestions2(matches);
+                    setShowSuggestions2(matches.length > 0);
+                    setActiveField2('code');
+                  }
+                }}
+                placeholder="Customer code"
+                autoComplete="off"
+              />
+              {activeField2 === 'code' && renderSuggestions(false)}
+            </div>
+            <div style={{ flex: 2, minWidth: "180px", position: "relative" }}>
+              <label style={{ fontSize: "10px", fontWeight: "bold", display: "block", marginBottom: "2px" }}>Account Title *</label>
+              <input
+                ref={title2Ref}
+                type="text"
+                className="xp-input"
+                style={{ fontSize: "11px", padding: "5px", borderColor: "#16a34a" }}
+                value={row2.accountTitle}
+                onChange={(e) => handleTitleChange2(e.target.value)}
+                onKeyDown={(e) => {
+                  handleSuggestionKeyDown(e, false);
+                  handleRow2KeyDown(e, 'title');
+                }}
+                onFocus={() => {
+                  if (row2.accountTitle) {
+                    const matches = searchCustomers(row2.accountTitle);
+                    setSuggestions2(matches);
+                    setShowSuggestions2(matches.length > 0);
+                    setActiveField2('title');
+                  }
+                }}
+                placeholder="Customer name"
+                autoComplete="off"
+              />
+              {activeField2 === 'title' && renderSuggestions(false)}
+            </div>
+            <div style={{ flex: 2, minWidth: "150px" }}>
+              <label style={{ fontSize: "10px", fontWeight: "bold", display: "block", marginBottom: "2px" }}>Description (Optional)</label>
+              <input
+                ref={desc2Ref}
+                type="text"
+                className="xp-input"
+                style={{ fontSize: "11px", padding: "5px", borderColor: "#16a34a" }}
+                value={row2.description}
+                onChange={(e) => updateRow(row2, "description", e.target.value, false)}
+                onKeyDown={(e) => handleRow2KeyDown(e, 'desc')}
+                placeholder="Optional description"
+              />
+            </div>
+            <div style={{ flex: 1, minWidth: "100px" }}>
+              <label style={{ fontSize: "10px", fontWeight: "bold", display: "block", marginBottom: "2px" }}>Invoice #</label>
+              <input
+                ref={inv2Ref}
+                type="text"
+                className="xp-input"
+                style={{ fontSize: "11px", padding: "5px", borderColor: "#16a34a" }}
+                value={row2.invoiceNo}
+                onChange={(e) => updateRow(row2, "invoiceNo", e.target.value, false)}
+                onKeyDown={(e) => handleRow2KeyDown(e, 'inv')}
+                placeholder="Optional"
+              />
+            </div>
+            <div style={{ flex: 1, minWidth: "120px" }}>
+              <label style={{ fontSize: "10px", fontWeight: "bold", display: "block", marginBottom: "2px" }}>Credit Amount (PKR) *</label>
+              <input
+                ref={credit2Ref}
+                type="number"
+                className="xp-input"
+                style={{ fontSize: "11px", padding: "5px", textAlign: "right", fontWeight: "bold", borderColor: "#16a34a" }}
+                value={row2.credit}
+                onChange={(e) => updateRow(row2, "credit", e.target.value, false)}
+                onKeyDown={(e) => handleRow2KeyDown(e, 'credit')}
+                placeholder="0.00"
+              />
+            </div>
+          </div>
+        </div>
 
-          <label>Phone</label>
-          <input
-            ref={phoneRef}
-            className="mp-supplier-input"
-            style={{ maxWidth: 150 }}
-            value={custPhone}
-            onChange={(e) => setCustPhone(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                setActiveRow(0);
-                setShowSearch(true);
-              }
-            }}
-            placeholder="03xx-xxxxxxx"
-            tabIndex={2}
-          />
-
-          <div className="xp-toolbar-divider" />
-
-          <div
-            style={{
-              fontSize: "var(--xp-fs-xs)",
-              color: "#666",
-              display: "flex",
-              gap: 8,
-              flexWrap: "wrap",
-            }}
+        {/* Single Save Button */}
+        <div style={{ marginBottom: "8px", flexShrink: 0, textAlign: "center" }}>
+          <button 
+            className="xp-btn xp-btn-primary" 
+            style={{ background: "#1e40af", fontSize: "13px", padding: "8px 32px", fontWeight: "bold" }} 
+            onClick={saveAllEntries}
+            disabled={saving}
           >
-            <span>
-              <span
-                style={{
-                  fontFamily: "var(--xp-mono)",
-                  fontWeight: 700,
-                  color: "var(--xp-blue-dark)",
-                }}
-              >
-                F3
-              </span>{" "}
-              Search
-            </span>
-            <span>
-              <span
-                style={{
-                  fontFamily: "var(--xp-mono)",
-                  fontWeight: 700,
-                  color: "var(--xp-blue-dark)",
-                }}
-              >
-                F5
-              </span>{" "}
-              Save
-            </span>
-            <span>
-              <span
-                style={{
-                  fontFamily: "var(--xp-mono)",
-                  fontWeight: 700,
-                  color: "var(--xp-blue-dark)",
-                }}
-              >
-                F2
-              </span>{" "}
-              New
-            </span>
-            <span>
-              <span
-                style={{
-                  fontFamily: "var(--xp-mono)",
-                  fontWeight: 700,
-                  color: "var(--xp-blue-dark)",
-                }}
-              >
-                Ctrl+Del
-              </span>{" "}
-              Remove Row
-            </span>
-          </div>
+            {saving ? "Saving..." : "💾 Save All Records"}
+          </button>
         </div>
 
-        {/* ── Items Table ── */}
-        <div className="mp-items-panel">
-          <table className="mp-items-table">
-            <thead>
-              <tr>
-                <th style={{ width: 30 }}>#</th>
-                <th style={{ width: 75 }}>Code</th>
-                <th>Description</th>
-                <th style={{ width: 65 }}>Meas.</th>
-                <th style={{ width: 60 }} className="r">
-                  Qty
-                </th>
-                <th style={{ width: 90 }} className="r">
-                  Rate
-                </th>
-                <th style={{ width: 55 }} className="r">
-                  Disc%
-                </th>
-                <th style={{ width: 100 }} className="r">
-                  Amount
-                </th>
-                <th style={{ width: 26 }}></th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row, i) => {
-                ensureRef(i);
-                return (
-                  <tr
-                    key={i}
-                    className={activeRow === i ? "mp-active-row" : ""}
-                    onClick={() => setActiveRow(i)}
-                  >
-                    <td
-                      className="text-muted"
-                      style={{
-                        textAlign: "center",
-                        fontSize: "var(--xp-fs-xs)",
-                      }}
-                    >
-                      {i + 1}
+        {/* Recent Entries Summary */}
+        {entries.length > 0 && (
+          <div style={{ marginBottom: "8px", flexShrink: 0 }}>
+            <div style={{ fontWeight: "bold", fontSize: "11px", marginBottom: "4px" }}>📋 Recently Saved ({entries.length})</div>
+            <div style={{ border: "1px solid #e5e7eb", borderRadius: "4px", overflow: "auto", maxHeight: "120px" }}>
+              <table style={{ width: "100%", fontSize: "10px", borderCollapse: "collapse" }}>
+                <thead>
+                  <tr style={{ background: "#f1f5f9", position: "sticky", top: 0 }}>
+                    <th style={{ width: 30, padding: "3px" }}>#</th>
+                    <th style={{ width: 80, padding: "3px" }}>Code</th>
+                    <th style={{ width: 120, padding: "3px" }}>Account Title</th>
+                    <th style={{ padding: "3px" }}>Description</th>
+                    <th style={{ width: 80, padding: "3px", textAlign: "right" }}>Amount</th>
+                    <th style={{ width: 60, padding: "3px" }}>Type</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {entries.slice(-5).reverse().map((entry, idx) => (
+                    <tr key={entry.id} style={{ borderBottom: "1px solid #e5e7eb" }}>
+                      <td style={{ padding: "3px", textAlign: "center" }}>{entries.length - idx}</td>
+                      <td style={{ padding: "3px", fontWeight: "bold" }}>{entry.code || "—"}</td>
+                      <td style={{ padding: "3px", fontWeight: "bold" }}>{entry.accountTitle}</td>
+                      <td style={{ padding: "3px" }}>{entry.description || "—"}</td>
+                      <td style={{ padding: "3px", textAlign: "right", fontWeight: "bold", color: entry.type === "CREDIT" ? "#dc2626" : "#16a34a" }}>
+                        {fmt(entry.credit)}
+                      </td>
+                      <td style={{ padding: "3px", textAlign: "center" }}>
+                        <span style={{ 
+                          background: entry.type === "CREDIT" ? "#fee2e2" : "#dcfce7", 
+                          color: entry.type === "CREDIT" ? "#dc2626" : "#16a34a",
+                          padding: "2px 6px",
+                          borderRadius: "10px",
+                          fontSize: "8px",
+                          fontWeight: "bold"
+                        }}>
+                          {entry.type}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* Sales Records Table */}
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
+          <div style={{ fontWeight: "bold", fontSize: "11px", marginBottom: "4px" }}>📊 Sales Records ({filteredSales.length})</div>
+          <div style={{ border: "1px solid #e5e7eb", borderRadius: "4px", overflow: "auto", flex: 1 }}>
+            <table style={{ width: "100%", fontSize: "10px", borderCollapse: "collapse" }}>
+              <thead>
+                <tr style={{ background: "#f1f5f9", position: "sticky", top: 0 }}>
+                  <th style={{ width: 30, padding: "5px", textAlign: "center" }}>#</th>
+                  <th style={{ width: 90, padding: "5px" }}>Invoice #</th>
+                  <th style={{ width: 80, padding: "5px" }}>Date</th>
+                  <th style={{ width: 100, padding: "5px" }}>Code</th>
+                  <th style={{ width: 130, padding: "5px" }}>Customer</th>
+                  <th style={{ width: 60, padding: "5px", textAlign: "center" }}>Type</th>
+                  <th style={{ width: 85, padding: "5px", textAlign: "right" }}>Amount</th>
+                  <th style={{ padding: "5px" }}>Remarks</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredSales.length === 0 && (
+                  <tr><td colSpan={8} style={{ padding: "40px", textAlign: "center", color: "#999" }}>No records found for selected filters</td></tr>
+                )}
+                {filteredSales.map((sale, idx) => (
+                  <tr key={sale._id} style={{ borderBottom: "1px solid #e5e7eb" }}>
+                    <td style={{ padding: "4px", textAlign: "center" }}>{idx + 1}</td>
+                    <td style={{ padding: "4px", fontWeight: "bold" }}>{sale.invoiceNo}</td>
+                    <td style={{ padding: "4px" }}>{sale.invoiceDate}</td>
+                    <td style={{ padding: "4px", fontWeight: "bold" }}>{sale.items?.[0]?.code || "—"}</td>
+                    <td style={{ padding: "4px", fontWeight: "bold" }}>{sale.customerName || "—"}</td>
+                    <td style={{ padding: "4px", textAlign: "center" }}>
+                      <span style={{ 
+                        background: sale.paymentMode === "Credit" ? "#fee2e2" : "#dcfce7",
+                        color: sale.paymentMode === "Credit" ? "#dc2626" : "#16a34a",
+                        padding: "2px 6px",
+                        borderRadius: "10px",
+                        fontSize: "8px",
+                        fontWeight: "bold"
+                      }}>
+                        {sale.paymentMode === "Credit" ? "CREDIT" : "DEBIT"}
+                      </span>
                     </td>
-                    <td>
-                      <input
-                        className="mp-cell-in w-code"
-                        value={row.code}
-                        readOnly
-                        tabIndex={-1}
-                      />
+                    <td style={{ padding: "4px", textAlign: "right", fontWeight: "bold", color: "#1e40af" }}>
+                      {fmt(sale.netTotal)}
                     </td>
-                    <td>
-                      <input
-                        className="mp-cell-in desc"
-                        ref={(el) => {
-                          ensureRef(i);
-                          rowRefs.current[i].desc = el;
-                        }}
-                        value={row.description}
-                        onChange={(e) =>
-                          updateRow(i, "description", e.target.value)
-                        }
-                        onKeyDown={(e) => onKey(e, i, "desc")}
-                        onClick={() => {
-                          setActiveRow(i);
-                          setShowSearch(true);
-                        }}
-                        placeholder="Click or Enter to search…"
-                        tabIndex={10 + i * 10 + 1}
-                      />
-                    </td>
-                    <td>
-                      <input
-                        className="mp-cell-in w-meas"
-                        value={row.measurement}
-                        readOnly
-                        tabIndex={-1}
-                      />
-                    </td>
-                    <td>
-                      <input
-                        type="number"
-                        className="mp-cell-in w-sm"
-                        ref={(el) => {
-                          ensureRef(i);
-                          rowRefs.current[i].qty = el;
-                        }}
-                        value={row.qty}
-                        onChange={(e) => updateRow(i, "qty", e.target.value)}
-                        onKeyDown={(e) => onKey(e, i, "qty")}
-                        tabIndex={10 + i * 10 + 2}
-                      />
-                    </td>
-                    <td>
-                      <input
-                        type="number"
-                        className="mp-cell-in w-md"
-                        ref={(el) => {
-                          ensureRef(i);
-                          rowRefs.current[i].rate = el;
-                        }}
-                        value={row.rate}
-                        onChange={(e) => updateRow(i, "rate", e.target.value)}
-                        onKeyDown={(e) => onKey(e, i, "rate")}
-                        tabIndex={10 + i * 10 + 3}
-                      />
-                    </td>
-                    <td>
-                      <input
-                        type="number"
-                        className="mp-cell-in w-sm"
-                        ref={(el) => {
-                          ensureRef(i);
-                          rowRefs.current[i].disc = el;
-                        }}
-                        value={row.disc}
-                        onChange={(e) => updateRow(i, "disc", e.target.value)}
-                        onKeyDown={(e) => onKey(e, i, "disc")}
-                        tabIndex={10 + i * 10 + 4}
-                      />
-                    </td>
-                    <td className="mp-amt">{fmt(row.amount)}</td>
-                    <td style={{ textAlign: "center" }}>
-                      <button
-                        className="xp-btn xp-btn-sm xp-btn-ico"
-                        onClick={() => deleteRow(i)}
-                        tabIndex={-1}
-                        style={{
-                          width: 20,
-                          height: 20,
-                          fontSize: 9,
-                          color: "var(--xp-red)",
-                        }}
-                      >
-                        ✕
-                      </button>
+                    <td style={{ padding: "4px", fontSize: "9px", color: "#666" }}>
+                      {sale.remarks || "—"}
                     </td>
                   </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-
-        {/* ── Bottom ── */}
-        <div className="mp-bottom">
-          {/* Left: remarks + buttons */}
-          <div className="mp-actions-col">
-            <div className="mp-remarks-row">
-              <label>Note</label>
-              <input
-                className="mp-remarks-input"
-                value={remarks}
-                onChange={(e) => setRemarks(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") discRef.current?.focus();
-                }}
-                placeholder="Remarks…"
-                tabIndex={90}
-              />
-            </div>
-            <div className="mp-btn-row">
-              <button
-                className="xp-btn xp-btn-sm"
-                onClick={() => {
-                  setActiveRow(rows.length - 1);
-                  addRowAfter(rows.length - 1);
-                }}
-                tabIndex={-1}
-              >
-                <svg
-                  width="11"
-                  height="11"
-                  viewBox="0 0 16 16"
-                  fill="currentColor"
-                >
-                  <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16" />
-                  <path d="M8 4a.5.5 0 0 1 .5.5v3h3a.5.5 0 0 1 0 1h-3v3a.5.5 0 0 1-1 0v-3h-3a.5.5 0 0 1 0-1h3v-3A.5.5 0 0 1 8 4" />
-                </svg>
-                Add Row
-              </button>
-              <button
-                className="xp-btn xp-btn-sm"
-                onClick={resetForm}
-                tabIndex={-1}
-              >
-                <svg
-                  width="11"
-                  height="11"
-                  viewBox="0 0 16 16"
-                  fill="currentColor"
-                >
-                  <path d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2z" />
-                  <path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466" />
-                </svg>
-                F2 New
-              </button>
-              <button
-                className="xp-btn xp-btn-sm"
-                onClick={() => {
-                  const b = getBill();
-                  if (!b.items.length) {
-                    showMsg("Add items", "error");
-                    return;
-                  }
-                  printBill(b);
-                }}
-                tabIndex={-1}
-              >
-                <svg
-                  width="11"
-                  height="11"
-                  viewBox="0 0 16 16"
-                  fill="currentColor"
-                >
-                  <path d="M2.5 8a.5.5 0 1 0 0-1 .5.5 0 0 0 0 1" />
-                  <path d="M5 1a2 2 0 0 0-2 2v2H2a2 2 0 0 0-2 2v3a2 2 0 0 0 2 2h1v1a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2v-1h1a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-1V3a2 2 0 0 0-2-2z" />
-                </svg>
-                Print
-              </button>
-              <button
-                className="xp-btn xp-btn-wa xp-btn-sm"
-                onClick={() => {
-                  const b = getBill();
-                  if (!b.items.length) {
-                    showMsg("Add items", "error");
-                    return;
-                  }
-                  shareWA(b);
-                }}
-                tabIndex={-1}
-              >
-                <svg
-                  width="11"
-                  height="11"
-                  viewBox="0 0 16 16"
-                  fill="currentColor"
-                >
-                  <path d="M13.601 2.326A7.85 7.85 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c0 1.399.366 2.76 1.057 3.965L0 16l4.204-1.102a7.9 7.9 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.9 7.9 0 0 0 13.6 2.326z" />
-                </svg>
-                WhatsApp
-              </button>
-              <button
-                ref={saveRef}
-                className="xp-btn xp-btn-primary xp-btn-lg"
-                onClick={handleSave}
-                disabled={saving}
-                tabIndex={91}
-              >
-                <svg
-                  width="12"
-                  height="12"
-                  viewBox="0 0 16 16"
-                  fill="currentColor"
-                >
-                  <path d="M2 1a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1H9.5a1 1 0 0 0-1 1v7.293l2.646-2.647a.5.5 0 0 1 .708.708l-3.5 3.5a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 1 1 .708-.708L7.5 9.293V2a2 2 0 0 1 2-2H14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2z" />
-                </svg>
-                {saving ? "…" : "F5 Save & Print"}
-              </button>
-            </div>
-          </div>
-
-          {/* Right: totals */}
-          <div className="mp-totals-box">
-            <div className="mp-total-row">
-              <label>Sub Total</label>
-              <span className="mp-val">{fmt(subTotal)}</span>
-            </div>
-            <div className="mp-total-row">
-              <label>Extra Disc%</label>
-              <input
-                ref={discRef}
-                type="number"
-                className="mp-disc-input"
-                value={extraDisc}
-                onChange={(e) => setExtraDisc(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") saveRef.current?.focus();
-                }}
-                tabIndex={89}
-              />
-            </div>
-            {discAmt > 0 && (
-              <div className="mp-total-row">
-                <label>Disc Amt</label>
-                <span className="mp-val danger">-{fmt(discAmt)}</span>
-              </div>
-            )}
-            <div className="mp-total-row highlight">
-              <label>Net Total</label>
-              <span className="mp-val success">PKR {fmt(netTotal)}</span>
-            </div>
-            <div className="mp-total-row">
-              <label>Items</label>
-              <span className="mp-val">
-                {rows.filter((r) => r.description).length}
-              </span>
-            </div>
+                ))}
+              </tbody>
+              {filteredSales.length > 0 && (
+                <tfoot>
+                  <tr style={{ background: "#f8fafc", fontWeight: "bold", borderTop: "2px solid #1e40af" }}>
+                    <td colSpan={6} style={{ padding: "5px", textAlign: "right" }}>Total:</td>
+                    <td style={{ padding: "5px", textAlign: "right", color: "#1e40af", fontSize: "11px" }}>{fmt(totalFilteredAmount)}</td>
+                    <td></td>
+                  </tr>
+                </tfoot>
+              )}
+            </table>
           </div>
         </div>
       </div>
 
-      {/* ── Status Bar ── */}
-      <div className="xp-statusbar">
-        <div className="xp-status-pane">
-          <svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor">
-            <path d="M9 5.5a.5.5 0 0 0-1 0V7H6.5a.5.5 0 0 0 0 1H8v1.5a.5.5 0 0 0 1 0V8h1.5a.5.5 0 0 0 0-1H9z" />
-            <path d="M.5 1a.5.5 0 0 0 0 1h1.11l.401 1.607 1.498 7.985A.5.5 0 0 0 4 12h1a2 2 0 1 0 0 4 2 2 0 0 0 0-4h7a2 2 0 1 0 0 4 2 2 0 0 0 0-4z" />
-          </svg>
-          Bill: {billNo}
-        </div>
-        <div className="xp-status-pane">
-          <svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor">
-            <path d="M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6" />
-          </svg>
-          {custName || "Counter Sale"}
-        </div>
-        <div className="xp-status-pane">
-          Items: {rows.filter((r) => r.description).length}
-        </div>
-        <div className="xp-status-pane">
-          Net:{" "}
-          <strong
-            style={{
-              fontFamily: "var(--xp-mono)",
-              marginLeft: 3,
-              color: "var(--xp-green)",
-            }}
-          >
-            PKR {fmt(netTotal)}
-          </strong>
-        </div>
+      {/* Command Bar */}
+      <div style={{ padding: "4px 10px", background: "#f1f5f9", borderTop: "2px solid #1e40af", display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap", flexShrink: 0 }}>
+        <button className="xp-btn xp-btn-sm" style={{ fontSize: "11px", padding: "3px 8px" }} onClick={resetForm}>🔄 Reset All</button>
+        <span style={{ flex: 1, textAlign: "right", fontSize: "11px", fontWeight: "bold" }}>
+          Total Saved Today: {entries.length} | Amount: {fmt(calculateTotal())}
+        </span>
+        <button className="xp-btn xp-btn-sm" style={{ fontSize: "11px", padding: "3px 8px" }} onClick={() => window.history.back()}>✕ Close</button>
+      </div>
+
+      {/* Status Bar */}
+      <div className="xp-statusbar" style={{ fontSize: "10px", padding: "2px 8px", flexShrink: 0 }}>
+        <div className="xp-status-pane">Manual Sale Bill</div>
+        <div className="xp-status-pane">Saved Today: {entries.length}</div>
+        <div className="xp-status-pane">Records: {filteredSales.length}</div>
       </div>
     </div>
   );
