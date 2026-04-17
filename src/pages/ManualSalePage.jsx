@@ -1,9 +1,8 @@
-// pages/ManualSalePage.jsx
-import { useState, useEffect, useRef, useCallback } from "react";
+// pages/ManualSalePage.jsx - Fixed with proper JSX syntax
+import { useState, useEffect, useRef } from "react";
 import api from "../api/api.js";
 import EP from "../api/apiEndpoints.js";
 import "../styles/theme.css";
-import "../styles/ManualPurchasePage.css";
 
 const isoDate = () => new Date().toISOString().split("T")[0];
 const fmt = (n) => Number(n || 0).toLocaleString("en-PK");
@@ -17,11 +16,217 @@ const EMPTY_ROW = {
   credit: 0,
 };
 
-/* ─────────────────────────────────────────────────────────────
-   MAIN PAGE
-───────────────────────────────────────────────────────────── */
+// Customer Dropdown Component
+function CustomerDropdown({ allCustomers, value, displayName, customerType, onSelect, onClear, allowedTypes, onEnterPress }) {
+  const [query, setQuery] = useState("");
+  const [originalQuery, setOriginalQuery] = useState("");
+  const [ghost, setGhost] = useState("");
+  const [suggestions, setSuggestions] = useState([]);
+  const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(-1);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [isNavigating, setIsNavigating] = useState(false);
+  const [isFocused, setIsFocused] = useState(false);
+  const inputRef = useRef(null);
+
+  const creditCustomers = allCustomers.filter((c) => {
+    const t = (c.customerType || c.type || "").toLowerCase();
+    const allowed = allowedTypes || ["credit"];
+    return allowed.includes(t) && c.name?.toUpperCase().trim() !== "COUNTER SALE";
+  });
+
+  const getSuggestions = (searchTerm) => {
+    if (!searchTerm.trim()) return [];
+    const searchLower = searchTerm.toLowerCase();
+    return creditCustomers.filter(c => 
+      c.name?.toLowerCase().startsWith(searchLower) ||
+      c.code?.toLowerCase().startsWith(searchLower)
+    );
+  };
+
+  useEffect(() => {
+    if (!originalQuery.trim()) {
+      setSuggestions([]);
+      setGhost("");
+      setShowDropdown(false);
+      return;
+    }
+    const matches = getSuggestions(originalQuery);
+    setSuggestions(matches);
+    setShowDropdown(matches.length > 0);
+    if (!isNavigating && matches.length > 0 && matches[0].name) {
+      const remaining = matches[0].name.slice(originalQuery.length);
+      setGhost(remaining);
+    } else {
+      setGhost("");
+    }
+  }, [originalQuery, isNavigating]);
+
+  const selectCustomer = (customer) => {
+    onSelect(customer);
+    setQuery("");
+    setOriginalQuery("");
+    setGhost("");
+    setSuggestions([]);
+    setSelectedSuggestionIndex(-1);
+    setShowDropdown(false);
+    setIsNavigating(false);
+    setTimeout(() => { if (onEnterPress) onEnterPress(); }, 100);
+  };
+
+  const handleKeyDown = (e) => {
+    if (ghost && (e.key === "ArrowRight" || e.key === "Tab") && !isNavigating) {
+      e.preventDefault();
+      const fullName = originalQuery + ghost;
+      setQuery(fullName);
+      setOriginalQuery(fullName);
+      setGhost("");
+      setIsNavigating(false);
+      const matchedCustomer = suggestions[0];
+      if (matchedCustomer) selectCustomer(matchedCustomer);
+      return;
+    }
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      if (suggestions.length === 0) return;
+      setIsNavigating(true);
+      setShowDropdown(true);
+      let newIndex = selectedSuggestionIndex === -1 ? 0 : selectedSuggestionIndex + 1;
+      if (newIndex >= suggestions.length) newIndex = 0;
+      setSelectedSuggestionIndex(newIndex);
+      const selectedCustomer = suggestions[newIndex];
+      if (selectedCustomer) { setQuery(selectedCustomer.name); setGhost(""); }
+      return;
+    }
+    if (e.key === "ArrowUp") {
+      e.preventDefault();
+      if (suggestions.length === 0) return;
+      setIsNavigating(true);
+      setShowDropdown(true);
+      let newIndex = selectedSuggestionIndex === -1 ? suggestions.length - 1 : selectedSuggestionIndex - 1;
+      if (newIndex < 0) newIndex = suggestions.length - 1;
+      setSelectedSuggestionIndex(newIndex);
+      const selectedCustomer = suggestions[newIndex];
+      if (selectedCustomer) { setQuery(selectedCustomer.name); setGhost(""); }
+      return;
+    }
+    if (e.key === "Enter") {
+      e.preventDefault();
+      if (selectedSuggestionIndex >= 0 && suggestions[selectedSuggestionIndex]) {
+        selectCustomer(suggestions[selectedSuggestionIndex]);
+      } else if (suggestions.length > 0 && suggestions[0]) {
+        selectCustomer(suggestions[0]);
+      } else if (onEnterPress) {
+        onEnterPress();
+      }
+      return;
+    }
+    if (e.key === "Escape") {
+      e.preventDefault();
+      setQuery("");
+      setOriginalQuery("");
+      setGhost("");
+      setSuggestions([]);
+      setSelectedSuggestionIndex(-1);
+      setShowDropdown(false);
+      setIsNavigating(false);
+      if (value) onClear();
+      inputRef.current?.blur();
+    }
+  };
+
+  const handleChange = (e) => {
+    const newValue = e.target.value;
+    setQuery(newValue);
+    setOriginalQuery(newValue);
+    if (value && newValue !== displayName) onClear();
+    setSelectedSuggestionIndex(-1);
+    setShowDropdown(true);
+    setIsNavigating(false);
+  };
+
+  return (
+    <div style={{ position: "relative", flex: 1, width: "100%" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 4, position: "relative", width: "100%" }}>
+        <div style={{ position: "relative", flex: 1, background: isFocused ? "#fffbe6" : "transparent", borderRadius: "4px", transition: "background 0.15s ease", width: "100%" }}>
+          {ghost && !isNavigating && originalQuery && (
+            <div style={{ position: "absolute", left: 8, top: "50%", transform: "translateY(-50%)", pointerEvents: "none", whiteSpace: "nowrap", fontSize: "13px", fontFamily: "inherit", display: "flex", zIndex: 2, color: "#a0aec0", backgroundColor: "transparent" }}>
+              <span style={{ visibility: "hidden" }}>{originalQuery}</span>
+              <span style={{ color: "#a0aec0" }}>{ghost}</span>
+            </div>
+          )}
+          <input
+            ref={inputRef}
+            style={{ flex: 1, minWidth: 0, cursor: "text", background: "transparent", position: "relative", zIndex: 1, width: "100%", border: "none", outline: "none", padding: "6px 6px", fontSize: "13px", fontWeight: "500" }}
+            value={value ? (query || displayName) : query}
+            onChange={handleChange}
+            onKeyDown={handleKeyDown}
+            onFocus={() => setIsFocused(true)}
+            onBlur={() => { setIsFocused(false); setTimeout(() => { if (!isNavigating) setShowDropdown(false); }, 200); }}
+            autoComplete="off"
+            spellCheck={false}
+            placeholder="Type name or code..."
+          />
+        </div>
+        {value && (
+          <button type="button" style={{ height: 26, padding: "0 8px", fontSize: 11, flexShrink: 0, background: "#ef4444", color: "white", border: "none", borderRadius: "4px", cursor: "pointer", fontWeight: "bold" }}
+            onMouseDown={(e) => { e.preventDefault(); onClear(); setQuery(""); setOriginalQuery(""); setGhost(""); setSuggestions([]); setSelectedSuggestionIndex(-1); setShowDropdown(false); setIsNavigating(false); inputRef.current?.focus(); }} title="Clear">Clear</button>
+        )}
+      </div>
+      {showDropdown && suggestions.length > 0 && (
+        <div style={{ position: "absolute", top: "100%", left: 0, right: 0, backgroundColor: "white", border: "1px solid #000000", borderRadius: 4, maxHeight: 280, overflowY: "auto", zIndex: 1000, boxShadow: "0 2px 8px rgba(0,0,0,0.1)", marginTop: 2 }}>
+          {suggestions.map((customer, idx) => (
+            <div key={customer._id} onClick={() => selectCustomer(customer)} style={{ padding: "8px 10px", cursor: "pointer", backgroundColor: idx === selectedSuggestionIndex ? "#e5f0ff" : "white", borderBottom: "1px solid #e2e8f0", fontSize: 12, display: "flex", alignItems: "center", gap: "10px" }}
+              onMouseEnter={() => { setSelectedSuggestionIndex(idx); setIsNavigating(true); setQuery(customer.name); setGhost(""); }} onMouseLeave={() => setIsNavigating(false)}>
+              {customer.imageFront ? (
+                <img src={customer.imageFront} alt="" style={{ width: "36px", height: "36px", borderRadius: "50%", objectFit: "cover", border: "1px solid #000000" }} />
+              ) : (
+                <div style={{ width: "36px", height: "36px", borderRadius: "50%", background: "#e2e8f0", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "18px", border: "1px solid #000000" }}>👤</div>
+              )}
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: "bold", fontSize: 13, color: "#1e293b" }}>{customer.name}</div>
+                <div style={{ fontSize: 10, color: "#6b7280", marginTop: 1 }}>{customer.code && <span>📋 Code: {customer.code}</span>}{customer.phone && <span> | 📞 {customer.phone}</span>}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Selected Customer Card Component
+function SelectedCustomerCard({ customer, onClear }) {
+  if (!customer) return null;
+  
+  return (
+    <div style={{
+      display: "flex",
+      alignItems: "center",
+      gap: "12px",
+      padding: "8px 12px",
+      background: "#f8fafc",
+      borderRadius: "6px",
+      border: "1px solid #000000",
+      marginTop: "8px"
+    }}>
+      {customer.imageFront ? (
+        <img src={customer.imageFront} alt="" style={{ width: "45px", height: "45px", borderRadius: "50%", objectFit: "cover", border: "1px solid #000000" }} />
+      ) : (
+        <div style={{ width: "45px", height: "45px", borderRadius: "50%", background: "#e2e8f0", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "24px", border: "1px solid #000000" }}>👤</div>
+      )}
+      <div style={{ flex: 1 }}>
+        <div style={{ fontSize: "14px", fontWeight: "bold", color: "#1e293b" }}>{customer.name}</div>
+        <div style={{ fontSize: "11px", color: "#64748b", marginTop: "2px" }}>
+          Code: {customer.code || "—"} | Phone: {customer.phone || "—"} | Balance: <span style={{ fontWeight: "bold", color: (customer.currentBalance || 0) > 0 ? "#dc2626" : "#059669" }}>PKR {fmt(customer.currentBalance || 0)}</span>
+        </div>
+      </div>
+      <button type="button" onClick={onClear} style={{ background: "#ef4444", color: "white", border: "1px solid #000000", borderRadius: "4px", padding: "4px 12px", fontSize: "11px", fontWeight: "bold", cursor: "pointer" }}>CLEAR</button>
+    </div>
+  );
+}
+
 export default function ManualSalePage() {
-  const [date, setDate] = useState(isoDate());
+  const [date] = useState(isoDate());
   const [customers, setCustomers] = useState([]);
   const [salesRecords, setSalesRecords] = useState([]);
   const [filterStartDate, setFilterStartDate] = useState(isoDate());
@@ -31,34 +236,30 @@ export default function ManualSalePage() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   
-  // Form Rows
   const [row1, setRow1] = useState({ ...EMPTY_ROW });
   const [row2, setRow2] = useState({ ...EMPTY_ROW });
-  
-  // Saved entries list
   const [entries, setEntries] = useState([]);
   
-  // Refs for Row 1
+  const [selectedCustomer1, setSelectedCustomer1] = useState(null);
+  const [selectedCustomer2, setSelectedCustomer2] = useState(null);
+  
   const code1Ref = useRef(null);
   const title1Ref = useRef(null);
   const desc1Ref = useRef(null);
   const inv1Ref = useRef(null);
   const credit1Ref = useRef(null);
   
-  // Refs for Row 2
   const code2Ref = useRef(null);
   const title2Ref = useRef(null);
   const desc2Ref = useRef(null);
   const inv2Ref = useRef(null);
   const credit2Ref = useRef(null);
   
-  // Suggestion states for Row 1
   const [suggestions1, setSuggestions1] = useState([]);
   const [showSuggestions1, setShowSuggestions1] = useState(false);
   const [selectedIdx1, setSelectedIdx1] = useState(-1);
   const [activeField1, setActiveField1] = useState(null);
   
-  // Suggestion states for Row 2
   const [suggestions2, setSuggestions2] = useState([]);
   const [showSuggestions2, setShowSuggestions2] = useState(false);
   const [selectedIdx2, setSelectedIdx2] = useState(-1);
@@ -67,7 +268,6 @@ export default function ManualSalePage() {
   useEffect(() => {
     fetchCustomers();
     fetchSalesRecords();
-    // Focus on first field
     setTimeout(() => code1Ref.current?.focus(), 100);
   }, []);
 
@@ -75,11 +275,13 @@ export default function ManualSalePage() {
     try {
       const { data } = await api.get(EP.CUSTOMERS.GET_ALL);
       if (data.success) {
-        setCustomers(data.data);
+        const creditCustomers = data.data.filter(c => 
+          (c.customerType === "credit" || c.type === "credit") && 
+          c.name?.toUpperCase() !== "COUNTER SALE"
+        );
+        setCustomers(creditCustomers);
       }
-    } catch (error) {
-      console.error("Failed to fetch customers:", error);
-    }
+    } catch (error) { console.error("Failed to fetch customers:", error); }
   };
 
   const fetchSalesRecords = async () => {
@@ -89,9 +291,7 @@ export default function ManualSalePage() {
       if (data.success) {
         setSalesRecords(data.data);
       }
-    } catch (error) {
-      console.error("Failed to fetch sales records:", error);
-    }
+    } catch (error) { console.error("Failed to fetch sales records:", error); }
     setLoading(false);
   };
 
@@ -104,19 +304,14 @@ export default function ManualSalePage() {
     if (!searchText.trim()) return [];
     const q = searchText.trim().toLowerCase();
     return customers.filter(c => 
-      c.code?.toLowerCase().includes(q) ||
+      c.code?.toLowerCase().includes(q) || 
       c.name?.toLowerCase().includes(q)
-    ).slice(0, 10);
+    ).slice(0, 8);
   };
 
-  // Row 1 handlers
   const handleCodeChange1 = (value) => {
-    setRow1(prev => ({ ...prev, code: value }));
-    if (!value.trim()) {
-      setSuggestions1([]);
-      setShowSuggestions1(false);
-      return;
-    }
+    setRow1(prev => ({ ...prev, code: value, accountTitle: "" }));
+    if (!value.trim()) { setSuggestions1([]); setShowSuggestions1(false); return; }
     const matches = searchCustomers(value);
     setSuggestions1(matches);
     setShowSuggestions1(matches.length > 0);
@@ -125,12 +320,8 @@ export default function ManualSalePage() {
   };
 
   const handleTitleChange1 = (value) => {
-    setRow1(prev => ({ ...prev, accountTitle: value }));
-    if (!value.trim()) {
-      setSuggestions1([]);
-      setShowSuggestions1(false);
-      return;
-    }
+    setRow1(prev => ({ ...prev, accountTitle: value, code: "" }));
+    if (!value.trim()) { setSuggestions1([]); setShowSuggestions1(false); return; }
     const matches = searchCustomers(value);
     setSuggestions1(matches);
     setShowSuggestions1(matches.length > 0);
@@ -138,14 +329,9 @@ export default function ManualSalePage() {
     setActiveField1('title');
   };
 
-  // Row 2 handlers
   const handleCodeChange2 = (value) => {
-    setRow2(prev => ({ ...prev, code: value }));
-    if (!value.trim()) {
-      setSuggestions2([]);
-      setShowSuggestions2(false);
-      return;
-    }
+    setRow2(prev => ({ ...prev, code: value, accountTitle: "" }));
+    if (!value.trim()) { setSuggestions2([]); setShowSuggestions2(false); return; }
     const matches = searchCustomers(value);
     setSuggestions2(matches);
     setShowSuggestions2(matches.length > 0);
@@ -154,12 +340,8 @@ export default function ManualSalePage() {
   };
 
   const handleTitleChange2 = (value) => {
-    setRow2(prev => ({ ...prev, accountTitle: value }));
-    if (!value.trim()) {
-      setSuggestions2([]);
-      setShowSuggestions2(false);
-      return;
-    }
+    setRow2(prev => ({ ...prev, accountTitle: value, code: "" }));
+    if (!value.trim()) { setSuggestions2([]); setShowSuggestions2(false); return; }
     const matches = searchCustomers(value);
     setSuggestions2(matches);
     setShowSuggestions2(matches.length > 0);
@@ -169,765 +351,361 @@ export default function ManualSalePage() {
 
   const selectCustomer = (customer, isRow1) => {
     if (isRow1) {
-      setRow1(prev => ({ 
-        ...prev, 
-        code: customer.code || "",
-        accountTitle: customer.name
-      }));
+      setRow1(prev => ({ ...prev, code: customer.code || "", accountTitle: customer.name }));
+      setSelectedCustomer1(customer);
       setSuggestions1([]);
       setShowSuggestions1(false);
       setTimeout(() => desc1Ref.current?.focus(), 50);
     } else {
-      setRow2(prev => ({ 
-        ...prev, 
-        code: customer.code || "",
-        accountTitle: customer.name
-      }));
+      setRow2(prev => ({ ...prev, code: customer.code || "", accountTitle: customer.name }));
+      setSelectedCustomer2(customer);
       setSuggestions2([]);
       setShowSuggestions2(false);
       setTimeout(() => desc2Ref.current?.focus(), 50);
     }
   };
 
+  const clearCustomer1 = () => {
+    setRow1(prev => ({ ...prev, code: "", accountTitle: "" }));
+    setSelectedCustomer1(null);
+    code1Ref.current?.focus();
+  };
+
+  const clearCustomer2 = () => {
+    setRow2(prev => ({ ...prev, code: "", accountTitle: "" }));
+    setSelectedCustomer2(null);
+    code2Ref.current?.focus();
+  };
+
   const handleSuggestionKeyDown = (e, isRow1) => {
     const suggestions = isRow1 ? suggestions1 : suggestions2;
     const setSelected = isRow1 ? setSelectedIdx1 : setSelectedIdx2;
     const selected = isRow1 ? selectedIdx1 : selectedIdx2;
-    
-    if (e.key === "ArrowDown") {
-      e.preventDefault();
-      setSelected(prev => prev < suggestions.length - 1 ? prev + 1 : prev);
-    } else if (e.key === "ArrowUp") {
-      e.preventDefault();
-      setSelected(prev => prev > 0 ? prev - 1 : -1);
-    } else if (e.key === "Enter" && selected >= 0 && suggestions[selected]) {
-      e.preventDefault();
-      selectCustomer(suggestions[selected], isRow1);
-    } else if (e.key === "Escape") {
-      if (isRow1) {
-        setShowSuggestions1(false);
-        setSuggestions1([]);
-      } else {
-        setShowSuggestions2(false);
-        setSuggestions2([]);
-      }
-    }
+    if (e.key === "ArrowDown") { e.preventDefault(); setSelected(prev => prev < suggestions.length - 1 ? prev + 1 : prev); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); setSelected(prev => prev > 0 ? prev - 1 : -1); }
+    else if (e.key === "Enter" && selected >= 0 && suggestions[selected]) { e.preventDefault(); selectCustomer(suggestions[selected], isRow1); }
+    else if (e.key === "Escape") { if (isRow1) { setShowSuggestions1(false); setSuggestions1([]); } else { setShowSuggestions2(false); setSuggestions2([]); } }
   };
 
   const updateRow = (row, field, val, isRow1) => {
     const newVal = field === "credit" ? parseFloat(val) || 0 : val;
-    if (isRow1) {
-      setRow1(prev => ({ ...prev, [field]: newVal }));
-    } else {
-      setRow2(prev => ({ ...prev, [field]: newVal }));
-    }
+    if (isRow1) setRow1(prev => ({ ...prev, [field]: newVal }));
+    else setRow2(prev => ({ ...prev, [field]: newVal }));
   };
 
-  // Handle Enter key navigation for Row 1
   const handleRow1KeyDown = (e, field) => {
     if (e.key === "Enter") {
       e.preventDefault();
-      
       switch(field) {
-        case 'code':
-          if (row1.code && !row1.accountTitle) {
-            // Try to find customer by code
-            const customer = customers.find(c => c.code === row1.code);
-            if (customer) {
-              selectCustomer(customer, true);
-            } else {
-              title1Ref.current?.focus();
-            }
-          } else {
-            title1Ref.current?.focus();
-          }
-          break;
-        case 'title':
-          if (row1.accountTitle && !row1.code) {
-            const customer = customers.find(c => c.name === row1.accountTitle);
-            if (customer) {
-              selectCustomer(customer, true);
-            } else {
-              desc1Ref.current?.focus();
-            }
-          } else {
-            desc1Ref.current?.focus();
-          }
-          break;
-        case 'desc':
-          inv1Ref.current?.focus();
-          break;
-        case 'inv':
-          credit1Ref.current?.focus();
-          break;
-        case 'credit':
-          // After credit amount, move to Row 2 Code field
-          if (row1.accountTitle && row1.credit > 0) {
-            // Auto-save row1? Or just move to next
-            code2Ref.current?.focus();
-          } else {
-            code2Ref.current?.focus();
-          }
-          break;
-        default:
-          break;
+        case 'code': title1Ref.current?.focus(); break;
+        case 'title': desc1Ref.current?.focus(); break;
+        case 'desc': inv1Ref.current?.focus(); break;
+        case 'inv': credit1Ref.current?.focus(); break;
+        case 'credit': code2Ref.current?.focus(); break;
+        default: break;
       }
     }
   };
 
-  // Handle Enter key navigation for Row 2
   const handleRow2KeyDown = (e, field) => {
     if (e.key === "Enter") {
       e.preventDefault();
-      
       switch(field) {
-        case 'code':
-          if (row2.code && !row2.accountTitle) {
-            const customer = customers.find(c => c.code === row2.code);
-            if (customer) {
-              selectCustomer(customer, false);
-            } else {
-              title2Ref.current?.focus();
-            }
-          } else {
-            title2Ref.current?.focus();
-          }
-          break;
-        case 'title':
-          if (row2.accountTitle && !row2.code) {
-            const customer = customers.find(c => c.name === row2.accountTitle);
-            if (customer) {
-              selectCustomer(customer, false);
-            } else {
-              desc2Ref.current?.focus();
-            }
-          } else {
-            desc2Ref.current?.focus();
-          }
-          break;
-        case 'desc':
-          inv2Ref.current?.focus();
-          break;
-        case 'inv':
-          credit2Ref.current?.focus();
-          break;
-        case 'credit':
-          // After credit amount, trigger save if both rows have data
-          if ((row1.accountTitle && row1.credit > 0) || (row2.accountTitle && row2.credit > 0)) {
-            saveAllEntries();
-          }
-          break;
-        default:
-          break;
+        case 'code': title2Ref.current?.focus(); break;
+        case 'title': desc2Ref.current?.focus(); break;
+        case 'desc': inv2Ref.current?.focus(); break;
+        case 'inv': credit2Ref.current?.focus(); break;
+        case 'credit': saveAllEntries(); break;
+        default: break;
       }
+    }
+  };
+
+  const saveSingleEntry = async (rowData, type) => {
+    try {
+      const customer = customers.find(c => c.name === rowData.accountTitle || c.code === rowData.code);
+      const invoicePrefix = type === "debit" ? "DEB" : "CRE";
+      const finalInvoiceNo = rowData.invoiceNo || `${invoicePrefix}-${Date.now()}`;
+      const payload = {
+        invoiceNo: finalInvoiceNo, invoiceDate: date, customerId: customer?._id || "",
+        customerName: rowData.accountTitle, customerPhone: customer?.phone || "",
+        items: [{ productId: "", code: rowData.code || "", name: rowData.description || (type === "debit" ? "Debit Entry" : "Credit Entry"), description: rowData.description || (type === "debit" ? "Debit Entry" : "Credit Entry"), uom: "", measurement: "", rack: "", pcs: 1, qty: 1, rate: rowData.credit, disc: 0, amount: rowData.credit }],
+        subTotal: rowData.credit, extraDisc: 0, discAmount: 0, netTotal: rowData.credit, prevBalance: 0, paidAmount: rowData.credit, balance: 0,
+        paymentMode: type === "debit" ? "Cash" : "Credit", saleSource: type === "debit" ? "cash" : "credit", sendSms: false, printType: "Thermal",
+        remarks: `${type === "debit" ? "Debit" : "Credit"} - ${rowData.description || "No description"}`, saleType: type === "debit" ? "sale" : "sale", type: "sale"
+      };
+      const response = await api.post(EP.SALES.CREATE, payload);
+      if (response.data && response.data.success) {
+        return { ...rowData, type: type.toUpperCase(), displayType: type === "debit" ? "DEBIT" : "CREDIT", invoiceNo: finalInvoiceNo };
+      } else { showMsg(`Failed: ${response.data?.message || "Unknown error"}`, "error"); return null; }
+    } catch (error) {
+      const errorMsg = error.response?.data?.message || error.message || "Network error";
+      showMsg(`${type === "debit" ? "Debit" : "Credit"} save failed: ${errorMsg}`, "error");
+      return null;
     }
   };
 
   const saveAllEntries = async () => {
-    // Check if at least one row has customer and amount (description is optional)
     const hasRow1Data = row1.accountTitle && row1.credit > 0;
     const hasRow2Data = row2.accountTitle && row2.credit > 0;
-    
-    if (!hasRow1Data && !hasRow2Data) {
-      showMsg("Please fill at least one entry with customer and amount", "error");
-      return;
-    }
-
+    if (!hasRow1Data && !hasRow2Data) { showMsg("Please fill at least one entry with customer and amount", "error"); return; }
     setSaving(true);
     const savedEntries = [];
-    
     try {
-      // Save Row 1 if filled
-      if (hasRow1Data) {
-        const customer = customers.find(c => 
-          c.name === row1.accountTitle || c.code === row1.code
-        );
-        
-        const payload1 = {
-          invoiceNo: row1.invoiceNo || `MANUAL-${Date.now()}-1`,
-          invoiceDate: date,
-          customerId: customer?._id,
-          customerName: row1.accountTitle,
-          customerPhone: "",
-          items: [{
-            productId: "",
-            code: row1.code,
-            name: row1.description || "Manual entry",
-            description: row1.description || "Manual entry",
-            uom: "",
-            pcs: 1,
-            qty: 1,
-            rate: row1.credit,
-            amount: row1.credit,
-          }],
-          subTotal: row1.credit,
-          extraDisc: 0,
-          netTotal: row1.credit,
-          prevBalance: 0,
-          paidAmount: row1.credit,
-          balance: 0,
-          paymentMode: "Cash",
-          saleSource: "cash",
-          remarks: `Manual entry - ${row1.description || "No description"}`,
-          saleType: "sale",
-        };
-        
-        const response1 = await api.post(EP.SALES.CREATE, payload1);
-        if (response1.data.success) {
-          savedEntries.push({ ...row1, type: "DEBIT", description: row1.description || "Manual entry" });
-        }
-      }
-      
-      // Save Row 2 if filled
-      if (hasRow2Data) {
-        const customer = customers.find(c => 
-          c.name === row2.accountTitle || c.code === row2.code
-        );
-        
-        const payload2 = {
-          invoiceNo: row2.invoiceNo || `MANUAL-${Date.now()}-2`,
-          invoiceDate: date,
-          customerId: customer?._id,
-          customerName: row2.accountTitle,
-          customerPhone: "",
-          items: [{
-            productId: "",
-            code: row2.code,
-            name: row2.description || "Manual entry",
-            description: row2.description || "Manual entry",
-            uom: "",
-            pcs: 1,
-            qty: 1,
-            rate: row2.credit,
-            amount: row2.credit,
-          }],
-          subTotal: row2.credit,
-          extraDisc: 0,
-          netTotal: row2.credit,
-          prevBalance: 0,
-          paidAmount: row2.credit,
-          balance: 0,
-          paymentMode: "Credit",
-          saleSource: "credit",
-          remarks: `Manual entry - ${row2.description || "No description"}`,
-          saleType: "sale",
-        };
-        
-        const response2 = await api.post(EP.SALES.CREATE, payload2);
-        if (response2.data.success) {
-          savedEntries.push({ ...row2, type: "CREDIT", description: row2.description || "Manual entry" });
-        }
-      }
-      
+      if (hasRow1Data) { const result = await saveSingleEntry(row1, "debit"); if (result) savedEntries.push(result); }
+      if (hasRow2Data) { const result = await saveSingleEntry(row2, "credit"); if (result) savedEntries.push(result); }
       if (savedEntries.length > 0) {
-        showMsg(`${savedEntries.length} record(s) saved successfully`, "success");
-        
-        // Add to entries list
         setEntries(prev => [...prev, ...savedEntries.map(e => ({ ...e, id: Date.now() + Math.random() }))]);
-        
-        // Reset forms
-        setRow1({ ...EMPTY_ROW });
-        setRow2({ ...EMPTY_ROW });
-        setSuggestions1([]);
-        setSuggestions2([]);
-        setShowSuggestions1(false);
-        setShowSuggestions2(false);
-        
-        await fetchSalesRecords();
-        code1Ref.current?.focus();
+        setRow1({ ...EMPTY_ROW }); setRow2({ ...EMPTY_ROW });
+        setSelectedCustomer1(null); setSelectedCustomer2(null);
+        setSuggestions1([]); setSuggestions2([]); setShowSuggestions1(false); setShowSuggestions2(false);
+        await fetchSalesRecords(); code1Ref.current?.focus();
       }
-    } catch (error) {
-      console.error("Save error:", error);
-      showMsg("Failed to save records", "error");
-    }
+    } catch (error) { console.error("Save error:", error); showMsg("Failed to save records", "error"); }
     setSaving(false);
   };
 
   const resetForm = () => {
-    setRow1({ ...EMPTY_ROW });
-    setRow2({ ...EMPTY_ROW });
-    setEntries([]);
-    setSuggestions1([]);
-    setSuggestions2([]);
-    setShowSuggestions1(false);
-    setShowSuggestions2(false);
-    setSelectedIdx1(-1);
-    setSelectedIdx2(-1);
+    setRow1({ ...EMPTY_ROW }); setRow2({ ...EMPTY_ROW }); setEntries([]);
+    setSelectedCustomer1(null); setSelectedCustomer2(null);
+    setSuggestions1([]); setSuggestions2([]); setShowSuggestions1(false); setShowSuggestions2(false);
+    setSelectedIdx1(-1); setSelectedIdx2(-1);
     setTimeout(() => code1Ref.current?.focus(), 50);
   };
 
   const calculateTotal = () => {
-    return entries.reduce((sum, e) => sum + (e.credit || 0), 0);
+    const debitTotal = entries.filter(e => e.type === "DEBIT").reduce((sum, e) => sum + (e.credit || 0), 0);
+    const creditTotal = entries.filter(e => e.type === "CREDIT").reduce((sum, e) => sum + (e.credit || 0), 0);
+    return { debitTotal, creditTotal, netTotal: debitTotal - creditTotal };
   };
 
-  // Filtered sales records
-  const filteredSales = salesRecords.filter(sale => {
-    const saleDate = sale.invoiceDate;
-    const matchesDate = saleDate >= filterStartDate && saleDate <= filterEndDate;
-    const matchesAccount = !filterAccountTitle.trim() || 
-      (sale.customerName?.toLowerCase().includes(filterAccountTitle.toLowerCase()));
+  const { debitTotal, creditTotal, netTotal } = calculateTotal();
+
+  const filteredSales = salesRecords.filter(record => {
+    const recordDate = record.invoiceDate;
+    const matchesDate = recordDate >= filterStartDate && recordDate <= filterEndDate;
+    const matchesAccount = !filterAccountTitle.trim() || (record.customerName?.toLowerCase().includes(filterAccountTitle.toLowerCase()));
     return matchesDate && matchesAccount;
   }).sort((a, b) => new Date(b.invoiceDate) - new Date(a.invoiceDate));
 
-  const totalFilteredAmount = filteredSales.reduce((sum, sale) => sum + (sale.netTotal || 0), 0);
-
-  const renderSuggestions = (isRow1) => {
-    const suggestions = isRow1 ? suggestions1 : suggestions2;
-    const show = isRow1 ? showSuggestions1 : showSuggestions2;
-    const selected = isRow1 ? selectedIdx1 : selectedIdx2;
-    
-    if (!show || suggestions.length === 0) return null;
-    
-    return (
-      <div style={{
-        position: "absolute",
-        top: "100%",
-        left: 0,
-        right: 0,
-        background: "white",
-        border: "2px solid #1e40af",
-        borderRadius: "6px",
-        maxHeight: "250px",
-        overflowY: "auto",
-        zIndex: 100,
-        boxShadow: "0 4px 12px rgba(0,0,0,0.15)"
-      }}>
-        {suggestions.map((c, idx) => (
-          <div
-            key={c._id}
-            style={{
-              padding: "8px 12px",
-              cursor: "pointer",
-              background: idx === selected ? "#e5f0ff" : "white",
-              borderBottom: "1px solid #eee"
-            }}
-            onClick={() => selectCustomer(c, isRow1)}
-          >
-            <div style={{ fontWeight: "bold", fontSize: "13px" }}>
-              {c.code && <span style={{ color: "#1e40af" }}>[{c.code}]</span>} {c.name}
-            </div>
-            <div style={{ fontSize: "10px", color: "#666" }}>
-              Phone: {c.phone || "—"} | Balance: {fmt(c.currentBalance || 0)}
-            </div>
-          </div>
-        ))}
-      </div>
-    );
-  };
+  const totalFilteredAmount = filteredSales.reduce((sum, record) => sum + (record.netTotal || 0), 0);
 
   return (
-    <div className="mp-page" style={{ background: "#ffffff", height: "100vh", display: "flex", flexDirection: "column" }}>
+    <div style={{ display: "flex", flexDirection: "column", height: "100vh", background: "#ffffff" }}>
       {/* Titlebar */}
-      <div className="xp-titlebar" style={{ background: "#1e40af", flexShrink: 0 }}>
-        <svg width="14" height="14" viewBox="0 0 16 16" fill="rgba(255,255,255,0.85)">
-          <path d="M9 5.5a.5.5 0 0 0-1 0V7H6.5a.5.5 0 0 0 0 1H8v1.5a.5.5 0 0 0 1 0V8h1.5a.5.5 0 0 0 0-1H9z"/>
-          <path d="M.5 1a.5.5 0 0 0 0 1h1.11l.401 1.607 1.498 7.985A.5.5 0 0 0 4 12h1a2 2 0 1 0 0 4 2 2 0 0 0 0-4h7a2 2 0 1 0 0 4 2 2 0 0 0 0-4h1a.5.5 0 0 0 .491-.408l1.5-8A.5.5 0 0 0 14.5 3H2.89l-.405-1.621A.5.5 0 0 0 2 1z"/>
-        </svg>
-        <span className="xp-tb-title" style={{ fontSize: "13px" }}>Manual Sale Bill (Credit/Debit) — {SHOP}</span>
+      <div className="xp-titlebar" style={{ background: "#1e40af", padding: "8px 16px", flexShrink: 0 }}>
+        <span className="xp-tb-title" style={{ color: "white", fontSize: "14px", fontWeight: "bold" }}>Manual Sale Bill (Credit/Debit) — {SHOP}</span>
         <div className="xp-tb-actions">
-          <button className="xp-cap-btn">─</button>
-          <button className="xp-cap-btn" onClick={() => document.documentElement.requestFullscreen()}>□</button>
-          <button className="xp-cap-btn xp-cap-close">✕</button>
+          <button className="xp-btn xp-btn-sm" onClick={resetForm} style={{ fontSize: "11px", padding: "4px 10px", fontWeight: "bold" }}>🔄 New Entry</button>
         </div>
       </div>
 
       {msg.text && (
-        <div className={`xp-alert ${msg.type === "success" ? "xp-alert-success" : "xp-alert-error"}`} style={{ margin: "2px 8px 0", fontSize: "11px", padding: "4px 8px", flexShrink: 0 }}>
+        <div className={`xp-alert ${msg.type === "success" ? "xp-alert-success" : "xp-alert-error"}`} style={{ margin: "4px 12px", fontSize: "11px", padding: "4px 12px", fontWeight: "500", flexShrink: 0 }}>
           {msg.text}
         </div>
       )}
 
-      {/* Main Body */}
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", padding: "8px", overflow: "hidden" }}>
+      <div style={{ padding: "12px 16px", background: "#ffffff", flex: 1, overflow: "auto" }}>
         
         {/* Filter Bar */}
-        <div style={{ 
-          background: "#f8fafc", 
-          padding: "6px 10px", 
-          borderRadius: "6px", 
-          marginBottom: "8px",
-          border: "1px solid #e5e7eb",
-          flexShrink: 0,
-          display: "flex",
-          gap: "10px",
-          alignItems: "center",
-          flexWrap: "wrap"
-        }}>
-          <span style={{ fontWeight: "bold", fontSize: "12px" }}>📅 Filter:</span>
-          <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-            <label style={{ fontSize: "10px", fontWeight: "bold" }}>From</label>
-            <input type="date" style={{ width: "110px", padding: "4px", fontSize: "11px", borderRadius: "4px", border: "1px solid #ccc" }} value={filterStartDate} onChange={(e) => setFilterStartDate(e.target.value)} />
+        <div style={{ background: "#f8fafc", borderRadius: "6px", padding: "8px 12px", marginBottom: "12px", border: "1px solid #000000", flexShrink: 0 }}>
+          <div style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
+            <span style={{ fontWeight: "bold", fontSize: "11px" }}>📅 Filter:</span>
+            <input type="date" style={{ padding: "5px 8px", fontSize: "11px", border: "1px solid #000000", borderRadius: "3px" }} value={filterStartDate} onChange={(e) => setFilterStartDate(e.target.value)} />
+            <span>to</span>
+            <input type="date" style={{ padding: "5px 8px", fontSize: "11px", border: "1px solid #000000", borderRadius: "3px" }} value={filterEndDate} onChange={(e) => setFilterEndDate(e.target.value)} />
+            <input type="text" style={{ width: "180px", padding: "5px 8px", fontSize: "11px", border: "1px solid #000000", borderRadius: "3px" }} placeholder="Customer name..." value={filterAccountTitle} onChange={(e) => setFilterAccountTitle(e.target.value)} />
+            <button className="xp-btn xp-btn-sm" style={{ padding: "4px 12px", fontSize: "11px", fontWeight: "bold" }} onClick={fetchSalesRecords}>Refresh</button>
+            <button className="xp-btn xp-btn-sm" style={{ padding: "4px 12px", fontSize: "11px", fontWeight: "bold" }} onClick={resetForm}>Reset</button>
+            <span style={{ marginLeft: "auto", fontWeight: "bold", fontSize: "11px" }}>Total: <span style={{ color: "#1e40af" }}>{fmt(totalFilteredAmount)}</span></span>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-            <label style={{ fontSize: "10px", fontWeight: "bold" }}>To</label>
-            <input type="date" style={{ width: "110px", padding: "4px", fontSize: "11px", borderRadius: "4px", border: "1px solid #ccc" }} value={filterEndDate} onChange={(e) => setFilterEndDate(e.target.value)} />
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: "4px", flex: 1, maxWidth: "250px" }}>
-            <label style={{ fontSize: "10px", fontWeight: "bold" }}>Account Title</label>
-            <input 
-              type="text" 
-              style={{ flex: 1, padding: "4px", fontSize: "11px", borderRadius: "4px", border: "1px solid #ccc" }} 
-              placeholder="Search by customer name..."
-              value={filterAccountTitle} 
-              onChange={(e) => setFilterAccountTitle(e.target.value)}
-            />
-          </div>
-          <button className="xp-btn xp-btn-sm" style={{ padding: "2px 8px", fontSize: "10px" }} onClick={fetchSalesRecords}>Refresh</button>
-          <button className="xp-btn xp-btn-sm" style={{ padding: "2px 8px", fontSize: "10px" }} onClick={resetForm}>Reset</button>
-          <span style={{ marginLeft: "auto", fontWeight: "bold", fontSize: "11px" }}>
-            Total: <span style={{ color: "#1e40af" }}>{fmt(totalFilteredAmount)}</span>
-          </span>
         </div>
 
         {/* Row 1 - Debit Entry */}
-        <div style={{ 
-          background: "#f8fafc", 
-          border: "2px solid #1e40af", 
-          borderRadius: "6px", 
-          padding: "8px 10px", 
-          marginBottom: "8px",
-          flexShrink: 0
-        }}>
-          <div style={{ fontWeight: "bold", fontSize: "12px", marginBottom: "6px", color: "#1e40af" }}>
-            📝 Entry #1 (Debit Entry - Cash Sale)
-          </div>
-          <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", alignItems: "flex-start" }}>
-            <div style={{ flex: 1, minWidth: "100px", position: "relative" }}>
-              <label style={{ fontSize: "10px", fontWeight: "bold", display: "block", marginBottom: "2px" }}>Code</label>
-              <input
-                ref={code1Ref}
-                type="text"
-                className="xp-input"
-                style={{ fontSize: "11px", padding: "5px", borderColor: "#1e40af" }}
-                value={row1.code}
-                onChange={(e) => handleCodeChange1(e.target.value)}
-                onKeyDown={(e) => {
-                  handleSuggestionKeyDown(e, true);
-                  handleRow1KeyDown(e, 'code');
-                }}
-                onFocus={() => {
-                  if (row1.code) {
-                    const matches = searchCustomers(row1.code);
-                    setSuggestions1(matches);
-                    setShowSuggestions1(matches.length > 0);
-                    setActiveField1('code');
-                  }
-                }}
-                placeholder="Customer code"
-                autoComplete="off"
-              />
-              {activeField1 === 'code' && renderSuggestions(true)}
+        <div style={{ background: "#ffffff", borderRadius: "6px", padding: "10px 12px", marginBottom: "10px", border: "1px solid #1e40af", flexShrink: 0 }}>
+          <div style={{ fontWeight: "bold", fontSize: "11px", marginBottom: "8px", color: "#1e40af" }}>📝 Entry #1 (Debit - Cash Sale)</div>
+          <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", alignItems: "center" }}>
+            <div style={{ flex: 1, minWidth: "80px" }}>
+              <input ref={code1Ref} type="text" style={{ fontSize: "12px", padding: "6px 8px", border: "1px solid #000000", borderRadius: "3px", width: "100%" }} value={row1.code} onChange={(e) => handleCodeChange1(e.target.value)} onKeyDown={(e) => { handleSuggestionKeyDown(e, true); handleRow1KeyDown(e, 'code'); }} placeholder="Code" />
             </div>
-            <div style={{ flex: 2, minWidth: "180px", position: "relative" }}>
-              <label style={{ fontSize: "10px", fontWeight: "bold", display: "block", marginBottom: "2px" }}>Account Title *</label>
-              <input
-                ref={title1Ref}
-                type="text"
-                className="xp-input"
-                style={{ fontSize: "11px", padding: "5px", borderColor: "#1e40af" }}
-                value={row1.accountTitle}
-                onChange={(e) => handleTitleChange1(e.target.value)}
-                onKeyDown={(e) => {
-                  handleSuggestionKeyDown(e, true);
-                  handleRow1KeyDown(e, 'title');
-                }}
-                onFocus={() => {
-                  if (row1.accountTitle) {
-                    const matches = searchCustomers(row1.accountTitle);
-                    setSuggestions1(matches);
-                    setShowSuggestions1(matches.length > 0);
-                    setActiveField1('title');
-                  }
-                }}
-                placeholder="Customer name"
-                autoComplete="off"
-              />
-              {activeField1 === 'title' && renderSuggestions(true)}
+            <div style={{ flex: 2, minWidth: "180px" }}>
+              <div style={{ border: "1px solid #000000", borderRadius: "3px", background: "#ffffff" }}>
+                <CustomerDropdown allCustomers={customers} value={row1.accountTitle} displayName={row1.accountTitle} onSelect={(c) => selectCustomer(c, true)} onClear={clearCustomer1} allowedTypes={["credit"]} onEnterPress={() => desc1Ref.current?.focus()} />
+              </div>
             </div>
-            <div style={{ flex: 2, minWidth: "150px" }}>
-              <label style={{ fontSize: "10px", fontWeight: "bold", display: "block", marginBottom: "2px" }}>Description (Optional)</label>
-              <input
-                ref={desc1Ref}
-                type="text"
-                className="xp-input"
-                style={{ fontSize: "11px", padding: "5px", borderColor: "#1e40af" }}
-                value={row1.description}
-                onChange={(e) => updateRow(row1, "description", e.target.value, true)}
-                onKeyDown={(e) => handleRow1KeyDown(e, 'desc')}
-                placeholder="Optional description"
-              />
+            <div style={{ flex: 2, minWidth: "140px" }}>
+              <input ref={desc1Ref} type="text" style={{ fontSize: "12px", padding: "6px 8px", border: "1px solid #000000", borderRadius: "3px", width: "100%" }} value={row1.description} onChange={(e) => updateRow(row1, "description", e.target.value, true)} onKeyDown={(e) => handleRow1KeyDown(e, 'desc')} placeholder="Description" />
             </div>
-            <div style={{ flex: 1, minWidth: "100px" }}>
-              <label style={{ fontSize: "10px", fontWeight: "bold", display: "block", marginBottom: "2px" }}>Invoice #</label>
-              <input
-                ref={inv1Ref}
-                type="text"
-                className="xp-input"
-                style={{ fontSize: "11px", padding: "5px", borderColor: "#1e40af" }}
-                value={row1.invoiceNo}
-                onChange={(e) => updateRow(row1, "invoiceNo", e.target.value, true)}
-                onKeyDown={(e) => handleRow1KeyDown(e, 'inv')}
-                placeholder="Optional"
-              />
+            <div style={{ width: "100px" }}>
+              <input ref={inv1Ref} type="text" style={{ fontSize: "12px", padding: "6px 8px", border: "1px solid #000000", borderRadius: "3px", width: "100%" }} value={row1.invoiceNo} onChange={(e) => updateRow(row1, "invoiceNo", e.target.value, true)} onKeyDown={(e) => handleRow1KeyDown(e, 'inv')} placeholder="Inv #" />
             </div>
-            <div style={{ flex: 1, minWidth: "120px" }}>
-              <label style={{ fontSize: "10px", fontWeight: "bold", display: "block", marginBottom: "2px" }}>Debit Amount (PKR) *</label>
-              <input
-                ref={credit1Ref}
-                type="number"
-                className="xp-input"
-                style={{ fontSize: "11px", padding: "5px", textAlign: "right", fontWeight: "bold", borderColor: "#1e40af" }}
-                value={row1.credit}
-                onChange={(e) => updateRow(row1, "credit", e.target.value, true)}
-                onKeyDown={(e) => handleRow1KeyDown(e, 'credit')}
-                placeholder="0.00"
-              />
+            <div style={{ width: "120px" }}>
+              <input ref={credit1Ref} type="number" style={{ fontSize: "13px", fontWeight: "bold", padding: "6px 8px", textAlign: "right", border: "1px solid #000000", borderRadius: "3px", width: "100%" }} value={row1.credit} onChange={(e) => updateRow(row1, "credit", e.target.value, true)} onKeyDown={(e) => handleRow1KeyDown(e, 'credit')} placeholder="Amount" />
             </div>
           </div>
+          {selectedCustomer1 && <SelectedCustomerCard customer={selectedCustomer1} onClear={clearCustomer1} />}
         </div>
 
         {/* Row 2 - Credit Entry */}
-        <div style={{ 
-          background: "#f8fafc", 
-          border: "2px solid #16a34a", 
-          borderRadius: "6px", 
-          padding: "8px 10px", 
-          marginBottom: "8px",
-          flexShrink: 0
-        }}>
-          <div style={{ fontWeight: "bold", fontSize: "12px", marginBottom: "6px", color: "#16a34a" }}>
-            📝 Entry #2 (Credit Entry - Credit Sale)
-          </div>
-          <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", alignItems: "flex-start" }}>
-            <div style={{ flex: 1, minWidth: "100px", position: "relative" }}>
-              <label style={{ fontSize: "10px", fontWeight: "bold", display: "block", marginBottom: "2px" }}>Code</label>
-              <input
-                ref={code2Ref}
-                type="text"
-                className="xp-input"
-                style={{ fontSize: "11px", padding: "5px", borderColor: "#16a34a" }}
-                value={row2.code}
-                onChange={(e) => handleCodeChange2(e.target.value)}
-                onKeyDown={(e) => {
-                  handleSuggestionKeyDown(e, false);
-                  handleRow2KeyDown(e, 'code');
-                }}
-                onFocus={() => {
-                  if (row2.code) {
-                    const matches = searchCustomers(row2.code);
-                    setSuggestions2(matches);
-                    setShowSuggestions2(matches.length > 0);
-                    setActiveField2('code');
-                  }
-                }}
-                placeholder="Customer code"
-                autoComplete="off"
-              />
-              {activeField2 === 'code' && renderSuggestions(false)}
+        <div style={{ background: "#ffffff", borderRadius: "6px", padding: "10px 12px", marginBottom: "10px", border: "1px solid #16a34a", flexShrink: 0 }}>
+          <div style={{ fontWeight: "bold", fontSize: "11px", marginBottom: "8px", color: "#16a34a" }}>📝 Entry #2 (Credit - Credit Sale)</div>
+          <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", alignItems: "center" }}>
+            <div style={{ flex: 1, minWidth: "80px" }}>
+              <input ref={code2Ref} type="text" style={{ fontSize: "12px", padding: "6px 8px", border: "1px solid #000000", borderRadius: "3px", width: "100%" }} value={row2.code} onChange={(e) => handleCodeChange2(e.target.value)} onKeyDown={(e) => { handleSuggestionKeyDown(e, false); handleRow2KeyDown(e, 'code'); }} placeholder="Code" />
             </div>
-            <div style={{ flex: 2, minWidth: "180px", position: "relative" }}>
-              <label style={{ fontSize: "10px", fontWeight: "bold", display: "block", marginBottom: "2px" }}>Account Title *</label>
-              <input
-                ref={title2Ref}
-                type="text"
-                className="xp-input"
-                style={{ fontSize: "11px", padding: "5px", borderColor: "#16a34a" }}
-                value={row2.accountTitle}
-                onChange={(e) => handleTitleChange2(e.target.value)}
-                onKeyDown={(e) => {
-                  handleSuggestionKeyDown(e, false);
-                  handleRow2KeyDown(e, 'title');
-                }}
-                onFocus={() => {
-                  if (row2.accountTitle) {
-                    const matches = searchCustomers(row2.accountTitle);
-                    setSuggestions2(matches);
-                    setShowSuggestions2(matches.length > 0);
-                    setActiveField2('title');
-                  }
-                }}
-                placeholder="Customer name"
-                autoComplete="off"
-              />
-              {activeField2 === 'title' && renderSuggestions(false)}
+            <div style={{ flex: 2, minWidth: "180px" }}>
+              <div style={{ border: "1px solid #000000", borderRadius: "3px", background: "#ffffff" }}>
+                <CustomerDropdown allCustomers={customers} value={row2.accountTitle} displayName={row2.accountTitle} onSelect={(c) => selectCustomer(c, false)} onClear={clearCustomer2} allowedTypes={["credit"]} onEnterPress={() => desc2Ref.current?.focus()} />
+              </div>
             </div>
-            <div style={{ flex: 2, minWidth: "150px" }}>
-              <label style={{ fontSize: "10px", fontWeight: "bold", display: "block", marginBottom: "2px" }}>Description (Optional)</label>
-              <input
-                ref={desc2Ref}
-                type="text"
-                className="xp-input"
-                style={{ fontSize: "11px", padding: "5px", borderColor: "#16a34a" }}
-                value={row2.description}
-                onChange={(e) => updateRow(row2, "description", e.target.value, false)}
-                onKeyDown={(e) => handleRow2KeyDown(e, 'desc')}
-                placeholder="Optional description"
-              />
+            <div style={{ flex: 2, minWidth: "140px" }}>
+              <input ref={desc2Ref} type="text" style={{ fontSize: "12px", padding: "6px 8px", border: "1px solid #000000", borderRadius: "3px", width: "100%" }} value={row2.description} onChange={(e) => updateRow(row2, "description", e.target.value, false)} onKeyDown={(e) => handleRow2KeyDown(e, 'desc')} placeholder="Description" />
             </div>
-            <div style={{ flex: 1, minWidth: "100px" }}>
-              <label style={{ fontSize: "10px", fontWeight: "bold", display: "block", marginBottom: "2px" }}>Invoice #</label>
-              <input
-                ref={inv2Ref}
-                type="text"
-                className="xp-input"
-                style={{ fontSize: "11px", padding: "5px", borderColor: "#16a34a" }}
-                value={row2.invoiceNo}
-                onChange={(e) => updateRow(row2, "invoiceNo", e.target.value, false)}
-                onKeyDown={(e) => handleRow2KeyDown(e, 'inv')}
-                placeholder="Optional"
-              />
+            <div style={{ width: "100px" }}>
+              <input ref={inv2Ref} type="text" style={{ fontSize: "12px", padding: "6px 8px", border: "1px solid #000000", borderRadius: "3px", width: "100%" }} value={row2.invoiceNo} onChange={(e) => updateRow(row2, "invoiceNo", e.target.value, false)} onKeyDown={(e) => handleRow2KeyDown(e, 'inv')} placeholder="Inv #" />
             </div>
-            <div style={{ flex: 1, minWidth: "120px" }}>
-              <label style={{ fontSize: "10px", fontWeight: "bold", display: "block", marginBottom: "2px" }}>Credit Amount (PKR) *</label>
-              <input
-                ref={credit2Ref}
-                type="number"
-                className="xp-input"
-                style={{ fontSize: "11px", padding: "5px", textAlign: "right", fontWeight: "bold", borderColor: "#16a34a" }}
-                value={row2.credit}
-                onChange={(e) => updateRow(row2, "credit", e.target.value, false)}
-                onKeyDown={(e) => handleRow2KeyDown(e, 'credit')}
-                placeholder="0.00"
-              />
+            <div style={{ width: "120px" }}>
+              <input ref={credit2Ref} type="number" style={{ fontSize: "13px", fontWeight: "bold", padding: "6px 8px", textAlign: "right", border: "1px solid #000000", borderRadius: "3px", width: "100%" }} value={row2.credit} onChange={(e) => updateRow(row2, "credit", e.target.value, false)} onKeyDown={(e) => handleRow2KeyDown(e, 'credit')} placeholder="Amount" />
             </div>
           </div>
+          {selectedCustomer2 && <SelectedCustomerCard customer={selectedCustomer2} onClear={clearCustomer2} />}
         </div>
 
-        {/* Single Save Button */}
-        <div style={{ marginBottom: "8px", flexShrink: 0, textAlign: "center" }}>
-          <button 
-            className="xp-btn xp-btn-primary" 
-            style={{ background: "#1e40af", fontSize: "13px", padding: "8px 32px", fontWeight: "bold" }} 
-            onClick={saveAllEntries}
-            disabled={saving}
-          >
-            {saving ? "Saving..." : "💾 Save All Records"}
+        {/* Save Button */}
+        <div style={{ marginBottom: "12px", textAlign: "center", flexShrink: 0 }}>
+          <button style={{ background: "#1e40af", color: "white", padding: "8px 28px", fontSize: "12px", fontWeight: "bold", border: "1px solid #000000", borderRadius: "4px", cursor: "pointer" }} onClick={saveAllEntries} disabled={saving}>
+            {saving ? "Saving..." : "💾 Save Records"}
           </button>
         </div>
 
-        {/* Recent Entries Summary */}
-        {entries.length > 0 && (
-          <div style={{ marginBottom: "8px", flexShrink: 0 }}>
-            <div style={{ fontWeight: "bold", fontSize: "11px", marginBottom: "4px" }}>📋 Recently Saved ({entries.length})</div>
-            <div style={{ border: "1px solid #e5e7eb", borderRadius: "4px", overflow: "auto", maxHeight: "120px" }}>
-              <table style={{ width: "100%", fontSize: "10px", borderCollapse: "collapse" }}>
-                <thead>
-                  <tr style={{ background: "#f1f5f9", position: "sticky", top: 0 }}>
-                    <th style={{ width: 30, padding: "3px" }}>#</th>
-                    <th style={{ width: 80, padding: "3px" }}>Code</th>
-                    <th style={{ width: 120, padding: "3px" }}>Account Title</th>
-                    <th style={{ padding: "3px" }}>Description</th>
-                    <th style={{ width: 80, padding: "3px", textAlign: "right" }}>Amount</th>
-                    <th style={{ width: 60, padding: "3px" }}>Type</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {entries.slice(-5).reverse().map((entry, idx) => (
-                    <tr key={entry.id} style={{ borderBottom: "1px solid #e5e7eb" }}>
-                      <td style={{ padding: "3px", textAlign: "center" }}>{entries.length - idx}</td>
-                      <td style={{ padding: "3px", fontWeight: "bold" }}>{entry.code || "—"}</td>
-                      <td style={{ padding: "3px", fontWeight: "bold" }}>{entry.accountTitle}</td>
-                      <td style={{ padding: "3px" }}>{entry.description || "—"}</td>
-                      <td style={{ padding: "3px", textAlign: "right", fontWeight: "bold", color: entry.type === "CREDIT" ? "#dc2626" : "#16a34a" }}>
-                        {fmt(entry.credit)}
-                      </td>
-                      <td style={{ padding: "3px", textAlign: "center" }}>
-                        <span style={{ 
-                          background: entry.type === "CREDIT" ? "#fee2e2" : "#dcfce7", 
-                          color: entry.type === "CREDIT" ? "#dc2626" : "#16a34a",
-                          padding: "2px 6px",
-                          borderRadius: "10px",
-                          fontSize: "8px",
-                          fontWeight: "bold"
-                        }}>
-                          {entry.type}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+        {/* Transaction Records Table */}
+        <div style={{ background: "#ffffff", borderRadius: "6px", border: "2px solid #000000", flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
+          <div style={{ fontWeight: "bold", fontSize: "12px", padding: "10px 12px", background: "#f1f5f9", borderBottom: "2px solid #000000", flexShrink: 0 }}>
+            📊 Transaction Records ({filteredSales.length})
           </div>
-        )}
-
-        {/* Sales Records Table */}
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
-          <div style={{ fontWeight: "bold", fontSize: "11px", marginBottom: "4px" }}>📊 Sales Records ({filteredSales.length})</div>
-          <div style={{ border: "1px solid #e5e7eb", borderRadius: "4px", overflow: "auto", flex: 1 }}>
-            <table style={{ width: "100%", fontSize: "10px", borderCollapse: "collapse" }}>
-              <thead>
-                <tr style={{ background: "#f1f5f9", position: "sticky", top: 0 }}>
-                  <th style={{ width: 30, padding: "5px", textAlign: "center" }}>#</th>
-                  <th style={{ width: 90, padding: "5px" }}>Invoice #</th>
-                  <th style={{ width: 80, padding: "5px" }}>Date</th>
-                  <th style={{ width: 100, padding: "5px" }}>Code</th>
-                  <th style={{ width: 130, padding: "5px" }}>Customer</th>
-                  <th style={{ width: 60, padding: "5px", textAlign: "center" }}>Type</th>
-                  <th style={{ width: 85, padding: "5px", textAlign: "right" }}>Amount</th>
-                  <th style={{ padding: "5px" }}>Remarks</th>
+          <div style={{ overflow: "auto", flex: 1 }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px" }}>
+              <thead style={{ position: "sticky", top: 0, background: "#f1f5f9", zIndex: 10 }}>
+                <tr>
+                  <th style={{ padding: "8px 6px", textAlign: "center", width: "40px", border: "1px solid #000000", fontWeight: "bold" }}>#</th>
+                  <th style={{ padding: "8px 6px", textAlign: "left", border: "1px solid #000000", fontWeight: "bold" }}>Invoice #</th>
+                  <th style={{ padding: "8px 6px", textAlign: "left", border: "1px solid #000000", fontWeight: "bold" }}>Date</th>
+                  <th style={{ padding: "8px 6px", textAlign: "left", border: "1px solid #000000", fontWeight: "bold" }}>Code</th>
+                  <th style={{ padding: "8px 6px", textAlign: "left", border: "1px solid #000000", fontWeight: "bold" }}>Customer</th>
+                  <th style={{ padding: "8px 6px", textAlign: "center", width: "80px", border: "1px solid #000000", fontWeight: "bold" }}>Type</th>
+                  <th style={{ padding: "8px 6px", textAlign: "right", width: "100px", border: "1px solid #000000", fontWeight: "bold" }}>Amount</th>
+                  <th style={{ padding: "8px 6px", textAlign: "left", border: "1px solid #000000", fontWeight: "bold" }}>Remarks</th>
                 </tr>
               </thead>
               <tbody>
-                {filteredSales.length === 0 && (
-                  <tr><td colSpan={8} style={{ padding: "40px", textAlign: "center", color: "#999" }}>No records found for selected filters</td></tr>
+                {loading && (
+                  <tr>
+                    <td colSpan="8" style={{ padding: "40px", textAlign: "center" }}>Loading...</td>
+                  </tr>
                 )}
-                {filteredSales.map((sale, idx) => (
-                  <tr key={sale._id} style={{ borderBottom: "1px solid #e5e7eb" }}>
-                    <td style={{ padding: "4px", textAlign: "center" }}>{idx + 1}</td>
-                    <td style={{ padding: "4px", fontWeight: "bold" }}>{sale.invoiceNo}</td>
-                    <td style={{ padding: "4px" }}>{sale.invoiceDate}</td>
-                    <td style={{ padding: "4px", fontWeight: "bold" }}>{sale.items?.[0]?.code || "—"}</td>
-                    <td style={{ padding: "4px", fontWeight: "bold" }}>{sale.customerName || "—"}</td>
-                    <td style={{ padding: "4px", textAlign: "center" }}>
-                      <span style={{ 
-                        background: sale.paymentMode === "Credit" ? "#fee2e2" : "#dcfce7",
-                        color: sale.paymentMode === "Credit" ? "#dc2626" : "#16a34a",
-                        padding: "2px 6px",
-                        borderRadius: "10px",
-                        fontSize: "8px",
-                        fontWeight: "bold"
-                      }}>
-                        {sale.paymentMode === "Credit" ? "CREDIT" : "DEBIT"}
+                {!loading && filteredSales.length === 0 && (
+                  <tr>
+                    <td colSpan="8" style={{ padding: "40px", textAlign: "center", color: "#94a3b8" }}>No records found</td>
+                  </tr>
+                )}
+                {!loading && filteredSales.map((record, idx) => (
+                  <tr key={record._id}>
+                    <td style={{ padding: "6px", textAlign: "center", border: "1px solid #000000", fontWeight: "600" }}>{idx + 1}</td>
+                    <td style={{ padding: "6px", border: "1px solid #000000", fontWeight: "bold", fontFamily: "monospace" }}>{record.invoiceNo}</td>
+                    <td style={{ padding: "6px", border: "1px solid #000000" }}>{record.invoiceDate}</td>
+                    <td style={{ padding: "6px", border: "1px solid #000000", fontWeight: "600" }}>{record.items?.[0]?.code || record.code || "—"}</td>
+                    <td style={{ padding: "6px", border: "1px solid #000000", fontWeight: "bold" }}>{record.customerName || "—"}</td>
+                    <td style={{ padding: "6px", textAlign: "center", border: "1px solid #000000" }}>
+                      <span style={{ padding: "2px 8px", borderRadius: "3px", fontSize: "10px", fontWeight: "bold", background: record.paymentMode === "Credit" ? "#dcfce7" : "#dbeafe", border: "1px solid #000000" }}>
+                        {record.paymentMode === "Credit" ? "CREDIT" : "DEBIT"}
                       </span>
                     </td>
-                    <td style={{ padding: "4px", textAlign: "right", fontWeight: "bold", color: "#1e40af" }}>
-                      {fmt(sale.netTotal)}
+                    <td style={{ padding: "6px", textAlign: "right", border: "1px solid #000000", fontWeight: "bold", color: record.paymentMode === "Credit" ? "#16a34a" : "#1e40af" }}>
+                      {fmt(record.netTotal)}
                     </td>
-                    <td style={{ padding: "4px", fontSize: "9px", color: "#666" }}>
-                      {sale.remarks || "—"}
-                    </td>
+                    <td style={{ padding: "6px", border: "1px solid #000000" }}>{record.remarks || "—"}</td>
                   </tr>
                 ))}
               </tbody>
               {filteredSales.length > 0 && (
-                <tfoot>
-                  <tr style={{ background: "#f8fafc", fontWeight: "bold", borderTop: "2px solid #1e40af" }}>
-                    <td colSpan={6} style={{ padding: "5px", textAlign: "right" }}>Total:</td>
-                    <td style={{ padding: "5px", textAlign: "right", color: "#1e40af", fontSize: "11px" }}>{fmt(totalFilteredAmount)}</td>
-                    <td></td>
+                <tfoot style={{ background: "#f8fafc", position: "sticky", bottom: 0 }}>
+                  <tr>
+                    <td colSpan="6" style={{ padding: "8px", textAlign: "right", fontWeight: "bold", border: "1px solid #000000" }}>Total:</td>
+                    <td style={{ padding: "8px", textAlign: "right", fontWeight: "bold", color: "#1e40af", fontSize: "13px", border: "1px solid #000000" }}>{fmt(totalFilteredAmount)}</td>
+                    <td style={{ border: "1px solid #000000" }}></td>
                   </tr>
                 </tfoot>
               )}
             </table>
           </div>
         </div>
+
+        {/* Recent Entries Summary */}
+        {entries.length > 0 && (
+          <div style={{ background: "#ffffff", borderRadius: "6px", marginTop: "12px", border: "1px solid #000000", flexShrink: 0 }}>
+            <div style={{ fontWeight: "bold", fontSize: "11px", padding: "8px 12px", background: "#f1f5f9", borderBottom: "1px solid #000000" }}>📋 This Session ({entries.length})</div>
+            <div style={{ overflowX: "auto", maxHeight: "150px" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "11px" }}>
+                <thead style={{ position: "sticky", top: 0, background: "#f8fafc" }}>
+                  <tr>
+                    <th style={{ padding: "5px", textAlign: "center", width: "35px", border: "1px solid #000000" }}>#</th>
+                    <th style={{ padding: "5px", textAlign: "left", border: "1px solid #000000" }}>Code</th>
+                    <th style={{ padding: "5px", textAlign: "left", border: "1px solid #000000" }}>Customer</th>
+                    <th style={{ padding: "5px", textAlign: "left", border: "1px solid #000000" }}>Description</th>
+                    <th style={{ padding: "5px", textAlign: "right", border: "1px solid #000000" }}>Amount</th>
+                    <th style={{ padding: "5px", textAlign: "center", border: "1px solid #000000" }}>Type</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {entries.slice(-5).reverse().map((entry, idx) => (
+                    <tr key={entry.id}>
+                      <td style={{ padding: "4px", textAlign: "center", border: "1px solid #000000" }}>{entries.length - idx}</td>
+                      <td style={{ padding: "4px", border: "1px solid #000000" }}>{entry.code || "—"}</td>
+                      <td style={{ padding: "4px", border: "1px solid #000000", fontWeight: "bold" }}>{entry.accountTitle}</td>
+                      <td style={{ padding: "4px", border: "1px solid #000000" }}>{entry.description || "—"}</td>
+                      <td style={{ padding: "4px", textAlign: "right", border: "1px solid #000000", fontWeight: "bold", color: entry.type === "DEBIT" ? "#1e40af" : "#16a34a" }}>{fmt(entry.credit)}</td>
+                      <td style={{ padding: "4px", textAlign: "center", border: "1px solid #000000" }}>
+                        <span style={{ padding: "2px 6px", borderRadius: "2px", fontSize: "9px", fontWeight: "bold", background: entry.type === "DEBIT" ? "#dbeafe" : "#dcfce7" }}>{entry.displayType}</span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot style={{ background: "#f8fafc" }}>
+                  <tr>
+                    <td colSpan="4" style={{ padding: "5px", textAlign: "right", fontWeight: "bold", border: "1px solid #000000" }}>Debit Total:</td>
+                    <td style={{ padding: "5px", textAlign: "right", fontWeight: "bold", color: "#1e40af", border: "1px solid #000000" }}>{fmt(debitTotal)}</td>
+                    <td style={{ border: "1px solid #000000" }}></td>
+                  </tr>
+                  <tr>
+                    <td colSpan="4" style={{ padding: "5px", textAlign: "right", fontWeight: "bold", border: "1px solid #000000" }}>Credit Total:</td>
+                    <td style={{ padding: "5px", textAlign: "right", fontWeight: "bold", color: "#16a34a", border: "1px solid #000000" }}>{fmt(creditTotal)}</td>
+                    <td style={{ border: "1px solid #000000" }}></td>
+                  </tr>
+                  <tr style={{ background: "#f1f5f9" }}>
+                    <td colSpan="4" style={{ padding: "5px", textAlign: "right", fontWeight: "bold", border: "1px solid #000000" }}>Net Total:</td>
+                    <td style={{ padding: "5px", textAlign: "right", fontWeight: "bold", color: "#1e40af", fontSize: "12px", border: "1px solid #000000" }}>{fmt(netTotal)}</td>
+                    <td style={{ border: "1px solid #000000" }}></td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Command Bar */}
-      <div style={{ padding: "4px 10px", background: "#f1f5f9", borderTop: "2px solid #1e40af", display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap", flexShrink: 0 }}>
-        <button className="xp-btn xp-btn-sm" style={{ fontSize: "11px", padding: "3px 8px" }} onClick={resetForm}>🔄 Reset All</button>
-        <span style={{ flex: 1, textAlign: "right", fontSize: "11px", fontWeight: "bold" }}>
-          Total Saved Today: {entries.length} | Amount: {fmt(calculateTotal())}
-        </span>
-        <button className="xp-btn xp-btn-sm" style={{ fontSize: "11px", padding: "3px 8px" }} onClick={() => window.history.back()}>✕ Close</button>
+      <div style={{ padding: "8px 16px", background: "#f1f5f9", borderTop: "2px solid #000000", display: "flex", gap: "10px", alignItems: "center", flexShrink: 0 }}>
+        <button className="xp-btn xp-btn-sm" style={{ fontSize: "11px", fontWeight: "bold" }} onClick={resetForm}>🔄 Reset</button>
+        <span style={{ flex: 1, textAlign: "right", fontSize: "11px", fontWeight: "bold" }}>Debit: {fmt(debitTotal)} | Credit: {fmt(creditTotal)} | Net: {fmt(netTotal)}</span>
+        <button className="xp-btn xp-btn-sm" style={{ fontSize: "11px", fontWeight: "bold" }} onClick={() => window.history.back()}>✕ Close</button>
       </div>
 
       {/* Status Bar */}
-      <div className="xp-statusbar" style={{ fontSize: "10px", padding: "2px 8px", flexShrink: 0 }}>
-        <div className="xp-status-pane">Manual Sale Bill</div>
-        <div className="xp-status-pane">Saved Today: {entries.length}</div>
-        <div className="xp-status-pane">Records: {filteredSales.length}</div>
+      <div className="xp-statusbar" style={{ background: "#f8fafc", borderTop: "2px solid #000000", padding: "6px 16px", flexShrink: 0 }}>
+        <div className="xp-status-pane" style={{ fontSize: "11px", fontWeight: "500" }}>Manual Sale Bill</div>
+        <div className="xp-status-pane" style={{ fontSize: "11px", fontWeight: "500" }}>Session: {entries.length}</div>
+        <div className="xp-status-pane" style={{ fontSize: "11px", fontWeight: "500" }}>DB: {salesRecords.length}</div>
       </div>
     </div>
   );
