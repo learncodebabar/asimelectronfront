@@ -137,6 +137,9 @@ export default function ProductPage() {
   const rOpenQty = useRef();
   const highlightedRowRef = useRef(null);
   
+  // Product ID input ref
+  const rProductId = useRef();
+  
   useEffect(() => {
     fetchProducts();
   }, []);
@@ -379,28 +382,56 @@ export default function ProductPage() {
     }
   };
 
-  const handleProductClick = (product) => {
-    const field = activeFieldRef.current;
-    if (field === "company") setF("company", product.company || "");
-    else if (field === "category") setF("category", product.category || "");
-    else if (field === "webCategory")
-      setF("webCategory", product.webCategory || "");
-    else if (field === "orderName") setF("orderName", product.orderName || "");
-    else if (field === "description")
-      setF("description", product.description || "");
-    else if (field === "measurement")
-      setPForm((p) => ({
-        ...p,
-        measurement: product.packingInfo?.[0]?.measurement || "",
-      }));
-
-    setSelId(product._id);
-    setFilterText("");
-    filterTextRef.current = "";
+  // NEW FUNCTION: Load complete product into form
+  const loadProductIntoForm = (product) => {
+    setForm({
+      productId: product.productId,
+      code: product.code,
+      company: product.company || "",
+      category: product.category || "",
+      webCategory: product.webCategory || "",
+      rackNo: product.rackNo || "",
+      description: product.description || "",
+      urduDesc: product.urduDesc || "",
+      orderName: product.orderName || "",
+      remarks: product.remarks || "",
+      uploadProduct: product.uploadProduct || false,
+      productImage: product.productImage || "",
+    });
+    setPRows(product.packingInfo || []);
+    setEditId(product._id);
+    setSelPack(null);
+    setEditPack(null);
+    setPForm(EMPTY_PACK);
     setShowAllProducts(true);
-    showAllRef.current = true;
-    setHighlightedIndex(-1);
-    highlightedRef.current = -1;
+    setSelId(product._id);
+    setTimeout(() => rCompany.current?.focus(), 50);
+    showMsg(`Product ${product.productId} loaded`, "success");
+  };
+
+  // Handle product ID input and Enter key
+  const handleProductIdKeyDown = (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      const productId = form.productId.trim();
+      if (!productId) {
+        showMsg("Please enter a Product ID", "error");
+        return;
+      }
+      
+      // Find product by productId (not _id)
+      const product = products.find(p => p.productId === productId);
+      if (product) {
+        loadProductIntoForm(product);
+      } else {
+        showMsg(`Product ID ${productId} not found`, "error");
+      }
+    }
+  };
+
+  const handleProductClick = (product) => {
+    // Now single click also loads the complete product into the form
+    loadProductIntoForm(product);
   };
 
   const handlePackRowClick = (i) => {
@@ -498,51 +529,16 @@ export default function ProductPage() {
     setShowAllProducts(false);
     showAllRef.current = false;
     setMsg({ text: "", type: "" });
-    setTimeout(() => rCompany.current?.focus(), 50);
+    setTimeout(() => rProductId.current?.focus(), 50);
   };
 
   const loadForEdit = (id) => {
     const p = products.find((x) => x._id === id);
     if (!p) return;
-    setForm({
-      productId: p.productId,
-      code: p.code,
-      company: p.company || "",
-      category: p.category || "",
-      webCategory: p.webCategory || "",
-      rackNo: p.rackNo || "",
-      description: p.description || "",
-      urduDesc: p.urduDesc || "",
-      orderName: p.orderName || "",
-      remarks: p.remarks || "",
-      uploadProduct: p.uploadProduct || false,
-      productImage: p.productImage || "",
-    });
-    setPRows(p.packingInfo || []);
-    setEditId(p._id);
-    setSelPack(null);
-    setEditPack(null);
-    setPForm(EMPTY_PACK);
-    setShowAllProducts(true);
-    setTimeout(() => rCompany.current?.focus(), 50);
+    loadProductIntoForm(p);
   };
 
-  const deleteProduct = async () => {
-    if (!selId) return alert("Select a product first");
-    if (!confirm("Delete this product?")) return;
-    setLoad(true);
-    try {
-      const { data } = await api.delete(EP.PRODUCTS.DELETE(selId));
-      if (data.success) {
-        showMsg("Deleted");
-        fetchProducts();
-        refresh();
-      } else showMsg(data.message, "error");
-    } catch {
-      showMsg("Delete failed", "error");
-    }
-    setLoad(false);
-  };
+  // REMOVED: deleteProduct function - no longer needed
 
   const filteredProducts = getFilteredProducts();
   const sorted = [...filteredProducts].sort(
@@ -616,10 +612,12 @@ export default function ProductPage() {
               <div className="pp-id-row" style={{ marginTop: 4 }}>
                 <label>Product ID</label>
                 <input
+                  ref={rProductId}
                   className="xp-input xp-input-sm"
                   value={form.productId || nextId}
-                  readOnly
-                  tabIndex={-1}
+                  onChange={(e) => setF("productId", e.target.value)}
+                  onKeyDown={handleProductIdKeyDown}
+                  placeholder="Enter Product ID and press Enter"
                 />
                 <label>Barcode</label>
                 <input
@@ -861,12 +859,7 @@ export default function ProductPage() {
                 >
                   Edit Record
                 </button>
-                <button
-                  className="xp-btn xp-btn-danger xp-btn-sm"
-                  onClick={deleteProduct}
-                >
-                  Delete
-                </button>
+                {/* DELETE BUTTON REMOVED */}
                 <button
                   className="xp-btn xp-btn-sm pp-close-btn"
                   style={{ gridColumn: "1 / -1" }}

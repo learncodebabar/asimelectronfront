@@ -76,7 +76,7 @@ const buildDamageInPrintHtml = (record) => {
         <td style="font-size:10px;vertical-align:top;padding:4px;text-align:right">${fmt(it.rate)}</td>
         <td style="font-size:10px;vertical-align:top;padding:4px;text-align:right"><b>${fmt(it.amount)}</b></td>
         <td style="font-size:9px;vertical-align:top;padding:4px">${it.reason || "—"}</td>
-      </table>
+      </tr>
     `,
     )
     .join("");
@@ -647,20 +647,27 @@ export default function DamageInPage() {
     try {
       const response = await api.get(EP.DAMAGE.GET_ALL);
       if (response.data.success) {
-        setAllRecords(response.data.data);
-        // Calculate next damage number
-        if (response.data.data.length > 0) {
-          const maxNum = Math.max(...response.data.data.map(r => parseInt(r.damageNo) || 0));
-          setDamageNo(String(maxNum + 1));
+        const damageInRecords = response.data.data.filter(r => r.type === "in");
+        setAllRecords(damageInRecords);
+        
+        if (damageInRecords.length > 0) {
+          const maxNum = Math.max(...damageInRecords.map(r => {
+            const numStr = r.damageNo.toString();
+            if (numStr.includes('-')) {
+              return parseInt(numStr.split('-')[1]) || 0;
+            }
+            return parseInt(numStr) || 0;
+          }));
+          setDamageNo(`IN-${maxNum + 1}`);
         } else {
-          setDamageNo("1");
+          setDamageNo("IN-1");
         }
       } else {
-        setDamageNo("1");
+        setDamageNo("IN-1");
       }
     } catch (error) {
       console.error("Failed to fetch damage records:", error);
-      setDamageNo("1");
+      setDamageNo("IN-1");
     }
     setLoading(false);
   };
@@ -805,6 +812,8 @@ export default function DamageInPage() {
   const buildPayload = () => ({
     damageNo,
     damageDate,
+    invoiceNo: damageNo,
+    invoiceDate: damageDate,
     items: items.map((r) => ({
       productId: r.productId || undefined,
       code: r.code,
@@ -820,7 +829,7 @@ export default function DamageInPage() {
     })),
     totalQty,
     totalAmount: subTotal,
-    type: "damage_in",
+    type: "in",
   });
   
   const saveDamageRecord = async () => {
@@ -890,9 +899,14 @@ export default function DamageInPage() {
     }
     
     const sortedRecords = [...allRecords].sort((a, b) => {
-      const numA = parseInt(a.damageNo);
-      const numB = parseInt(b.damageNo);
-      return numA - numB;
+      const getNum = (str) => {
+        let numStr = str.toString();
+        if (numStr.includes('-')) {
+          numStr = numStr.split('-')[1];
+        }
+        return parseInt(numStr) || 0;
+      };
+      return getNum(a.damageNo) - getNum(b.damageNo);
     });
     
     const curIdx = sortedRecords.findIndex((r) => r.damageNo === damageNo);

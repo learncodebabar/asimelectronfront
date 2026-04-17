@@ -1,5 +1,5 @@
-// pages/DamageOutPage.jsx - Fixed missing closing tags
-import { useState, useEffect, useRef, useCallback } from "react";
+// pages/DamageOutPage.jsx - With larger bold product font
+import { useState, useEffect, useRef } from "react";
 import api from "../api/api.js";
 import EP from "../api/apiEndpoints.js";
 import "../styles/theme.css";
@@ -15,8 +15,6 @@ const timeNow = () =>
 const isoDate = () => new Date().toISOString().split("T")[0];
 const fmt = (n) => Number(n || 0).toLocaleString("en-PK");
 const DAMAGE_OUT_HOLD_KEY = "asim_damage_out_hold_v1";
-const DAMAGE_OUT_STORAGE_KEY = "asim_damage_out_records_v1";
-const DAMAGE_IN_STORAGE_KEY = "asim_damage_in_records_v1";
 
 const EMPTY_ROW = {
   productId: "",
@@ -29,6 +27,9 @@ const EMPTY_ROW = {
   amount: 0,
   reason: "",
   damageInRef: "",
+  damageInId: "",
+  damageInItemIndex: 0,
+  maxQty: 1,
 };
 
 const SHOP_INFO = {
@@ -41,15 +42,7 @@ const SHOP_INFO = {
   devBy: "Software developed by: Creative Babar / 03098325271 or visit website www.digitalglobalschool.com",
 };
 
-/* ── localStorage helpers ── */
-const loadDamageInRecords = () => {
-  try {
-    return JSON.parse(localStorage.getItem(DAMAGE_IN_STORAGE_KEY) || "[]");
-  } catch {
-    return [];
-  }
-};
-
+/* ── localStorage helpers for Holds only ── */
 const loadDamageOutHolds = () => {
   try {
     return JSON.parse(localStorage.getItem(DAMAGE_OUT_HOLD_KEY) || "[]");
@@ -62,25 +55,6 @@ const saveDamageOutHolds = (records) => {
   try {
     localStorage.setItem(DAMAGE_OUT_HOLD_KEY, JSON.stringify(records));
   } catch {}
-};
-
-const loadDamageOutRecords = () => {
-  try {
-    return JSON.parse(localStorage.getItem(DAMAGE_OUT_STORAGE_KEY) || "[]");
-  } catch {
-    return [];
-  }
-};
-
-const saveDamageOutRecord = (record) => {
-  try {
-    const existing = loadDamageOutRecords();
-    existing.push({ ...record, savedAt: new Date().toISOString() });
-    localStorage.setItem(DAMAGE_OUT_STORAGE_KEY, JSON.stringify(existing));
-    return true;
-  } catch {
-    return false;
-  }
 };
 
 /* ══════════════════════════════════════════════════════════
@@ -101,7 +75,7 @@ const buildDamageOutPrintHtml = (record) => {
       <tr>
         <td style="font-size:10px;vertical-align:top;padding:4px">${it.sr}</td>
         <td style="font-size:10px;vertical-align:top;padding:4px">${it.code}</td>
-        <td style="font-size:11px;vertical-align:top;padding:4px">${it.name}</td>
+        <td style="font-size:13px;font-weight:bold;vertical-align:top;padding:4px">${it.name}</td>
         <td style="font-size:10px;vertical-align:top;padding:4px;text-align:center">${it.pcs} ${it.uom || ""}</td>
         <td style="font-size:10px;vertical-align:top;padding:4px;text-align:right">${fmt(it.rate)}</td>
         <td style="font-size:10px;vertical-align:top;padding:4px;text-align:right"><b>${fmt(it.amount)}</b></td>
@@ -147,8 +121,8 @@ const buildDamageOutPrintHtml = (record) => {
     </div>
 
     <div class="meta-row">
-      <span><b>Damage Out ID:</b> ${record.damageOutNo}</span>
-      <span><b>Date:</b> ${record.damageOutDate}</span>
+      <span><b>Damage Out ID:</b> ${record.damageNo}</span>
+      <span><b>Date:</b> ${record.damageDate}</span>
     </div>
     <hr class="divider-dash">
 
@@ -196,55 +170,71 @@ const doPrint = (record) => {
 };
 
 /* ══════════════════════════════════════════════════════════
-   DAMAGE IN PRODUCT SEARCH MODAL - Only shows products from Damage In
+   DAMAGE IN PRODUCT SEARCH MODAL
 ══════════════════════════════════════════════════════════ */
 function DamageInProductSearchModal({ onSelect, onClose }) {
   const [searchText, setSearchText] = useState("");
+  const [damageInRecords, setDamageInRecords] = useState([]);
   const [filteredProducts, setFilteredProducts] = useState([]);
   const [hiIdx, setHiIdx] = useState(0);
   const [loading, setLoading] = useState(false);
   const searchRef = useRef(null);
-  const listRef = useRef(null);
 
   useEffect(() => {
-    loadDamageInData();
+    fetchDamageInRecords();
   }, []);
 
   useEffect(() => {
     setTimeout(() => searchRef.current?.focus(), 100);
   }, []);
 
-  const loadDamageInData = () => {
+  const fetchDamageInRecords = async () => {
     setLoading(true);
-    const records = loadDamageInRecords();
-    const products = [];
-    records.forEach(record => {
-      record.items.forEach(item => {
-        products.push({
-          ...item,
-          damageInRef: record.damageNo,
-          damageInDate: record.damageDate,
+    try {
+      const response = await api.get(EP.DAMAGE.GET_ALL);
+      if (response.data.success) {
+        const records = response.data.data.filter(r => r.type === "in");
+        setDamageInRecords(records);
+        
+        const products = [];
+        records.forEach(record => {
+          record.items.forEach((item, itemIndex) => {
+            if (item.pcs > 0) {
+              products.push({
+                ...item,
+                damageInRef: record.damageNo,
+                damageInId: record._id,
+                damageInDate: record.damageDate,
+                damageInItemIndex: itemIndex,
+                availableQty: item.pcs,
+              });
+            }
+          });
         });
-      });
-    });
-    setFilteredProducts(products);
+        setFilteredProducts(products);
+      }
+    } catch (error) {
+      console.error("Failed to fetch damage in records:", error);
+    }
     setLoading(false);
   };
 
   const handleSearch = (value) => {
     setSearchText(value);
     const searchLower = value.toLowerCase();
-    const records = loadDamageInRecords();
     const products = [];
-    records.forEach(record => {
-      record.items.forEach(item => {
-        if (!searchLower || 
+    damageInRecords.forEach(record => {
+      record.items.forEach((item, itemIndex) => {
+        if (item.pcs > 0 && (!searchLower || 
             item.code?.toLowerCase().includes(searchLower) ||
-            item.name?.toLowerCase().includes(searchLower)) {
+            item.name?.toLowerCase().includes(searchLower))) {
           products.push({
             ...item,
             damageInRef: record.damageNo,
+            damageInId: record._id,
             damageInDate: record.damageDate,
+            damageInItemIndex: itemIndex,
+            availableQty: item.pcs,
           });
         }
       });
@@ -287,11 +277,7 @@ function DamageInProductSearchModal({ onSelect, onClose }) {
         background: "#ffffff",
         border: "2px solid #e65100"
       }}>
-        <div className="xp-modal-tb" style={{ 
-          background: "#e65100", 
-          padding: "10px 16px",
-          borderRadius: "10px 10px 0 0"
-        }}>
+        <div className="xp-modal-tb" style={{ background: "#e65100", padding: "10px 16px", borderRadius: "10px 10px 0 0" }}>
           <svg width="14" height="14" viewBox="0 0 16 16" fill="rgba(255,255,255,0.9)">
             <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.044.06.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1 1 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0"/>
           </svg>
@@ -299,13 +285,7 @@ function DamageInProductSearchModal({ onSelect, onClose }) {
           <button className="xp-cap-btn xp-cap-close" onClick={onClose} style={{ color: "#ffffff", fontSize: "18px" }}>✕</button>
         </div>
         
-        <div className="cs-modal-filters" style={{ 
-          padding: "12px 16px", 
-          gap: "10px", 
-          background: "#f8fafc",
-          borderBottom: "1px solid #e65100",
-          flexWrap: "wrap"
-        }}>
+        <div className="cs-modal-filters" style={{ padding: "12px 16px", gap: "10px", background: "#f8fafc", borderBottom: "1px solid #e65100", flexWrap: "wrap" }}>
           <div className="cs-modal-filter-grp" style={{ flex: 2, minWidth: "200px" }}>
             <label className="xp-label" style={{ fontSize: "11px", fontWeight: "bold", color: "#000000", marginBottom: "3px", display: "block" }}>SEARCH PRODUCT</label>
             <input
@@ -328,74 +308,42 @@ function DamageInProductSearchModal({ onSelect, onClose }) {
         
         <div className="xp-modal-body" style={{ padding: 0, flex: 1, overflow: "hidden" }}>
           <div className="xp-table-panel" style={{ border: "none", height: "100%" }}>
-            <div className="xp-table-scroll" style={{ 
-              height: "100%", 
-              overflow: "auto",
-              maxHeight: "calc(85vh - 110px)"
-            }}>
-              <table className="xp-table" style={{ 
-                fontSize: "12px", 
-                borderCollapse: "collapse", 
-                width: "100%",
-                border: "1px solid #e65100"
-              }}>
+            <div className="xp-table-scroll" style={{ height: "100%", overflow: "auto", maxHeight: "calc(85vh - 110px)" }}>
+              <table className="xp-table" style={{ fontSize: "12px", borderCollapse: "collapse", width: "100%", border: "1px solid #e65100" }}>
                 <thead>
                   <tr style={{ background: "#f1f5f9", position: "sticky", top: 0, zIndex: 10 }}>
-                    <th style={{ width: 40, padding: "8px 6px", textAlign: "center", border: "1px solid #e65100", fontSize: "12px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>SR.#</th>
-                    <th style={{ width: 100, padding: "8px 6px", textAlign: "left", border: "1px solid #e65100", fontSize: "12px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>CODE</th>
-                    <th style={{ padding: "8px 6px", textAlign: "left", border: "1px solid #e65100", fontSize: "12px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>PRODUCT NAME</th>
-                    <th style={{ width: 60, padding: "8px 6px", textAlign: "center", border: "1px solid #e65100", fontSize: "12px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>UOM</th>
-                    <th style={{ width: 85, padding: "8px 6px", textAlign: "right", border: "1px solid #e65100", fontSize: "12px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>RATE</th>
-                    <th style={{ width: 70, padding: "8px 6px", textAlign: "center", border: "1px solid #e65100", fontSize: "12px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>AVAIL QTY</th>
-                    <th style={{ width: 100, padding: "8px 6px", textAlign: "left", border: "1px solid #e65100", fontSize: "12px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>DAMAGE IN REF</th>
-                    <th style={{ width: 100, padding: "8px 6px", textAlign: "left", border: "1px solid #e65100", fontSize: "12px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>DAMAGE REASON</th>
+                    <th style={{ width: 40, padding: "8px 6px", textAlign: "center", border: "1px solid #e65100" }}>#</th>
+                    <th style={{ width: 100, padding: "8px 6px", textAlign: "left", border: "1px solid #e65100" }}>CODE</th>
+                    <th style={{ padding: "8px 6px", textAlign: "left", border: "1px solid #e65100" }}>PRODUCT NAME</th>
+                    <th style={{ width: 60, padding: "8px 6px", textAlign: "center", border: "1px solid #e65100" }}>UOM</th>
+                    <th style={{ width: 85, padding: "8px 6px", textAlign: "right", border: "1px solid #e65100" }}>RATE</th>
+                    <th style={{ width: 70, padding: "8px 6px", textAlign: "center", border: "1px solid #e65100" }}>AVAIL QTY</th>
+                    <th style={{ width: 100, padding: "8px 6px", textAlign: "left", border: "1px solid #e65100" }}>DAMAGE IN REF</th>
+                    <th style={{ width: 100, padding: "8px 6px", textAlign: "left", border: "1px solid #e65100" }}>REASON</th>
                   </tr>
                 </thead>
-                <tbody ref={listRef} tabIndex={0} onKeyDown={handleKeyDown}>
+                <tbody>
                   {loading && (
-                    <tr>
-                      <td colSpan={8} className="xp-empty" style={{ padding: "30px", textAlign: "center", color: "#e65100", fontSize: "12px", fontWeight: "bold" }}>
-                        LOADING...
-                      </td>
-                    </tr>
+                    <tr><td colSpan={8} style={{ padding: "30px", textAlign: "center", color: "#e65100" }}>LOADING...</td></tr>
                   )}
                   {!loading && filteredProducts.length === 0 && (
-                    <tr>
-                      <td colSpan={8} className="xp-empty" style={{ padding: "30px", textAlign: "center", color: "#e65100", fontSize: "12px", fontWeight: "bold" }}>
-                        NO DAMAGED PRODUCTS FOUND. PLEASE ADD DAMAGE IN FIRST.
-                      </td>
-                    </tr>
+                    <tr><td colSpan={8} style={{ padding: "30px", textAlign: "center", color: "#e65100" }}>NO DAMAGED PRODUCTS FOUND</td></tr>
                   )}
                   {filteredProducts.map((product, i) => (
                     <tr
                       key={`${product.productId}-${i}`}
-                      style={{
-                        background: i === hiIdx ? "#fff3e0" : "white",
-                        cursor: "pointer"
-                      }}
+                      style={{ background: i === hiIdx ? "#fff3e0" : "white", cursor: "pointer" }}
                       onClick={() => setHiIdx(i)}
                       onDoubleClick={() => onSelect(product)}
                     >
-                      <td style={{ padding: "6px 6px", textAlign: "center", border: "1px solid #e65100", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>{i + 1}</td>
-                      <td style={{ padding: "6px 6px", border: "1px solid #e65100", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>
-                        {product.code}
-                      </td>
-                      <td style={{ padding: "6px 6px", border: "1px solid #e65100", fontSize: "14px", fontWeight: "bold", color: "#000000" }}>
-                        {product.name}
-                      </td>
-                      <td style={{ padding: "6px 6px", textAlign: "center", border: "1px solid #e65100", fontSize: "13px", fontWeight: "bold", color: "#000000" }}>{product.uom || "—"}</td>
-                      <td style={{ padding: "6px 6px", textAlign: "right", border: "1px solid #e65100", fontSize: "13px", fontWeight: "bold", color: "#000000" }}>
-                        {fmt(product.rate)}
-                      </td>
-                      <td style={{ padding: "6px 6px", textAlign: "center", border: "1px solid #e65100", fontSize: "13px", fontWeight: "bold", color: "#e65100" }}>
-                        {product.pcs}
-                      </td>
-                      <td style={{ padding: "6px 6px", border: "1px solid #e65100", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>
-                        {product.damageInRef}
-                      </td>
-                      <td style={{ padding: "6px 6px", border: "1px solid #e65100", fontSize: "11px", color: "#000000" }}>
-                        {product.reason || "—"}
-                      </td>
+                      <td style={{ padding: "6px", textAlign: "center", border: "1px solid #e65100" }}>{i + 1}</td>
+                      <td style={{ padding: "6px", border: "1px solid #e65100", fontWeight: "bold", fontSize: "13px" }}>{product.code}</td>
+                      <td style={{ padding: "6px", border: "1px solid #e65100", fontWeight: "bold", fontSize: "15px" }}>{product.name}</td>
+                      <td style={{ padding:  "6px", border: "1px solid #e65100", fontWeight: "bold", fontSize: "15px"  }}>{product.uom || "—"}</td>
+                      <td style={{ padding:  "6px", border: "1px solid #e65100", fontWeight: "bold", fontSize: "15px"  }}>{fmt(product.rate)}</td>
+                      <td style={{ padding: "6px", textAlign: "center", border: "1px solid #e65100", color: "#e65100", fontWeight: "bold" }}>{product.pcs}</td>
+                      <td style={{ padding: "6px", border: "1px solid #e65100", fontWeight: "bold", fontSize: "15px"  }}>{product.damageInRef}</td>
+                      <td style={{ padding:  "6px", border: "1px solid #e65100", fontWeight: "bold", fontSize: "15px"  }}>{product.reason || "—"}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -403,16 +351,8 @@ function DamageInProductSearchModal({ onSelect, onClose }) {
             </div>
           </div>
         </div>
-        <div className="cs-modal-hint" style={{ 
-          padding: "6px 12px", 
-          fontSize: "10px", 
-          color: "#e65100", 
-          fontWeight: "bold",
-          borderTop: "1px solid #e65100", 
-          background: "#f8fafc",
-          borderRadius: "0 0 10px 10px"
-        }}>
-          <span>↑↓ NAVIGATE</span> &nbsp;|&nbsp; <span>ENTER / DOUBLE-CLICK = SELECT</span> &nbsp;|&nbsp; <span>ESC = CLOSE</span>
+        <div className="cs-modal-hint" style={{ padding: "6px 12px", fontSize: "10px", color: "#e65100", fontWeight: "bold", borderTop: "1px solid #e65100", background: "#f8fafc", borderRadius: "0 0 10px 10px" }}>
+          <span>↑↓ NAVIGATE</span> | <span>ENTER / DOUBLE-CLICK = SELECT</span> | <span>ESC = CLOSE</span>
         </div>
       </div>
     </div>
@@ -426,63 +366,31 @@ function DamageOutHoldPreviewModal({ record, onResume, onClose }) {
   if (!record) return null;
   const total = record.items.reduce((s, r) => s + Number(r.amount || 0), 0);
   return (
-    <div
-      className="xp-overlay"
-      onClick={(e) => e.target === e.currentTarget && onClose()}
-    >
+    <div className="xp-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="xp-modal" style={{ width: 560 }}>
         <div className="xp-modal-tb" style={{ background: "#e65100" }}>
-          <span className="xp-modal-title">HOLD DAMAGE OUT — {record.damageOutNo}</span>
-          <button className="xp-cap-btn xp-cap-close" onClick={onClose}>
-            ✕
-          </button>
+          <span className="xp-modal-title">HOLD DAMAGE OUT — {record.damageNo}</span>
+          <button className="xp-cap-btn xp-cap-close" onClick={onClose}>✕</button>
         </div>
         <div className="xp-modal-body" style={{ padding: 8 }}>
-          <div
-            style={{
-              marginBottom: 6,
-              display: "flex",
-              gap: 16,
-              fontSize: "var(--xp-fs-xs)",
-            }}
-          >
-            <span>
-              <b>ITEMS:</b> {record.items.length}
-            </span>
-            <span>
-              <b>AMOUNT:</b>{" "}
-              <span style={{ color: "#e65100", fontWeight: 700 }}>
-                {fmt(total)}
-              </span>
-            </span>
+          <div style={{ marginBottom: 6, display: "flex", gap: 16 }}>
+            <span><b>ITEMS:</b> {record.items.length}</span>
+            <span><b>AMOUNT:</b> <span style={{ color: "#e65100", fontWeight: 700 }}>{fmt(total)}</span></span>
           </div>
-          <div className="xp-table-panel" style={{ border: "none" }}>
+          <div className="xp-table-panel">
             <div className="xp-table-scroll" style={{ maxHeight: 300 }}>
               <table className="xp-table">
-                <thead>
-                  <tr>
-                    <th>#</th>
-                    <th>CODE</th>
-                    <th>NAME</th>
-                    <th>UOM</th>
-                    <th className="r">QTY</th>
-                    <th className="r">RATE</th>
-                    <th className="r">AMOUNT</th>
-                    <th>DAMAGE IN REF</th>
-                  </tr>
-                </thead>
+                <thead><tr><th>#</th><th>CODE</th><th>NAME</th><th>UOM</th><th className="r">QTY</th><th className="r">RATE</th><th className="r">AMOUNT</th><th>DAMAGE IN REF</th></tr></thead>
                 <tbody>
                   {record.items.map((r, i) => (
                     <tr key={i}>
                       <td className="text-muted">{i + 1}</td>
-                      <td className="text-muted">{r.code}</td>
-                      <td>{r.name}</td>
+                      <td className="text-muted" style={{ fontWeight: "bold" }}>{r.code}</td>
+                      <td style={{ fontWeight: "bold", fontSize: "14px" }}>{r.name}</td>
                       <td className="text-muted">{r.uom}</td>
                       <td className="r">{r.pcs}</td>
                       <td className="r">{fmt(r.rate)}</td>
-                      <td className="r" style={{ color: "#e65100", fontWeight: 700 }}>
-                        {fmt(r.amount)}
-                      </td>
+                      <td className="r" style={{ color: "#e65100", fontWeight: 700 }}>{fmt(r.amount)}</td>
                       <td className="text-muted" style={{ fontSize: 10 }}>{r.damageInRef || "—"}</td>
                     </tr>
                   ))}
@@ -491,25 +399,9 @@ function DamageOutHoldPreviewModal({ record, onResume, onClose }) {
             </div>
           </div>
         </div>
-        <div
-          style={{
-            display: "flex",
-            gap: 6,
-            padding: "6px 10px",
-            borderTop: "1px solid var(--xp-silver-5)",
-            justifyContent: "flex-end",
-          }}
-        >
-          <button className="xp-btn xp-btn-sm" onClick={onClose}>
-            CANCEL
-          </button>
-          <button
-            className="xp-btn xp-btn-primary xp-btn-sm"
-            style={{ background: "#e65100", borderColor: "#bf360c" }}
-            onClick={() => onResume(record.id)}
-          >
-            RESUME THIS RECORD
-          </button>
+        <div style={{ display: "flex", gap: 6, padding: "6px 10px", borderTop: "1px solid #ddd", justifyContent: "flex-end" }}>
+          <button className="xp-btn xp-btn-sm" onClick={onClose}>CANCEL</button>
+          <button className="xp-btn xp-btn-primary xp-btn-sm" style={{ background: "#e65100", borderColor: "#bf360c" }} onClick={() => onResume(record.id)}>RESUME</button>
         </div>
       </div>
     </div>
@@ -529,7 +421,7 @@ export default function DamageOutPage() {
   const [curRow, setCurRow] = useState({ ...EMPTY_ROW });
   const [items, setItems] = useState([]);
   const [damageOutDate, setDamageOutDate] = useState(isoDate());
-  const [damageOutNo, setDamageOutNo] = useState("1");
+  const [damageOutNo, setDamageOutNo] = useState("");
   const amountRef = useRef(null);
   const reasonRef = useRef(null);
 
@@ -556,7 +448,7 @@ export default function DamageOutPage() {
   
   useEffect(() => {
     loadDamageInProducts();
-    loadAllRecords();
+    fetchDamageOutRecords();
   }, []);
   
   useEffect(() => {
@@ -584,44 +476,61 @@ export default function DamageOutPage() {
   const subTotal = items.reduce((s, r) => s + (parseFloat(r.amount) || 0), 0);
   const totalQty = items.reduce((s, r) => s + (parseFloat(r.pcs) || 0), 0);
 
-  const loadDamageInProducts = () => {
-    const records = loadDamageInRecords();
-    const products = [];
-    records.forEach(record => {
-      record.items.forEach(item => {
-        products.push({
-          ...item,
-          damageInRef: record.damageNo,
-          damageInDate: record.damageDate,
-          availableQty: item.pcs,
+  const loadDamageInProducts = async () => {
+    try {
+      const response = await api.get(EP.DAMAGE.GET_ALL);
+      if (response.data.success) {
+        const records = response.data.data.filter(r => r.type === "in");
+        const products = [];
+        records.forEach(record => {
+          record.items.forEach((item, itemIndex) => {
+            if (item.pcs > 0) {
+              products.push({
+                ...item,
+                damageInRef: record.damageNo,
+                damageInId: record._id,
+                damageInDate: record.damageDate,
+                damageInItemIndex: itemIndex,
+                availableQty: item.pcs,
+              });
+            }
+          });
         });
-      });
-    });
-    setAllDamageInProducts(products);
-  };
-
-  const loadAllRecords = () => {
-    const saved = loadDamageOutRecords();
-    setAllRecords(saved);
-  };
-
-  const fetchNextDamageOutNo = async () => {
-    const records = loadDamageOutRecords();
-    const holds = loadDamageOutHolds();
-    const allItems = [...records, ...holds];
-    
-    if (allItems.length > 0) {
-      let maxNum = 0;
-      allItems.forEach(item => {
-        const num = parseInt(item.damageOutNo);
-        if (!isNaN(num) && num > maxNum) {
-          maxNum = num;
-        }
-      });
-      setDamageOutNo(String(maxNum + 1));
-    } else {
-      setDamageOutNo("1");
+        setAllDamageInProducts(products);
+      }
+    } catch (error) {
+      console.error("Failed to load damage in products:", error);
     }
+  };
+
+  const fetchDamageOutRecords = async () => {
+    setLoading(true);
+    try {
+      const response = await api.get(EP.DAMAGE.GET_ALL);
+      if (response.data.success) {
+        const damageOutRecords = response.data.data.filter(r => r.type === "out");
+        setAllRecords(damageOutRecords);
+        
+        if (damageOutRecords.length > 0) {
+          const maxNum = Math.max(...damageOutRecords.map(r => {
+            const numStr = r.damageNo.toString();
+            if (numStr.includes('-')) {
+              return parseInt(numStr.split('-')[1]) || 0;
+            }
+            return parseInt(numStr) || 0;
+          }));
+          setDamageOutNo(`OUT-${maxNum + 1}`);
+        } else {
+          setDamageOutNo("OUT-1");
+        }
+      } else {
+        setDamageOutNo("OUT-1");
+      }
+    } catch (error) {
+      console.error("Failed to fetch damage out records:", error);
+      setDamageOutNo("OUT-1");
+    }
+    setLoading(false);
   };
 
   const showMsg = (text, type = "success") => {
@@ -645,6 +554,8 @@ export default function DamageOutPage() {
       amount: product.rate || 0,
       reason: product.reason || "",
       damageInRef: product.damageInRef || "",
+      damageInId: product.damageInId || "",
+      damageInItemIndex: product.damageInItemIndex || 0,
       maxQty: product.availableQty || product.pcs || 1,
     });
     setSearchText(product.code || "");
@@ -733,27 +644,27 @@ export default function DamageOutPage() {
       ...p,
       {
         id: Date.now(),
-        damageOutNo,
-        damageOutDate,
+        damageNo: damageOutNo,
+        damageDate: damageOutDate,
         amount: subTotal,
         items: [...items],
       },
     ]);
     showMsg(`Damage out record held: ${damageOutNo}`);
     fullReset();
-    fetchNextDamageOutNo();
+    fetchDamageOutRecords();
   };
 
   const resumeRecord = (holdId) => {
     const record = holdRecords.find((r) => r.id === holdId);
     if (!record) return;
     setItems(record.items);
-    setDamageOutNo(record.damageOutNo);
-    setDamageOutDate(record.damageOutDate || isoDate());
+    setDamageOutNo(record.damageNo);
+    setDamageOutDate(record.damageDate || isoDate());
     setHoldRecords((p) => p.filter((r) => r.id !== holdId));
     setShowHoldPreview(null);
     resetCurRow();
-    showMsg(`Resumed damage out record: ${record.damageOutNo}`, "success");
+    showMsg(`Resumed damage out record: ${record.damageNo}`, "success");
   };
 
   const deleteHold = (holdId, e) => {
@@ -770,28 +681,90 @@ export default function DamageOutPage() {
     setMsg({ text: "", type: "" });
     setShowProductSuggestions(false);
     setEditId(null);
-    fetchNextDamageOutNo();
+    fetchDamageOutRecords();
     setDamageOutDate(isoDate());
     setTimeout(() => searchRef.current?.focus(), 50);
   };
   
+  const updateDamageInQuantities = async () => {
+    const updatesByRecord = {};
+    
+    items.forEach(item => {
+      if (!item.damageInId) return;
+      
+      if (!updatesByRecord[item.damageInId]) {
+        updatesByRecord[item.damageInId] = [];
+      }
+      updatesByRecord[item.damageInId].push({
+        itemIndex: item.damageInItemIndex,
+        qtyOut: parseFloat(item.pcs),
+        damageInRef: item.damageInRef
+      });
+    });
+    
+    for (const [damageInId, outItems] of Object.entries(updatesByRecord)) {
+      try {
+        const response = await api.get(EP.DAMAGE.GET_ONE(damageInId));
+        if (response.data.success) {
+          const damageInRecord = response.data.data;
+          const updatedItems = [...damageInRecord.items];
+          
+          for (const outItem of outItems) {
+            if (updatedItems[outItem.itemIndex]) {
+              const currentQty = updatedItems[outItem.itemIndex].pcs;
+              const newQty = currentQty - outItem.qtyOut;
+              updatedItems[outItem.itemIndex].pcs = Math.max(0, newQty);
+              updatedItems[outItem.itemIndex].qty = Math.max(0, newQty);
+            }
+          }
+          
+          const newTotalQty = updatedItems.reduce((sum, i) => sum + (i.pcs || 0), 0);
+          const newTotalAmount = updatedItems.reduce((sum, i) => sum + (i.amount || 0), 0);
+          
+          const updatePayload = {
+            damageNo: damageInRecord.damageNo,
+            damageDate: damageInRecord.damageDate,
+            invoiceNo: damageInRecord.invoiceNo,
+            invoiceDate: damageInRecord.invoiceDate,
+            items: updatedItems,
+            totalQty: newTotalQty,
+            totalAmount: newTotalAmount,
+            type: "in",
+          };
+          
+          await api.put(EP.DAMAGE.UPDATE(damageInId), updatePayload);
+        }
+      } catch (error) {
+        console.error(`Failed to update Damage In record ${damageInId}:`, error);
+        throw error;
+      }
+    }
+  };
+  
   const buildPayload = () => ({
-    damageOutNo,
-    damageOutDate,
+    damageNo: damageOutNo,
+    damageDate: damageOutDate,
+    invoiceNo: damageOutNo,
+    invoiceDate: damageOutDate,
     items: items.map((r) => ({
       productId: r.productId || undefined,
       code: r.code,
       name: r.name,
+      description: r.name,
       uom: r.uom,
       rack: r.rack,
       pcs: parseFloat(r.pcs) || 1,
+      qty: parseFloat(r.pcs) || 1,
       rate: parseFloat(r.rate) || 0,
       amount: parseFloat(r.amount) || 0,
       reason: r.reason || "",
       damageInRef: r.damageInRef || "",
+      damageInId: r.damageInId || "",
+      damageInItemIndex: r.damageInItemIndex || 0,
     })),
     totalQty,
     totalAmount: subTotal,
+    type: "out",
   });
   
   const saveDamageOutRecord = async () => {
@@ -803,33 +776,41 @@ export default function DamageOutPage() {
     setLoading(true);
     
     try {
-      const finalRecord = {
-        ...buildPayload(),
-        savedAt: new Date().toISOString(),
-      };
+      await updateDamageInQuantities();
       
-      const saved = saveDamageOutRecord(finalRecord);
+      const payload = buildPayload();
       
-      if (saved) {
-        showMsg(`Damage out record saved: ${damageOutNo}`, "success");
-        loadAllRecords();
-        doPrint(finalRecord);
-        fullReset();
-        await fetchNextDamageOutNo();
+      let response;
+      if (editId) {
+        response = await api.put(EP.DAMAGE.UPDATE(editId), payload);
       } else {
-        showMsg("Failed to save damage out record", "error");
+        response = await api.post(EP.DAMAGE.CREATE, payload);
       }
-    } catch (e) {
-      showMsg("Save failed", "error");
+      
+      if (response.data.success) {
+        showMsg(editId ? `Damage out record updated: ${damageOutNo}` : `Damage out record saved: ${damageOutNo}`, "success");
+        
+        const savedRecord = response.data.data;
+        doPrint(savedRecord);
+        
+        fullReset();
+        await fetchDamageOutRecords();
+        await loadDamageInProducts();
+      } else {
+        showMsg(response.data.message || "Failed to save damage out record", "error");
+      }
+    } catch (error) {
+      console.error("Save error:", error);
+      showMsg(error.response?.data?.message || "Save failed. Could not update Damage In quantities.", "error");
     }
     
     setLoading(false);
   };
 
   const loadRecordForEdit = (record) => {
-    setEditId(record.damageOutNo);
-    setDamageOutNo(record.damageOutNo);
-    setDamageOutDate(record.damageOutDate);
+    setEditId(record._id);
+    setDamageOutNo(record.damageNo);
+    setDamageOutDate(record.damageDate);
     
     const loadedItems = (record.items || []).map((it) => ({
       productId: it.productId || "",
@@ -842,33 +823,106 @@ export default function DamageOutPage() {
       amount: it.amount || 0,
       reason: it.reason || "",
       damageInRef: it.damageInRef || "",
+      damageInId: it.damageInId || "",
+      damageInItemIndex: it.damageInItemIndex || 0,
     }));
     setItems(loadedItems);
     
     resetCurRow();
-    showMsg(`✏ Editing Damage Out Record ${record.damageOutNo}`, "success");
+    showMsg(`✏ Editing Damage Out Record ${record.damageNo}`, "success");
     setTimeout(() => searchRef.current?.focus(), 50);
   };
 
   const navRecord = (dir) => {
     if (allRecords.length === 0) {
-      loadAllRecords();
+      fetchDamageOutRecords();
       return;
     }
     
     const sortedRecords = [...allRecords].sort((a, b) => {
-      const numA = parseInt(a.damageOutNo);
-      const numB = parseInt(b.damageOutNo);
-      return numA - numB;
+      const getNum = (str) => {
+        let numStr = str.toString();
+        if (numStr.includes('-')) {
+          numStr = numStr.split('-')[1];
+        }
+        return parseInt(numStr) || 0;
+      };
+      return getNum(a.damageNo) - getNum(b.damageNo);
     });
     
-    const curIdx = sortedRecords.findIndex((r) => r.damageOutNo === damageOutNo);
+    const curIdx = sortedRecords.findIndex((r) => r.damageNo === damageOutNo);
     let nextIdx = dir === "prev" ? curIdx - 1 : curIdx + 1;
     nextIdx = Math.max(0, Math.min(nextIdx, sortedRecords.length - 1));
     
     if (nextIdx === curIdx) return;
     if (nextIdx >= 0 && nextIdx < sortedRecords.length) {
       loadRecordForEdit(sortedRecords[nextIdx]);
+    }
+  };
+
+  const deleteRecord = async () => {
+    if (!editId) {
+      showMsg("No record selected to delete", "error");
+      return;
+    }
+    
+    if (!window.confirm(`Delete damage out record ${damageOutNo}? This will NOT restore Damage In quantities.`)) return;
+    
+    setLoading(true);
+    try {
+      const response = await api.delete(EP.DAMAGE.DELETE(editId));
+      if (response.data.success) {
+        showMsg(`Damage out record ${damageOutNo} deleted`, "success");
+        fullReset();
+        await fetchDamageOutRecords();
+        await loadDamageInProducts();
+      } else {
+        showMsg(response.data.message || "Delete failed", "error");
+      }
+    } catch (error) {
+      showMsg("Delete failed", "error");
+    }
+    setLoading(false);
+  };
+
+  const handleProductSearchKeyDown = (e) => {
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      if (productSuggestions.length > 0) {
+        setSelectedProductSuggestionIdx(prev => 
+          prev < productSuggestions.length - 1 ? prev + 1 : prev
+        );
+        setShowProductSuggestions(true);
+      } else {
+        setShowProductModal(true);
+      }
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setSelectedProductSuggestionIdx(prev => prev > 0 ? prev - 1 : -1);
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      if (selectedProductSuggestionIdx >= 0 && productSuggestions[selectedProductSuggestionIdx]) {
+        pickProduct(productSuggestions[selectedProductSuggestionIdx]);
+        setProductSuggestions([]);
+        setShowProductSuggestions(false);
+        setSelectedProductSuggestionIdx(-1);
+      } else if (searchText.trim()) {
+        const exactMatch = allDamageInProducts.find(p => 
+          p.code?.toLowerCase() === searchText.trim().toLowerCase()
+        );
+        if (exactMatch) {
+          pickProduct(exactMatch);
+          setSearchText("");
+          setShowProductSuggestions(false);
+        } else {
+          setShowProductModal(true);
+        }
+      } else {
+        setShowProductModal(true);
+      }
+    } else if (e.key === "Escape") {
+      setShowProductSuggestions(false);
+      setSelectedProductSuggestionIdx(-1);
     }
   };
 
@@ -905,628 +959,233 @@ export default function DamageOutPage() {
   }, [items, showProductModal, showHoldPreview, allRecords, damageOutNo, editId]);
 
   return (
-    <>
-      <div className="sl-page damage-out-page">
-        {showProductModal && (
-          <DamageInProductSearchModal
-            onSelect={pickProduct}
-            onClose={() => {
-              setShowProductModal(false);
-              setTimeout(() => searchRef.current?.focus(), 30);
-            }}
-          />
-        )}
-        {showHoldPreview && (
-          <DamageOutHoldPreviewModal
-            record={showHoldPreview}
-            onResume={resumeRecord}
-            onClose={() => setShowHoldPreview(null)}
-          />
-        )}
-        
-        <div className="xp-titlebar" style={{ background: "#e65100" }}>
-          <svg
-            width="15"
-            height="15"
-            viewBox="0 0 16 16"
-            fill="rgba(255,255,255,0.85)"
-          >
-            <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16" />
-            <path d="M7.002 11a1 1 0 1 1 2 0 1 1 0 0 1-2 0M7.1 4.995a.905.905 0 1 1 1.8 0l-.35 3.507a.552.552 0 0 1-1.1 0z" />
-          </svg>
-          <span className="xp-tb-title">
-            DAMAGE OUT — ASIM ELECTRIC &amp; ELECTRONIC STORE
-          </span>
-          <div className="xp-tb-actions">
-            <div className="xp-tb-divider" />
-            <div className="sl-shortcut-hints">
-              <span>F2 PRODUCT</span>
-              <span>F4 HOLD</span>
-              <span>↑/↓ NAVIGATE</span>
-              <span>* SAVE</span>
+    <div className="sl-page damage-out-page">
+      {showProductModal && (
+        <DamageInProductSearchModal
+          onSelect={pickProduct}
+          onClose={() => {
+            setShowProductModal(false);
+            setTimeout(() => searchRef.current?.focus(), 30);
+          }}
+        />
+      )}
+      {showHoldPreview && (
+        <DamageOutHoldPreviewModal
+          record={showHoldPreview}
+          onResume={resumeRecord}
+          onClose={() => setShowHoldPreview(null)}
+        />
+      )}
+      
+      <div className="xp-titlebar" style={{ background: "#e65100" }}>
+        <svg width="15" height="15" viewBox="0 0 16 16" fill="rgba(255,255,255,0.85)">
+          <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"/>
+          <path d="M7.002 11a1 1 0 1 1 2 0 1 1 0 0 1-2 0M7.1 4.995a.905.905 0 1 1 1.8 0l-.35 3.507a.552.552 0 0 1-1.1 0z"/>
+        </svg>
+        <span className="xp-tb-title">DAMAGE OUT — ASIM ELECTRIC &amp; ELECTRONIC STORE</span>
+        <div className="xp-tb-actions">
+          <div className="sl-shortcut-hints">
+            <span>F2 PRODUCT</span><span>F4 HOLD</span><span>↑/↓ NAVIGATE</span><span>* SAVE</span>
+          </div>
+          <button className="xp-cap-btn">─</button>
+          <button className="xp-cap-btn" onClick={() => document.documentElement.requestFullscreen()}>□</button>
+          <button className="xp-cap-btn xp-cap-close">✕</button>
+        </div>
+      </div>
+
+      {msg.text && (
+        <div className={`xp-alert ${msg.type === "success" ? "xp-alert-success" : "xp-alert-error"}`} style={{ margin: "4px 10px 0" }}>
+          {msg.text}
+        </div>
+      )}
+
+      <div className="sl-body">
+        <div className="sl-left">
+          <div className="sl-top-bar">
+            <div className="sl-sale-title-box" style={{ background: "#e65100" }}>DAMAGE OUT</div>
+            
+            <div className="sl-inv-field-grp">
+              <label>DAMAGE OUT ID</label>
+              <div className="sl-inv-nav-container">
+                <button className="sl-inv-nav-btn sl-inv-nav-prev" onClick={() => navRecord("prev")}>◀</button>
+                <input className="xp-input sl-inv-input-large" style={{ borderColor: "#e65100" }} value={damageOutNo} onChange={(e) => setDamageOutNo(e.target.value)} onFocus={(e) => e.target.select()} />
+                <button className="sl-inv-nav-btn sl-inv-nav-next" onClick={() => navRecord("next")}>▶</button>
+              </div>
             </div>
-            <div className="xp-tb-divider" />
-            <button className="xp-cap-btn">─</button>
-            <button
-              className="xp-cap-btn"
-              onClick={() => {
-                if (!document.fullscreenElement) {
-                  document.documentElement.requestFullscreen();
-                } else {
-                  document.exitFullscreen();
-                }
-              }}
-            >
-              □
-            </button>
-            <button className="xp-cap-btn xp-cap-close">✕</button>
+            
+            <div className="sl-inv-field-grp">
+              <label>DATE</label>
+              <input type="date" className="xp-input sl-date-input" value={damageOutDate} readOnly style={{ background: "#f5f5f5", cursor: "not-allowed" }} />
+            </div>
+            <div className="sl-inv-field-grp">
+              <label>TIME</label>
+              <div className="sl-time-box">{time}</div>
+            </div>
+          </div>
+
+          <div className="sl-entry-strip">
+            <div className="sl-entry-cell sl-entry-product">
+              <label>SELECT DAMAGED PRODUCT <kbd>F2</kbd></label>
+              <div style={{ position: "relative", flex: 1 }}>
+                <input 
+                  ref={searchRef} 
+                  type="text" 
+                  className="sl-product-input" 
+                  style={{ background: "#fffde7", borderColor: "#e65100" }} 
+                  placeholder="Type product code or name and press Enter..." 
+                  value={searchText} 
+                  autoFocus 
+                  onChange={(e) => {
+                    setSearchText(e.target.value);
+                    if (curRow.name) {
+                      setCurRow({ ...EMPTY_ROW });
+                    }
+                  }}
+                  onKeyDown={handleProductSearchKeyDown}
+                />
+                {showProductSuggestions && productSuggestions.length > 0 && (
+                  <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "white", border: "1px solid #e65100", borderRadius: 4, maxHeight: 200, overflowY: "auto", zIndex: 100 }}>
+                    {productSuggestions.map((p, idx) => (
+                      <div 
+                        key={p.productId} 
+                        style={{ 
+                          padding: "6px 10px", 
+                          cursor: "pointer", 
+                          background: idx === selectedProductSuggestionIdx ? "#fff3e0" : "white", 
+                          borderBottom: "1px solid #eee" 
+                        }} 
+                        onClick={() => {
+                          pickProduct(p);
+                          setSearchText("");
+                          setShowProductSuggestions(false);
+                        }}
+                      >
+                        <div style={{ fontWeight: "bold", fontSize: "14px" }}>{p.code} - {p.name}</div>
+                        <div style={{ fontSize: 11, color: "#666" }}>Qty: {p.availableQty} | Damage In: {p.damageInRef}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="sl-entry-cell"><label>QTY</label><input ref={pcsRef} type="text" className="sl-num-input" style={{ width: 60, background: "#fffde7", borderColor: "#e65100" }} value={curRow.pcs} onChange={(e) => updateCurRow("pcs", e.target.value)} onFocus={(e) => e.target.select()} /></div>
+            <div className="sl-entry-cell"><label>RATE</label><input ref={rateRef} type="text" className="sl-num-input" style={{ width: 75, background: "#fffde7", borderColor: "#e65100" }} value={curRow.rate} onChange={(e) => updateCurRow("rate", e.target.value)} onFocus={(e) => e.target.select()} /></div>
+            <div className="sl-entry-cell"><label>AMOUNT</label><input ref={amountRef} type="text" className="sl-num-input" style={{ width: 80, background: "#fffde7", borderColor: "#e65100" }} value={curRow.amount} onChange={(e) => setCurRow(p => ({ ...p, amount: parseFloat(e.target.value) || 0 }))} onFocus={(e) => e.target.select()} /></div>
+            <div className="sl-entry-cell"><label>REASON</label><input ref={reasonRef} type="text" className="sl-num-input" style={{ width: 100, background: "#fffde7", borderColor: "#e65100" }} value={curRow.reason} placeholder="Reason" onChange={(e) => setCurRow(p => ({ ...p, reason: e.target.value }))} /></div>
+            <div className="sl-entry-cell sl-entry-btns-cell">
+              <label>&nbsp;</label>
+              <div className="sl-entry-btns">
+                <button className="xp-btn xp-btn-sm" onClick={resetCurRow}>RESET</button>
+                <button ref={addRef} className="xp-btn xp-btn-primary xp-btn-sm" style={{ background: "#e65100" }} onClick={addRow}>{selItemIdx !== null ? "UPDATE" : "ADD"}</button>
+                <button className="xp-btn xp-btn-sm" disabled={selItemIdx === null} onClick={() => loadRowForEdit(selItemIdx)}>EDIT</button>
+                <button className="xp-btn xp-btn-danger xp-btn-sm" disabled={selItemIdx === null} onClick={removeRow}>REMOVE</button>
+              </div>
+            </div>
+          </div>
+
+          <div className="sl-table-header-bar">
+            <span className="sl-table-lbl" style={{ fontWeight: "bold", fontSize: "16px" }}>{curRow.name || "SELECT DAMAGED PRODUCT"}</span>
+            <span className="sl-table-qty">TOTAL QTY: {totalQty.toLocaleString("en-PK")}</span>
+          </div>
+
+          <div className="sl-items-wrap">
+            <table className="sl-items-table">
+              <thead><tr>
+                <th style={{ width: 32 }}>#</th>
+                <th style={{ width: 72 }}>CODE</th>
+                <th>PRODUCT NAME</th>
+                <th style={{ width: 55 }} className="r">QTY</th>
+                <th style={{ width: 80 }} className="r">RATE</th>
+                <th style={{ width: 90 }} className="r">AMOUNT</th>
+                <th style={{ width: 100 }}>DAMAGE IN REF</th>
+                <th style={{ width: 40 }}></th>
+              </tr></thead>
+              <tbody>
+                {items.length === 0 && <tr><td colSpan={8} className="xp-empty" style={{ padding: 14 }}>⚠ SEARCH AND ADD DAMAGED PRODUCTS FROM DAMAGE IN RECORDS</td></tr>}
+                {items.map((r, i) => (
+                  <tr key={i} className={selItemIdx === i ? "sl-sel-row" : ""} onClick={() => setSelItemIdx(i === selItemIdx ? null : i)} onDoubleClick={() => loadRowForEdit(i)}>
+                    <td className="muted" style={{ textAlign: "center" }}>{i + 1}</td>
+                    <td className="muted" style={{ fontWeight: "bold", fontSize: "13px" }}>{r.code}</td>
+                    <td style={{ fontWeight: "bold", fontSize: "15px" }}>{r.name}</td>
+                    <td className="r" style={{ fontWeight: "bold" }}>{r.pcs} {r.uom}</td>
+                    <td className="r">{fmt(r.rate)}</td>
+                    <td className="r" style={{ color: "#e65100", fontWeight: "bold", fontSize: "14px" }}>{fmt(r.amount)}</td>
+                    <td className="muted" style={{ fontSize: 11 }}>{r.damageInRef || "—"}</td>
+                    <td><button className="xp-btn xp-btn-sm xp-btn-danger" style={{ padding: "2px 6px" }} onClick={() => removeRow()}>✕</button></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="sl-summary-bar">
+            <div className="sl-sum-cell"><label>TOTAL QTY</label><input className="sl-sum-val" value={totalQty.toLocaleString("en-PK")} readOnly /></div>
+            <div className="sl-sum-cell"><label>TOTAL DAMAGE VALUE</label><input className="sl-sum-val" style={{ color: "#e65100", fontWeight: "bold", fontSize: "16px" }} value={fmt(subTotal)} readOnly /></div>
+            <div className="sl-sum-cell" style={{ flex: 2 }}><label>PRESS * OR CTRL+S TO SAVE</label></div>
           </div>
         </div>
 
-        {msg.text && (
-          <div
-            className={`xp-alert ${msg.type === "success" ? "xp-alert-success" : "xp-alert-error"}`}
-            style={{ margin: "4px 10px 0", flexShrink: 0 }}
-          >
-            {msg.text}
-          </div>
-        )}
-
-        <div className="sl-body">
-          <div className="sl-left">
-            {/* Header with Navigation */}
-            <div className="sl-top-bar">
-              <div className="sl-sale-title-box" style={{ background: "#e65100" }}>DAMAGE OUT</div>
-              
-              <div className="sl-inv-field-grp">
-                <label>DAMAGE OUT ID</label>
-                <div className="sl-inv-nav-container">
-                  <button
-                    className="sl-inv-nav-btn sl-inv-nav-prev"
-                    onClick={() => navRecord("prev")}
-                    title="Previous Record (↑)"
-                    type="button"
-                  >
-                    ◀
-                  </button>
-                  
-                  <input
-                    className="xp-input xp-input-sm sl-inv-input-large"
-                    style={{ borderColor: "#e65100" }}
-                    value={damageOutNo}
-                    onChange={(e) => setDamageOutNo(e.target.value)}
-                    onKeyDown={async (e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        const val = damageOutNo.trim();
-                        if (!val) return;
-                        const found = allRecords.find((r) => r.damageOutNo === val);
-                        if (found) {
-                          loadRecordForEdit(found);
-                        } else {
-                          showMsg(`Damage out record "${val}" not found`, "error");
-                        }
-                      }
-                      if (e.key === "ArrowUp" || e.key === "ArrowDown") {
-                        e.preventDefault();
-                        navRecord(e.key === "ArrowUp" ? "prev" : "next");
-                      }
-                    }}
-                    onFocus={(e) => e.target.select()}
-                  />
-                  
-                  <button
-                    className="sl-inv-nav-btn sl-inv-nav-next"
-                    onClick={() => navRecord("next")}
-                    title="Next Record (↓)"
-                    type="button"
-                  >
-                    ▶
-                  </button>
-                </div>
-              </div>
-              
-              <div className="sl-inv-field-grp">
-                <label>DATE</label>
-                <input
-                  type="date"
-                  className="xp-input xp-input-sm sl-date-input"
-                  value={damageOutDate}
-                  readOnly
-                  style={{ 
-                    borderColor: "#e65100",
-                    background: "#f5f5f5",
-                    cursor: "not-allowed",
-                    color: "#888"
-                  }}
-                />
-              </div>
-              <div className="sl-inv-field-grp">
-                <label>TIME</label>
-                <div className="sl-time-box">{time}</div>
-              </div>
-            </div>
-
-            {/* Entry strip */}
-            <div className="sl-entry-strip">
-              <div className="sl-entry-cell sl-entry-product">
-                <label>
-                  SELECT DAMAGED PRODUCT <kbd>F2</kbd>
-                </label>
-                <div style={{ position: "relative", flex: 1 }}>
-                  <input
-                    ref={searchRef}
-                    type="text"
-                    className="sl-product-input"
-                    style={{ width: "100%", background: "#fffde7", borderColor: "#e65100" }}
-                    placeholder="Search damaged products from Damage In records..."
-                    value={searchText}
-                    onKeyDown={(e) => {
-                      if (e.key === "ArrowDown") {
-                        e.preventDefault();
-                        if (productSuggestions.length > 0) {
-                          setSelectedProductSuggestionIdx(prev => 
-                            prev < productSuggestions.length - 1 ? prev + 1 : prev
-                          );
-                          setShowProductSuggestions(true);
-                        } else {
-                          setShowProductModal(true);
-                        }
-                      }
-                      if (e.key === "ArrowUp") {
-                        e.preventDefault();
-                        setSelectedProductSuggestionIdx(prev => prev > 0 ? prev - 1 : -1);
-                      }
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        if (selectedProductSuggestionIdx >= 0 && productSuggestions[selectedProductSuggestionIdx]) {
-                          pickProduct(productSuggestions[selectedProductSuggestionIdx]);
-                          setProductSuggestions([]);
-                          setShowProductSuggestions(false);
-                        } else if (searchText.trim()) {
-                          setShowProductModal(true);
-                        } else {
-                          setShowProductModal(true);
-                        }
-                      }
-                      if (e.key === "Escape") {
-                        setShowProductSuggestions(false);
-                      }
-                    }}
-                    onChange={(e) => {
-                      setSearchText(e.target.value);
-                      if (curRow.name) {
-                        setCurRow({ ...EMPTY_ROW });
-                      }
-                    }}
-                    autoFocus
-                  />
-                  {showProductSuggestions && productSuggestions.length > 0 && (
-                    <div style={{
-                      position: "absolute",
-                      top: "100%",
-                      left: 0,
-                      right: 0,
-                      background: "white",
-                      border: "1px solid #e65100",
-                      borderRadius: 4,
-                      maxHeight: 200,
-                      overflowY: "auto",
-                      zIndex: 100,
-                      boxShadow: "0 2px 8px rgba(0,0,0,0.1)"
-                    }}>
-                      {productSuggestions.map((p, idx) => (
-                        <div
-                          key={p.productId}
-                          style={{
-                            padding: "6px 10px",
-                            cursor: "pointer",
-                            background: idx === selectedProductSuggestionIdx ? "#fff3e0" : "white",
-                            borderBottom: "1px solid #eee"
-                          }}
-                          onClick={() => pickProduct(p)}
-                        >
-                          <div style={{ fontWeight: 500 }}>{p.code} - {p.name}</div>
-                          <div style={{ fontSize: 10, color: "#666" }}>Qty: {p.availableQty} | Damage In: {p.damageInRef}</div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-              <div className="sl-entry-cell">
-                <label>QTY</label>
-                <input
-                  ref={pcsRef}
-                  type="text"
-                  className="sl-num-input"
-                  style={{ width: 60, background: "#fffde7", borderColor: "#e65100" }}
-                  value={curRow.pcs}
-                  min={1}
-                  max={curRow.maxQty}
-                  onChange={(e) => updateCurRow("pcs", e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && rateRef.current?.focus()}
-                  onFocus={(e) => e.target.select()}
-                />
-              </div>
-              <div className="sl-entry-cell">
-                <label>RATE</label>
-                <input
-                  ref={rateRef}
-                  type="text"
-                  className="sl-num-input"
-                  style={{ width: 75, background: "#fffde7", borderColor: "#e65100" }}
-                  value={curRow.rate}
-                  min={0}
-                  onChange={(e) => updateCurRow("rate", e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && amountRef.current?.focus()}
-                  onFocus={(e) => e.target.select()}
-                />
-              </div>
-              <div className="sl-entry-cell">
-                <label>AMOUNT</label>
-                <input
-                  ref={amountRef}
-                  type="text"
-                  className="sl-num-input"
-                  style={{ width: 80, background: "#fffde7", borderColor: "#e65100" }}
-                  value={curRow.amount || 0}
-                  onChange={(e) =>
-                    setCurRow((p) => ({
-                      ...p,
-                      amount: parseFloat(e.target.value) || 0,
-                    }))
-                  }
-                  onFocus={(e) => e.target.select()}
-                  onKeyDown={(e) => e.key === "Enter" && reasonRef.current?.focus()}
-                />
-              </div>
-              <div className="sl-entry-cell">
-                <label>REASON</label>
-                <input
-                  ref={reasonRef}
-                  type="text"
-                  className="sl-num-input"
-                  style={{ width: 100, background: "#fffde7", borderColor: "#e65100" }}
-                  value={curRow.reason}
-                  placeholder="Damage reason"
-                  onChange={(e) => setCurRow((p) => ({ ...p, reason: e.target.value }))}
-                  onKeyDown={(e) => e.key === "Enter" && addRef.current?.click()}
-                />
-              </div>
-              <div className="sl-entry-cell sl-entry-btns-cell">
-                <label>&nbsp;</label>
-                <div className="sl-entry-btns">
-                  <button className="xp-btn xp-btn-sm" onClick={resetCurRow}>
-                    RESET
-                  </button>
-                  <button
-                    ref={addRef}
-                    className="xp-btn xp-btn-primary xp-btn-sm"
-                    style={{ background: "#e65100", borderColor: "#bf360c" }}
-                    onClick={addRow}
-                  >
-                    {selItemIdx !== null ? "UPDATE" : "ADD"}
-                  </button>
-                  <button
-                    className="xp-btn xp-btn-sm"
-                    disabled={selItemIdx === null}
-                    onClick={() =>
-                      selItemIdx !== null && loadRowForEdit(selItemIdx)
-                    }
-                  >
-                    EDIT
-                  </button>
-                  <button
-                    className="xp-btn xp-btn-danger xp-btn-sm"
-                    disabled={selItemIdx === null}
-                    onClick={removeRow}
-                  >
-                    REMOVE
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* Table header */}
-            <div className="sl-table-header-bar">
-              <span className="sl-table-lbl">
-                {curRow.name ? (
-                  <span className="sl-cur-name-inline">{curRow.name}</span>
-                ) : (
-                  "SELECT DAMAGED PRODUCT FROM DAMAGE IN"
-                )}
-              </span>
-              <span className="sl-table-qty">
-                TOTAL QTY: {totalQty.toLocaleString("en-PK")}
-              </span>
-            </div>
-
-            {/* Items table */}
-            <div className="sl-items-wrap">
-              <table className="sl-items-table">
-                <thead>
-                  <tr>
-                    <th style={{ width: 32 }}>SR.#</th>
-                    <th style={{ width: 72 }}>CODE</th>
-                    <th>PRODUCT NAME</th>
-                    <th style={{ width: 55 }} className="r">
-                      QTY
-                    </th>
-                    <th style={{ width: 80 }} className="r">
-                      RATE
-                    </th>
-                    <th style={{ width: 90 }} className="r">
-                      AMOUNT
-                    </th>
-                    <th style={{ width: 100 }}>DAMAGE IN REF</th>
-                    <th style={{ width: 40 }}></th>
-                  </tr>
-                </thead>
+        <div className="sl-right">
+          <div className="sl-hold-panel">
+            <div className="sl-hold-title" style={{ background: "#e65100" }}><span>📋 DAMAGE OUT HOLD <kbd>F4</kbd></span><span className="sl-hold-cnt">{holdRecords.length}</span></div>
+            <div className="sl-hold-table-wrap">
+              <table className="sl-hold-table">
+                <thead><tr><th style={{ width: 24 }}>#</th><th>DAMAGE OUT ID</th><th className="r">AMOUNT</th><th>DATE</th><th style={{ width: 22 }}></th></tr></thead>
                 <tbody>
-                  {items.length === 0 && (
-                    <tr>
-                      <td colSpan={8} className="xp-empty" style={{ padding: 14 }}>
-                        ⚠ SEARCH AND ADD DAMAGED PRODUCTS FROM DAMAGE IN RECORDS
-                      </td>
-                    </tr>
-                  )}
-                  {items.map((r, i) => (
-                    <tr
-                      key={i}
-                      className={selItemIdx === i ? "sl-sel-row" : ""}
-                      onClick={() => setSelItemIdx(i === selItemIdx ? null : i)}
-                      onDoubleClick={() => loadRowForEdit(i)}
-                    >
-                      <td className="muted" style={{ textAlign: "center", fontSize: "var(--xp-fs-xs)" }}>
-                        {i + 1}
-                      </td>
-                      <td className="muted">{r.code}</td>
-                      <td style={{ fontWeight: 500 }}>{r.name}</td>
-                      <td className="r">{r.pcs} {r.uom}</td>
-                      <td className="r">{fmt(r.rate)}</td>
-                      <td className="r" style={{ color: "#e65100", fontWeight: 600 }}>
-                        {fmt(r.amount)}
-                      </td>
-                      <td className="muted" style={{ fontSize: 11 }}>{r.damageInRef || "—"}</td>
-                      <td><button className="xp-btn xp-btn-sm xp-btn-danger" style={{ padding: "2px 6px" }} onClick={() => removeRow()}>✕</button></td>
+                  {holdRecords.length === 0 ? Array.from({ length: 8 }).map((_, i) => <tr key={i}><td colSpan={5} style={{ height: 22 }} /></tr>) : holdRecords.map((r, i) => (
+                    <tr key={r.id} onClick={() => setShowHoldPreview(r)} onDoubleClick={() => resumeRecord(r.id)} style={{ cursor: "pointer" }}>
+                      <td className="muted" style={{ textAlign: "center" }}>{i + 1}</td>
+                      <td style={{ fontFamily: "monospace", fontSize: "12px", fontWeight: "bold" }}>{r.damageNo}</td>
+                      <td className="r" style={{ color: "#e65100", fontWeight: "bold" }}>{fmt(r.amount)}</td>
+                      <td className="muted" style={{ fontSize: "11px" }}>{r.damageDate}</td>
+                      <td style={{ textAlign: "center" }}><button className="xp-btn xp-btn-sm" style={{ width: 18, height: 18, fontSize: 9, color: "red" }} onClick={(e) => deleteHold(r.id, e)}>✕</button></td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
-
-            {/* Summary bar */}
-            <div className="sl-summary-bar">
-              <div className="sl-sum-cell">
-                <label>TOTAL QTY</label>
-                <input className="sl-sum-val" value={totalQty.toLocaleString("en-PK")} readOnly />
-              </div>
-              <div className="sl-sum-cell">
-                <label>TOTAL DAMAGE VALUE</label>
-                <input className="sl-sum-val" style={{ color: "#e65100", fontWeight: "bold", fontSize: "16px" }} value={fmt(subTotal)} readOnly />
-              </div>
-              <div className="sl-sum-cell" style={{ flex: 2 }}>
-                <label style={{ color: "#666" }}>PRESS * OR CTRL+S TO SAVE</label>
-              </div>
+            <div style={{ padding: "4px 8px" }}>
+              <button className="xp-btn xp-btn-sm" style={{ width: "100%", background: "#e65100", color: "white" }} onClick={holdRecord} disabled={!items.length}>📌 HOLD DAMAGE OUT (F4)</button>
             </div>
           </div>
-
-          {/* Right panel - Hold Records */}
-          <div className="sl-right">
-            <div className="sl-hold-panel">
-              <div className="sl-hold-title" style={{ background: "#e65100" }}>
-                <span>
-                  📋 DAMAGE OUT HOLD{" "}
-                  <kbd style={{ fontSize: 9, background: "rgba(255,255,255,0.2)", padding: "0 3px", borderRadius: 2 }}>F4</kbd>
-                </span>
-                <span className="sl-hold-cnt">{holdRecords.length}</span>
-              </div>
-              <div className="sl-hold-table-wrap">
-                <table className="sl-hold-table">
-                  <thead>
-                    <tr>
-                      <th style={{ width: 24 }}>#</th>
-                      <th>DAMAGE OUT ID</th>
-                      <th className="r">AMOUNT</th>
-                      <th>DATE</th>
-                      <th style={{ width: 22 }}></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {holdRecords.length === 0 ? (
-                      Array.from({ length: 8 }).map((_, i) => (
-                        <tr key={i}><td colSpan={5} style={{ height: 22 }} /></tr>
-                      ))
-                    ) : (
-                      holdRecords.map((r, i) => (
-                        <tr
-                          key={r.id}
-                          onClick={() => setShowHoldPreview(r)}
-                          onDoubleClick={() => resumeRecord(r.id)}
-                          style={{ cursor: "pointer" }}
-                          title="CLICK = PREVIEW · DOUBLE-CLICK = RESUME"
-                        >
-                          <td className="muted" style={{ textAlign: "center", fontSize: "var(--xp-fs-xs)" }}>{i + 1}</td>
-                          <td style={{ fontFamily: "var(--xp-mono)", fontSize: "var(--xp-fs-xs)" }}>{r.damageOutNo}</td>
-                          <td className="r" style={{ color: "#e65100", fontWeight: 600 }}>{fmt(r.amount)}</td>
-                          <td className="muted" style={{ fontSize: "var(--xp-fs-xs)" }}>{r.damageOutDate}</td>
-                          <td style={{ textAlign: "center" }}>
-                            <button
-                              className="xp-btn xp-btn-sm xp-btn-ico"
-                              style={{ width: 18, height: 18, fontSize: 9, color: "var(--xp-red)" }}
-                              onClick={(e) => deleteHold(r.id, e)}
-                            >
-                              ✕
-                            </button>
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-              <div style={{ padding: "4px 8px", flexShrink: 0 }}>
-                <button
-                  className="xp-btn xp-btn-sm"
-                  style={{ width: "100%", background: "#e65100", color: "white", borderColor: "#bf360c" }}
-                  onClick={holdRecord}
-                  disabled={!items.length}
-                >
-                  📌 HOLD DAMAGE OUT (F4)
-                </button>
-              </div>
-            </div>
-            
-            <div style={{ marginTop: 8, padding: "8px", background: "#fff3e0", borderRadius: 6, textAlign: "center" }}>
-              <span style={{ fontSize: 11, color: "#e65100" }}>
-                💡 TIP: PRESS <kbd style={{ background: "#fff", padding: "2px 6px", borderRadius: 3 }}>*</kbd> OR <kbd style={{ background: "#fff", padding: "2px 6px", borderRadius: 3 }}>CTRL+S</kbd> TO SAVE
-              </span>
-            </div>
+          <div style={{ marginTop: 8, padding: "8px", background: "#fff3e0", borderRadius: 6, textAlign: "center" }}>
+            <span style={{ fontSize: 11, color: "#e65100" }}>💡 TIP: PRESS <kbd>*</kbd> OR <kbd>CTRL+S</kbd> TO SAVE</span>
           </div>
-        </div>
-
-        {/* Commands bar */}
-        <div className="sl-cmd-bar">
-          <button className="xp-btn xp-btn-sm" onClick={fullReset} disabled={loading}>
-            🆕 NEW RECORD
-          </button>
-          <button
-            ref={saveRef}
-            className="xp-btn xp-btn-primary xp-btn-lg"
-            style={{ background: "#e65100", borderColor: "#bf360c" }}
-            onClick={saveDamageOutRecord}
-            disabled={loading || items.length === 0}
-          >
-            {loading ? "SAVING…" : "💾 SAVE DAMAGE OUT  *"}
-          </button>
-          <div className="xp-toolbar-divider" />
-          <span className="sl-inv-info">
-            ⚠ {damageOutNo} | ITEMS: {items.length} | TOTAL: PKR {fmt(subTotal)}
-          </span>
-          <button className="xp-btn xp-btn-sm" style={{ marginLeft: "auto" }} onClick={fullReset}>
-            CLOSE
-          </button>
-        </div>
-
-        {/* Status bar */}
-        <div className="xp-statusbar">
-          <div className="xp-status-pane">⚠ {damageOutNo}</div>
-          <div className="xp-status-pane">ITEMS: {items.length}</div>
-          <div className="xp-status-pane">QTY: {totalQty}</div>
-          <div className="xp-status-pane">VALUE: PKR {fmt(subTotal)}</div>
-          <div className="xp-status-pane">HOLD: {holdRecords.length}</div>
         </div>
       </div>
 
+      <div className="sl-cmd-bar">
+        <button className="xp-btn xp-btn-sm" onClick={fullReset}>🆕 NEW RECORD</button>
+        <button ref={saveRef} className="xp-btn xp-btn-primary" style={{ background: "#e65100" }} onClick={saveDamageOutRecord} disabled={loading || items.length === 0}>{loading ? "SAVING…" : "💾 SAVE DAMAGE OUT *"}</button>
+        <button className="xp-btn xp-btn-danger xp-btn-sm" onClick={deleteRecord} disabled={!editId || loading}>🗑 DELETE RECORD</button>
+        <span className="sl-inv-info">⚠ {damageOutNo} | ITEMS: {items.length} | TOTAL: PKR {fmt(subTotal)}</span>
+        <button className="xp-btn xp-btn-sm" onClick={fullReset}>CLOSE</button>
+      </div>
+
+      <div className="xp-statusbar">
+        <div className="xp-status-pane">⚠ {damageOutNo}</div>
+        <div className="xp-status-pane">ITEMS: {items.length}</div>
+        <div className="xp-status-pane">QTY: {totalQty}</div>
+        <div className="xp-status-pane">VALUE: PKR {fmt(subTotal)}</div>
+        <div className="xp-status-pane">HOLD: {holdRecords.length}</div>
+      </div>
+
       <style>{`
-      .damage-out-page {
-        background: #ffffff;
-      }
-      
-      .damage-out-page input, 
-      .damage-out-page .xp-input, 
-      .damage-out-page .sl-product-input, 
-      .damage-out-page .sl-num-input, 
-      .damage-out-page .sl-sum-input,
-      .damage-out-page .sl-cust-input,
-      .damage-out-page .sl-inv-input-large,
-      .damage-out-page .sl-date-input {
-        border-color: #e65100 !important;
-        border-width: 1px !important;
-        border-style: solid !important;
-      }
-      
-      .damage-out-page .sl-items-table th,
-      .damage-out-page .sl-items-table td,
-      .damage-out-page .sl-hold-table th,
-      .damage-out-page .sl-hold-table td {
-        border-color: #e65100 !important;
-        border-width: 1px !important;
-      }
-      
-      .damage-out-page .sl-items-table thead th {
-        background: #e65100 !important;
-        color: white !important;
-      }
-      
-      .damage-out-page tr.sl-sel-row td {
-        background-color: #fff3e0 !important;
-      }
-      
-      .damage-out-page .sl-hold-title {
-        background: #e65100 !important;
-        color: white !important;
-      }
-      
-      .damage-out-page .sl-summary-bar {
-        border-top: 1px solid #e65100;
-        margin-top: 4px;
-      }
-
-      /* Navigation buttons inside input */
-      .sl-inv-nav-container {
-        position: relative;
-        display: inline-block;
-      }
-
-      .sl-inv-nav-btn {
-        position: absolute;
-        top: 50%;
-        transform: translateY(-50%);
-        background: #f3f4f6;
-        border: 1px solid #d1d5db;
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        padding: 0;
-        width: 26px;
-        height: 26px;
-        border-radius: 4px;
-        color: #4b5563;
-        font-size: 12px;
-        font-weight: bold;
-        transition: all 0.2s ease;
-        z-index: 2;
-      }
-
-      .sl-inv-nav-btn:hover {
-        background: #e65100;
-        border-color: #bf360c;
-        color: white;
-        transform: translateY(-50%) scale(1.05);
-      }
-
-      .sl-inv-nav-btn:active {
-        transform: translateY(-50%) scale(0.95);
-      }
-
-      .sl-inv-nav-prev {
-        left: 4px;
-      }
-
-      .sl-inv-nav-next {
-        right: 4px;
-      }
-
-      .sl-inv-input-large {
-        width: 180px !important;
-        text-align: center !important;
-        padding: 6px 32px !important;
-        font-size: 18px !important;
-        font-weight: bold !important;
-        background: #ffffff !important;
-        border: 1px solid #d1d5db !important;
-        border-radius: 6px !important;
-      }
-
-      .sl-inv-input-large:focus {
-        border-color: #e65100 !important;
-        outline: none;
-        box-shadow: 0 0 0 3px rgba(230, 81, 0, 0.1);
-      }
+        .damage-out-page { background: #ffffff; }
+        .damage-out-page input, .damage-out-page .xp-input, .damage-out-page .sl-product-input, .damage-out-page .sl-num-input, .damage-out-page .sl-inv-input-large { border-color: #e65100 !important; border-width: 1px !important; border-style: solid !important; }
+        .damage-out-page .sl-items-table th, .damage-out-page .sl-items-table td, .damage-out-page .sl-hold-table th, .damage-out-page .sl-hold-table td { border-color: #e65100 !important; border-width: 1px !important; }
+        .damage-out-page .sl-items-table thead th { background: #e65100 !important; color: white !important; font-weight: bold !important; }
+        .damage-out-page tr.sl-sel-row td { background-color: #fff3e0 !important; }
+        .damage-out-page .sl-hold-title { background: #e65100 !important; color: white !important; }
+        .damage-out-page .sl-summary-bar { border-top: 1px solid #e65100; margin-top: 4px; }
+        .sl-inv-nav-container { position: relative; display: inline-block; }
+        .sl-inv-nav-btn { position: absolute; top: 50%; transform: translateY(-50%); background: #f3f4f6; border: 1px solid #d1d5db; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0; width: 26px; height: 26px; border-radius: 4px; color: #4b5563; font-size: 12px; font-weight: bold; transition: all 0.2s ease; z-index: 2; }
+        .sl-inv-nav-btn:hover { background: #e65100; border-color: #bf360c; color: white; transform: translateY(-50%) scale(1.05); }
+        .sl-inv-nav-prev { left: 4px; }
+        .sl-inv-nav-next { right: 4px; }
+        .sl-inv-input-large { width: 180px !important; text-align: center !important; padding: 6px 32px !important; font-size: 18px !important; font-weight: bold !important; background: #ffffff !important; border: 1px solid #d1d5db !important; border-radius: 6px !important; }
+        .sl-inv-input-large:focus { border-color: #e65100 !important; outline: none; box-shadow: 0 0 0 3px rgba(230, 81, 0, 0.1); }
       `}</style>
-    </>
+    </div>
   );
 }
