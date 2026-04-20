@@ -17,10 +17,13 @@ export default function GeneralLedgerPage() {
   // State for selected entity
   const [selectedEntity, setSelectedEntity] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [originalQuery, setOriginalQuery] = useState("");
+  const [ghost, setGhost] = useState("");
   const [codeSearch, setCodeSearch] = useState("");
   const [filteredEntities, setFilteredEntities] = useState([]);
-  const [showDropdown, setShowDropdown] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(false);
   const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(-1);
+  const [isNavigating, setIsNavigating] = useState(false);
   
   // State for customers and suppliers
   const [customers, setCustomers] = useState([]);
@@ -41,7 +44,6 @@ export default function GeneralLedgerPage() {
   // Refs for keyboard navigation
   const codeInputRef = useRef(null);
   const accountTitleRef = useRef(null);
-  const dropdownRef = useRef(null);
   
   // Load customers and suppliers on mount
   useEffect(() => {
@@ -50,24 +52,36 @@ export default function GeneralLedgerPage() {
     codeInputRef.current?.focus();
   }, []);
   
-  // Filter entities when search query changes (for dropdown suggestions)
-  useEffect(() => {
+  // Get filtered entities based on search query (for ghost text)
+  const getFilteredEntitiesForGhost = (query) => {
     const entities = activeTab === "customer" ? customers : suppliers;
-    if (searchQuery.trim()) {
-      const filtered = entities.filter(e => 
-        e.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        e.code?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        e.phone?.includes(searchQuery)
-      );
-      setFilteredEntities(filtered);
-      setShowDropdown(filtered.length > 0);
-      setSelectedSuggestionIndex(-1);
-    } else {
+    if (!query.trim()) return [];
+    const searchLower = query.toLowerCase();
+    return entities.filter(e => 
+      e.name?.toLowerCase().startsWith(searchLower)
+    );
+  };
+  
+  // Handle ghost text and suggestions
+  useEffect(() => {
+    if (!originalQuery.trim()) {
       setFilteredEntities([]);
-      setShowDropdown(false);
-      setSelectedSuggestionIndex(-1);
+      setGhost("");
+      setShowSuggestions(false);
+      return;
     }
-  }, [searchQuery, activeTab, customers, suppliers]);
+    
+    const matches = getFilteredEntitiesForGhost(originalQuery);
+    setFilteredEntities(matches);
+    setShowSuggestions(matches.length > 0);
+    
+    if (!isNavigating && matches.length > 0 && matches[0].name) {
+      const remaining = matches[0].name.slice(originalQuery.length);
+      setGhost(remaining);
+    } else {
+      setGhost("");
+    }
+  }, [originalQuery, isNavigating, activeTab, customers, suppliers]);
   
   const loadCustomers = async () => {
     try {
@@ -121,18 +135,27 @@ export default function GeneralLedgerPage() {
   const selectEntity = (entity) => {
     setSelectedEntity(entity);
     setSearchQuery(entity.name);
+    setOriginalQuery(entity.name);
     setCodeSearch(entity.code || "");
     setFilteredEntities([]);
-    setShowDropdown(false);
+    setGhost("");
+    setShowSuggestions(false);
     setSelectedSuggestionIndex(-1);
+    setIsNavigating(false);
     loadLedger(entity._id);
   };
   
   const clearSelection = () => {
     setSelectedEntity(null);
     setSearchQuery("");
+    setOriginalQuery("");
+    setGhost("");
     setCodeSearch("");
     setTransactions([]);
+    setFilteredEntities([]);
+    setShowSuggestions(false);
+    setSelectedSuggestionIndex(-1);
+    setIsNavigating(false);
     codeInputRef.current?.focus();
   };
   
@@ -292,41 +315,130 @@ export default function GeneralLedgerPage() {
   };
   
   const handleKeyDown = (e) => {
-    if (!showDropdown || filteredEntities.length === 0) return;
+    // Handle ghost text acceptance (Right Arrow or Tab)
+    if (ghost && (e.key === "ArrowRight" || e.key === "Tab") && !isNavigating) {
+      e.preventDefault();
+      const fullName = originalQuery + ghost;
+      setSearchQuery(fullName);
+      setOriginalQuery(fullName);
+      setGhost("");
+      setIsNavigating(false);
+      
+      // Select the matched customer
+      const matchedEntity = filteredEntities[0];
+      if (matchedEntity) {
+        selectEntity(matchedEntity);
+      }
+      return;
+    }
     
+    // Handle Arrow Down
     if (e.key === "ArrowDown") {
       e.preventDefault();
-      setSelectedSuggestionIndex(prev => 
-        prev < filteredEntities.length - 1 ? prev + 1 : prev
-      );
-      setTimeout(() => {
-        const selectedItem = dropdownRef.current?.children[selectedSuggestionIndex + 1];
-        selectedItem?.scrollIntoView({ block: "nearest" });
-      }, 10);
-    } else if (e.key === "ArrowUp") {
-      e.preventDefault();
-      setSelectedSuggestionIndex(prev => prev > 0 ? prev - 1 : -1);
-      setTimeout(() => {
-        const selectedItem = dropdownRef.current?.children[selectedSuggestionIndex - 1];
-        selectedItem?.scrollIntoView({ block: "nearest" });
-      }, 10);
-    } else if (e.key === "Enter" && selectedSuggestionIndex >= 0) {
-      e.preventDefault();
-      selectEntity(filteredEntities[selectedSuggestionIndex]);
-    } else if (e.key === "Escape") {
-      setShowDropdown(false);
-      setFilteredEntities([]);
+      if (filteredEntities.length === 0) return;
+      
+      setIsNavigating(true);
+      setShowSuggestions(true);
+      
+      let newIndex;
+      if (selectedSuggestionIndex === -1) {
+        newIndex = 0;
+      } else {
+        newIndex = selectedSuggestionIndex + 1;
+        if (newIndex >= filteredEntities.length) {
+          newIndex = 0;
+        }
+      }
+      
+      setSelectedSuggestionIndex(newIndex);
+      
+      const selectedEntityItem = filteredEntities[newIndex];
+      if (selectedEntityItem) {
+        setSearchQuery(selectedEntityItem.name);
+        setGhost("");
+      }
+      return;
     }
+    
+    // Handle Arrow Up
+    if (e.key === "ArrowUp") {
+      e.preventDefault();
+      if (filteredEntities.length === 0) return;
+      
+      setIsNavigating(true);
+      setShowSuggestions(true);
+      
+      let newIndex;
+      if (selectedSuggestionIndex === -1) {
+        newIndex = filteredEntities.length - 1;
+      } else {
+        newIndex = selectedSuggestionIndex - 1;
+        if (newIndex < 0) {
+          newIndex = filteredEntities.length - 1;
+        }
+      }
+      
+      setSelectedSuggestionIndex(newIndex);
+      
+      const selectedEntityItem = filteredEntities[newIndex];
+      if (selectedEntityItem) {
+        setSearchQuery(selectedEntityItem.name);
+        setGhost("");
+      }
+      return;
+    }
+    
+    // Handle Enter
+    if (e.key === "Enter") {
+      e.preventDefault();
+      
+      if (selectedSuggestionIndex >= 0 && filteredEntities[selectedSuggestionIndex]) {
+        selectEntity(filteredEntities[selectedSuggestionIndex]);
+      } else if (filteredEntities.length > 0 && filteredEntities[0]) {
+        selectEntity(filteredEntities[0]);
+      }
+      return;
+    }
+    
+    // Handle Escape
+    if (e.key === "Escape") {
+      e.preventDefault();
+      setSearchQuery("");
+      setOriginalQuery("");
+      setGhost("");
+      setFilteredEntities([]);
+      setSelectedSuggestionIndex(-1);
+      setShowSuggestions(false);
+      setIsNavigating(false);
+      if (selectedEntity) clearSelection();
+      accountTitleRef.current?.blur();
+    }
+  };
+  
+  const handleAccountTitleChange = (e) => {
+    const newValue = e.target.value;
+    setSearchQuery(newValue);
+    setOriginalQuery(newValue);
+    if (selectedEntity && newValue !== selectedEntity.name) {
+      clearSelection();
+    }
+    setSelectedSuggestionIndex(-1);
+    setShowSuggestions(true);
+    setIsNavigating(false);
   };
   
   const handleTabChange = (tab) => {
     setActiveTab(tab);
     setSelectedEntity(null);
     setSearchQuery("");
+    setOriginalQuery("");
+    setGhost("");
     setCodeSearch("");
     setTransactions([]);
-    setShowDropdown(false);
     setFilteredEntities([]);
+    setShowSuggestions(false);
+    setSelectedSuggestionIndex(-1);
+    setIsNavigating(false);
     codeInputRef.current?.focus();
   };
   
@@ -404,7 +516,7 @@ export default function GeneralLedgerPage() {
           .shop-name-en{font-size:16px;font-weight:bold;margin-bottom:5px;text-transform:uppercase}
           .shop-addr{font-size:11px;color:#444;margin:3px 0}
           .print-time{font-size:10px;color:#666;margin-top:5px}
-          .customer-photo-small{width:70px;height:70px;border-radius:50%;object-fit:cover;border:3px solid #000}
+          .customer-photo-small{width:70px;height:70px;object-fit:cover;border:3px solid #000}
           .customer-name{font-size:18px;font-weight:bold;margin-bottom:8px;text-transform:uppercase}
           .customer-phone{font-size:13px;color:#333}
           .customer-code{font-size:12px;color:#666}
@@ -440,7 +552,7 @@ export default function GeneralLedgerPage() {
           <div class="customer-section">
             ${selectedEntity.imageFront ? 
               `<img src="${selectedEntity.imageFront}" class="customer-photo-small" alt="${selectedEntity.name}">` : 
-              `<div style="width:70px;height:70px;border-radius:50%;background:#ddd;display:flex;align-items:center;justify-content:center;font-size:35px;border:2px solid #000">${activeTab === "customer" ? "👤" : "🏢"}</div>`
+              `<div style="width:70px;height:70px;background:#ddd;display:flex;align-items:center;justify-content:center;font-size:35px;border:2px solid #000">${activeTab === "customer" ? "👤" : "🏢"}</div>`
             }
             <div>
               <div class="customer-name">${selectedEntity.name}</div>
@@ -490,10 +602,9 @@ export default function GeneralLedgerPage() {
       </body>
       </html>`;
     } else {
-      // DETAILED PRINT with improved item styling
+      // DETAILED PRINT
       let detailedRows = "";
       transactions.forEach((t, i) => {
-        // Build items HTML with proper borders
         let itemsHtml = "";
         if (t.items && t.items.length > 0) {
           itemsHtml = `<div style="border:1px solid #000;border-radius:4px;overflow:hidden;">
@@ -586,7 +697,7 @@ export default function GeneralLedgerPage() {
           .shop-name-en{font-size:14px;font-weight:bold;margin-bottom:4px;text-transform:uppercase}
           .shop-addr{font-size:10px;color:#444;margin:2px 0}
           .print-time{font-size:9px;color:#666;margin-top:4px}
-          .customer-photo-small{width:60px;height:60px;border-radius:50%;object-fit:cover;border:2px solid #000}
+          .customer-photo-small{width:60px;height:60px;object-fit:cover;border:2px solid #000}
           .customer-name{font-size:16px;font-weight:bold;margin-bottom:6px;text-transform:uppercase}
           .customer-phone{font-size:11px;color:#333}
           .customer-code{font-size:10px;color:#666}
@@ -630,7 +741,7 @@ export default function GeneralLedgerPage() {
           <div class="customer-section">
             ${selectedEntity.imageFront ? 
               `<img src="${selectedEntity.imageFront}" class="customer-photo-small" alt="${selectedEntity.name}">` : 
-              `<div style="width:60px;height:60px;border-radius:50%;background:#ddd;display:flex;align-items:center;justify-content:center;font-size:30px;border:2px solid #000">${activeTab === "customer" ? "👤" : "🏢"}</div>`
+              `<div style="width:60px;height:60px;background:#ddd;display:flex;align-items:center;justify-content:center;font-size:30px;border:2px solid #000">${activeTab === "customer" ? "👤" : "🏢"}</div>`
             }
             <div>
               <div class="customer-name">${selectedEntity.name}</div>
@@ -784,238 +895,273 @@ export default function GeneralLedgerPage() {
       {/* Main Content */}
       <div className="xp-page-body" style={{ padding: "16px", background: "#ffffff", flex: 1, overflow: "auto" }}>
         
-        {/* Search Section */}
+        {/* Search Section - Two column layout: 60% inputs / 40% customer image (bigger) */}
         <div style={{
           background: "#ffffff",
           borderRadius: "8px",
           padding: "12px 16px",
           marginBottom: "20px",
-          border: "2px solid #000000"
+          border: "1px solid #000000",
+          display: "flex",
+          gap: "20px",
+          alignItems: "start"
         }}>
-          <div style={{ 
-            display: "flex", 
-            gap: "12px", 
-            alignItems: "flex-end", 
-            flexWrap: "wrap"
-          }}>
-            {/* From Date */}
-            <div style={{ minWidth: "130px" }}>
-              <label style={{ fontSize: "10px", fontWeight: "bold", color: "#000000", display: "block", marginBottom: "4px", textTransform: "uppercase" }}>From Date</label>
-              <input
-                type="date"
-                className="xp-input"
-                value={fromDate}
-                onChange={(e) => setFromDate(e.target.value)}
-                style={{ 
-                  height: "36px", 
-                  padding: "0 10px", 
-                  fontSize: "13px", 
-                  fontWeight: "500",
-                  border: "1px solid #000000", 
-                  borderRadius: "4px", 
-                  width: "130px",
-                  background: "#ffffff"
-                }}
-              />
-            </div>
-            
-            {/* To Date */}
-            <div style={{ minWidth: "130px" }}>
-              <label style={{ fontSize: "10px", fontWeight: "bold", color: "#000000", display: "block", marginBottom: "4px", textTransform: "uppercase" }}>To Date</label>
-              <input
-                type="date"
-                className="xp-input"
-                value={toDate}
-                onChange={(e) => setToDate(e.target.value)}
-                style={{ 
-                  height: "36px", 
-                  padding: "0 10px", 
-                  fontSize: "13px", 
-                  fontWeight: "500",
-                  border: "1px solid #000000", 
-                  borderRadius: "4px", 
-                  width: "130px",
-                  background: "#ffffff"
-                }}
-              />
-            </div>
-            
-            {/* Code Input - Enter to Select */}
-            <div style={{ minWidth: "130px" }}>
-              <label style={{ fontSize: "10px", fontWeight: "bold", color: "#000000", display: "block", marginBottom: "4px", textTransform: "uppercase" }}>Code</label>
-              <input
-                ref={codeInputRef}
-                type="text"
-                className="xp-input"
-                value={codeSearch}
-                onChange={(e) => setCodeSearch(e.target.value)}
-                onKeyDown={handleCodeKeyDown}
-                placeholder="Enter code & press Enter"
-                style={{ 
-                  height: "36px", 
-                  padding: "0 10px", 
-                  fontSize: "13px", 
-                  fontWeight: "500",
-                  border: "1px solid #000000", 
-                  borderRadius: "4px",
-                  background: "#fffde7",
-                  width: "140px",
-                  textTransform: "uppercase"
-                }}
-              />
-            </div>
-            
-            {/* Account Title */}
-            <div style={{ flex: 2, minWidth: "250px", position: "relative" }}>
-              <label style={{ fontSize: "10px", fontWeight: "bold", color: "#000000", display: "block", marginBottom: "4px", textTransform: "uppercase" }}>Account Title</label>
-              <input
-                ref={accountTitleRef}
-                type="text"
-                className="xp-input"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder="Type name - suggestions will appear..."
-                autoComplete="off"
-                style={{ 
-                  width: "100%", 
-                  height: "36px", 
-                  padding: "0 10px", 
-                  fontSize: "13px", 
-                  fontWeight: "500",
-                  border: "1px solid #000000", 
-                  borderRadius: "4px",
-                  background: "#fffde7"
-                }}
-              />
+          {/* Left side: Input fields (60%) */}
+          <div style={{ flex: "6", minWidth: 0 }}>
+            <div style={{ 
+              display: "flex", 
+              gap: "12px", 
+              alignItems: "flex-end", 
+              flexWrap: "wrap"
+            }}>
+              {/* From Date */}
+              <div style={{ minWidth: "120px" }}>
+                <label style={{ fontSize: "10px", fontWeight: "bold", color: "#000000", display: "block", marginBottom: "4px", textTransform: "uppercase" }}>From Date</label>
+                <input
+                  type="date"
+                  className="xp-input"
+                  value={fromDate}
+                  onChange={(e) => setFromDate(e.target.value)}
+                  style={{ 
+                    height: "36px", 
+                    padding: "0 10px", 
+                    fontSize: "13px", 
+                    fontWeight: "500",
+                    border: "1px solid #000000", 
+                    borderRadius: "4px", 
+                    width: "100%",
+                    background: "#ffffff"
+                  }}
+                />
+              </div>
               
-              {/* Dropdown */}
-              {showDropdown && filteredEntities.length > 0 && (
-                <div
-                  ref={dropdownRef}
-                  style={{
-                    position: "absolute",
-                    top: "100%",
-                    left: 0,
-                    right: 0,
-                    backgroundColor: "white",
+              {/* To Date */}
+              <div style={{ minWidth: "120px" }}>
+                <label style={{ fontSize: "10px", fontWeight: "bold", color: "#000000", display: "block", marginBottom: "4px", textTransform: "uppercase" }}>To Date</label>
+                <input
+                  type="date"
+                  className="xp-input"
+                  value={toDate}
+                  onChange={(e) => setToDate(e.target.value)}
+                  style={{ 
+                    height: "36px", 
+                    padding: "0 10px", 
+                    fontSize: "13px", 
+                    fontWeight: "500",
+                    border: "1px solid #000000", 
+                    borderRadius: "4px", 
+                    width: "100%",
+                    background: "#ffffff"
+                  }}
+                />
+              </div>
+              
+              {/* Code Input - Enter to Select */}
+              <div style={{ minWidth: "130px" }}>
+                <label style={{ fontSize: "10px", fontWeight: "bold", color: "#000000", display: "block", marginBottom: "4px", textTransform: "uppercase" }}>Code</label>
+                <input
+                  ref={codeInputRef}
+                  type="text"
+                  className="xp-input"
+                  value={codeSearch}
+                  onChange={(e) => setCodeSearch(e.target.value)}
+                  onKeyDown={handleCodeKeyDown}
+                  placeholder="Enter code & press Enter"
+                  style={{ 
+                    height: "36px", 
+                    padding: "0 10px", 
+                    fontSize: "13px", 
+                    fontWeight: "500",
+                    border: "1px solid #000000", 
+                    borderRadius: "4px",
+                    background: "#fffde7",
+                    width: "100%",
+                    textTransform: "uppercase"
+                  }}
+                />
+              </div>
+              
+              {/* Account Title - with ghost text */}
+              <div style={{ flex: 2, minWidth: "180px", position: "relative" }}>
+                <label style={{ fontSize: "10px", fontWeight: "bold", color: "#000000", display: "block", marginBottom: "4px", textTransform: "uppercase" }}>Account Title</label>
+                <div style={{ position: "relative", width: "100%" }}>
+                  {ghost && !isNavigating && !selectedEntity && (
+                    <div
+                      style={{
+                        position: "absolute",
+                        left: 0,
+                        top: "50%",
+                        transform: "translateY(-50%)",
+                        pointerEvents: "none",
+                        whiteSpace: "nowrap",
+                        fontSize: "13px",
+                        fontFamily: "inherit",
+                        display: "flex",
+                        zIndex: 2,
+                        color: "#a0aec0",
+                        backgroundColor: "transparent",
+                        paddingLeft: "10px",
+                      }}
+                    >
+                      <span style={{ visibility: "hidden" }}>{originalQuery}</span>
+                      <span style={{ color: "#a0aec0" }}>{ghost}</span>
+                    </div>
+                  )}
+                  <input
+                    ref={accountTitleRef}
+                    type="text"
+                    className="xp-input"
+                    value={searchQuery}
+                    onChange={handleAccountTitleChange}
+                    onKeyDown={handleKeyDown}
+                    placeholder="Type name - suggestions appear as ghost text..."
+                    autoComplete="off"
+                    style={{ 
+                      width: "100%", 
+                      height: "36px", 
+                      padding: "0 10px", 
+                      fontSize: "13px", 
+                      fontWeight: "500",
+                      border: "1px solid #000000", 
+                      borderRadius: "4px",
+                      background: "#fffde7",
+                      position: "relative",
+                      zIndex: 1
+                    }}
+                  />
+                </div>
+              </div>
+              
+              {/* Show Button */}
+              <div>
+                <button
+                  className="xp-btn xp-btn-primary"
+                  onClick={() => selectedEntity && loadLedger(selectedEntity._id)}
+                  disabled={!selectedEntity || loading}
+                  style={{ 
+                    height: "36px", 
+                    padding: "0 24px", 
+                    fontSize: "12px", 
+                    fontWeight: "bold",
+                    background: "#22c55e",
+                    color: "white",
                     border: "1px solid #000000",
                     borderRadius: "4px",
-                    maxHeight: "250px",
-                    overflowY: "auto",
-                    zIndex: 1000,
-                    boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
-                    marginTop: "4px"
+                    cursor: "pointer",
+                    whiteSpace: "nowrap"
                   }}
                 >
-                  {filteredEntities.map((entity, idx) => (
-                    <div
-                      key={entity._id}
-                      onClick={() => selectEntity(entity)}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "10px",
-                        padding: "8px 10px",
-                        cursor: "pointer",
-                        backgroundColor: idx === selectedSuggestionIndex ? "#e5f0ff" : "white",
-                        borderBottom: "1px solid #e2e8f0"
-                      }}
-                      onMouseEnter={() => setSelectedSuggestionIndex(idx)}
-                    >
-                      <div>
-                        {entity.imageFront ? (
-                          <img src={entity.imageFront} alt={entity.name} width="30" height="30" style={{ borderRadius: "50%", objectFit: "cover", border: "1px solid #000000" }} />
-                        ) : (
-                          <div style={{ width: 30, height: 30, borderRadius: "50%", background: "#e2e8f0", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "14px", border: "1px solid #000000" }}>
-                            {activeTab === "customer" ? "👤" : "🏢"}
-                          </div>
-                        )}
-                      </div>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontWeight: "bold", fontSize: "12px", color: "#1e293b" }}>{entity.name}</div>
-                        <div style={{ fontSize: "10px", color: "#64748b" }}>
-                          {entity.code && <span>Code: {entity.code} | </span>}
-                          {entity.phone && <span>📞 {entity.phone}</span>}
-                        </div>
-                      </div>
-                      <div style={{ fontSize: "10px", fontWeight: "bold", color: (entity.currentBalance || 0) > 0 ? "#dc2626" : "#059669" }}>
-                        Bal: PKR {fmt(entity.currentBalance || 0)}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-            
-            {/* Show Button */}
-            <div>
-              <button
-                className="xp-btn xp-btn-primary"
-                onClick={() => selectedEntity && loadLedger(selectedEntity._id)}
-                disabled={!selectedEntity || loading}
-                style={{ 
-                  height: "36px", 
-                  padding: "0 24px", 
-                  fontSize: "12px", 
-                  fontWeight: "bold",
-                  background: "#22c55e",
-                  color: "white",
-                  border: "1px solid #000000",
-                  borderRadius: "4px",
-                  cursor: "pointer",
-                  whiteSpace: "nowrap"
-                }}
-              >
-                {loading ? "Loading..." : "⟳ Show"}
-              </button>
+                  {loading ? "Loading..." : "⟳ Show"}
+                </button>
+              </div>
             </div>
           </div>
           
-          {/* Selected Entity Info */}
-          {selectedEntity && (
-            <div style={{
-              marginTop: "12px",
-              display: "flex",
-              alignItems: "center",
-              gap: "12px",
-              padding: "8px 12px",
-              background: "#f8fafc",
-              borderRadius: "6px",
-              border: "1px solid #000000"
-            }}>
-              {selectedEntity.imageFront ? (
-                <img src={selectedEntity.imageFront} alt={selectedEntity.name} style={{ width: "36px", height: "36px", borderRadius: "50%", objectFit: "cover", border: "1px solid #000000" }} />
-              ) : (
-                <div style={{ width: "36px", height: "36px", borderRadius: "50%", background: "#e2e8f0", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "18px", border: "1px solid #000000" }}>
+          {/* Right side: Customer Image (40%) - BIGGER SQUARE 150x150 */}
+          <div style={{ flex: "4", display: "flex", justifyContent: "flex-end", alignItems: "center", minWidth: "200px" }}>
+            {selectedEntity && selectedEntity.imageFront ? (
+              <div style={{ textAlign: "center" }}>
+                <img 
+                  src={selectedEntity.imageFront} 
+                  alt={selectedEntity.name} 
+                  style={{ 
+                    width: "150px", 
+                    height: "150px", 
+                    objectFit: "cover", 
+                    border: "3px solid #000000",
+                    boxShadow: "0 4px 8px rgba(0,0,0,0.2)",
+                    borderRadius: "4px"
+                  }} 
+                />
+                <div style={{ fontSize: "12px", marginTop: "6px", fontWeight: "bold", color: "#1e293b" }}>
+                  {selectedEntity.name}
+                </div>
+                {selectedEntity.phone && (
+                  <div style={{ fontSize: "10px", color: "#64748b" }}>
+                    📞 {selectedEntity.phone}
+                  </div>
+                )}
+              </div>
+            ) : selectedEntity ? (
+              <div style={{ textAlign: "center" }}>
+                <div style={{ 
+                  width: "150px", 
+                  height: "150px", 
+                  background: "#e2e8f0", 
+                  display: "flex", 
+                  alignItems: "center", 
+                  justifyContent: "center", 
+                  fontSize: "75px", 
+                  border: "3px solid #000000",
+                  boxShadow: "0 4px 8px rgba(0,0,0,0.2)",
+                  borderRadius: "4px"
+                }}>
                   {activeTab === "customer" ? "👤" : "🏢"}
                 </div>
-              )}
-              <div>
-                <div style={{ fontSize: "13px", fontWeight: "bold", color: "#1e293b" }}>{selectedEntity.name}</div>
-                <div style={{ fontSize: "10px", color: "#64748b" }}>
-                  Code: {selectedEntity.code || "—"} | Phone: {selectedEntity.phone || "—"} | Type: {activeTab === "customer" ? (selectedEntity.customerType || selectedEntity.type || "Credit Customer") : "Supplier"}
+                <div style={{ fontSize: "12px", marginTop: "6px", fontWeight: "bold", color: "#1e293b" }}>
+                  {selectedEntity.name}
                 </div>
+                {selectedEntity.phone && (
+                  <div style={{ fontSize: "10px", color: "#64748b" }}>
+                    📞 {selectedEntity.phone}
+                  </div>
+                )}
               </div>
-              <button
-                onClick={clearSelection}
-                style={{
-                  marginLeft: "auto",
-                  background: "#ef4444",
-                  color: "white",
-                  border: "1px solid #000000",
+            ) : (
+              <div style={{ textAlign: "center", color: "#94a3b8", fontSize: "13px", fontWeight: "bold", padding: "30px" }}>
+                <div style={{ 
+                  width: "150px", 
+                  height: "150px", 
+                  background: "#f1f5f9", 
+                  display: "flex", 
+                  alignItems: "center", 
+                  justifyContent: "center", 
+                  fontSize: "75px", 
+                  border: "2px dashed #cbd5e1",
                   borderRadius: "4px",
-                  padding: "4px 12px",
-                  fontSize: "11px",
-                  fontWeight: "bold",
-                  cursor: "pointer"
-                }}
-              >
-                Clear
-              </button>
-            </div>
-          )}
+                  marginBottom: "10px"
+                }}>
+                  🖼️
+                </div>
+                No Customer Selected
+              </div>
+            )}
+          </div>
         </div>
+        
+        {/* Selected Entity Info Bar */}
+        {selectedEntity && (
+          <div style={{
+            marginTop: "4px",
+            marginBottom: "16px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            padding: "8px 12px",
+            background: "#f8fafc",
+            borderRadius: "6px",
+            border: "1px solid #000000"
+          }}>
+            <div style={{ fontSize: "12px", color: "#64748b" }}>
+              Code: {selectedEntity.code || "—"} | Phone: {selectedEntity.phone || "—"} | Type: {activeTab === "customer" ? (selectedEntity.customerType || selectedEntity.type || "Credit Customer") : "Supplier"}
+            </div>
+            <button
+              onClick={clearSelection}
+              style={{
+                background: "#ef4444",
+                color: "white",
+                border: "1px solid #000000",
+                borderRadius: "4px",
+                padding: "4px 12px",
+                fontSize: "11px",
+                fontWeight: "bold",
+                cursor: "pointer"
+              }}
+            >
+              Clear
+            </button>
+          </div>
+        )}
         
         {/* Transaction Table */}
         <div style={{

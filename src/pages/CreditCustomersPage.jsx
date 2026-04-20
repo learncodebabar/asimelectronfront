@@ -10,7 +10,8 @@ import { SHOP_INFO, URDU_FONT, GOOGLE_FONT_LINK, getShopHeaderHTML, getShopBanne
 const fmt = (n) => Number(n || 0).toLocaleString("en-PK");
 const isoD = () => new Date().toISOString().split("T")[0];
 
-// Build Complete Customer Statement HTML for Print (Full with Items)
+// Build Complete Customer Statement HTML for Print (Full with Items - Items in same cell with labels)
+// Build Complete Customer Statement HTML for Print (Full with Items - Items in same cell with labels)
 const buildCustomerStatementHtml = (customer, sales, rawPurchases, payments) => {
   const totalSales = sales.reduce((s, x) => s + (x.netTotal || 0), 0);
   const totalPaid = sales.reduce((s, x) => s + (x.paidAmount || 0), 0);
@@ -18,38 +19,72 @@ const buildCustomerStatementHtml = (customer, sales, rawPurchases, payments) => 
   const totalPayments = payments.reduce((s, p) => s + (p.amount || 0), 0);
   const outstanding = customer.currentBalance || 0;
   
-  // Build detailed invoice rows with items in proper table format
+  // Build detailed invoice rows with items in same cell
   const allInvoices = [...sales, ...rawPurchases].sort((a, b) => new Date(b.invoiceDate) - new Date(a.invoiceDate));
   
   let invoiceRows = "";
   let counter = 1;
   
   allInvoices.forEach((inv) => {
-    // Main invoice row
-    invoiceRows += `
-      <tr>
-        <td style="padding:10px 8px;border:2px solid #000000;font-size:13px;font-weight:bold;text-align:center">${counter}</td>
-        <td style="padding:10px 8px;border:2px solid #000000;font-size:13px;font-weight:bold;text-transform:uppercase">${inv.invoiceNo}</td>
-        <td style="padding:10px 8px;border:2px solid #000000;font-size:13px;font-weight:bold">${inv.invoiceDate}</td>
-        <td style="padding:10px 8px;border:2px solid #000000;text-align:right;font-size:13px;font-weight:bold">PKR ${fmt(inv.netTotal)}</td>
-        <td style="padding:10px 8px;border:2px solid #000000;text-align:right;font-size:13px;font-weight:bold">PKR ${fmt(inv.paidAmount)}</td>
-        <td style="padding:10px 8px;border:2px solid #000000;text-align:right;font-size:13px;font-weight:bold">PKR ${fmt(inv.balance)}</td>
-      </tr>
-    `;
-    
-    // Items rows - for FULL statement
+    // Build items HTML
+    let itemsHtml = "";
     if (inv.items && inv.items.length > 0) {
+      itemsHtml = `<div style="margin-top: 6px;">
+        <table style="width: 100%; font-size: 10px; border-collapse: collapse;">
+          <thead>
+            <tr style="background: #f5f5f5;">
+              <th style="padding: 3px 4px; border: 1px solid #ccc; text-align: left;">Item</th>
+              <th style="padding: 3px 4px; border: 1px solid #ccc; text-align: center; width: 45px;">Qty</th>
+              <th style="padding: 3px 4px; border: 1px solid #ccc; text-align: right; width: 65px;">Rate</th>
+              <th style="padding: 3px 4px; border: 1px solid #ccc; text-align: right; width: 75px;">Amount</th>
+              <th style="padding: 3px 4px; border: 1px solid #ccc; text-align: center; width: 40px;">Rack</th>
+              <th style="padding: 3px 4px; border: 1px solid #ccc; text-align: center; width: 45px;">UOM</th>
+            </tr>
+          </thead>
+          <tbody>`;
+      
       inv.items.forEach((it, idx) => {
-        invoiceRows += `
-          <tr style="background:#f5f5f5">
-            <td style="padding:5px 8px 5px 25px;border:1px solid #000000;font-size:11px;text-align:center">${String.fromCharCode(97 + idx)}</td>
-            <td colspan="2" style="padding:5px 8px;border:1px solid #000000;font-size:11px">${it.description || it.name}</td>
-            <td style="padding:5px 8px;border:1px solid #000000;text-align:right;font-size:11px">${it.qty || it.pcs || 0} ${it.measurement || it.uom || ""}</td>
-            <td style="padding:5px 8px;border:1px solid #000000;text-align:right;font-size:11px">PKR ${fmt(it.rate || 0)}</td>
-            <td style="padding:5px 8px;border:1px solid #000000;text-align:right;font-size:11px">PKR ${fmt(it.amount || 0)}</td>
+        itemsHtml += `
+          <tr>
+            <td style="padding: 3px 4px; border: 1px solid #ccc;">${idx + 1}. ${it.description || it.name || "—"} ${it.code ? `(${it.code})` : ""}</td>
+            <td style="padding: 3px 4px; border: 1px solid #ccc; text-align: center;">${it.qty || it.pcs || 0}</td>
+            <td style="padding: 3px 4px; border: 1px solid #ccc; text-align: right;">${fmt(it.rate || 0)}</td>
+            <td style="padding: 3px 4px; border: 1px solid #ccc; text-align: right; font-weight: bold;">${fmt(it.amount || 0)}</td>
+            <td style="padding: 3px 4px; border: 1px solid #ccc; text-align: center;">${it.rack || "—"}</td>
+            <td style="padding: 3px 4px; border: 1px solid #ccc; text-align: center;">${it.measurement || it.uom || "—"}</td>
           </tr>
         `;
       });
+      
+      itemsHtml += `
+          </tbody>
+        </table>
+      </div>`;
+    }
+    
+    // Main invoice row
+    invoiceRows += `
+      <tr>
+        <td style="padding: 10px 8px; border: 2px solid #000000; font-size: 13px; font-weight: bold; text-align: center; vertical-align: top;">${counter}</td>
+        <td style="padding: 10px 8px; border: 2px solid #000000; font-size: 13px; font-weight: bold; vertical-align: top;">${inv.invoiceDate}</td>
+        <td style="padding: 10px 8px; border: 2px solid #000000; font-size: 13px; font-weight: bold; text-transform: uppercase; vertical-align: top;">${inv.invoiceNo}</td>
+        <td style="padding: 10px 8px; border: 2px solid #000000; text-align: right; font-size: 13px; font-weight: bold; vertical-align: top;">${fmt(inv.netTotal)}</td>
+        <td style="padding: 10px 8px; border: 2px solid #000000; text-align: right; font-size: 13px; font-weight: bold; color: #059669; vertical-align: top;">${fmt(inv.paidAmount)}</td>
+        <td style="padding: 10px 8px; border: 2px solid #000000; font-size: 11px; vertical-align: top;">
+          ${itemsHtml}
+        </td>
+        <td style="padding: 10px 8px; border: 2px solid #000000; text-align: right; font-size: 13px; font-weight: bold; color: ${inv.balance > 0 ? '#dc2626' : '#059669'}; vertical-align: top;">${fmt(inv.balance)}</td>
+      </tr>
+    `;
+    
+    // Add remarks row if there are remarks
+    if (inv.remarks && inv.remarks.trim()) {
+      invoiceRows += `
+        <tr style="background: #fef9e6;">
+          <td colspan="3" style="padding: 6px 8px; border: 1px solid #000000; font-size: 11px; font-weight: bold; text-align: right;">📝 Remarks:</td>
+          <td colspan="4" style="padding: 6px 8px; border: 1px solid #000000; font-size: 11px;">${inv.remarks}</td>
+        </tr>
+      `;
     }
     
     counter++;
@@ -57,14 +92,13 @@ const buildCustomerStatementHtml = (customer, sales, rawPurchases, payments) => 
   
   const paymentRows = payments.map((p, i) => `
     <tr>
-      <td style="padding:8px;border:2px solid #000000;font-size:12px;text-align:center">${i + 1}</td>
-      <td style="padding:8px;border:2px solid #000000;font-size:12px">${p.paymentDate || p.createdAt?.split("T")[0]}</td>
-      <td style="padding:8px;border:2px solid #000000;text-align:right;font-size:12px;font-weight:bold">PKR ${fmt(p.amount)}</td>
-      <td style="padding:8px;border:2px solid #000000;font-size:12px">${p.remarks || "—"}</td>
+      <td style="padding: 8px; border: 2px solid #000000; font-size: 12px; text-align: center;">${i + 1}</td>
+      <td style="padding: 8px; border: 2px solid #000000; font-size: 12px;">${p.paymentDate || p.createdAt?.split("T")[0]}</td>
+      <td style="padding: 8px; border: 2px solid #000000; text-align: right; font-size: 12px; font-weight: bold;">${fmt(p.amount)}</td>
+      <td style="padding: 8px; border: 2px solid #000000; font-size: 12px;">${p.remarks || "—"}</td>
     </tr>
   `).join("");
   
-  // Get current date and time for print
   const printDateTime = new Date().toLocaleString("en-PK", {
     year: 'numeric',
     month: '2-digit',
@@ -106,7 +140,7 @@ const buildCustomerStatementHtml = (customer, sales, rawPurchases, payments) => 
       .shop-name-en{font-size:14px;font-weight:bold;margin-bottom:5px;text-transform:uppercase}
       .shop-addr{font-size:10px;color:#000;margin:2px 0}
       .print-time{font-size:9px;color:#555;margin-top:5px}
-      .customer-photo-small{width:60px;height:60px;border-radius:50%;object-fit:cover;border:2px solid #000000}
+      .customer-photo-small{width:60px;height:60px;object-fit:cover;border:2px solid #000000}
       .customer-name{font-size:16px;font-weight:bold;margin-bottom:5px;text-transform:uppercase}
       .customer-phone{font-size:12px;color:#000}
       .customer-code{font-size:11px;color:#555}
@@ -114,10 +148,7 @@ const buildCustomerStatementHtml = (customer, sales, rawPurchases, payments) => 
       .section-title{font-size:14px;font-weight:bold;margin:15px 0 10px;padding:8px;background:#000000;color:#ffffff;text-transform:uppercase}
       table{width:100%;border-collapse:collapse;margin:8px 0}
       th{background:#333333;color:#ffffff;padding:10px 8px;font-size:12px;border:2px solid #000000;text-transform:uppercase;font-weight:bold}
-      td{padding:8px;border:1px solid #000000;font-size:12px}
-      .totals{width:350px;margin-left:auto;margin-top:15px}
-      .totals-row{display:flex;justify-content:space-between;padding:6px 0;font-size:12px}
-      .totals-row.bold{font-weight:bold;border-top:2px solid #000000;margin-top:5px;padding-top:8px;font-size:14px}
+      td{padding:8px;border:1px solid #000000;font-size:12px;vertical-align:top}
       .footer{text-align:center;margin-top:25px;padding-top:10px;border-top:1px solid #000000;font-size:9px;color:#555}
       .text-center{text-align:center}
       .text-right{text-align:right}
@@ -142,7 +173,7 @@ const buildCustomerStatementHtml = (customer, sales, rawPurchases, payments) => 
       <div class="customer-section">
         ${customer.imageFront ? 
           `<img src="${customer.imageFront}" class="customer-photo-small" alt="${customer.name}">` : 
-          `<div style="width:60px;height:60px;border-radius:50%;background:#ddd;display:flex;align-items:center;justify-content:center;font-size:30px;border:2px solid #000">👤</div>`
+          `<div style="width:60px;height:60px;background:#ddd;display:flex;align-items:center;justify-content:center;font-size:30px;border:2px solid #000">👤</div>`
         }
         <div>
           <div class="customer-name">${customer.name}</div>
@@ -159,10 +190,11 @@ const buildCustomerStatementHtml = (customer, sales, rawPurchases, payments) => 
       <thead>
         <tr>
           <th style="width:40px">#</th>
-          <th>INVOICE NO</th>
           <th>DATE</th>
+          <th>INVOICE NO</th>
           <th class="text-right">TOTAL</th>
           <th class="text-right">PAID</th>
+          <th>ITEMS</th>
           <th class="text-right">BALANCE</th>
         </tr>
       </thead>
@@ -178,13 +210,6 @@ const buildCustomerStatementHtml = (customer, sales, rawPurchases, payments) => 
       <tbody>${paymentRows}</tbody>
     </table>` : ""}
     
-    <div class="totals">
-      <div class="totals-row"><span>TOTAL SALES:</span><span>PKR ${fmt(totalSales)}</span></div>
-      <div class="totals-row"><span>RAW PURCHASES:</span><span>PKR ${fmt(totalRaw)}</span></div>
-      <div class="totals-row"><span>TOTAL PAID:</span><span>PKR ${fmt(totalPaid + totalPayments)}</span></div>
-      <div class="totals-row bold"><span>OUTSTANDING BALANCE:</span><span class="red">PKR ${fmt(outstanding)}</span></div>
-    </div>
-    
     <div class="footer">${SHOP_INFO.devBy}</div>
   </body>
   </html>`;
@@ -198,7 +223,6 @@ const buildSimpleStatementHtml = (customer, sales, rawPurchases, payments) => {
   const totalPayments = payments.reduce((s, p) => s + (p.amount || 0), 0);
   const outstanding = customer.currentBalance || 0;
   
-  // Build simple invoice rows - NO ITEMS, just summary
   const allInvoices = [...sales, ...rawPurchases].sort((a, b) => new Date(b.invoiceDate) - new Date(a.invoiceDate));
   
   let invoiceRows = "";
@@ -268,7 +292,7 @@ const buildSimpleStatementHtml = (customer, sales, rawPurchases, payments) => {
       .shop-name-en{font-size:14px;font-weight:bold;margin-bottom:5px;text-transform:uppercase}
       .shop-addr{font-size:10px;color:#000;margin:2px 0}
       .print-time{font-size:9px;color:#555;margin-top:5px}
-      .customer-photo-small{width:60px;height:60px;border-radius:50%;object-fit:cover;border:2px solid #000000}
+      .customer-photo-small{width:60px;height:60px;object-fit:cover;border:2px solid #000000}
       .customer-name{font-size:16px;font-weight:bold;margin-bottom:5px;text-transform:uppercase}
       .customer-phone{font-size:12px;color:#000}
       .customer-code{font-size:11px;color:#555}
@@ -311,7 +335,7 @@ const buildSimpleStatementHtml = (customer, sales, rawPurchases, payments) => {
       <div class="customer-section">
         ${customer.imageFront ? 
           `<img src="${customer.imageFront}" class="customer-photo-small" alt="${customer.name}">` : 
-          `<div style="width:60px;height:60px;border-radius:50%;background:#ddd;display:flex;align-items:center;justify-content:center;font-size:30px;border:2px solid #000">👤</div>`
+          `<div style="width:60px;height:60px;background:#ddd;display:flex;align-items:center;justify-content:center;font-size:30px;border:2px solid #000">👤</div>`
         }
         <div>
           <div class="customer-name">${customer.name}</div>
@@ -347,7 +371,7 @@ const buildSimpleStatementHtml = (customer, sales, rawPurchases, payments) => {
         <tr><th style="width:40px">#</th><th>DATE</th><th class="text-right">AMOUNT</th><th>REMARKS</th></tr>
       </thead>
       <tbody>${paymentRows}</tbody>
-    </tr>` : ""}
+    </table>` : ""}
     
     <div class="totals">
       <div class="totals-row"><span>TOTAL SALES:</span><span>PKR ${fmt(totalSales)}</span></div>
@@ -416,7 +440,7 @@ const buildInvoiceHtml = (invoice, customer) => {
       .shop-name-en{font-size:12px;font-weight:bold;margin-bottom:3px;text-transform:uppercase}
       .shop-addr{font-size:9px;color:#000;margin:1px 0}
       .print-time{font-size:8px;color:#555;margin-top:3px}
-      .customer-photo-small{width:50px;height:50px;border-radius:50%;object-fit:cover;border:2px solid #000000}
+      .customer-photo-small{width:50px;height:50px;object-fit:cover;border:2px solid #000000}
       .customer-name{font-size:14px;font-weight:bold;margin-bottom:3px;text-transform:uppercase}
       .customer-phone{font-size:10px;color:#000}
       
@@ -447,7 +471,7 @@ const buildInvoiceHtml = (invoice, customer) => {
       <div class="customer-section">
         ${customer.imageFront ? 
           `<img src="${customer.imageFront}" class="customer-photo-small" alt="${customer.name}">` : 
-          `<div style="width:50px;height:50px;border-radius:50%;background:#ddd;display:flex;align-items:center;justify-content:center;font-size:25px;border:2px solid #000">👤</div>`
+          `<div style="width:50px;height:50px;background:#ddd;display:flex;align-items:center;justify-content:center;font-size:25px;border:2px solid #000">👤</div>`
         }
         <div>
           <div class="customer-name">${customer.name}</div>
@@ -660,41 +684,50 @@ function CustomerDetailPage({ customer, onBack }) {
     }, 100);
   };
 
-  // Render invoice items in table format
+  // Render invoice items in same cell with labels (like General Ledger)
   const renderInvoiceItems = (invoice) => {
     const items = invoice.items || [];
     if (items.length === 0) return null;
     
     return (
       <tr className="invoice-details-row">
-        <td colSpan="8" style={{ padding: "0", background: "#fafafa" }}>
-          <table style={{ margin: "0", fontSize: "11px", border: "2px solid #000000", width: "100%", borderCollapse: "collapse" }}>
+        <td colSpan="8" style={{ padding: "12px", background: "#fafafa", border: "2px solid #000000" }}>
+          <div style={{ fontWeight: "bold", fontSize: "11px", marginBottom: "8px", color: "#1e40af" }}>📋 ITEMS DETAILS:</div>
+          <table style={{ width: "100%", fontSize: "11px", borderCollapse: "collapse" }}>
             <thead>
               <tr style={{ background: "#e0e0e0" }}>
-                <th style={{ width: 35, padding: "6px", fontSize: "10px", border: "1px solid #000000", fontWeight: "bold" }}>#</th>
-                <th style={{ padding: "6px", fontSize: "10px", border: "1px solid #000000", fontWeight: "bold" }}>Product</th>
-                <th style={{ width: 60, padding: "6px", fontSize: "10px", border: "1px solid #000000", fontWeight: "bold", textAlign: "center" }}>Qty</th>
-                <th style={{ width: 80, padding: "6px", fontSize: "10px", border: "1px solid #000000", fontWeight: "bold", textAlign: "right" }}>Rate</th>
-                <th style={{ width: 90, padding: "6px", fontSize: "10px", border: "1px solid #000000", fontWeight: "bold", textAlign: "right" }}>Amount</th>
-                <th style={{ width: 50, padding: "6px", fontSize: "10px", border: "1px solid #000000", fontWeight: "bold", textAlign: "center" }}>Rack</th>
-                <th style={{ width: 55, padding: "6px", fontSize: "10px", border: "1px solid #000000", fontWeight: "bold", textAlign: "center" }}>UOM</th>
-                <th style={{ width: 50, padding: "6px", fontSize: "10px", border: "1px solid #000000", fontWeight: "bold", textAlign: "center" }}>Disc%</th>
+                <th style={{ padding: "6px 8px", border: "1px solid #000000", textAlign: "left", fontSize: "10px", fontWeight: "bold" }}>#</th>
+                <th style={{ padding: "6px 8px", border: "1px solid #000000", textAlign: "left", fontSize: "10px", fontWeight: "bold" }}>Product</th>
+                <th style={{ padding: "6px 8px", border: "1px solid #000000", textAlign: "center", fontSize: "10px", fontWeight: "bold", width: "60px" }}>Qty</th>
+                <th style={{ padding: "6px 8px", border: "1px solid #000000", textAlign: "right", fontSize: "10px", fontWeight: "bold", width: "80px" }}>Rate</th>
+                <th style={{ padding: "6px 8px", border: "1px solid #000000", textAlign: "right", fontSize: "10px", fontWeight: "bold", width: "90px" }}>Amount</th>
+                <th style={{ padding: "6px 8px", border: "1px solid #000000", textAlign: "center", fontSize: "10px", fontWeight: "bold", width: "50px" }}>Rack</th>
+                <th style={{ padding: "6px 8px", border: "1px solid #000000", textAlign: "center", fontSize: "10px", fontWeight: "bold", width: "55px" }}>UOM</th>
               </tr>
             </thead>
             <tbody>
               {items.map((it, idx) => (
-                <tr key={idx} style={{ borderBottom: "1px solid #000000" }}>
-                  <td style={{ padding: "6px", fontSize: "11px", textAlign: "center", border: "1px solid #000000" }}>{idx + 1}</td>
-                  <td style={{ padding: "6px", fontSize: "11px", border: "1px solid #000000" }}>{it.description || it.name}</td>
-                  <td style={{ padding: "6px", fontSize: "11px", textAlign: "center", border: "1px solid #000000" }}>{it.qty || it.pcs || 0}</td>
-                  <td style={{ padding: "6px", fontSize: "11px", textAlign: "right", border: "1px solid #000000" }}>PKR {fmt(it.rate || 0)}</td>
-                  <td style={{ padding: "6px", fontSize: "11px", textAlign: "right", border: "1px solid #000000" }}>PKR {fmt(it.amount || 0)}</td>
-                  <td style={{ padding: "6px", fontSize: "11px", textAlign: "center", border: "1px solid #000000" }}>{it.rack || "—"}</td>
-                  <td style={{ padding: "6px", fontSize: "11px", textAlign: "center", border: "1px solid #000000" }}>{it.measurement || it.uom || "—"}</td>
-                  <td style={{ padding: "6px", fontSize: "11px", textAlign: "center", border: "1px solid #000000" }}>{it.disc || 0}%</td>
+                <tr key={idx} style={{ borderBottom: "1px solid #ddd" }}>
+                  <td style={{ padding: "5px 8px", border: "1px solid #000000", fontSize: "11px", textAlign: "center" }}>{idx + 1}</td>
+                  <td style={{ padding: "5px 8px", border: "1px solid #000000", fontSize: "11px" }}>
+                    <strong>{it.description || it.name}</strong>
+                    {it.code && <div style={{ fontSize: "9px", color: "#666" }}>Code: {it.code}</div>}
+                  </td>
+                  <td style={{ padding: "5px 8px", border: "1px solid #000000", fontSize: "11px", textAlign: "center" }}>{it.qty || it.pcs || 0} {it.measurement || it.uom || ""}</td>
+                  <td style={{ padding: "5px 8px", border: "1px solid #000000", fontSize: "11px", textAlign: "right" }}>PKR {fmt(it.rate || 0)}</td>
+                  <td style={{ padding: "5px 8px", border: "1px solid #000000", fontSize: "11px", textAlign: "right", fontWeight: "bold" }}>PKR {fmt(it.amount || 0)}</td>
+                  <td style={{ padding: "5px 8px", border: "1px solid #000000", fontSize: "11px", textAlign: "center" }}>{it.rack || "—"}</td>
+                  <td style={{ padding: "5px 8px", border: "1px solid #000000", fontSize: "11px", textAlign: "center" }}>{it.measurement || it.uom || "—"}</td>
                 </tr>
               ))}
             </tbody>
+            <tfoot>
+              <tr style={{ background: "#f5f5f5", fontWeight: "bold" }}>
+                <td colSpan="4" style={{ padding: "6px 8px", border: "1px solid #000000", textAlign: "right" }}>TOTAL:</td>
+                <td style={{ padding: "6px 8px", border: "1px solid #000000", textAlign: "right", fontWeight: "bold" }}>PKR {fmt(items.reduce((sum, it) => sum + (it.amount || 0), 0))}</td>
+                <td colSpan="2" style={{ padding: "6px 8px", border: "1px solid #000000" }}></td>
+              </tr>
+            </tfoot>
           </table>
         </td>
       </tr>
