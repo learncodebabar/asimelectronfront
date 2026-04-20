@@ -29,11 +29,9 @@ export default function GeneralLedgerPage() {
   // State for transactions
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [fromDate, setFromDate] = useState(() => {
-    const date = new Date();
-    date.setDate(date.getDate() - 30);
-    return date.toISOString().split("T")[0];
-  });
+  
+  // Default to TODAY'S date range
+  const [fromDate, setFromDate] = useState(isoD());
   const [toDate, setToDate] = useState(isoD());
   
   // Print modal state
@@ -73,23 +71,18 @@ export default function GeneralLedgerPage() {
   
   const loadCustomers = async () => {
     try {
-      // Use the credit filter endpoint like CreditCustomersPage
       const { data } = await api.get(EP.CUSTOMERS.GET_ALL + "?type=credit");
       if (data.success) {
-        // Filter out suppliers from credit customers
         const creditCustomers = data.data.filter(c => {
           const type = (c.customerType || c.type || "").toLowerCase();
           return type !== "supplier";
         });
         setCustomers(creditCustomers);
-        console.log("Credit customers loaded:", creditCustomers.length);
       } else {
-        // Fallback: load all and filter by balance
         await loadCustomersFallback();
       }
     } catch (err) {
       console.error("Failed to load credit customers:", err);
-      // Fallback to regular endpoint
       await loadCustomersFallback();
     }
   };
@@ -102,10 +95,8 @@ export default function GeneralLedgerPage() {
           const type = (c.customerType || c.type || "").toLowerCase();
           return type !== "supplier";
         });
-        // Filter only credit customers (balance > 0)
         const creditCustomers = allCustomers.filter(c => (c.currentBalance || 0) > 0);
         setCustomers(creditCustomers);
-        console.log("Credit customers (fallback):", creditCustomers.length);
       }
     } catch (err2) {
       console.error("Failed to load customers fallback:", err2);
@@ -116,42 +107,24 @@ export default function GeneralLedgerPage() {
     try {
       const { data } = await api.get(EP.CUSTOMERS.GET_ALL);
       if (data.success) {
-        // Filter ONLY suppliers
         const suppliersList = data.data.filter(c => {
           const type = (c.customerType || c.type || "").toLowerCase();
           return type === "supplier";
         });
         setSuppliers(suppliersList);
-        console.log("Suppliers loaded:", suppliersList.length);
       }
     } catch (err) {
       console.error("Failed to load suppliers:", err);
     }
   };
   
-  const handleCodeSearch = () => {
-    const code = codeSearch.trim().toUpperCase();
-    if (!code) return;
-    
-    const entities = activeTab === "customer" ? customers : suppliers;
-    const found = entities.find(e => e.code?.toUpperCase() === code);
-    
-    if (found) {
-      selectEntity(found);
-      setCodeSearch("");
-    } else {
-      alert(`${activeTab === "customer" ? "Credit Customer" : "Supplier"} with code "${code}" not found`);
-      setCodeSearch("");
-    }
-  };
-  
   const selectEntity = (entity) => {
     setSelectedEntity(entity);
     setSearchQuery(entity.name);
+    setCodeSearch(entity.code || "");
     setFilteredEntities([]);
     setShowDropdown(false);
     setSelectedSuggestionIndex(-1);
-    // Load ledger for selected entity
     loadLedger(entity._id);
   };
   
@@ -168,11 +141,9 @@ export default function GeneralLedgerPage() {
     setTransactions([]);
     
     try {
-      // Fetch sales for this customer
       const salesRes = await api.get(EP.CUSTOMERS.SALE_HISTORY(entityId));
       let sales = salesRes.data.success ? (Array.isArray(salesRes.data.data) ? salesRes.data.data : []) : [];
       
-      // Fetch sale returns
       let saleReturns = [];
       try {
         const allSalesRes = await api.get(EP.SALES.GET_ALL);
@@ -185,7 +156,6 @@ export default function GeneralLedgerPage() {
         }
       } catch (err) {}
       
-      // Fetch payments
       let payments = [];
       try {
         const paymentsRes = await api.get(EP.PAYMENTS.BY_CUSTOMER(entityId));
@@ -194,7 +164,6 @@ export default function GeneralLedgerPage() {
         }
       } catch (err) {}
       
-      // Fetch cash receipts
       let cashReceipts = [];
       try {
         const cashReceiptsRes = await api.get(EP.CASH_RECEIPTS.GET_BY_CUSTOMER(entityId));
@@ -203,7 +172,6 @@ export default function GeneralLedgerPage() {
         }
       } catch (err) {}
       
-      // Fetch CPV payments (cash payments)
       let cpvPayments = [];
       try {
         const cpvRes = await api.get(EP.CPV.GET_ALL);
@@ -213,7 +181,6 @@ export default function GeneralLedgerPage() {
         }
       } catch (err) {}
       
-      // Combine all transactions
       const allTransactions = [
         ...sales.map(s => ({
           ...s,
@@ -277,16 +244,13 @@ export default function GeneralLedgerPage() {
         }))
       ];
       
-      // Filter by date range
       const filtered = allTransactions.filter(t => {
         const transDate = t.date;
         return transDate >= fromDate && transDate <= toDate;
       });
       
-      // Sort by date
       filtered.sort((a, b) => new Date(a.date) - new Date(b.date));
       
-      // Calculate running balance
       let runningBalance = 0;
       const transactionsWithBalance = filtered.map(t => {
         if (t.type === "sale" || t.type === "cash-payment") {
@@ -309,7 +273,24 @@ export default function GeneralLedgerPage() {
     setLoading(false);
   };
   
-  // Keyboard navigation for dropdown
+  const handleCodeKeyDown = (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      const code = codeSearch.trim().toUpperCase();
+      if (code) {
+        const entities = activeTab === "customer" ? customers : suppliers;
+        const found = entities.find(e => e.code?.toUpperCase() === code);
+        if (found) {
+          selectEntity(found);
+          setCodeSearch(found.code || "");
+        } else {
+          alert(`${activeTab === "customer" ? "Credit Customer" : "Supplier"} with code "${code}" not found`);
+        }
+      }
+      accountTitleRef.current?.focus();
+    }
+  };
+  
   const handleKeyDown = (e) => {
     if (!showDropdown || filteredEntities.length === 0) return;
     
@@ -335,17 +316,6 @@ export default function GeneralLedgerPage() {
     } else if (e.key === "Escape") {
       setShowDropdown(false);
       setFilteredEntities([]);
-    }
-  };
-  
-  // Handle Enter key on Code input
-  const handleCodeKeyDown = (e) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      if (codeSearch.trim()) {
-        handleCodeSearch();
-      }
-      accountTitleRef.current?.focus();
     }
   };
   
@@ -516,44 +486,71 @@ export default function GeneralLedgerPage() {
           <div class="totals-row bold"><span>Closing Balance:</span><span class="${closingBalance > 0 ? 'red' : 'green'}">PKR ${fmt(Math.abs(closingBalance))} ${closingBalance > 0 ? '(Receivable)' : '(Payable)'}</span></div>
         </div>
         
-        <div class="footer">Thank you for your business! | Developed by: Creative Babar / 03098325271| www.digitalglobalschool..com</div>
+        <div class="footer">Thank you for your business! | Developed by: Creative Babar / 03098325271| www.digitalglobalschool.com</div>
       </body>
       </html>`;
     } else {
-      // Detailed print with items in the same row
+      // DETAILED PRINT with improved item styling
       let detailedRows = "";
       transactions.forEach((t, i) => {
+        // Build items HTML with proper borders
+        let itemsHtml = "";
         if (t.items && t.items.length > 0) {
-          const itemsHtml = t.items.map(item => 
-            `${item.name || item.description} (${item.code}) - Qty:${item.pcs || item.qty} - Rate:${fmt(item.rate)} - Amt:${fmt(item.amount)}`
-          ).join("<br>");
+          itemsHtml = `<div style="border:1px solid #000;border-radius:4px;overflow:hidden;">
+            <table style="width:100%;border-collapse:collapse;font-size:11px;margin:0;">
+              <thead>
+                <tr style="background:#f0f0f0;">
+                  <th style="padding:4px 6px;border:1px solid #000;text-align:left;font-size:10px;">Item</th>
+                  <th style="padding:4px 6px;border:1px solid #000;text-align:center;font-size:10px;">Qty</th>
+                  <th style="padding:4px 6px;border:1px solid #000;text-align:right;font-size:10px;">Rate</th>
+                  <th style="padding:4px 6px;border:1px solid #000;text-align:right;font-size:10px;">Amount</th>
+                </tr>
+              </thead>
+              <tbody>`;
           
-          detailedRows += `
-            <tr>
-              <td style="padding:12px 10px;border:2px solid #000;font-size:14px;font-weight:bold;text-align:center">${i + 1}</td>
-              <td style="padding:12px 10px;border:2px solid #000;font-size:14px;font-weight:bold">${t.date}</td>
-              <td style="padding:12px 10px;border:2px solid #000;font-size:14px;font-weight:bold;font-family:monospace">${t.transactionId}</td>
-              <td style="padding:12px 10px;border:2px solid #000;font-size:14px;font-weight:bold">${t.transType}</td>
-              <td style="padding:12px 10px;border:2px solid #000;font-size:12px;line-height:1.5">${itemsHtml}</td>
-              <td style="padding:12px 10px;border:2px solid #000;text-align:right;font-size:14px;font-weight:bold">${t.debit > 0 ? `PKR ${fmt(t.debit)}` : "—"}</td>
-              <td style="padding:12px 10px;border:2px solid #000;text-align:right;font-size:14px;font-weight:bold">${t.credit > 0 ? `PKR ${fmt(t.credit)}` : "—"}</td>
-              <td style="padding:12px 10px;border:2px solid #000;text-align:right;font-size:14px;font-weight:bold">PKR ${fmt(Math.abs(t.runningBalance))}</td>
-            </tr>
-          `;
+          t.items.forEach((item, idx) => {
+            itemsHtml += `
+              <tr>
+                <td style="padding:4px 6px;border:1px solid #000;font-size:10px;">${item.name || item.description || "—"} (${item.code || "—"})</td>
+                <td style="padding:4px 6px;border:1px solid #000;text-align:center;font-size:10px;">${item.pcs || item.qty || 1}</td>
+                <td style="padding:4px 6px;border:1px solid #000;text-align:right;font-size:10px;">${fmt(item.rate || 0)}</td>
+                <td style="padding:4px 6px;border:1px solid #000;text-align:right;font-size:10px;font-weight:bold;">${fmt(item.amount || 0)}</td>
+              </tr>
+            `;
+          });
+          
+          itemsHtml += `
+              </tbody>
+            </table>
+          </div>`;
         } else {
-          detailedRows += `
-            <tr>
-              <td style="padding:12px 10px;border:2px solid #000;font-size:14px;font-weight:bold;text-align:center">${i + 1}</td>
-              <td style="padding:12px 10px;border:2px solid #000;font-size:14px;font-weight:bold">${t.date}</td>
-              <td style="padding:12px 10px;border:2px solid #000;font-size:14px;font-weight:bold;font-family:monospace">${t.transactionId}</td>
-              <td style="padding:12px 10px;border:2px solid #000;font-size:14px;font-weight:bold">${t.transType}</td>
-              <td style="padding:12px 10px;border:2px solid #000;font-size:13px">${t.remarks || "—"}</td>
-              <td style="padding:12px 10px;border:2px solid #000;text-align:right;font-size:14px;font-weight:bold">${t.debit > 0 ? `PKR ${fmt(t.debit)}` : "—"}</td>
-              <td style="padding:12px 10px;border:2px solid #000;text-align:right;font-size:14px;font-weight:bold">${t.credit > 0 ? `PKR ${fmt(t.credit)}` : "—"}</td>
-              <td style="padding:12px 10px;border:2px solid #000;text-align:right;font-size:14px;font-weight:bold">PKR ${fmt(Math.abs(t.runningBalance))}</td>
-            </tr>
-          `;
+          itemsHtml = `<div style="border:1px solid #000;border-radius:4px;padding:6px 8px;font-size:11px;background:#fafafa;">${t.remarks || "—"}</div>`;
         }
+        
+        detailedRows += `
+          <tr style="page-break-inside:avoid;">
+            <td style="padding:12px 8px;border:2px solid #000;font-size:13px;font-weight:bold;text-align:center;vertical-align:top;">${i + 1}</td>
+            <td style="padding:12px 8px;border:2px solid #000;font-size:13px;font-weight:bold;vertical-align:top;">${t.date}</td>
+            <td style="padding:12px 8px;border:2px solid #000;font-size:13px;font-weight:bold;font-family:monospace;vertical-align:top;">${t.transactionId}</td>
+            <td style="padding:12px 8px;border:2px solid #000;vertical-align:top;">
+              <span style="padding:4px 10px;border-radius:4px;font-size:11px;font-weight:bold;background:${t.type === "sale" ? "#dbeafe" : t.type === "return" ? "#fef3c7" : "#dcfce7"};border:1px solid #000;display:inline-block;">
+                ${t.transType}
+              </span>
+            </td>
+            <td style="padding:12px 8px;border:2px solid #000;font-size:12px;vertical-align:top;max-width:300px;">
+              ${itemsHtml}
+            </td>
+            <td style="padding:12px 8px;border:2px solid #000;text-align:right;font-size:13px;font-weight:bold;color:#dc2626;vertical-align:top;">
+              ${t.debit > 0 ? `PKR ${fmt(t.debit)}` : "—"}
+            </td>
+            <td style="padding:12px 8px;border:2px solid #000;text-align:right;font-size:13px;font-weight:bold;color:#059669;vertical-align:top;">
+              ${t.credit > 0 ? `PKR ${fmt(t.credit)}` : "—"}
+            </td>
+            <td style="padding:12px 8px;border:2px solid #000;text-align:right;font-size:13px;font-weight:bold;color:${t.runningBalance > 0 ? "#dc2626" : "#059669"};vertical-align:top;">
+              PKR ${fmt(Math.abs(t.runningBalance))}
+            </td>
+          </tr>
+        `;
       });
       
       return `<!DOCTYPE html>
@@ -563,14 +560,14 @@ export default function GeneralLedgerPage() {
         <title>Detailed Ledger - ${selectedEntity.name}</title>
         <style>
           *{margin:0;padding:0;box-sizing:border-box}
-          body{font-family:Arial,sans-serif;padding:20px;font-size:14px}
+          body{font-family:Arial,sans-serif;padding:15px;font-size:13px}
           
           .print-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 25px;
-            padding-bottom: 15px;
+            margin-bottom: 20px;
+            padding-bottom: 12px;
             border-bottom: 3px solid #000;
           }
           .shop-section {
@@ -585,39 +582,39 @@ export default function GeneralLedgerPage() {
             align-items: center;
             gap: 15px;
           }
-          .shop-name{font-size:22px;font-weight:bold;font-family:${URDU_FONT};margin-bottom:8px}
-          .shop-name-en{font-size:16px;font-weight:bold;margin-bottom:5px;text-transform:uppercase}
-          .shop-addr{font-size:11px;color:#444;margin:3px 0}
-          .print-time{font-size:10px;color:#666;margin-top:5px}
-          .customer-photo-small{width:70px;height:70px;border-radius:50%;object-fit:cover;border:3px solid #000}
-          .customer-name{font-size:18px;font-weight:bold;margin-bottom:8px;text-transform:uppercase}
-          .customer-phone{font-size:13px;color:#333}
-          .customer-code{font-size:12px;color:#666}
+          .shop-name{font-size:20px;font-weight:bold;font-family:${URDU_FONT};margin-bottom:6px}
+          .shop-name-en{font-size:14px;font-weight:bold;margin-bottom:4px;text-transform:uppercase}
+          .shop-addr{font-size:10px;color:#444;margin:2px 0}
+          .print-time{font-size:9px;color:#666;margin-top:4px}
+          .customer-photo-small{width:60px;height:60px;border-radius:50%;object-fit:cover;border:2px solid #000}
+          .customer-name{font-size:16px;font-weight:bold;margin-bottom:6px;text-transform:uppercase}
+          .customer-phone{font-size:11px;color:#333}
+          .customer-code{font-size:10px;color:#666}
           
-          .section-title{font-size:16px;font-weight:bold;margin:20px 0 15px;padding:10px;background:#333;color:#fff;text-transform:uppercase}
-          table{width:100%;border-collapse:collapse;margin:15px 0}
-          th{background:#555;color:#fff;padding:14px 10px;font-size:14px;border:2px solid #000;text-transform:uppercase;font-weight:bold}
-          td{padding:10px;border:2px solid #000;font-size:13px;vertical-align:top}
-          .totals{width:400px;margin-left:auto;margin-top:20px}
-          .totals-row{display:flex;justify-content:space-between;padding:10px 0;font-size:14px}
-          .totals-row.bold{font-weight:bold;border-top:3px solid #000;margin-top:8px;padding-top:12px;font-size:16px}
-          .footer{text-align:center;margin-top:30px;padding-top:12px;border-top:1px solid #ddd;font-size:11px;color:#666}
+          .section-title{font-size:14px;font-weight:bold;margin:15px 0 12px;padding:8px;background:#333;color:#fff;text-transform:uppercase}
+          table{width:100%;border-collapse:collapse;margin:12px 0}
+          th{background:#555;color:#fff;padding:10px 8px;font-size:12px;border:2px solid #000;text-transform:uppercase;font-weight:bold}
+          td{padding:10px 8px;border:2px solid #000;vertical-align:top}
+          .totals{width:380px;margin-left:auto;margin-top:15px}
+          .totals-row{display:flex;justify-content:space-between;padding:8px 0;font-size:12px}
+          .totals-row.bold{font-weight:bold;border-top:2px solid #000;margin-top:6px;padding-top:10px;font-size:14px}
+          .footer{text-align:center;margin-top:25px;padding-top:10px;border-top:1px solid #ddd;font-size:10px;color:#666}
           .text-center{text-align:center}
           .text-right{text-align:right}
           .red{color:#dc2626}
           .green{color:#059669}
           .statement-note {
             text-align: center;
-            font-size: 12px;
+            font-size: 11px;
             color: #666;
-            margin: 15px 0;
+            margin: 12px 0;
             font-style: italic;
             font-weight: bold;
           }
           @media print{
-            body{padding:8mm}
-            .print-header{margin-bottom:15px}
-            th,td{padding:8px}
+            body{padding:5mm}
+            .print-header{margin-bottom:12px}
+            th,td{padding:6px}
           }
         </style>
       </head>
@@ -633,7 +630,7 @@ export default function GeneralLedgerPage() {
           <div class="customer-section">
             ${selectedEntity.imageFront ? 
               `<img src="${selectedEntity.imageFront}" class="customer-photo-small" alt="${selectedEntity.name}">` : 
-              `<div style="width:70px;height:70px;border-radius:50%;background:#ddd;display:flex;align-items:center;justify-content:center;font-size:35px;border:2px solid #000">${activeTab === "customer" ? "👤" : "🏢"}</div>`
+              `<div style="width:60px;height:60px;border-radius:50%;background:#ddd;display:flex;align-items:center;justify-content:center;font-size:30px;border:2px solid #000">${activeTab === "customer" ? "👤" : "🏢"}</div>`
             }
             <div>
               <div class="customer-name">${selectedEntity.name}</div>
@@ -645,14 +642,14 @@ export default function GeneralLedgerPage() {
         </div>
         
         <div class="statement-note">📋 DETAILED LEDGER STATEMENT (WITH ITEMS)</div>
-        <div class="date-range" style="background:#f8fafc;padding:10px;margin:15px 0;border:2px solid #000;text-align:center;font-size:13px;font-weight:bold">
+        <div class="date-range" style="background:#f8fafc;padding:8px;margin:12px 0;border:1.5px solid #000;text-align:center;font-size:11px;font-weight:bold">
           Period: ${fromDate} to ${toDate}
         </div>
         
         <table>
           <thead>
             <tr>
-              <th style="width:45px">#</th>
+              <th style="width:40px">#</th>
               <th>DATE</th>
               <th>VOUCHER #</th>
               <th>TYPE</th>
@@ -663,6 +660,14 @@ export default function GeneralLedgerPage() {
             </tr>
           </thead>
           <tbody>${detailedRows}</tbody>
+          <tfoot>
+            <tr>
+              <td colspan="5" style="text-align:right;font-weight:bold;padding:10px;border:2px solid #000;">TOTALS:</td>
+              <td class="text-right" style="font-weight:bold;border:2px solid #000;padding:10px;">PKR ${fmt(totalDebit)}</td>
+              <td class="text-right" style="font-weight:bold;border:2px solid #000;padding:10px;">PKR ${fmt(totalCredit)}</td>
+              <td class="text-right" style="font-weight:bold;border:2px solid #000;padding:10px;">PKR ${fmt(Math.abs(closingBalance))}</td>
+            </tr>
+          </tfoot>
         </table>
         
         <div class="totals">
@@ -671,14 +676,14 @@ export default function GeneralLedgerPage() {
           <div class="totals-row bold"><span>Closing Balance:</span><span class="${closingBalance > 0 ? 'red' : 'green'}">PKR ${fmt(Math.abs(closingBalance))} ${closingBalance > 0 ? '(Receivable)' : '(Payable)'}</span></div>
         </div>
         
-        <div class="footer">Thank you for your business! | Developed by: Creative Babar / 03098325271| www.digitalglobalschool..com</div>
+        <div class="footer">Thank you for your business! | Developed by: Creative Babar / 03098325271 | www.digitalglobalschool.com</div>
       </body>
       </html>`;
     }
   };
   
   const handlePrintConfirm = () => {
-    const printWindow = window.open("", "_blank", "width=900,height=700");
+    const printWindow = window.open("", "_blank", "width=1000,height=800");
     printWindow.document.write(buildPrintHtml());
     printWindow.document.close();
     setTimeout(() => printWindow.print(), 500);
@@ -835,48 +840,29 @@ export default function GeneralLedgerPage() {
               />
             </div>
             
-            {/* Code Input */}
+            {/* Code Input - Enter to Select */}
             <div style={{ minWidth: "130px" }}>
               <label style={{ fontSize: "10px", fontWeight: "bold", color: "#000000", display: "block", marginBottom: "4px", textTransform: "uppercase" }}>Code</label>
-              <div style={{ display: "flex", gap: "6px" }}>
-                <input
-                  ref={codeInputRef}
-                  type="text"
-                  className="xp-input"
-                  value={codeSearch}
-                  onChange={(e) => setCodeSearch(e.target.value)}
-                  onKeyDown={handleCodeKeyDown}
-                  placeholder="Enter code"
-                  style={{ 
-                    height: "36px", 
-                    padding: "0 10px", 
-                    fontSize: "13px", 
-                    fontWeight: "500",
-                    border: "1px solid #000000", 
-                    borderRadius: "4px",
-                    background: "#fffde7",
-                    width: "120px",
-                    textTransform: "uppercase"
-                  }}
-                />
-                <button
-                  onClick={handleCodeSearch}
-                  style={{
-                    height: "36px",
-                    padding: "0 16px",
-                    background: "#3b82f6",
-                    color: "white",
-                    border: "1px solid #000000",
-                    borderRadius: "4px",
-                    fontWeight: "bold",
-                    fontSize: "12px",
-                    cursor: "pointer",
-                    whiteSpace: "nowrap"
-                  }}
-                >
-                  Search
-                </button>
-              </div>
+              <input
+                ref={codeInputRef}
+                type="text"
+                className="xp-input"
+                value={codeSearch}
+                onChange={(e) => setCodeSearch(e.target.value)}
+                onKeyDown={handleCodeKeyDown}
+                placeholder="Enter code & press Enter"
+                style={{ 
+                  height: "36px", 
+                  padding: "0 10px", 
+                  fontSize: "13px", 
+                  fontWeight: "500",
+                  border: "1px solid #000000", 
+                  borderRadius: "4px",
+                  background: "#fffde7",
+                  width: "140px",
+                  textTransform: "uppercase"
+                }}
+              />
             </div>
             
             {/* Account Title */}
@@ -1069,7 +1055,7 @@ export default function GeneralLedgerPage() {
           
           {!loading && selectedEntity && transactions.length === 0 && (
             <div style={{ padding: "40px", textAlign: "center", fontSize: "12px", color: "#94a3b8", fontWeight: "500" }}>
-              📭 No transactions found
+              📭 No transactions found for {fromDate} to {toDate}
             </div>
           )}
           

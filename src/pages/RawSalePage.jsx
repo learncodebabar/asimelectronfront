@@ -27,20 +27,8 @@ const EMPTY_ROW = {
   amount: 0,
 };
 
-const SHOP_INFO = {
-  name: "عاصم الیکٹرک اینڈ الیکٹرونکس سٹور",
-  nameEn: "Asim Electric & Electronic Store",
-  address: "مین بازار نہاری ٹاؤن نزد بجلی گھر سٹاپ گوجرانوالہ روڈ فیصل آباد",
-  phone1: "Faqir Hussain 0300 7262129",
-  phone2: "PTCL 041 8711575",
-  phone3: "Shop 0315 7262129",
-  urduBanner:
-    "یہاں پر چانک فراڈ کی وارپس، جانچ فلک، وارنگ سیلز اور ریکارڈ کے تمام اخیری ہول سیل ریٹ پر دستیاب ہے۔",
-  urduTerms:
-    "الیکٹرانک اور چانٹا کے سپیئر پارٹس کی واپسی یا تبدیلی ہر صورت ممکن نہیں ہوگی۔\nبلی ہوئی آئٹم، پکلاہوا اکا ول واپس قابل واپسی نہیں ہے۔\nبارک کے سامان کی واپس کی صورت میں (7) دن کے اند پہلی ہوگی۔\nکل پیلی کلائی کی تمام واپسی قابل قبول نہیں ہوگی۔",
-  devBy:
-    "Software developed by: Creative Babar / 03098325271 or visit website www.digitalglobalschool.com",
-};
+import { SHOP_INFO, URDU_FONT, GOOGLE_FONT_LINK, getShopHeaderHTML, getShopBannerHTML, getShopTermsHTML, getShopFooterHTML } from "../constants/shopInfo.js";
+
 
 const TYPE_COLORS = {
   credit: { bg: "#fca5a5", color: "#7f1d1d", border: "#ef4444" },
@@ -58,6 +46,17 @@ const typeToPayment = (t) => {
   return "Cash";
 };
 const typeToSource = (t) => (!t ? "cash" : t);
+
+// Clean invoice number function - removes RAW-S- prefix and leading zeros
+const cleanInvoiceNo = (invNo) => {
+  if (!invNo) return "1";
+  let cleaned = String(invNo);
+  cleaned = cleaned.replace(/^RAW-S-/i, '');
+  cleaned = cleaned.replace(/^0+/, '');
+  cleaned = parseInt(cleaned, 10);
+  if (isNaN(cleaned)) return "1";
+  return String(cleaned);
+};
 
 /* ── localStorage helpers ── */
 const loadHolds = () => {
@@ -629,8 +628,9 @@ function SearchModal({ allProducts, onSelect, onClose }) {
 
   useEffect(() => {
     const rawOnly = filterRawCompanyProducts(allProducts);
-    setRows(buildFlat(rawOnly, desc, cat, company));
-    setHiIdx(rows.length > 0 ? 0 : -1);
+    const f = buildFlat(rawOnly, desc, cat, company);
+    setRows(f);
+    setHiIdx(f.length > 0 ? 0 : -1);
   }, [desc, cat, company, allProducts, filterRawCompanyProducts, buildFlat]);
 
   useEffect(() => {
@@ -951,7 +951,7 @@ export default function RawSalePage() {
   const [curRow, setCurRow] = useState({ ...EMPTY_ROW });
   const [items, setItems] = useState([]);
   const [invoiceDate, setInvoiceDate] = useState(isoDate());
-  const [invoiceNo, setInvoiceNo] = useState("RAW-S-00001");
+  const [invoiceNo, setInvoiceNo] = useState("1");
   const amountRef = useRef(null);
 
   const [customerId, setCustomerId] = useState("");
@@ -1023,10 +1023,10 @@ export default function RawSalePage() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [pRes, cRes, invRes] = await Promise.all([
+      const [pRes, cRes, salesRes] = await Promise.all([
         api.get(EP.PRODUCTS.GET_ALL),
         api.get(EP.CUSTOMERS.GET_ALL),
-        api.get(EP.RAW_SALES.NEXT_INVOICE),
+        api.get(EP.RAW_SALES.GET_ALL),
       ]);
       if (pRes.data.success) setAllProducts(pRes.data.data);
       if (cRes.data.success) {
@@ -1036,8 +1036,20 @@ export default function RawSalePage() {
         });
         setAllCustomers(customers);
       }
-      if (invRes.data.success) {
-        setInvoiceNo(invRes.data.data.invoiceNo);
+      
+      // Calculate next invoice number from existing raw sales
+      let maxNum = 0;
+      if (salesRes.data.success && salesRes.data.data && salesRes.data.data.length > 0) {
+        salesRes.data.data.forEach(sale => {
+          let num = cleanInvoiceNo(sale.invoiceNo);
+          num = parseInt(num, 10);
+          if (!isNaN(num) && num > maxNum) {
+            maxNum = num;
+          }
+        });
+        setInvoiceNo(String(maxNum + 1));
+      } else {
+        setInvoiceNo("1");
       }
     } catch (error) {
       console.error("Fetch data error:", error);
@@ -1048,9 +1060,25 @@ export default function RawSalePage() {
 
   const refreshInvoiceNo = async () => {
     try {
-      const r = await api.get(EP.RAW_SALES.NEXT_INVOICE);
-      if (r.data.success) setInvoiceNo(r.data.data.invoiceNo);
-    } catch {}
+      const salesRes = await api.get(EP.RAW_SALES.GET_ALL);
+      let maxNum = 0;
+      if (salesRes.data.success && salesRes.data.data && salesRes.data.data.length > 0) {
+        salesRes.data.data.forEach(sale => {
+          let num = cleanInvoiceNo(sale.invoiceNo);
+          num = parseInt(num, 10);
+          if (!isNaN(num) && num > maxNum) {
+            maxNum = num;
+          }
+        });
+        setInvoiceNo(String(maxNum + 1));
+      } else {
+        setInvoiceNo("1");
+      }
+    } catch (error) {
+      console.error("Failed to refresh invoice number:", error);
+      const current = parseInt(invoiceNo, 10) || 0;
+      setInvoiceNo(String(current + 1));
+    }
   };
 
   const showMsg = (text, type = "success") => {
@@ -1090,7 +1118,6 @@ export default function RawSalePage() {
         }
         setCreditStatement("");
         setShowCustomerPanel(true);
-        // Focus on remarks input after customer selection
         setTimeout(() => statementRef.current?.focus(), 100);
       }
     } catch (error) {
@@ -1291,7 +1318,8 @@ export default function RawSalePage() {
   
   const loadSaleForEdit = (sale) => {
     setEditId(sale._id);
-    setInvoiceNo(sale.invoiceNo);
+    let invNo = cleanInvoiceNo(sale.invoiceNo);
+    setInvoiceNo(invNo);
     setInvoiceDate(sale.invoiceDate || isoDate());
 
     const cust = allCustomers.find((c) => c._id === sale.customerId);
@@ -1326,7 +1354,7 @@ export default function RawSalePage() {
     setItems(loadedItems);
     setExtraDiscount(sale.extraDisc || 0);
     resetCurRow();
-    showMsg(`✏ Editing Invoice ${sale.invoiceNo}`, "success");
+    showMsg(`✏ Editing Invoice ${invNo}`, "success");
     setTimeout(() => searchRef.current?.focus(), 50);
   };
 
@@ -1335,7 +1363,10 @@ export default function RawSalePage() {
       const { data } = await api.get(EP.RAW_SALES.GET_ALL);
       if (!data.success || !data.data?.length) return;
       const allSales = data.data;
-      const curIdx = allSales.findIndex((s) => editId ? s._id === editId : s.invoiceNo === invoiceNo);
+      const currentCleanNo = cleanInvoiceNo(invoiceNo);
+      const curIdx = allSales.findIndex((s) => {
+        return cleanInvoiceNo(s.invoiceNo) === currentCleanNo;
+      });
       let nextIdx = dir === "prev" ? curIdx - 1 : curIdx + 1;
       nextIdx = Math.max(0, Math.min(nextIdx, allSales.length - 1));
       if (nextIdx === curIdx) return;
@@ -1346,7 +1377,7 @@ export default function RawSalePage() {
   };
 
   const buildPayload = () => ({
-    invoiceNo,
+    invoiceNo: cleanInvoiceNo(invoiceNo),
     invoiceDate,
     customerId: customerId || undefined,
     customerName: buyerName || "COUNTER SALE",
@@ -1386,7 +1417,6 @@ export default function RawSalePage() {
       return;
     }
 
-    // Check if customer is selected and is credit type (supplier)
     if (customerId && (customerType === "raw-sale" || customerType === "supplier" || customerType === "credit")) {
       if (!creditStatement.trim()) {
         statementRef.current?.focus();
@@ -1394,24 +1424,20 @@ export default function RawSalePage() {
         return;
       }
       
-      // ✅ DIRECT SAVE & PRINT - Skip the SaveConfirmModal for credit/supplier customers
       const payload = buildPayload();
-      // For credit sale, amount received is 0, balance due is the full bill amount
       const billTotal = payload.netTotal + (payload.prevBalance || 0);
       
-      // Directly save and print without showing modal
       confirmSaveWithPayload(payload, {
         extraDisc: payload.extraDisc,
         netTotal: payload.netTotal,
-        paidAmount: 0, // No payment received for credit sale
-        balance: billTotal, // Customer will owe this amount
+        paidAmount: 0,
+        balance: billTotal,
         printType: printType,
-        withPrint: true, // Print after save
+        withPrint: true,
       });
       return;
     }
 
-    // For cash customers, show the SaveConfirmModal to enter received amount
     const payload = buildPayload();
     setPendingPayload(payload);
     setShowSaveModal(true);
@@ -1435,10 +1461,8 @@ export default function RawSalePage() {
         : await api.post(EP.RAW_SALES.CREATE, finalPayload);
 
       if (data.success) {
-        // UPDATE STOCK - SUBTRACT quantities for sale
         await updateProductStockBulk(payload.items, "subtract");
         
-        // UPDATE CUSTOMER BALANCE if credit sale (balance due > 0)
         if (customerId && (customerType === "raw-sale" || customerType === "supplier" || customerType === "credit")) {
           const balanceDue = overrides.balance;
           if (balanceDue > 0) {
@@ -1446,7 +1470,6 @@ export default function RawSalePage() {
           }
         }
         
-        // Refresh customer balance
         let updatedCustomerBalance = finalPayload.prevBalance;
         if (customerId) {
           try {
@@ -1487,13 +1510,11 @@ export default function RawSalePage() {
         fullReset();
         await refreshInvoiceNo();
         
-        // Refresh products to show updated stock
         const pRes = await api.get(EP.PRODUCTS.GET_ALL);
         if (pRes.data.success) {
           setAllProducts(pRes.data.data);
         }
         
-        // Refresh customers list
         const cRes = await api.get(EP.CUSTOMERS.GET_ALL);
         if (cRes.data.success) {
           const customers = cRes.data.data.filter((c) => {
@@ -1576,21 +1597,23 @@ export default function RawSalePage() {
                   <input
                     className="xp-input xp-input-sm sl-inv-input-large"
                     value={invoiceNo}
-                    onChange={(e) => setInvoiceNo(e.target.value)}
+                    onChange={(e) => setInvoiceNo(cleanInvoiceNo(e.target.value))}
                     onKeyDown={async (e) => {
                       if (e.key === "Enter") {
                         e.preventDefault();
-                        const val = invoiceNo.trim();
+                        const val = cleanInvoiceNo(invoiceNo);
                         if (!val) return;
                         try {
-                          const { data } = await api.get(EP.RAW_SALES.GET_ALL + `?invoiceNo=${val}`);
+                          const { data } = await api.get(EP.RAW_SALES.GET_ALL);
                           const sales = data.data;
                           if (!sales || sales.length === 0) { 
                             showMsg(`Invoice "${val}" not found`, "error"); 
                             await refreshInvoiceNo(); 
                             return; 
                           }
-                          const exact = sales.find((s) => s.invoiceNo?.toString() === val.toString());
+                          const exact = sales.find((s) => {
+                            return cleanInvoiceNo(s.invoiceNo) === val;
+                          });
                           if (!exact) { 
                             showMsg(`Invoice "${val}" not found`, "error"); 
                             await refreshInvoiceNo(); 
@@ -1763,7 +1786,6 @@ export default function RawSalePage() {
                     if (e.key === "Enter") { 
                       e.preventDefault(); 
                       e.stopPropagation(); 
-                      // Direct save and print when Enter is pressed in remarks field
                       openSaleConfirm(); 
                     } 
                   }} 
@@ -1823,7 +1845,6 @@ export default function RawSalePage() {
         .sl-credit-warning-bar { background: #ef4444; }
         .sl-credit-normal { background: #f59e0b; }
 
-        /* Invoice Nav Container - Buttons Inside Input */
         .sl-inv-nav-container {
           position: relative;
           display: inline-block;

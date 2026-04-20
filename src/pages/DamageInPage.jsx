@@ -28,14 +28,47 @@ const EMPTY_ROW = {
   reason: "",
 };
 
-const SHOP_INFO = {
-  name: "عاصم الیکٹرک اینڈ الیکٹرونکس سٹور",
-  nameEn: "Asim Electric & Electronic Store",
-  address: "مین بازار نہاری ٹاؤن نزد بجلی گھر سٹاپ گوجرانوالہ روڈ فیصل آباد",
-  phone1: "Faqir Hussain 0300 7262129",
-  phone2: "PTCL 041 8711575",
-  phone3: "Shop 0315 7262129",
-  devBy: "Software developed by: Creative Babar / 03098325271 or visit website www.digitalglobalschool.com",
+import { SHOP_INFO, URDU_FONT, GOOGLE_FONT_LINK, getShopHeaderHTML, getShopBannerHTML, getShopTermsHTML, getShopFooterHTML } from "../constants/shopInfo.js";
+
+
+// Helper function to extract just the number from Damage ID
+const extractDamageNumber = (damageNo) => {
+  if (!damageNo) return "";
+  if (damageNo.includes('-')) {
+    return damageNo.split('-')[1];
+  }
+  return damageNo;
+};
+
+// Helper function to build full Damage ID from number
+const buildFullDamageId = (number) => {
+  if (!number || number === "") return "IN-1";
+  return `IN-${number}`;
+};
+
+// Function to get next available damage number from records
+const getNextAvailableNumber = (records) => {
+  if (!records || records.length === 0) return 1;
+  
+  const numbers = records.map(r => {
+    const numStr = r.damageNo?.toString() || "";
+    if (numStr.includes('-')) {
+      return parseInt(numStr.split('-')[1]) || 0;
+    }
+    return parseInt(numStr) || 0;
+  }).filter(n => n > 0);
+  
+  if (numbers.length === 0) return 1;
+  
+  const maxNum = Math.max(...numbers);
+  let nextNum = maxNum + 1;
+  
+  // Ensure we don't reuse any existing number
+  while (numbers.includes(nextNum)) {
+    nextNum++;
+  }
+  
+  return nextNum;
 };
 
 /* ── localStorage helpers for Holds only ── */
@@ -650,24 +683,21 @@ export default function DamageInPage() {
         const damageInRecords = response.data.data.filter(r => r.type === "in");
         setAllRecords(damageInRecords);
         
-        if (damageInRecords.length > 0) {
-          const maxNum = Math.max(...damageInRecords.map(r => {
-            const numStr = r.damageNo.toString();
-            if (numStr.includes('-')) {
-              return parseInt(numStr.split('-')[1]) || 0;
-            }
-            return parseInt(numStr) || 0;
-          }));
-          setDamageNo(`IN-${maxNum + 1}`);
-        } else {
-          setDamageNo("IN-1");
+        // Set a new damage number only if we're not editing
+        if (!editId && (!damageNo || damageNo === "" || damageNo === "IN-1")) {
+          const nextNumber = getNextAvailableNumber(damageInRecords);
+          setDamageNo(buildFullDamageId(nextNumber));
         }
       } else {
-        setDamageNo("IN-1");
+        if (!editId && (!damageNo || damageNo === "")) {
+          setDamageNo("IN-1");
+        }
       }
     } catch (error) {
       console.error("Failed to fetch damage records:", error);
-      setDamageNo("IN-1");
+      if (!editId && (!damageNo || damageNo === "")) {
+        setDamageNo("IN-1");
+      }
     }
     setLoading(false);
   };
@@ -772,9 +802,8 @@ export default function DamageInPage() {
         items: [...items],
       },
     ]);
-    showMsg(`Damage record held: ${damageNo}`);
+    showMsg(`Damage record held: ${extractDamageNumber(damageNo)}`);
     fullReset();
-    fetchDamageInRecords();
   };
 
   const resumeRecord = (holdId) => {
@@ -786,7 +815,7 @@ export default function DamageInPage() {
     setHoldRecords((p) => p.filter((r) => r.id !== holdId));
     setShowHoldPreview(null);
     resetCurRow();
-    showMsg(`Resumed damage record: ${record.damageNo}`, "success");
+    showMsg(`Resumed damage record: ${extractDamageNumber(record.damageNo)}`, "success");
   };
 
   const deleteHold = (holdId, e) => {
@@ -804,8 +833,12 @@ export default function DamageInPage() {
     setMsg({ text: "", type: "" });
     setShowProductSuggestions(false);
     setEditId(null);
-    fetchDamageInRecords();
     setDamageDate(isoDate());
+    
+    // Get the next available number based on current records
+    const nextNumber = getNextAvailableNumber(allRecords);
+    setDamageNo(buildFullDamageId(nextNumber));
+    
     setTimeout(() => searchRef.current?.focus(), 50);
   };
   
@@ -847,23 +880,44 @@ export default function DamageInPage() {
       if (editId) {
         response = await api.put(EP.DAMAGE.UPDATE(editId), payload);
       } else {
+        // Before saving, verify the damage number doesn't exist
+        const existingRecord = allRecords.find(r => r.damageNo === damageNo);
+        if (existingRecord) {
+          // Get a new number if this one exists
+          const nextNumber = getNextAvailableNumber(allRecords);
+          const newDamageNo = buildFullDamageId(nextNumber);
+          setDamageNo(newDamageNo);
+          payload.damageNo = newDamageNo;
+          payload.invoiceNo = newDamageNo;
+          showMsg(`Number ${extractDamageNumber(damageNo)} already exists, using ${nextNumber} instead`, "info");
+        }
+        
         response = await api.post(EP.DAMAGE.CREATE, payload);
       }
       
       if (response.data.success) {
-        showMsg(editId ? `Damage record updated: ${damageNo}` : `Damage record saved: ${damageNo}`, "success");
+        showMsg(editId ? `Damage record updated: ${extractDamageNumber(damageNo)}` : `Damage record saved: ${extractDamageNumber(damageNo)}`, "success");
         
         const savedRecord = response.data.data;
         doPrint(savedRecord);
         
-        fullReset();
+        // Refresh records to get the latest list
         await fetchDamageInRecords();
+        fullReset();
       } else {
         showMsg(response.data.message || "Failed to save damage record", "error");
       }
     } catch (error) {
       console.error("Save error:", error);
-      showMsg(error.response?.data?.message || "Save failed", "error");
+      if (error.response?.data?.message?.includes("duplicate") || error.response?.data?.message?.includes("already exists")) {
+        // Handle duplicate key error
+        const nextNumber = getNextAvailableNumber(allRecords);
+        const newDamageNo = buildFullDamageId(nextNumber);
+        setDamageNo(newDamageNo);
+        showMsg(`Number already exists, please save again with number ${nextNumber}`, "error");
+      } else {
+        showMsg(error.response?.data?.message || "Save failed", "error");
+      }
     }
     
     setLoading(false);
@@ -888,7 +942,7 @@ export default function DamageInPage() {
     setItems(loadedItems);
     
     resetCurRow();
-    showMsg(`✏ Editing Damage Record ${record.damageNo}`, "success");
+    showMsg(`✏ Editing Damage Record ${extractDamageNumber(record.damageNo)}`, "success");
     setTimeout(() => searchRef.current?.focus(), 50);
   };
 
@@ -925,15 +979,15 @@ export default function DamageInPage() {
       return;
     }
     
-    if (!window.confirm(`Delete damage record ${damageNo}?`)) return;
+    if (!window.confirm(`Delete damage record ${extractDamageNumber(damageNo)}?`)) return;
     
     setLoading(true);
     try {
       const response = await api.delete(EP.DAMAGE.DELETE(editId));
       if (response.data.success) {
-        showMsg(`Damage record ${damageNo} deleted`, "success");
-        fullReset();
+        showMsg(`Damage record ${extractDamageNumber(damageNo)} deleted`, "success");
         await fetchDamageInRecords();
+        fullReset();
       } else {
         showMsg(response.data.message || "Delete failed", "error");
       }
@@ -1065,8 +1119,15 @@ export default function DamageInPage() {
                   <input
                     className="xp-input xp-input-sm sl-inv-input-large"
                     style={{ borderColor: "#b71c1c" }}
-                    value={damageNo}
-                    onChange={(e) => setDamageNo(e.target.value)}
+                    value={extractDamageNumber(damageNo)}
+                    onChange={(e) => {
+                      const newNumber = e.target.value;
+                      if (newNumber === "") {
+                        setDamageNo("IN-1");
+                      } else {
+                        setDamageNo(buildFullDamageId(newNumber));
+                      }
+                    }}
                     onKeyDown={async (e) => {
                       if (e.key === "Enter") {
                         e.preventDefault();
@@ -1076,7 +1137,7 @@ export default function DamageInPage() {
                         if (found) {
                           loadRecordForEdit(found);
                         } else {
-                          showMsg(`Damage record "${val}" not found`, "error");
+                          showMsg(`Damage record "${extractDamageNumber(val)}" not found`, "error");
                         }
                       }
                       if (e.key === "ArrowUp" || e.key === "ArrowDown") {
@@ -1457,7 +1518,7 @@ export default function DamageInPage() {
                           title="CLICK = PREVIEW · DOUBLE-CLICK = RESUME"
                         >
                           <td className="muted" style={{ textAlign: "center", fontSize: "var(--xp-fs-xs)" }}>{i + 1}</td>
-                          <td style={{ fontFamily: "var(--xp-mono)", fontSize: "var(--xp-fs-xs)" }}>{r.damageNo}</td>
+                          <td style={{ fontFamily: "var(--xp-mono)", fontSize: "var(--xp-fs-xs)" }}>{extractDamageNumber(r.damageNo)}</td>
                           <td className="r" style={{ color: "#b71c1c", fontWeight: 600 }}>{fmt(r.amount)}</td>
                           <td className="muted" style={{ fontSize: "var(--xp-fs-xs)" }}>{r.damageDate}</td>
                           <td style={{ textAlign: "center" }}>
@@ -1518,7 +1579,7 @@ export default function DamageInPage() {
           </button>
           <div className="xp-toolbar-divider" />
           <span className="sl-inv-info">
-            ⚠ {damageNo} | ITEMS: {items.length} | TOTAL DAMAGE: PKR {fmt(subTotal)}
+            ⚠ {extractDamageNumber(damageNo)} | ITEMS: {items.length} | TOTAL DAMAGE: PKR {fmt(subTotal)}
           </span>
           <button className="xp-btn xp-btn-sm" style={{ marginLeft: "auto" }} onClick={fullReset}>
             CLOSE
@@ -1527,7 +1588,7 @@ export default function DamageInPage() {
 
         {/* Status bar */}
         <div className="xp-statusbar">
-          <div className="xp-status-pane">⚠ {damageNo}</div>
+          <div className="xp-status-pane">⚠ {extractDamageNumber(damageNo)}</div>
           <div className="xp-status-pane">ITEMS: {items.length}</div>
           <div className="xp-status-pane">QTY: {totalQty}</div>
           <div className="xp-status-pane">DAMAGE VALUE: PKR {fmt(subTotal)}</div>

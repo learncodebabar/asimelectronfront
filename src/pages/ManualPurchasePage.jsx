@@ -1,4 +1,4 @@
-// pages/ManualPurchasePage.jsx - With image on left and double amount entry
+// pages/ManualPurchasePage.jsx - With same layout as ManualSalePage
 import { useState, useEffect, useRef } from "react";
 import api from "../api/api.js";
 import EP from "../api/apiEndpoints.js";
@@ -238,10 +238,6 @@ export default function ManualPurchasePage() {
   const [selectedSupplier1, setSelectedSupplier1] = useState(null);
   const [selectedSupplier2, setSelectedSupplier2] = useState(null);
   
-  // Amount validation errors
-  const [amountError1, setAmountError1] = useState("");
-  const [amountError2, setAmountError2] = useState("");
-  
   const code1Ref = useRef(null);
   const supplier1Ref = useRef(null);
   const desc1Ref = useRef(null);
@@ -259,12 +255,10 @@ export default function ManualPurchasePage() {
   const [suggestions1, setSuggestions1] = useState([]);
   const [showSuggestions1, setShowSuggestions1] = useState(false);
   const [selectedIdx1, setSelectedIdx1] = useState(-1);
-  const [activeField1, setActiveField1] = useState(null);
   
   const [suggestions2, setSuggestions2] = useState([]);
   const [showSuggestions2, setShowSuggestions2] = useState(false);
   const [selectedIdx2, setSelectedIdx2] = useState(-1);
-  const [activeField2, setActiveField2] = useState(null);
 
   useEffect(() => {
     fetchSuppliers();
@@ -315,7 +309,6 @@ export default function ManualPurchasePage() {
     setSuggestions1(matches);
     setShowSuggestions1(matches.length > 0);
     setSelectedIdx1(-1);
-    setActiveField1('code');
   };
 
   const handleSupplierChange1 = (value) => {
@@ -325,7 +318,6 @@ export default function ManualPurchasePage() {
     setSuggestions1(matches);
     setShowSuggestions1(matches.length > 0);
     setSelectedIdx1(-1);
-    setActiveField1('supplier');
   };
 
   const handleCodeChange2 = (value) => {
@@ -335,7 +327,6 @@ export default function ManualPurchasePage() {
     setSuggestions2(matches);
     setShowSuggestions2(matches.length > 0);
     setSelectedIdx2(-1);
-    setActiveField2('code');
   };
 
   const handleSupplierChange2 = (value) => {
@@ -345,7 +336,6 @@ export default function ManualPurchasePage() {
     setSuggestions2(matches);
     setShowSuggestions2(matches.length > 0);
     setSelectedIdx2(-1);
-    setActiveField2('supplier');
   };
 
   const selectSupplier = (supplier, isRow1) => {
@@ -388,63 +378,20 @@ export default function ManualPurchasePage() {
 
   const updateRow = (row, field, val, isRow1) => {
     const newVal = field === "amount" || field === "confirmAmount" ? parseFloat(val) || 0 : val;
-    if (isRow1) {
-      setRow1(prev => ({ ...prev, [field]: newVal }));
-      // Validate amount match
-      if (field === "amount" || field === "confirmAmount") {
-        if (row1.confirmAmount > 0 && newVal > 0) {
-          if (field === "amount" && row1.confirmAmount !== newVal) {
-            setAmountError1("Amounts do not match!");
-          } else if (field === "confirmAmount" && row1.amount !== newVal) {
-            setAmountError1("Amounts do not match!");
-          } else {
-            setAmountError1("");
-          }
-        }
-      }
-    } else {
-      setRow2(prev => ({ ...prev, [field]: newVal }));
-      if (field === "amount" || field === "confirmAmount") {
-        if (row2.confirmAmount > 0 && newVal > 0) {
-          if (field === "amount" && row2.confirmAmount !== newVal) {
-            setAmountError2("Amounts do not match!");
-          } else if (field === "confirmAmount" && row2.amount !== newVal) {
-            setAmountError2("Amounts do not match!");
-          } else {
-            setAmountError2("");
-          }
-        }
-      }
-    }
+    if (isRow1) setRow1(prev => ({ ...prev, [field]: newVal }));
+    else setRow2(prev => ({ ...prev, [field]: newVal }));
   };
 
   const handleRow1KeyDown = (e, field) => {
     if (e.key === "Enter") {
       e.preventDefault();
       switch(field) {
-        case 'code': 
-          supplier1Ref.current?.focus(); 
-          break;
-        case 'supplier': 
-          desc1Ref.current?.focus(); 
-          break;
-        case 'desc': 
-          inv1Ref.current?.focus(); 
-          break;
-        case 'inv': 
-          amount1Ref.current?.focus(); 
-          break;
-        case 'amount': 
-          confirmAmount1Ref.current?.focus(); 
-          break;
-        case 'confirmAmount':
-          if (!amountError1 && row1.amount > 0 && row1.confirmAmount > 0 && row1.amount === row1.confirmAmount) {
-            code2Ref.current?.focus();
-          } else if (row1.amount > 0 && row1.confirmAmount > 0 && row1.amount !== row1.confirmAmount) {
-            setAmountError1("Amounts do not match!");
-            amount1Ref.current?.focus();
-          }
-          break;
+        case 'code': supplier1Ref.current?.focus(); break;
+        case 'supplier': desc1Ref.current?.focus(); break;
+        case 'desc': inv1Ref.current?.focus(); break;
+        case 'inv': amount1Ref.current?.focus(); break;
+        case 'amount': confirmAmount1Ref.current?.focus(); break;
+        case 'confirmAmount': code2Ref.current?.focus(); break;
         default: break;
       }
     }
@@ -454,35 +401,29 @@ export default function ManualPurchasePage() {
     if (e.key === "Enter") {
       e.preventDefault();
       switch(field) {
-        case 'code': 
-          supplier2Ref.current?.focus(); 
-          break;
-        case 'supplier': 
-          desc2Ref.current?.focus(); 
-          break;
-        case 'desc': 
-          inv2Ref.current?.focus(); 
-          break;
-        case 'inv': 
-          amount2Ref.current?.focus(); 
-          break;
-        case 'amount': 
-          confirmAmount2Ref.current?.focus(); 
-          break;
-        case 'confirmAmount':
-          if (!amountError2 && row2.amount > 0 && row2.confirmAmount > 0 && row2.amount === row2.confirmAmount) {
-            saveAllEntries();
-          } else if (row2.amount > 0 && row2.confirmAmount > 0 && row2.amount !== row2.confirmAmount) {
-            setAmountError2("Amounts do not match!");
-            amount2Ref.current?.focus();
-          }
-          break;
+        case 'code': supplier2Ref.current?.focus(); break;
+        case 'supplier': desc2Ref.current?.focus(); break;
+        case 'desc': inv2Ref.current?.focus(); break;
+        case 'inv': amount2Ref.current?.focus(); break;
+        case 'amount': confirmAmount2Ref.current?.focus(); break;
+        case 'confirmAmount': saveAllEntries(); break;
         default: break;
       }
     }
   };
 
   const saveSingleEntry = async (rowData, type) => {
+    // Validate amount matches confirmation
+    if (rowData.amount !== rowData.confirmAmount) {
+      showMsg(`${type === "purchase" ? "Purchase" : "Return"} amount does not match confirmation!`, "error");
+      return null;
+    }
+    
+    if (rowData.amount <= 0) {
+      showMsg(`${type === "purchase" ? "Purchase" : "Return"} amount must be greater than 0`, "error");
+      return null;
+    }
+
     try {
       const supplier = suppliers.find(s => s.name === rowData.supplierName || s.code === rowData.code);
       const invoicePrefix = type === "purchase" ? "PUR" : "RET";
@@ -497,7 +438,7 @@ export default function ManualPurchasePage() {
       };
       const response = await api.post(EP.SALES.CREATE, payload);
       if (response.data && response.data.success) {
-        return { ...rowData, type: type.toUpperCase(), displayType: type === "purchase" ? "Purchase" : "Return", invoiceNo: finalInvoiceNo };
+        return { ...rowData, type: type.toUpperCase(), displayType: type === "purchase" ? "PURCHASE" : "RETURN", invoiceNo: finalInvoiceNo };
       } else { showMsg(`Failed: ${response.data?.message || "Unknown error"}`, "error"); return null; }
     } catch (error) {
       const errorMsg = error.response?.data?.message || error.message || "Network error";
@@ -507,24 +448,12 @@ export default function ManualPurchasePage() {
   };
 
   const saveAllEntries = async () => {
-    const hasRow1Data = row1.supplierName && row1.amount > 0 && row1.confirmAmount > 0 && row1.amount === row1.confirmAmount;
-    const hasRow2Data = row2.supplierName && row2.amount > 0 && row2.confirmAmount > 0 && row2.amount === row2.confirmAmount;
+    const hasRow1Data = row1.supplierName && row1.amount > 0 && row1.confirmAmount > 0;
+    const hasRow2Data = row2.supplierName && row2.amount > 0 && row2.confirmAmount > 0;
     
     if (!hasRow1Data && !hasRow2Data) { 
-      showMsg("Please fill at least one entry with supplier and matching amounts", "error"); 
+      showMsg("Please fill at least one entry with supplier and amount", "error"); 
       return; 
-    }
-    
-    if (hasRow1Data && row1.amount !== row1.confirmAmount) {
-      setAmountError1("Amounts do not match!");
-      amount1Ref.current?.focus();
-      return;
-    }
-    
-    if (hasRow2Data && row2.amount !== row2.confirmAmount) {
-      setAmountError2("Amounts do not match!");
-      amount2Ref.current?.focus();
-      return;
     }
     
     setSaving(true);
@@ -536,7 +465,6 @@ export default function ManualPurchasePage() {
         setEntries(prev => [...prev, ...savedEntries.map(e => ({ ...e, id: Date.now() + Math.random() }))]);
         setRow1({ ...EMPTY_ROW }); setRow2({ ...EMPTY_ROW });
         setSelectedSupplier1(null); setSelectedSupplier2(null);
-        setAmountError1(""); setAmountError2("");
         setSuggestions1([]); setSuggestions2([]); setShowSuggestions1(false); setShowSuggestions2(false);
         await fetchPurchaseRecords(); code1Ref.current?.focus();
       }
@@ -547,7 +475,6 @@ export default function ManualPurchasePage() {
   const resetForm = () => {
     setRow1({ ...EMPTY_ROW }); setRow2({ ...EMPTY_ROW }); setEntries([]);
     setSelectedSupplier1(null); setSelectedSupplier2(null);
-    setAmountError1(""); setAmountError2("");
     setSuggestions1([]); setSuggestions2([]); setShowSuggestions1(false); setShowSuggestions2(false);
     setSelectedIdx1(-1); setSelectedIdx2(-1);
     setTimeout(() => code1Ref.current?.focus(), 50);
@@ -589,74 +516,84 @@ export default function ManualPurchasePage() {
       <div style={{ padding: "12px 16px", background: "#ffffff", flex: 1, overflow: "auto" }}>
         
         {/* Filter Bar */}
-        <div style={{ background: "#f8fafc", borderRadius: "6px", padding: "8px 12px", marginBottom: "12px", border: "1px solid #000000", flexShrink: 0 }}>
-          <div style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
-            <span style={{ fontWeight: "bold", fontSize: "11px" }}>📅 Filter:</span>
-            <input type="date" style={{ padding: "5px 8px", fontSize: "11px", border: "1px solid #000000", borderRadius: "3px" }} value={filterStartDate} onChange={(e) => setFilterStartDate(e.target.value)} />
-            <span>to</span>
-            <input type="date" style={{ padding: "5px 8px", fontSize: "11px", border: "1px solid #000000", borderRadius: "3px" }} value={filterEndDate} onChange={(e) => setFilterEndDate(e.target.value)} />
-            <input type="text" style={{ width: "160px", padding: "5px 8px", fontSize: "11px", border: "1px solid #000000", borderRadius: "3px" }} placeholder="Supplier name..." value={filterSupplierName} onChange={(e) => setFilterSupplierName(e.target.value)} />
-            <button className="xp-btn xp-btn-sm" style={{ padding: "4px 12px", fontSize: "11px", fontWeight: "bold" }} onClick={fetchPurchaseRecords}>Refresh</button>
-            <button className="xp-btn xp-btn-sm" style={{ padding: "4px 12px", fontSize: "11px", fontWeight: "bold" }} onClick={resetForm}>Reset</button>
-            <span style={{ marginLeft: "auto", fontWeight: "bold", fontSize: "11px" }}>Total: <span style={{ color: "#1e40af" }}>{fmt(totalFilteredAmount)}</span></span>
+        <div style={{ background: "#f8fafc", borderRadius: "6px", padding: "6px 10px", marginBottom: "12px", border: "1px solid #000000", flexShrink: 0 }}>
+          <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
+            <span style={{ fontWeight: "bold", fontSize: "10px" }}>📅 Filter:</span>
+            <input type="date" style={{ padding: "3px 6px", fontSize: "10px", border: "1px solid #000000", borderRadius: "3px", width: "110px" }} value={filterStartDate} onChange={(e) => setFilterStartDate(e.target.value)} />
+            <span style={{ fontSize: "10px" }}>to</span>
+            <input type="date" style={{ padding: "3px 6px", fontSize: "10px", border: "1px solid #000000", borderRadius: "3px", width: "110px" }} value={filterEndDate} onChange={(e) => setFilterEndDate(e.target.value)} />
+            <input type="text" style={{ width: "150px", padding: "3px 6px", fontSize: "10px", border: "1px solid #000000", borderRadius: "3px" }} placeholder="Supplier..." value={filterSupplierName} onChange={(e) => setFilterSupplierName(e.target.value)} />
+            <button className="xp-btn xp-btn-sm" style={{ padding: "2px 8px", fontSize: "10px", fontWeight: "bold" }} onClick={fetchPurchaseRecords}>Refresh</button>
+            <button className="xp-btn xp-btn-sm" style={{ padding: "2px 8px", fontSize: "10px", fontWeight: "bold" }} onClick={resetForm}>Reset</button>
+            <span style={{ marginLeft: "auto", fontWeight: "bold", fontSize: "10px" }}>Total: <span style={{ color: "#1e40af" }}>{fmt(totalFilteredAmount)}</span></span>
           </div>
         </div>
 
-        {/* Row 1 - Purchase Entry */}
-        <div style={{ background: "#ffffff", borderRadius: "6px", padding: "10px 12px", marginBottom: "10px", border: "1px solid #1e40af", flexShrink: 0 }}>
-          <div style={{ fontWeight: "bold", fontSize: "11px", marginBottom: "8px", color: "#1e40af" }}>📝 Purchase (Debit - Money OUT)</div>
-          <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", alignItems: "center" }}>
-            <div style={{ flex: 1, minWidth: "80px" }}>
-              <input ref={code1Ref} type="text" style={{ fontSize: "12px", padding: "6px 8px", border: "1px solid #000000", borderRadius: "3px", width: "100%" }} value={row1.code} onChange={(e) => handleCodeChange1(e.target.value)} onKeyDown={(e) => { handleSuggestionKeyDown(e, true); handleRow1KeyDown(e, 'code'); }} placeholder="Code" />
+        {/* Row 1 - Purchase Entry (Debit - Money OUT) */}
+        <div style={{ background: "#ffffff", borderRadius: "6px", padding: "10px 12px", marginBottom: "10px", border: "2px solid #1e40af", flexShrink: 0 }}>
+          <div style={{ fontWeight: "bold", fontSize: "12px", marginBottom: "8px", color: "#1e40af", background: "#dbeafe", padding: "4px 8px", borderRadius: "4px", display: "inline-block" }}>📥 PURCHASE - DEBIT (Money OUT)</div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr 2fr 1fr 1.2fr 1.2fr", gap: "10px", alignItems: "end" }}>
+            <div>
+              <label style={{ fontSize: "10px", fontWeight: "bold", display: "block", marginBottom: "2px" }}>CODE</label>
+              <input ref={code1Ref} type="text" style={{ fontSize: "12px", padding: "6px 8px", border: "1px solid #000000", borderRadius: "3px", width: "100%" }} value={row1.code} onChange={(e) => handleCodeChange1(e.target.value)} onKeyDown={(e) => { handleSuggestionKeyDown(e, true); handleRow1KeyDown(e, 'code'); }} />
             </div>
-            <div style={{ flex: 2, minWidth: "180px" }}>
+            <div>
+              <label style={{ fontSize: "10px", fontWeight: "bold", display: "block", marginBottom: "2px" }}>SUPPLIER NAME</label>
               <div style={{ border: "1px solid #000000", borderRadius: "3px", background: "#ffffff" }}>
                 <SupplierDropdown allSuppliers={suppliers} value={row1.supplierName} displayName={row1.supplierName} onSelect={(s) => selectSupplier(s, true)} onClear={clearSupplier1} onEnterPress={() => desc1Ref.current?.focus()} />
               </div>
             </div>
-            <div style={{ flex: 2, minWidth: "140px" }}>
-              <input ref={desc1Ref} type="text" style={{ fontSize: "12px", padding: "6px 8px", border: "1px solid #000000", borderRadius: "3px", width: "100%" }} value={row1.description} onChange={(e) => updateRow(row1, "description", e.target.value, true)} onKeyDown={(e) => handleRow1KeyDown(e, 'desc')} placeholder="Description" />
+            <div>
+              <label style={{ fontSize: "10px", fontWeight: "bold", display: "block", marginBottom: "2px" }}>DESCRIPTION</label>
+              <input ref={desc1Ref} type="text" style={{ fontSize: "12px", padding: "6px 8px", border: "1px solid #000000", borderRadius: "3px", width: "100%" }} value={row1.description} onChange={(e) => updateRow(row1, "description", e.target.value, true)} onKeyDown={(e) => handleRow1KeyDown(e, 'desc')} />
             </div>
-            <div style={{ width: "100px" }}>
-              <input ref={inv1Ref} type="text" style={{ fontSize: "12px", padding: "6px 8px", border: "1px solid #000000", borderRadius: "3px", width: "100%" }} value={row1.invoiceNo} onChange={(e) => updateRow(row1, "invoiceNo", e.target.value, true)} onKeyDown={(e) => handleRow1KeyDown(e, 'inv')} placeholder="Inv #" />
+            <div>
+              <label style={{ fontSize: "10px", fontWeight: "bold", display: "block", marginBottom: "2px" }}>INVOICE #</label>
+              <input ref={inv1Ref} type="text" style={{ fontSize: "12px", padding: "6px 8px", border: "1px solid #000000", borderRadius: "3px", width: "100%" }} value={row1.invoiceNo} onChange={(e) => updateRow(row1, "invoiceNo", e.target.value, true)} onKeyDown={(e) => handleRow1KeyDown(e, 'inv')} />
             </div>
-            <div style={{ width: "120px" }}>
-              <input ref={amount1Ref} type="number" style={{ fontSize: "13px", fontWeight: "bold", padding: "6px 8px", textAlign: "right", border: "1px solid #000000", borderRadius: "3px", width: "100%" }} value={row1.amount} onChange={(e) => updateRow(row1, "amount", e.target.value, true)} onKeyDown={(e) => handleRow1KeyDown(e, 'amount')} placeholder="Amount" />
+            <div>
+              <label style={{ fontSize: "10px", fontWeight: "bold", display: "block", marginBottom: "2px" }}>AMOUNT (PKR)</label>
+              <input ref={amount1Ref} type="number" style={{ fontSize: "13px", fontWeight: "bold", padding: "6px 8px", textAlign: "right", border: "1px solid #000000", borderRadius: "3px", width: "100%" }} value={row1.amount} onChange={(e) => updateRow(row1, "amount", e.target.value, true)} onKeyDown={(e) => handleRow1KeyDown(e, 'amount')} />
             </div>
-            <div style={{ width: "120px" }}>
-              <input ref={confirmAmount1Ref} type="number" style={{ fontSize: "13px", fontWeight: "bold", padding: "6px 8px", textAlign: "right", border: amountError1 ? "2px solid #ef4444" : "1px solid #000000", borderRadius: "3px", width: "100%" }} value={row1.confirmAmount} onChange={(e) => updateRow(row1, "confirmAmount", e.target.value, true)} onKeyDown={(e) => handleRow1KeyDown(e, 'confirmAmount')} placeholder="Confirm Amount" />
+            <div>
+              <label style={{ fontSize: "10px", fontWeight: "bold", display: "block", marginBottom: "2px", color: "#dc2626" }}>CONFIRM AMOUNT</label>
+              <input ref={confirmAmount1Ref} type="number" style={{ fontSize: "13px", fontWeight: "bold", padding: "6px 8px", textAlign: "right", border: "2px solid #dc2626", borderRadius: "3px", width: "100%", background: "#fef2f2" }} value={row1.confirmAmount} onChange={(e) => updateRow(row1, "confirmAmount", e.target.value, true)} onKeyDown={(e) => handleRow1KeyDown(e, 'confirmAmount')} />
             </div>
           </div>
-          {amountError1 && <div style={{ fontSize: "10px", color: "#ef4444", marginTop: "5px", textAlign: "right" }}>{amountError1}</div>}
           {selectedSupplier1 && <SelectedSupplierCard supplier={selectedSupplier1} onClear={clearSupplier1} />}
         </div>
 
-        {/* Row 2 - Return Entry */}
-        <div style={{ background: "#ffffff", borderRadius: "6px", padding: "10px 12px", marginBottom: "10px", border: "1px solid #16a34a", flexShrink: 0 }}>
-          <div style={{ fontWeight: "bold", fontSize: "11px", marginBottom: "8px", color: "#16a34a" }}>📝 Return (Credit - Money IN)</div>
-          <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", alignItems: "center" }}>
-            <div style={{ flex: 1, minWidth: "80px" }}>
-              <input ref={code2Ref} type="text" style={{ fontSize: "12px", padding: "6px 8px", border: "1px solid #000000", borderRadius: "3px", width: "100%" }} value={row2.code} onChange={(e) => handleCodeChange2(e.target.value)} onKeyDown={(e) => { handleSuggestionKeyDown(e, false); handleRow2KeyDown(e, 'code'); }} placeholder="Code" />
+        {/* Row 2 - Return Entry (Credit - Money IN) */}
+        <div style={{ background: "#ffffff", borderRadius: "6px", padding: "10px 12px", marginBottom: "10px", border: "2px solid #16a34a", flexShrink: 0 }}>
+          <div style={{ fontWeight: "bold", fontSize: "12px", marginBottom: "8px", color: "#16a34a", background: "#dcfce7", padding: "4px 8px", borderRadius: "4px", display: "inline-block" }}>📤 RETURN - CREDIT (Money IN)</div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr 2fr 1fr 1.2fr 1.2fr", gap: "10px", alignItems: "end" }}>
+            <div>
+              <label style={{ fontSize: "10px", fontWeight: "bold", display: "block", marginBottom: "2px" }}>CODE</label>
+              <input ref={code2Ref} type="text" style={{ fontSize: "12px", padding: "6px 8px", border: "1px solid #000000", borderRadius: "3px", width: "100%" }} value={row2.code} onChange={(e) => handleCodeChange2(e.target.value)} onKeyDown={(e) => { handleSuggestionKeyDown(e, false); handleRow2KeyDown(e, 'code'); }} />
             </div>
-            <div style={{ flex: 2, minWidth: "180px" }}>
+            <div>
+              <label style={{ fontSize: "10px", fontWeight: "bold", display: "block", marginBottom: "2px" }}>SUPPLIER NAME</label>
               <div style={{ border: "1px solid #000000", borderRadius: "3px", background: "#ffffff" }}>
                 <SupplierDropdown allSuppliers={suppliers} value={row2.supplierName} displayName={row2.supplierName} onSelect={(s) => selectSupplier(s, false)} onClear={clearSupplier2} onEnterPress={() => desc2Ref.current?.focus()} />
               </div>
             </div>
-            <div style={{ flex: 2, minWidth: "140px" }}>
-              <input ref={desc2Ref} type="text" style={{ fontSize: "12px", padding: "6px 8px", border: "1px solid #000000", borderRadius: "3px", width: "100%" }} value={row2.description} onChange={(e) => updateRow(row2, "description", e.target.value, false)} onKeyDown={(e) => handleRow2KeyDown(e, 'desc')} placeholder="Description" />
+            <div>
+              <label style={{ fontSize: "10px", fontWeight: "bold", display: "block", marginBottom: "2px" }}>DESCRIPTION</label>
+              <input ref={desc2Ref} type="text" style={{ fontSize: "12px", padding: "6px 8px", border: "1px solid #000000", borderRadius: "3px", width: "100%" }} value={row2.description} onChange={(e) => updateRow(row2, "description", e.target.value, false)} onKeyDown={(e) => handleRow2KeyDown(e, 'desc')} />
             </div>
-            <div style={{ width: "100px" }}>
-              <input ref={inv2Ref} type="text" style={{ fontSize: "12px", padding: "6px 8px", border: "1px solid #000000", borderRadius: "3px", width: "100%" }} value={row2.invoiceNo} onChange={(e) => updateRow(row2, "invoiceNo", e.target.value, false)} onKeyDown={(e) => handleRow2KeyDown(e, 'inv')} placeholder="Inv #" />
+            <div>
+              <label style={{ fontSize: "10px", fontWeight: "bold", display: "block", marginBottom: "2px" }}>INVOICE #</label>
+              <input ref={inv2Ref} type="text" style={{ fontSize: "12px", padding: "6px 8px", border: "1px solid #000000", borderRadius: "3px", width: "100%" }} value={row2.invoiceNo} onChange={(e) => updateRow(row2, "invoiceNo", e.target.value, false)} onKeyDown={(e) => handleRow2KeyDown(e, 'inv')} />
             </div>
-            <div style={{ width: "120px" }}>
-              <input ref={amount2Ref} type="number" style={{ fontSize: "13px", fontWeight: "bold", padding: "6px 8px", textAlign: "right", border: "1px solid #000000", borderRadius: "3px", width: "100%" }} value={row2.amount} onChange={(e) => updateRow(row2, "amount", e.target.value, false)} onKeyDown={(e) => handleRow2KeyDown(e, 'amount')} placeholder="Amount" />
+            <div>
+              <label style={{ fontSize: "10px", fontWeight: "bold", display: "block", marginBottom: "2px" }}>AMOUNT (PKR)</label>
+              <input ref={amount2Ref} type="number" style={{ fontSize: "13px", fontWeight: "bold", padding: "6px 8px", textAlign: "right", border: "1px solid #000000", borderRadius: "3px", width: "100%" }} value={row2.amount} onChange={(e) => updateRow(row2, "amount", e.target.value, false)} onKeyDown={(e) => handleRow2KeyDown(e, 'amount')} />
             </div>
-            <div style={{ width: "120px" }}>
-              <input ref={confirmAmount2Ref} type="number" style={{ fontSize: "13px", fontWeight: "bold", padding: "6px 8px", textAlign: "right", border: amountError2 ? "2px solid #ef4444" : "1px solid #000000", borderRadius: "3px", width: "100%" }} value={row2.confirmAmount} onChange={(e) => updateRow(row2, "confirmAmount", e.target.value, false)} onKeyDown={(e) => handleRow2KeyDown(e, 'confirmAmount')} placeholder="Confirm Amount" />
+            <div>
+              <label style={{ fontSize: "10px", fontWeight: "bold", display: "block", marginBottom: "2px", color: "#dc2626" }}>CONFIRM AMOUNT</label>
+              <input ref={confirmAmount2Ref} type="number" style={{ fontSize: "13px", fontWeight: "bold", padding: "6px 8px", textAlign: "right", border: "2px solid #dc2626", borderRadius: "3px", width: "100%", background: "#fef2f2" }} value={row2.confirmAmount} onChange={(e) => updateRow(row2, "confirmAmount", e.target.value, false)} onKeyDown={(e) => handleRow2KeyDown(e, 'confirmAmount')} />
             </div>
           </div>
-          {amountError2 && <div style={{ fontSize: "10px", color: "#ef4444", marginTop: "5px", textAlign: "right" }}>{amountError2}</div>}
           {selectedSupplier2 && <SelectedSupplierCard supplier={selectedSupplier2} onClear={clearSupplier2} />}
         </div>
 

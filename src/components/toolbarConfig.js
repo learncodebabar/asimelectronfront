@@ -4,7 +4,7 @@ const ALL_BUTTONS = [
   { icon: "saleReturn", label: "Sale Return", route: "/sale-return" },
   { icon: "rawPurchase", label: "Raw Purchase", route: "/raw-purchase" },
   { icon: "ledgers", label: "Gen. Ledgers", route: "/general-ledger" },
-  { icon: "products", label: "Prod. History", route: "/products" },
+  { icon: "products", label: "Prod. History", route: "/product-history" },
   { divider: true },
   { icon: "exit", label: "Exit", action: "exit" },
 ];

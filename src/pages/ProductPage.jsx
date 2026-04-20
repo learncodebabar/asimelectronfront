@@ -31,7 +31,7 @@ function ComboLikeInput({
           onChange={(e) => onChange(e.target.value)}
           onKeyDown={onNext}
           onFocus={onFocusField}
-          placeholder={`Enter ${label.toLowerCase()}...`}
+          placeholder=""
         />
         <button
           className="pp-combo-btn"
@@ -413,18 +413,25 @@ export default function ProductPage() {
   const handleProductIdKeyDown = (e) => {
     if (e.key === "Enter") {
       e.preventDefault();
-      const productId = form.productId.trim();
+      let productId = form.productId.trim();
       if (!productId) {
         showMsg("Please enter a Product ID", "error");
         return;
       }
       
-      // Find product by productId (not _id)
-      const product = products.find(p => p.productId === productId);
+      // Remove leading zeros for comparison
+      const normalizedInput = String(parseInt(productId, 10));
+      
+      // Find product by productId (not _id) - compare as strings without leading zeros
+      const product = products.find(p => {
+        const normalizedProductId = String(parseInt(p.productId, 10));
+        return normalizedProductId === normalizedInput;
+      });
+      
       if (product) {
         loadProductIntoForm(product);
       } else {
-        showMsg(`Product ID ${productId} not found`, "error");
+        showMsg(`Product ID ${normalizedInput} not found`, "error");
       }
     }
   };
@@ -546,6 +553,9 @@ export default function ProductPage() {
   );
   const nextId = String(nextNum);
   
+  // Auto-generate code as productId with leading zeros to 5 digits
+  const generatedCode = form.productId ? String(form.productId).padStart(5, '0') : String(nextNum).padStart(5, '0');
+  
   return (
     <div className="pp-page">
       {/* Titlebar */}
@@ -617,12 +627,12 @@ export default function ProductPage() {
                   value={form.productId || nextId}
                   onChange={(e) => setF("productId", e.target.value)}
                   onKeyDown={handleProductIdKeyDown}
-                  placeholder="Enter Product ID and press Enter"
+                  placeholder=""
                 />
                 <label>Barcode</label>
                 <input
                   className="xp-input xp-input-sm"
-                  value={form.code || nextId}
+                  value={generatedCode}
                   readOnly
                   tabIndex={-1}
                 />
@@ -687,7 +697,7 @@ export default function ProductPage() {
                         onChange={(e) => handleFieldChange("webCategory", e.target.value)}
                         onKeyDown={makeFieldKeyDown("webCategory", rRack)}
                         onFocus={() => focusField("webCategory", form.webCategory)}
-                        placeholder="Enter web category or click ▼ to upload image"
+                        placeholder=""
                       />
                     )}
                     <button
@@ -763,6 +773,7 @@ export default function ProductPage() {
                     }
                     onKeyDown={makeFieldKeyDown("description", rUrdu)}
                     onFocus={() => focusField("description", form.description)}
+                    placeholder=""
                   />
                   <button
                     className="pp-combo-btn"
@@ -794,6 +805,7 @@ export default function ProductPage() {
                     activeFieldRef.current = "";
                     setShowAllProducts(true);
                   }}
+                  placeholder=""
                 />
               </div>
 
@@ -823,6 +835,7 @@ export default function ProductPage() {
                     activeFieldRef.current = "";
                     setShowAllProducts(true);
                   }}
+                  placeholder=""
                 />
               </div>
 
@@ -906,7 +919,7 @@ export default function ProductPage() {
                     onFocus={() =>
                       focusField("measurement", packForm.measurement)
                     }
-                    placeholder="Measurement (optional)"
+                    placeholder=""
                   />
                   <button
                     className="pp-combo-btn"
@@ -927,7 +940,7 @@ export default function ProductPage() {
                   value={packForm.purchaseRate}
                   onChange={(e) => setP("purchaseRate", e.target.value)}
                   onKeyDown={pkGo(rSaleRate)}
-                  placeholder="0"
+                  placeholder=""
                 />
                 <input
                   ref={rSaleRate}
@@ -937,7 +950,7 @@ export default function ProductPage() {
                   value={packForm.saleRate}
                   onChange={(e) => setP("saleRate", e.target.value)}
                   onKeyDown={pkGo(rPacking)}
-                  placeholder="0"
+                  placeholder=""
                 />
                 <input
                   ref={rPacking}
@@ -947,7 +960,7 @@ export default function ProductPage() {
                   value={packForm.packing}
                   onChange={(e) => setP("packing", e.target.value)}
                   onKeyDown={pkGo(rPDisc)}
-                  placeholder="0"
+                  placeholder=""
                 />
               </div>
 
@@ -977,7 +990,7 @@ export default function ProductPage() {
                     value={packForm.pDisc}
                     onChange={(e) => setP("pDisc", e.target.value)}
                     onKeyDown={pkGo(rReorder)}
-                    placeholder="0"
+                    placeholder=""
                   />
                 </div>
                 <input
@@ -988,7 +1001,7 @@ export default function ProductPage() {
                   value={packForm.reorderQty}
                   onChange={(e) => setP("reorderQty", e.target.value)}
                   onKeyDown={pkGo(rMinQty)}
-                  placeholder="0"
+                  placeholder=""
                 />
                 <input
                   ref={rMinQty}
@@ -998,7 +1011,7 @@ export default function ProductPage() {
                   value={packForm.minQty}
                   onChange={(e) => setP("minQty", e.target.value)}
                   onKeyDown={pkGo(rOpenQty)}
-                  placeholder="0"
+                  placeholder=""
                 />
                 <input
                   ref={rOpenQty}
@@ -1008,7 +1021,7 @@ export default function ProductPage() {
                   value={packForm.openingQty}
                   onChange={(e) => setP("openingQty", e.target.value)}
                   onKeyDown={pkGoSave}
-                  placeholder="0"
+                  placeholder=""
                 />
               </div>
 

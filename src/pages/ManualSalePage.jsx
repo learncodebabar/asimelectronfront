@@ -14,6 +14,7 @@ const EMPTY_ROW = {
   description: "",
   invoiceNo: "",
   credit: 0,
+  confirmCredit: 0, // Added confirm amount field
 };
 
 // Customer Dropdown Component
@@ -248,12 +249,14 @@ export default function ManualSalePage() {
   const desc1Ref = useRef(null);
   const inv1Ref = useRef(null);
   const credit1Ref = useRef(null);
+  const confirmCredit1Ref = useRef(null);
   
   const code2Ref = useRef(null);
   const title2Ref = useRef(null);
   const desc2Ref = useRef(null);
   const inv2Ref = useRef(null);
   const credit2Ref = useRef(null);
+  const confirmCredit2Ref = useRef(null);
   
   const [suggestions1, setSuggestions1] = useState([]);
   const [showSuggestions1, setShowSuggestions1] = useState(false);
@@ -388,7 +391,7 @@ export default function ManualSalePage() {
   };
 
   const updateRow = (row, field, val, isRow1) => {
-    const newVal = field === "credit" ? parseFloat(val) || 0 : val;
+    const newVal = field === "credit" || field === "confirmCredit" ? parseFloat(val) || 0 : val;
     if (isRow1) setRow1(prev => ({ ...prev, [field]: newVal }));
     else setRow2(prev => ({ ...prev, [field]: newVal }));
   };
@@ -401,7 +404,8 @@ export default function ManualSalePage() {
         case 'title': desc1Ref.current?.focus(); break;
         case 'desc': inv1Ref.current?.focus(); break;
         case 'inv': credit1Ref.current?.focus(); break;
-        case 'credit': code2Ref.current?.focus(); break;
+        case 'credit': confirmCredit1Ref.current?.focus(); break;
+        case 'confirmCredit': code2Ref.current?.focus(); break;
         default: break;
       }
     }
@@ -415,13 +419,25 @@ export default function ManualSalePage() {
         case 'title': desc2Ref.current?.focus(); break;
         case 'desc': inv2Ref.current?.focus(); break;
         case 'inv': credit2Ref.current?.focus(); break;
-        case 'credit': saveAllEntries(); break;
+        case 'credit': confirmCredit2Ref.current?.focus(); break;
+        case 'confirmCredit': saveAllEntries(); break;
         default: break;
       }
     }
   };
 
   const saveSingleEntry = async (rowData, type) => {
+    // Validate amount matches confirmation
+    if (rowData.credit !== rowData.confirmCredit) {
+      showMsg(`${type === "debit" ? "Debit" : "Credit"} amount does not match confirmation!`, "error");
+      return null;
+    }
+    
+    if (rowData.credit <= 0) {
+      showMsg(`${type === "debit" ? "Debit" : "Credit"} amount must be greater than 0`, "error");
+      return null;
+    }
+
     try {
       const customer = customers.find(c => c.name === rowData.accountTitle || c.code === rowData.code);
       const invoicePrefix = type === "debit" ? "DEB" : "CRE";
@@ -449,11 +465,20 @@ export default function ManualSalePage() {
     const hasRow1Data = row1.accountTitle && row1.credit > 0;
     const hasRow2Data = row2.accountTitle && row2.credit > 0;
     if (!hasRow1Data && !hasRow2Data) { showMsg("Please fill at least one entry with customer and amount", "error"); return; }
+    
     setSaving(true);
     const savedEntries = [];
     try {
-      if (hasRow1Data) { const result = await saveSingleEntry(row1, "debit"); if (result) savedEntries.push(result); }
-      if (hasRow2Data) { const result = await saveSingleEntry(row2, "credit"); if (result) savedEntries.push(result); }
+      if (hasRow1Data) { 
+        const result = await saveSingleEntry(row1, "debit"); 
+        if (result) savedEntries.push(result); 
+        else { setSaving(false); return; }
+      }
+      if (hasRow2Data) { 
+        const result = await saveSingleEntry(row2, "credit"); 
+        if (result) savedEntries.push(result); 
+        else { setSaving(false); return; }
+      }
       if (savedEntries.length > 0) {
         setEntries(prev => [...prev, ...savedEntries.map(e => ({ ...e, id: Date.now() + Math.random() }))]);
         setRow1({ ...EMPTY_ROW }); setRow2({ ...EMPTY_ROW });
@@ -508,65 +533,83 @@ export default function ManualSalePage() {
 
       <div style={{ padding: "12px 16px", background: "#ffffff", flex: 1, overflow: "auto" }}>
         
-        {/* Filter Bar */}
-        <div style={{ background: "#f8fafc", borderRadius: "6px", padding: "8px 12px", marginBottom: "12px", border: "1px solid #000000", flexShrink: 0 }}>
-          <div style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
-            <span style={{ fontWeight: "bold", fontSize: "11px" }}>📅 Filter:</span>
-            <input type="date" style={{ padding: "5px 8px", fontSize: "11px", border: "1px solid #000000", borderRadius: "3px" }} value={filterStartDate} onChange={(e) => setFilterStartDate(e.target.value)} />
-            <span>to</span>
-            <input type="date" style={{ padding: "5px 8px", fontSize: "11px", border: "1px solid #000000", borderRadius: "3px" }} value={filterEndDate} onChange={(e) => setFilterEndDate(e.target.value)} />
-            <input type="text" style={{ width: "180px", padding: "5px 8px", fontSize: "11px", border: "1px solid #000000", borderRadius: "3px" }} placeholder="Customer name..." value={filterAccountTitle} onChange={(e) => setFilterAccountTitle(e.target.value)} />
-            <button className="xp-btn xp-btn-sm" style={{ padding: "4px 12px", fontSize: "11px", fontWeight: "bold" }} onClick={fetchSalesRecords}>Refresh</button>
-            <button className="xp-btn xp-btn-sm" style={{ padding: "4px 12px", fontSize: "11px", fontWeight: "bold" }} onClick={resetForm}>Reset</button>
-            <span style={{ marginLeft: "auto", fontWeight: "bold", fontSize: "11px" }}>Total: <span style={{ color: "#1e40af" }}>{fmt(totalFilteredAmount)}</span></span>
+        {/* Filter Bar - Made Smaller */}
+        <div style={{ background: "#f8fafc", borderRadius: "6px", padding: "6px 10px", marginBottom: "12px", border: "1px solid #000000", flexShrink: 0 }}>
+          <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
+            <span style={{ fontWeight: "bold", fontSize: "10px" }}>📅 Filter:</span>
+            <input type="date" style={{ padding: "3px 6px", fontSize: "10px", border: "1px solid #000000", borderRadius: "3px", width: "110px" }} value={filterStartDate} onChange={(e) => setFilterStartDate(e.target.value)} />
+            <span style={{ fontSize: "10px" }}>to</span>
+            <input type="date" style={{ padding: "3px 6px", fontSize: "10px", border: "1px solid #000000", borderRadius: "3px", width: "110px" }} value={filterEndDate} onChange={(e) => setFilterEndDate(e.target.value)} />
+            <input type="text" style={{ width: "150px", padding: "3px 6px", fontSize: "10px", border: "1px solid #000000", borderRadius: "3px" }} placeholder="Customer..." value={filterAccountTitle} onChange={(e) => setFilterAccountTitle(e.target.value)} />
+            <button className="xp-btn xp-btn-sm" style={{ padding: "2px 8px", fontSize: "10px", fontWeight: "bold" }} onClick={fetchSalesRecords}>Refresh</button>
+            <button className="xp-btn xp-btn-sm" style={{ padding: "2px 8px", fontSize: "10px", fontWeight: "bold" }} onClick={resetForm}>Reset</button>
+            <span style={{ marginLeft: "auto", fontWeight: "bold", fontSize: "10px" }}>Total: <span style={{ color: "#1e40af" }}>{fmt(totalFilteredAmount)}</span></span>
           </div>
         </div>
 
-        {/* Row 1 - Debit Entry */}
-        <div style={{ background: "#ffffff", borderRadius: "6px", padding: "10px 12px", marginBottom: "10px", border: "1px solid #1e40af", flexShrink: 0 }}>
-          <div style={{ fontWeight: "bold", fontSize: "11px", marginBottom: "8px", color: "#1e40af" }}>📝 Entry #1 (Debit - Cash Sale)</div>
-          <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", alignItems: "center" }}>
-            <div style={{ flex: 1, minWidth: "80px" }}>
-              <input ref={code1Ref} type="text" style={{ fontSize: "12px", padding: "6px 8px", border: "1px solid #000000", borderRadius: "3px", width: "100%" }} value={row1.code} onChange={(e) => handleCodeChange1(e.target.value)} onKeyDown={(e) => { handleSuggestionKeyDown(e, true); handleRow1KeyDown(e, 'code'); }} placeholder="Code" />
+        {/* Row 1 - Debit Entry (Cash Sale) */}
+        <div style={{ background: "#ffffff", borderRadius: "6px", padding: "10px 12px", marginBottom: "10px", border: "2px solid #1e40af", flexShrink: 0 }}>
+          <div style={{ fontWeight: "bold", fontSize: "12px", marginBottom: "8px", color: "#1e40af", background: "#dbeafe", padding: "4px 8px", borderRadius: "4px", display: "inline-block" }}>💰 DEBIT - CASH SALE</div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr 2fr 1fr 1.2fr 1.2fr", gap: "10px", alignItems: "end" }}>
+            <div>
+              <label style={{ fontSize: "10px", fontWeight: "bold", display: "block", marginBottom: "2px" }}>CODE</label>
+              <input ref={code1Ref} type="text" style={{ fontSize: "12px", padding: "6px 8px", border: "1px solid #000000", borderRadius: "3px", width: "100%" }} value={row1.code} onChange={(e) => handleCodeChange1(e.target.value)} onKeyDown={(e) => { handleSuggestionKeyDown(e, true); handleRow1KeyDown(e, 'code'); }} />
             </div>
-            <div style={{ flex: 2, minWidth: "180px" }}>
+            <div>
+              <label style={{ fontSize: "10px", fontWeight: "bold", display: "block", marginBottom: "2px" }}>ACCOUNT TITLE</label>
               <div style={{ border: "1px solid #000000", borderRadius: "3px", background: "#ffffff" }}>
                 <CustomerDropdown allCustomers={customers} value={row1.accountTitle} displayName={row1.accountTitle} onSelect={(c) => selectCustomer(c, true)} onClear={clearCustomer1} allowedTypes={["credit"]} onEnterPress={() => desc1Ref.current?.focus()} />
               </div>
             </div>
-            <div style={{ flex: 2, minWidth: "140px" }}>
-              <input ref={desc1Ref} type="text" style={{ fontSize: "12px", padding: "6px 8px", border: "1px solid #000000", borderRadius: "3px", width: "100%" }} value={row1.description} onChange={(e) => updateRow(row1, "description", e.target.value, true)} onKeyDown={(e) => handleRow1KeyDown(e, 'desc')} placeholder="Description" />
+            <div>
+              <label style={{ fontSize: "10px", fontWeight: "bold", display: "block", marginBottom: "2px" }}>DESCRIPTION</label>
+              <input ref={desc1Ref} type="text" style={{ fontSize: "12px", padding: "6px 8px", border: "1px solid #000000", borderRadius: "3px", width: "100%" }} value={row1.description} onChange={(e) => updateRow(row1, "description", e.target.value, true)} onKeyDown={(e) => handleRow1KeyDown(e, 'desc')} />
             </div>
-            <div style={{ width: "100px" }}>
-              <input ref={inv1Ref} type="text" style={{ fontSize: "12px", padding: "6px 8px", border: "1px solid #000000", borderRadius: "3px", width: "100%" }} value={row1.invoiceNo} onChange={(e) => updateRow(row1, "invoiceNo", e.target.value, true)} onKeyDown={(e) => handleRow1KeyDown(e, 'inv')} placeholder="Inv #" />
+            <div>
+              <label style={{ fontSize: "10px", fontWeight: "bold", display: "block", marginBottom: "2px" }}>INVOICE #</label>
+              <input ref={inv1Ref} type="text" style={{ fontSize: "12px", padding: "6px 8px", border: "1px solid #000000", borderRadius: "3px", width: "100%" }} value={row1.invoiceNo} onChange={(e) => updateRow(row1, "invoiceNo", e.target.value, true)} onKeyDown={(e) => handleRow1KeyDown(e, 'inv')} />
             </div>
-            <div style={{ width: "120px" }}>
-              <input ref={credit1Ref} type="number" style={{ fontSize: "13px", fontWeight: "bold", padding: "6px 8px", textAlign: "right", border: "1px solid #000000", borderRadius: "3px", width: "100%" }} value={row1.credit} onChange={(e) => updateRow(row1, "credit", e.target.value, true)} onKeyDown={(e) => handleRow1KeyDown(e, 'credit')} placeholder="Amount" />
+            <div>
+              <label style={{ fontSize: "10px", fontWeight: "bold", display: "block", marginBottom: "2px" }}>AMOUNT (PKR)</label>
+              <input ref={credit1Ref} type="number" style={{ fontSize: "13px", fontWeight: "bold", padding: "6px 8px", textAlign: "right", border: "1px solid #000000", borderRadius: "3px", width: "100%" }} value={row1.credit} onChange={(e) => updateRow(row1, "credit", e.target.value, true)} onKeyDown={(e) => handleRow1KeyDown(e, 'credit')} />
+            </div>
+            <div>
+              <label style={{ fontSize: "10px", fontWeight: "bold", display: "block", marginBottom: "2px", color: "#dc2626" }}>CONFIRM AMOUNT</label>
+              <input ref={confirmCredit1Ref} type="number" style={{ fontSize: "13px", fontWeight: "bold", padding: "6px 8px", textAlign: "right", border: "2px solid #dc2626", borderRadius: "3px", width: "100%", background: "#fef2f2" }} value={row1.confirmCredit} onChange={(e) => updateRow(row1, "confirmCredit", e.target.value, true)} onKeyDown={(e) => handleRow1KeyDown(e, 'confirmCredit')} />
             </div>
           </div>
           {selectedCustomer1 && <SelectedCustomerCard customer={selectedCustomer1} onClear={clearCustomer1} />}
         </div>
 
-        {/* Row 2 - Credit Entry */}
-        <div style={{ background: "#ffffff", borderRadius: "6px", padding: "10px 12px", marginBottom: "10px", border: "1px solid #16a34a", flexShrink: 0 }}>
-          <div style={{ fontWeight: "bold", fontSize: "11px", marginBottom: "8px", color: "#16a34a" }}>📝 Entry #2 (Credit - Credit Sale)</div>
-          <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", alignItems: "center" }}>
-            <div style={{ flex: 1, minWidth: "80px" }}>
-              <input ref={code2Ref} type="text" style={{ fontSize: "12px", padding: "6px 8px", border: "1px solid #000000", borderRadius: "3px", width: "100%" }} value={row2.code} onChange={(e) => handleCodeChange2(e.target.value)} onKeyDown={(e) => { handleSuggestionKeyDown(e, false); handleRow2KeyDown(e, 'code'); }} placeholder="Code" />
+        {/* Row 2 - Credit Entry (Credit Sale) */}
+        <div style={{ background: "#ffffff", borderRadius: "6px", padding: "10px 12px", marginBottom: "10px", border: "2px solid #16a34a", flexShrink: 0 }}>
+          <div style={{ fontWeight: "bold", fontSize: "12px", marginBottom: "8px", color: "#16a34a", background: "#dcfce7", padding: "4px 8px", borderRadius: "4px", display: "inline-block" }}>💳 CREDIT - CREDIT SALE</div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr 2fr 1fr 1.2fr 1.2fr", gap: "10px", alignItems: "end" }}>
+            <div>
+              <label style={{ fontSize: "10px", fontWeight: "bold", display: "block", marginBottom: "2px" }}>CODE</label>
+              <input ref={code2Ref} type="text" style={{ fontSize: "12px", padding: "6px 8px", border: "1px solid #000000", borderRadius: "3px", width: "100%" }} value={row2.code} onChange={(e) => handleCodeChange2(e.target.value)} onKeyDown={(e) => { handleSuggestionKeyDown(e, false); handleRow2KeyDown(e, 'code'); }} />
             </div>
-            <div style={{ flex: 2, minWidth: "180px" }}>
+            <div>
+              <label style={{ fontSize: "10px", fontWeight: "bold", display: "block", marginBottom: "2px" }}>ACCOUNT TITLE</label>
               <div style={{ border: "1px solid #000000", borderRadius: "3px", background: "#ffffff" }}>
                 <CustomerDropdown allCustomers={customers} value={row2.accountTitle} displayName={row2.accountTitle} onSelect={(c) => selectCustomer(c, false)} onClear={clearCustomer2} allowedTypes={["credit"]} onEnterPress={() => desc2Ref.current?.focus()} />
               </div>
             </div>
-            <div style={{ flex: 2, minWidth: "140px" }}>
-              <input ref={desc2Ref} type="text" style={{ fontSize: "12px", padding: "6px 8px", border: "1px solid #000000", borderRadius: "3px", width: "100%" }} value={row2.description} onChange={(e) => updateRow(row2, "description", e.target.value, false)} onKeyDown={(e) => handleRow2KeyDown(e, 'desc')} placeholder="Description" />
+            <div>
+              <label style={{ fontSize: "10px", fontWeight: "bold", display: "block", marginBottom: "2px" }}>DESCRIPTION</label>
+              <input ref={desc2Ref} type="text" style={{ fontSize: "12px", padding: "6px 8px", border: "1px solid #000000", borderRadius: "3px", width: "100%" }} value={row2.description} onChange={(e) => updateRow(row2, "description", e.target.value, false)} onKeyDown={(e) => handleRow2KeyDown(e, 'desc')} />
             </div>
-            <div style={{ width: "100px" }}>
-              <input ref={inv2Ref} type="text" style={{ fontSize: "12px", padding: "6px 8px", border: "1px solid #000000", borderRadius: "3px", width: "100%" }} value={row2.invoiceNo} onChange={(e) => updateRow(row2, "invoiceNo", e.target.value, false)} onKeyDown={(e) => handleRow2KeyDown(e, 'inv')} placeholder="Inv #" />
+            <div>
+              <label style={{ fontSize: "10px", fontWeight: "bold", display: "block", marginBottom: "2px" }}>INVOICE #</label>
+              <input ref={inv2Ref} type="text" style={{ fontSize: "12px", padding: "6px 8px", border: "1px solid #000000", borderRadius: "3px", width: "100%" }} value={row2.invoiceNo} onChange={(e) => updateRow(row2, "invoiceNo", e.target.value, false)} onKeyDown={(e) => handleRow2KeyDown(e, 'inv')} />
             </div>
-            <div style={{ width: "120px" }}>
-              <input ref={credit2Ref} type="number" style={{ fontSize: "13px", fontWeight: "bold", padding: "6px 8px", textAlign: "right", border: "1px solid #000000", borderRadius: "3px", width: "100%" }} value={row2.credit} onChange={(e) => updateRow(row2, "credit", e.target.value, false)} onKeyDown={(e) => handleRow2KeyDown(e, 'credit')} placeholder="Amount" />
+            <div>
+              <label style={{ fontSize: "10px", fontWeight: "bold", display: "block", marginBottom: "2px" }}>AMOUNT (PKR)</label>
+              <input ref={credit2Ref} type="number" style={{ fontSize: "13px", fontWeight: "bold", padding: "6px 8px", textAlign: "right", border: "1px solid #000000", borderRadius: "3px", width: "100%" }} value={row2.credit} onChange={(e) => updateRow(row2, "credit", e.target.value, false)} onKeyDown={(e) => handleRow2KeyDown(e, 'credit')} />
+            </div>
+            <div>
+              <label style={{ fontSize: "10px", fontWeight: "bold", display: "block", marginBottom: "2px", color: "#dc2626" }}>CONFIRM AMOUNT</label>
+              <input ref={confirmCredit2Ref} type="number" style={{ fontSize: "13px", fontWeight: "bold", padding: "6px 8px", textAlign: "right", border: "2px solid #dc2626", borderRadius: "3px", width: "100%", background: "#fef2f2" }} value={row2.confirmCredit} onChange={(e) => updateRow(row2, "confirmCredit", e.target.value, false)} onKeyDown={(e) => handleRow2KeyDown(e, 'confirmCredit')} />
             </div>
           </div>
           {selectedCustomer2 && <SelectedCustomerCard customer={selectedCustomer2} onClear={clearCustomer2} />}

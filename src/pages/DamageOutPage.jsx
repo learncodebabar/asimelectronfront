@@ -1,4 +1,4 @@
-// pages/DamageOutPage.jsx - With larger bold product font
+// pages/DamageOutPage.jsx - With larger bold product font and sequential numbers
 import { useState, useEffect, useRef } from "react";
 import api from "../api/api.js";
 import EP from "../api/apiEndpoints.js";
@@ -31,15 +31,46 @@ const EMPTY_ROW = {
   damageInItemIndex: 0,
   maxQty: 1,
 };
+import { SHOP_INFO, URDU_FONT, GOOGLE_FONT_LINK, getShopHeaderHTML, getShopBannerHTML, getShopTermsHTML, getShopFooterHTML } from "../constants/shopInfo.js";
 
-const SHOP_INFO = {
-  name: "عاصم الیکٹرک اینڈ الیکٹرونکس سٹور",
-  nameEn: "Asim Electric & Electronic Store",
-  address: "مین بازار نہاری ٹاؤن نزد بجلی گھر سٹاپ گوجرانوالہ روڈ فیصل آباد",
-  phone1: "Faqir Hussain 0300 7262129",
-  phone2: "PTCL 041 8711575",
-  phone3: "Shop 0315 7262129",
-  devBy: "Software developed by: Creative Babar / 03098325271 or visit website www.digitalglobalschool.com",
+
+// Helper function to extract just the number from Damage ID
+const extractDamageNumber = (damageNo) => {
+  if (!damageNo) return "";
+  if (damageNo.includes('-')) {
+    return damageNo.split('-')[1];
+  }
+  return damageNo;
+};
+
+// Helper function to build full Damage ID from number
+const buildFullDamageId = (number) => {
+  if (!number || number === "") return "OUT-1";
+  return `OUT-${number}`;
+};
+
+// Function to get next available damage out number from records
+const getNextAvailableNumber = (records) => {
+  if (!records || records.length === 0) return 1;
+  
+  const numbers = records.map(r => {
+    const numStr = r.damageNo?.toString() || "";
+    if (numStr.includes('-')) {
+      return parseInt(numStr.split('-')[1]) || 0;
+    }
+    return parseInt(numStr) || 0;
+  }).filter(n => n > 0);
+  
+  if (numbers.length === 0) return 1;
+  
+  const maxNum = Math.max(...numbers);
+  let nextNum = maxNum + 1;
+  
+  while (numbers.includes(nextNum)) {
+    nextNum++;
+  }
+  
+  return nextNum;
 };
 
 /* ── localStorage helpers for Holds only ── */
@@ -339,11 +370,11 @@ function DamageInProductSearchModal({ onSelect, onClose }) {
                       <td style={{ padding: "6px", textAlign: "center", border: "1px solid #e65100" }}>{i + 1}</td>
                       <td style={{ padding: "6px", border: "1px solid #e65100", fontWeight: "bold", fontSize: "13px" }}>{product.code}</td>
                       <td style={{ padding: "6px", border: "1px solid #e65100", fontWeight: "bold", fontSize: "15px" }}>{product.name}</td>
-                      <td style={{ padding:  "6px", border: "1px solid #e65100", fontWeight: "bold", fontSize: "15px"  }}>{product.uom || "—"}</td>
-                      <td style={{ padding:  "6px", border: "1px solid #e65100", fontWeight: "bold", fontSize: "15px"  }}>{fmt(product.rate)}</td>
+                      <td style={{ padding: "6px", border: "1px solid #e65100", fontWeight: "bold", fontSize: "15px" }}>{product.uom || "—"}</td>
+                      <td style={{ padding: "6px", border: "1px solid #e65100", fontWeight: "bold", fontSize: "15px" }}>{fmt(product.rate)}</td>
                       <td style={{ padding: "6px", textAlign: "center", border: "1px solid #e65100", color: "#e65100", fontWeight: "bold" }}>{product.pcs}</td>
-                      <td style={{ padding: "6px", border: "1px solid #e65100", fontWeight: "bold", fontSize: "15px"  }}>{product.damageInRef}</td>
-                      <td style={{ padding:  "6px", border: "1px solid #e65100", fontWeight: "bold", fontSize: "15px"  }}>{product.reason || "—"}</td>
+                      <td style={{ padding: "6px", border: "1px solid #e65100", fontWeight: "bold", fontSize: "15px" }}>{product.damageInRef}</td>
+                      <td style={{ padding: "6px", border: "1px solid #e65100", fontWeight: "bold", fontSize: "15px" }}>{product.reason || "—"}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -369,7 +400,7 @@ function DamageOutHoldPreviewModal({ record, onResume, onClose }) {
     <div className="xp-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="xp-modal" style={{ width: 560 }}>
         <div className="xp-modal-tb" style={{ background: "#e65100" }}>
-          <span className="xp-modal-title">HOLD DAMAGE OUT — {record.damageNo}</span>
+          <span className="xp-modal-title">HOLD DAMAGE OUT — {extractDamageNumber(record.damageNo)}</span>
           <button className="xp-cap-btn xp-cap-close" onClick={onClose}>✕</button>
         </div>
         <div className="xp-modal-body" style={{ padding: 8 }}>
@@ -511,24 +542,20 @@ export default function DamageOutPage() {
         const damageOutRecords = response.data.data.filter(r => r.type === "out");
         setAllRecords(damageOutRecords);
         
-        if (damageOutRecords.length > 0) {
-          const maxNum = Math.max(...damageOutRecords.map(r => {
-            const numStr = r.damageNo.toString();
-            if (numStr.includes('-')) {
-              return parseInt(numStr.split('-')[1]) || 0;
-            }
-            return parseInt(numStr) || 0;
-          }));
-          setDamageOutNo(`OUT-${maxNum + 1}`);
-        } else {
-          setDamageOutNo("OUT-1");
+        if (!editId && (!damageOutNo || damageOutNo === "" || damageOutNo === "OUT-1")) {
+          const nextNumber = getNextAvailableNumber(damageOutRecords);
+          setDamageOutNo(buildFullDamageId(nextNumber));
         }
       } else {
-        setDamageOutNo("OUT-1");
+        if (!editId && (!damageOutNo || damageOutNo === "")) {
+          setDamageOutNo("OUT-1");
+        }
       }
     } catch (error) {
       console.error("Failed to fetch damage out records:", error);
-      setDamageOutNo("OUT-1");
+      if (!editId && (!damageOutNo || damageOutNo === "")) {
+        setDamageOutNo("OUT-1");
+      }
     }
     setLoading(false);
   };
@@ -650,9 +677,8 @@ export default function DamageOutPage() {
         items: [...items],
       },
     ]);
-    showMsg(`Damage out record held: ${damageOutNo}`);
+    showMsg(`Damage out record held: ${extractDamageNumber(damageOutNo)}`);
     fullReset();
-    fetchDamageOutRecords();
   };
 
   const resumeRecord = (holdId) => {
@@ -664,7 +690,7 @@ export default function DamageOutPage() {
     setHoldRecords((p) => p.filter((r) => r.id !== holdId));
     setShowHoldPreview(null);
     resetCurRow();
-    showMsg(`Resumed damage out record: ${record.damageNo}`, "success");
+    showMsg(`Resumed damage out record: ${extractDamageNumber(record.damageNo)}`, "success");
   };
 
   const deleteHold = (holdId, e) => {
@@ -681,8 +707,11 @@ export default function DamageOutPage() {
     setMsg({ text: "", type: "" });
     setShowProductSuggestions(false);
     setEditId(null);
-    fetchDamageOutRecords();
     setDamageOutDate(isoDate());
+    
+    const nextNumber = getNextAvailableNumber(allRecords);
+    setDamageOutNo(buildFullDamageId(nextNumber));
+    
     setTimeout(() => searchRef.current?.focus(), 50);
   };
   
@@ -780,6 +809,16 @@ export default function DamageOutPage() {
       
       const payload = buildPayload();
       
+      const existingRecord = allRecords.find(r => r.damageNo === damageOutNo);
+      if (existingRecord && !editId) {
+        const nextNumber = getNextAvailableNumber(allRecords);
+        const newDamageOutNo = buildFullDamageId(nextNumber);
+        setDamageOutNo(newDamageOutNo);
+        payload.damageNo = newDamageOutNo;
+        payload.invoiceNo = newDamageOutNo;
+        showMsg(`Number ${extractDamageNumber(damageOutNo)} already exists, using ${nextNumber} instead`, "info");
+      }
+      
       let response;
       if (editId) {
         response = await api.put(EP.DAMAGE.UPDATE(editId), payload);
@@ -788,7 +827,7 @@ export default function DamageOutPage() {
       }
       
       if (response.data.success) {
-        showMsg(editId ? `Damage out record updated: ${damageOutNo}` : `Damage out record saved: ${damageOutNo}`, "success");
+        showMsg(editId ? `Damage out record updated: ${extractDamageNumber(damageOutNo)}` : `Damage out record saved: ${extractDamageNumber(damageOutNo)}`, "success");
         
         const savedRecord = response.data.data;
         doPrint(savedRecord);
@@ -801,7 +840,14 @@ export default function DamageOutPage() {
       }
     } catch (error) {
       console.error("Save error:", error);
-      showMsg(error.response?.data?.message || "Save failed. Could not update Damage In quantities.", "error");
+      if (error.response?.data?.message?.includes("duplicate") || error.response?.data?.message?.includes("already exists")) {
+        const nextNumber = getNextAvailableNumber(allRecords);
+        const newDamageOutNo = buildFullDamageId(nextNumber);
+        setDamageOutNo(newDamageOutNo);
+        showMsg(`Number already exists, please save again with number ${nextNumber}`, "error");
+      } else {
+        showMsg(error.response?.data?.message || "Save failed. Could not update Damage In quantities.", "error");
+      }
     }
     
     setLoading(false);
@@ -829,7 +875,7 @@ export default function DamageOutPage() {
     setItems(loadedItems);
     
     resetCurRow();
-    showMsg(`✏ Editing Damage Out Record ${record.damageNo}`, "success");
+    showMsg(`✏ Editing Damage Out Record ${extractDamageNumber(record.damageNo)}`, "success");
     setTimeout(() => searchRef.current?.focus(), 50);
   };
 
@@ -866,16 +912,16 @@ export default function DamageOutPage() {
       return;
     }
     
-    if (!window.confirm(`Delete damage out record ${damageOutNo}? This will NOT restore Damage In quantities.`)) return;
+    if (!window.confirm(`Delete damage out record ${extractDamageNumber(damageOutNo)}? This will NOT restore Damage In quantities.`)) return;
     
     setLoading(true);
     try {
       const response = await api.delete(EP.DAMAGE.DELETE(editId));
       if (response.data.success) {
-        showMsg(`Damage out record ${damageOutNo} deleted`, "success");
-        fullReset();
+        showMsg(`Damage out record ${extractDamageNumber(damageOutNo)} deleted`, "success");
         await fetchDamageOutRecords();
         await loadDamageInProducts();
+        fullReset();
       } else {
         showMsg(response.data.message || "Delete failed", "error");
       }
@@ -1008,7 +1054,37 @@ export default function DamageOutPage() {
               <label>DAMAGE OUT ID</label>
               <div className="sl-inv-nav-container">
                 <button className="sl-inv-nav-btn sl-inv-nav-prev" onClick={() => navRecord("prev")}>◀</button>
-                <input className="xp-input sl-inv-input-large" style={{ borderColor: "#e65100" }} value={damageOutNo} onChange={(e) => setDamageOutNo(e.target.value)} onFocus={(e) => e.target.select()} />
+                <input 
+                  className="xp-input sl-inv-input-large" 
+                  style={{ borderColor: "#e65100" }} 
+                  value={extractDamageNumber(damageOutNo)} 
+                  onChange={(e) => {
+                    const newNumber = e.target.value;
+                    if (newNumber === "") {
+                      setDamageOutNo("OUT-1");
+                    } else {
+                      setDamageOutNo(buildFullDamageId(newNumber));
+                    }
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      const val = damageOutNo.trim();
+                      if (!val) return;
+                      const found = allRecords.find((r) => r.damageNo === val);
+                      if (found) {
+                        loadRecordForEdit(found);
+                      } else {
+                        showMsg(`Damage out record "${extractDamageNumber(val)}" not found`, "error");
+                      }
+                    }
+                    if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+                      e.preventDefault();
+                      navRecord(e.key === "ArrowUp" ? "prev" : "next");
+                    }
+                  }}
+                  onFocus={(e) => e.target.select()}
+                />
                 <button className="sl-inv-nav-btn sl-inv-nav-next" onClick={() => navRecord("next")}>▶</button>
               </div>
             </div>
@@ -1068,10 +1144,58 @@ export default function DamageOutPage() {
                 )}
               </div>
             </div>
-            <div className="sl-entry-cell"><label>QTY</label><input ref={pcsRef} type="text" className="sl-num-input" style={{ width: 60, background: "#fffde7", borderColor: "#e65100" }} value={curRow.pcs} onChange={(e) => updateCurRow("pcs", e.target.value)} onFocus={(e) => e.target.select()} /></div>
-            <div className="sl-entry-cell"><label>RATE</label><input ref={rateRef} type="text" className="sl-num-input" style={{ width: 75, background: "#fffde7", borderColor: "#e65100" }} value={curRow.rate} onChange={(e) => updateCurRow("rate", e.target.value)} onFocus={(e) => e.target.select()} /></div>
-            <div className="sl-entry-cell"><label>AMOUNT</label><input ref={amountRef} type="text" className="sl-num-input" style={{ width: 80, background: "#fffde7", borderColor: "#e65100" }} value={curRow.amount} onChange={(e) => setCurRow(p => ({ ...p, amount: parseFloat(e.target.value) || 0 }))} onFocus={(e) => e.target.select()} /></div>
-            <div className="sl-entry-cell"><label>REASON</label><input ref={reasonRef} type="text" className="sl-num-input" style={{ width: 100, background: "#fffde7", borderColor: "#e65100" }} value={curRow.reason} placeholder="Reason" onChange={(e) => setCurRow(p => ({ ...p, reason: e.target.value }))} /></div>
+            <div className="sl-entry-cell">
+              <label>QTY</label>
+              <input 
+                ref={pcsRef} 
+                type="text" 
+                className="sl-num-input" 
+                style={{ width: 60, background: "#fffde7", borderColor: "#e65100" }} 
+                value={curRow.pcs} 
+                onChange={(e) => updateCurRow("pcs", e.target.value)} 
+                onKeyDown={(e) => e.key === "Enter" && rateRef.current?.focus()}
+                onFocus={(e) => e.target.select()} 
+              />
+            </div>
+            <div className="sl-entry-cell">
+              <label>RATE</label>
+              <input 
+                ref={rateRef} 
+                type="text" 
+                className="sl-num-input" 
+                style={{ width: 75, background: "#fffde7", borderColor: "#e65100" }} 
+                value={curRow.rate} 
+                onChange={(e) => updateCurRow("rate", e.target.value)} 
+                onKeyDown={(e) => e.key === "Enter" && amountRef.current?.focus()}
+                onFocus={(e) => e.target.select()} 
+              />
+            </div>
+            <div className="sl-entry-cell">
+              <label>AMOUNT</label>
+              <input 
+                ref={amountRef} 
+                type="text" 
+                className="sl-num-input" 
+                style={{ width: 80, background: "#fffde7", borderColor: "#e65100" }} 
+                value={curRow.amount} 
+                onChange={(e) => setCurRow(p => ({ ...p, amount: parseFloat(e.target.value) || 0 }))} 
+                onKeyDown={(e) => e.key === "Enter" && reasonRef.current?.focus()}
+                onFocus={(e) => e.target.select()} 
+              />
+            </div>
+            <div className="sl-entry-cell">
+              <label>REASON</label>
+              <input 
+                ref={reasonRef} 
+                type="text" 
+                className="sl-num-input" 
+                style={{ width: 100, background: "#fffde7", borderColor: "#e65100" }} 
+                value={curRow.reason} 
+                placeholder="Damage reason..." 
+                onChange={(e) => setCurRow(p => ({ ...p, reason: e.target.value }))} 
+                onKeyDown={(e) => e.key === "Enter" && addRef.current?.click()}
+              />
+            </div>
             <div className="sl-entry-cell sl-entry-btns-cell">
               <label>&nbsp;</label>
               <div className="sl-entry-btns">
@@ -1135,7 +1259,7 @@ export default function DamageOutPage() {
                   {holdRecords.length === 0 ? Array.from({ length: 8 }).map((_, i) => <tr key={i}><td colSpan={5} style={{ height: 22 }} /></tr>) : holdRecords.map((r, i) => (
                     <tr key={r.id} onClick={() => setShowHoldPreview(r)} onDoubleClick={() => resumeRecord(r.id)} style={{ cursor: "pointer" }}>
                       <td className="muted" style={{ textAlign: "center" }}>{i + 1}</td>
-                      <td style={{ fontFamily: "monospace", fontSize: "12px", fontWeight: "bold" }}>{r.damageNo}</td>
+                      <td style={{ fontFamily: "monospace", fontSize: "12px", fontWeight: "bold" }}>{extractDamageNumber(r.damageNo)}</td>
                       <td className="r" style={{ color: "#e65100", fontWeight: "bold" }}>{fmt(r.amount)}</td>
                       <td className="muted" style={{ fontSize: "11px" }}>{r.damageDate}</td>
                       <td style={{ textAlign: "center" }}><button className="xp-btn xp-btn-sm" style={{ width: 18, height: 18, fontSize: 9, color: "red" }} onClick={(e) => deleteHold(r.id, e)}>✕</button></td>
@@ -1158,12 +1282,12 @@ export default function DamageOutPage() {
         <button className="xp-btn xp-btn-sm" onClick={fullReset}>🆕 NEW RECORD</button>
         <button ref={saveRef} className="xp-btn xp-btn-primary" style={{ background: "#e65100" }} onClick={saveDamageOutRecord} disabled={loading || items.length === 0}>{loading ? "SAVING…" : "💾 SAVE DAMAGE OUT *"}</button>
         <button className="xp-btn xp-btn-danger xp-btn-sm" onClick={deleteRecord} disabled={!editId || loading}>🗑 DELETE RECORD</button>
-        <span className="sl-inv-info">⚠ {damageOutNo} | ITEMS: {items.length} | TOTAL: PKR {fmt(subTotal)}</span>
+        <span className="sl-inv-info">⚠ {extractDamageNumber(damageOutNo)} | ITEMS: {items.length} | TOTAL: PKR {fmt(subTotal)}</span>
         <button className="xp-btn xp-btn-sm" onClick={fullReset}>CLOSE</button>
       </div>
 
       <div className="xp-statusbar">
-        <div className="xp-status-pane">⚠ {damageOutNo}</div>
+        <div className="xp-status-pane">⚠ {extractDamageNumber(damageOutNo)}</div>
         <div className="xp-status-pane">ITEMS: {items.length}</div>
         <div className="xp-status-pane">QTY: {totalQty}</div>
         <div className="xp-status-pane">VALUE: PKR {fmt(subTotal)}</div>

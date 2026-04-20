@@ -1,4 +1,4 @@
-// pages/QuotationPage.jsx - Updated with Next/Prev navigation
+// pages/QuotationPage.jsx - Updated with Next/Prev navigation and sequential numbers
 import { useState, useEffect, useRef, useCallback } from "react";
 import api from "../api/api.js";
 import EP from "../api/apiEndpoints.js";
@@ -41,6 +41,51 @@ const SHOP_INFO = {
     "یہ کوٹیشن 7 دن کے لیے موثر ہے۔\nقیمتوں میں تبدیلی ہو سکتی ہے۔\nآرڈر کی تصدیق کے لیے پیشگی ادائیگی درکار ہوگی۔",
   devBy:
     "Software developed by: Creative Babar / 03098325271 or visit website www.digitalglobalschool.com",
+};
+
+// Helper function to extract just the number from Quotation ID
+const extractQuoteNumber = (quoteNo) => {
+  if (!quoteNo) return "";
+  // Remove "QTN-" prefix if present
+  if (quoteNo.includes('QTN-')) {
+    return quoteNo.split('QTN-')[1];
+  }
+  // Remove leading zeros
+  const num = parseInt(quoteNo);
+  return isNaN(num) ? quoteNo : String(num);
+};
+
+// Helper function to build full Quotation ID from number (without leading zeros)
+const buildFullQuoteId = (number) => {
+  if (!number || number === "") return "QTN-1";
+  // Remove any leading zeros from the number
+  const cleanNumber = String(parseInt(number));
+  return `QTN-${cleanNumber}`;
+};
+
+// Function to get next available quotation number from records
+const getNextAvailableNumber = (records) => {
+  if (!records || records.length === 0) return 1;
+  
+  const numbers = records.map(r => {
+    const numStr = r.quoteNo?.toString() || "";
+    if (numStr.includes('QTN-')) {
+      return parseInt(numStr.split('QTN-')[1]) || 0;
+    }
+    return parseInt(numStr) || 0;
+  }).filter(n => n > 0);
+  
+  if (numbers.length === 0) return 1;
+  
+  const maxNum = Math.max(...numbers);
+  let nextNum = maxNum + 1;
+  
+  // Ensure we don't reuse any existing number
+  while (numbers.includes(nextNum)) {
+    nextNum++;
+  }
+  
+  return nextNum;
 };
 
 /* ── localStorage helpers for saved quotations ── */
@@ -87,69 +132,121 @@ const buildQuotationPrintHtml = (quotation, overrides = {}) => {
   const rows = quotation.items.map((it, i) => ({ ...it, sr: i + 1 }));
   const totalQty = rows.reduce((s, r) => s + (r.pcs || 0), 0);
   const totalAmount = rows.reduce((s, r) => s + (r.amount || 0), 0);
-  const validUntil = overrides.validUntil || "7 days from issue date";
-
-  const URDU_FONT = `'Noto Nastaliq Urdu','Mehr Nastaliq','Jameel Noori Nastaleeq','Urdu Typesetting',serif`;
-  const GOOGLE_FONT_LINK = `<link href="https://fonts.googleapis.com/css2?family=Noto+Nastaliq+Urdu:wght@400;700&display=swap" rel="stylesheet">`;
 
   const itemRows = rows
     .map(
       (it) => `
       <tr>
-        <td style="font-size:10px;vertical-align:top;padding:4px;text-align:center">${it.sr}</td>
-        <td style="font-size:10px;vertical-align:top;padding:4px;word-break:break-word">${it.code}</td>
-        <td style="font-size:11px;vertical-align:top;padding:4px;word-break:break-word">${it.name}</td>
-        <td style="font-size:10px;vertical-align:top;padding:4px;text-align:center">${it.uom || ""}</td>
-        <td style="font-size:10px;vertical-align:top;padding:4px;text-align:center">${it.pcs}</td>
-        <td style="font-size:10px;vertical-align:top;padding:4px;text-align:right">${Number(it.rate).toLocaleString("en-PK")}</td>
-        <td style="font-size:10px;vertical-align:top;padding:4px;text-align:right"><b>${Number(it.amount).toLocaleString("en-PK")}</b></td>
+        <td style="padding:6px 3px; text-align:center; border-bottom:1px solid #ddd">${it.sr}</td>
+        <td style="padding:6px 3px; border-bottom:1px solid #ddd">${it.code}</td>
+        <td style="padding:6px 3px; border-bottom:1px solid #ddd">${it.name}</td>
+        <td style="padding:6px 3px; text-align:center; border-bottom:1px solid #ddd">${it.uom || ""}</td>
+        <td style="padding:6px 3px; text-align:center; border-bottom:1px solid #ddd">${it.pcs}</td>
+        <td style="padding:6px 3px; text-align:right; border-bottom:1px solid #ddd">${Number(it.rate).toLocaleString("en-PK")}</td>
+        <td style="padding:6px 3px; text-align:right; border-bottom:1px solid #ddd"><b>${Number(it.amount).toLocaleString("en-PK")}</b></td>
       </tr>
     `,
     )
     .join("");
 
-  return `<!DOCTYPE html><html><head><meta charset="utf-8">${GOOGLE_FONT_LINK}<style>
-    *{box-sizing:border-box;margin:0;padding:0}
-    body{font-family:Arial,Helvetica,sans-serif;font-size:11px;width:80mm;margin:0 auto;padding:3mm;color:#000}
-    .urdu{font-family:${URDU_FONT};direction:rtl;text-align:center}
-    .shop-urdu{font-size:18px;font-weight:bold;text-align:center;margin-bottom:3px;font-family:${URDU_FONT};direction:rtl}
-    .shop-addr{font-size:9px;text-align:center;margin-bottom:2px;font-family:${URDU_FONT};direction:rtl}
-    .shop-phones{font-size:8.5px;text-align:center;font-weight:bold;margin-bottom:4px}
-    .banner{background:#2c5f2d;color:#fff;font-size:8px;text-align:center;padding:3px;margin:3px 0;font-family:${URDU_FONT};direction:rtl}
-    .header{text-align:center;border-bottom:2px solid #2c5f2d;padding-bottom:5px;margin-bottom:8px}
-    .quotation-title{font-size:22px;font-weight:bold;margin:5px 0;letter-spacing:2px;color:#2c5f2d}
-    .meta-row{display:flex;justify-content:space-between;margin:4px 0;font-size:9px}
-    .divider-dash{border:none;border-top:1px dashed #666;margin:4px 0}
-    .divider-solid{border:none;border-top:1px solid #2c5f2d;margin:4px 0}
-    .valid-box{background:#e8f5e9;padding:6px;text-align:center;font-size:9px;font-weight:bold;margin:6px 0;border-radius:4px}
-    table{width:100%;border-collapse:collapse}
-    thead tr{border-bottom:1px solid #2c5f2d;background:#f5f5f5}
-    th{font-size:9px;font-weight:bold;padding:5px 2px;text-align:left}
-    th.r{text-align:right}
-    th.c{text-align:center}
-    td{padding:4px 2px;font-size:9.5px;vertical-align:top;border-bottom:1px solid #eee}
-    .footer{text-align:center;font-size:8px;color:#777;margin-top:10px;border-top:1px dashed #ccc;padding-top:5px}
-    .signature{display:flex;justify-content:space-between;margin-top:15px;padding-top:10px}
-    .sign-line{text-align:center;font-size:9px}
-    .sign-line span{display:inline-block;border-top:1px solid #000;min-width:100px;margin-top:20px;padding-top:3px}
-    .terms-box{font-family:${URDU_FONT};direction:rtl;font-size:8px;color:#555;border:1px dashed #ccc;padding:6px;margin-top:8px;line-height:1.8;text-align:right}
-    .price-note{background:#fff3cd;color:#856404;padding:4px;text-align:center;font-size:8px;margin:6px 0;border-radius:4px}
-    .totals{background:#e8f5e9;padding:6px;margin-top:8px;border-radius:4px}
-    .totals-row{display:flex;justify-content:space-between;font-size:10px;margin:2px 0}
-    .totals-row.bold{font-weight:bold;font-size:11px}
-    @media print{@page{size:80mm auto;margin:2mm}body{width:76mm}}
-  </style></head><body>
+  return `<!DOCTYPE html>
+  <html>
+  <head>
+    <meta charset="utf-8">
+    <title>Quotation ${extractQuoteNumber(quotation.quoteNo)}</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: 11px;
+        width: 80mm;
+        margin: 0 auto;
+        padding: 3mm;
+      }
+      .header {
+        text-align: center;
+        margin-bottom: 10px;
+        padding-bottom: 5px;
+        border-bottom: 1px solid #000;
+      }
+      .title {
+        font-size: 16px;
+        font-weight: bold;
+        margin-bottom: 5px;
+      }
+      .meta-row {
+        display: flex;
+        justify-content: space-between;
+        margin: 5px 0;
+        font-size: 10px;
+      }
+      .divider {
+        border-top: 1px dashed #999;
+        margin: 5px 0;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 5px 0;
+      }
+      th {
+        background: #f5f5f5;
+        padding: 5px 3px;
+        text-align: left;
+        font-size: 10px;
+        border-bottom: 1px solid #000;
+      }
+      th.r {
+        text-align: right;
+      }
+      th.c {
+        text-align: center;
+      }
+      .totals {
+        margin-top: 10px;
+        padding-top: 5px;
+        border-top: 1px solid #000;
+        text-align: right;
+      }
+      .totals-row {
+        margin: 3px 0;
+      }
+      .totals-row.bold {
+        font-weight: bold;
+        font-size: 12px;
+        margin-top: 5px;
+      }
+      .footer {
+        text-align: center;
+        font-size: 8px;
+        color: #999;
+        margin-top: 15px;
+        padding-top: 5px;
+        border-top: 1px dashed #ccc;
+      }
+      @media print {
+        @page {
+          size: 80mm auto;
+          margin: 2mm;
+        }
+        body {
+          width: 76mm;
+        }
+      }
+    </style>
+  </head>
+  <body>
 
     <div class="header">
-      <div class="shop-urdu">${SHOP_INFO.name}</div>
-      <div class="shop-addr">${SHOP_INFO.address}</div>
-      <div class="shop-phones">${SHOP_INFO.phone1} | ${SHOP_INFO.phone2}</div>
-      <div class="quotation-title">📄 QUOTATION</div>
-      <div class="banner">${SHOP_INFO.urduBanner}</div>
+      <div class="title">QUOTATION</div>
     </div>
 
     <div class="meta-row">
-      <span><b>Quote No:</b> ${quotation.quoteNo}</span>
+      <span><b>Quote No:</b> ${extractQuoteNumber(quotation.quoteNo)}</span>
       <span><b>Date:</b> ${quotation.quoteDate}</span>
     </div>
     <div class="meta-row">
@@ -157,24 +254,16 @@ const buildQuotationPrintHtml = (quotation, overrides = {}) => {
       ${customerPhone ? `<span><b>Phone:</b> ${customerPhone}</span>` : ""}
     </div>
     
-    <div class="valid-box">
-      ⏰ Valid Until: ${validUntil}
-    </div>
-    
-    <div class="price-note">
-      💰 Prices are subject to change without notice. Final prices will be confirmed at time of order.
-    </div>
-    
-    <hr class="divider-dash">
+    <div class="divider"></div>
 
     <table>
       <thead>
         <tr>
           <th style="width:25px;text-align:center">#</th>
-          <th style="width:70px">Code</th>
-          <th>Product Description</th>
-          <th style="width:40px;text-align:center">UOM</th>
-          <th style="width:45px;text-align:center">Qty</th>
+          <th style="width:60px">Code</th>
+          <th>Description</th>
+          <th style="width:35px;text-align:center">UOM</th>
+          <th style="width:40px;text-align:center">Qty</th>
           <th style="width:55px;text-align:right">Rate</th>
           <th style="width:65px;text-align:right">Amount</th>
         </tr>
@@ -182,34 +271,21 @@ const buildQuotationPrintHtml = (quotation, overrides = {}) => {
       <tbody>${itemRows}</tbody>
     </table>
 
-    <hr class="divider-solid">
-    
     <div class="totals">
       <div class="totals-row">
-        <span><b>Total Items:</b> ${rows.length}</span>
-        <span><b>Total Quantity:</b> ${totalQty}</span>
+        <span>Total Items: ${rows.length} | Total Quantity: ${totalQty}</span>
       </div>
       <div class="totals-row bold">
-        <span><b>GRAND TOTAL:</b></span>
-        <span><b>PKR ${totalAmount.toLocaleString("en-PK")}</b></span>
+        <span>GRAND TOTAL: PKR ${totalAmount.toLocaleString("en-PK")}</span>
       </div>
-    </div>
-
-    <div class="terms-box">
-      <strong>کوٹیشن کی شرائط:</strong><br>
-      یہ کوٹیشن 7 دن کے لیے موثر ہے۔ قیمتوں میں تبدیلی ہو سکتی ہے۔ آرڈر کی تصدیق کے لیے پیشگی ادائیگی درکار ہوگی۔
-    </div>
-
-    <div class="signature">
-      <div class="sign-line">Prepared By<span></span></div>
-      <div class="sign-line">Customer Signature<span></span></div>
     </div>
 
     <div class="footer">
-      ${SHOP_INFO.devBy}
+      Thank you for your business
     </div>
 
-  </body></html>`;
+  </body>
+  </html>`;
 };
 
 const doPrint = (quotation, overrides = {}) => {
@@ -671,7 +747,7 @@ function QuotationHoldPreviewModal({ quote, onResume, onClose }) {
     >
       <div className="xp-modal" style={{ width: 560 }}>
         <div className="xp-modal-tb" style={{ background: "#2c5f2d" }}>
-          <span className="xp-modal-title">Held Quotation — {quote.quoteNo}</span>
+          <span className="xp-modal-title">Held Quotation — {extractQuoteNumber(quote.quoteNo)}</span>
           <button className="xp-cap-btn xp-cap-close" onClick={onClose}>
             ✕
           </button>
@@ -778,7 +854,7 @@ export default function QuotationPage() {
   const [curRow, setCurRow] = useState({ ...EMPTY_ROW });
   const [items, setItems] = useState([]);
   const [quoteDate, setQuoteDate] = useState(isoDate());
-  const [quoteNo, setQuoteNo] = useState("QTN-00001");
+  const [quoteNo, setQuoteNo] = useState("QTN-1");
   const amountRef = useRef(null);
 
   const [holdQuotes, setHoldQuotes] = useState(() => loadQuotationHolds());
@@ -840,13 +916,17 @@ export default function QuotationPage() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [pRes, quoteRes] = await Promise.all([
+      const [pRes] = await Promise.all([
         api.get(EP.PRODUCTS.GET_ALL),
-        api.get(EP.SALES.NEXT_INVOICE).catch(() => ({ data: { success: true, data: { invoiceNo: "QTN-00001" } } })),
       ]);
       if (pRes.data.success) setAllProducts(pRes.data.data);
-      const nextQuote = quoteRes.data?.data?.invoiceNo || "QTN-00001";
-      setQuoteNo(nextQuote);
+      
+      // Load quotations from localStorage and set next number
+      const savedQuotes = loadSavedQuotations();
+      setAllQuotations(savedQuotes);
+      
+      const nextNumber = getNextAvailableNumber(savedQuotes);
+      setQuoteNo(buildFullQuoteId(nextNumber));
     } catch {
       showMsg("Failed to load data", "error");
     }
@@ -859,10 +939,9 @@ export default function QuotationPage() {
   };
 
   const refreshQuoteNo = async () => {
-    try {
-      const r = await api.get(EP.SALES.NEXT_INVOICE);
-      if (r.data.success) setQuoteNo(r.data.data.invoiceNo);
-    } catch {}
+    const savedQuotes = loadSavedQuotations();
+    const nextNumber = getNextAvailableNumber(savedQuotes);
+    setQuoteNo(buildFullQuoteId(nextNumber));
   };
 
   const showMsg = (text, type = "success") => {
@@ -958,7 +1037,10 @@ export default function QuotationPage() {
   };
 
   const holdQuotation = () => {
-    if (!items.length) return;
+    if (!items.length) {
+      showMsg("No items to hold", "error");
+      return;
+    }
     setHoldQuotes((p) => [
       ...p,
       {
@@ -972,7 +1054,7 @@ export default function QuotationPage() {
     ]);
     fullReset();
     refreshQuoteNo();
-    showMsg("Quotation held successfully", "success");
+    showMsg(`Quotation held: ${extractQuoteNumber(quoteNo)}`, "success");
   };
 
   const resumeQuotation = (holdId) => {
@@ -984,7 +1066,7 @@ export default function QuotationPage() {
     setHoldQuotes((p) => p.filter((q) => q.id !== holdId));
     setShowHoldPreview(null);
     resetCurRow();
-    showMsg(`Resumed quotation: ${quote.quoteNo}`, "success");
+    showMsg(`Resumed quotation: ${extractQuoteNumber(quote.quoteNo)}`, "success");
   };
 
   const deleteHold = (holdId, e) => {
@@ -1054,7 +1136,7 @@ export default function QuotationPage() {
       const saved = saveQuotationToStorage(finalQuotation);
       
       if (saved) {
-        showMsg(`Quotation saved: ${pendingSaveData.quoteNo} for ${customerInfo.customerName}`, "success");
+        showMsg(`Quotation saved: ${extractQuoteNumber(pendingSaveData.quoteNo)} for ${customerInfo.customerName}`, "success");
         loadAllQuotations();
         
         doPrint(finalQuotation, { 
@@ -1095,7 +1177,7 @@ export default function QuotationPage() {
     setItems(loadedItems);
     
     resetCurRow();
-    showMsg(`✏ Editing Quotation ${quotation.quoteNo}`, "success");
+    showMsg(`✏ Editing Quotation ${extractQuoteNumber(quotation.quoteNo)}`, "success");
     setTimeout(() => searchRef.current?.focus(), 50);
   };
 
@@ -1105,13 +1187,24 @@ export default function QuotationPage() {
       return;
     }
     
-    const curIdx = allQuotations.findIndex((q) => q.quoteNo === quoteNo);
+    const sortedQuotes = [...allQuotations].sort((a, b) => {
+      const getNum = (str) => {
+        let numStr = str.toString();
+        if (numStr.includes('QTN-')) {
+          return parseInt(numStr.split('QTN-')[1]) || 0;
+        }
+        return parseInt(numStr) || 0;
+      };
+      return getNum(a.quoteNo) - getNum(b.quoteNo);
+    });
+    
+    const curIdx = sortedQuotes.findIndex((q) => q.quoteNo === quoteNo);
     let nextIdx = dir === "prev" ? curIdx - 1 : curIdx + 1;
-    nextIdx = Math.max(0, Math.min(nextIdx, allQuotations.length - 1));
+    nextIdx = Math.max(0, Math.min(nextIdx, sortedQuotes.length - 1));
     
     if (nextIdx === curIdx) return;
-    if (nextIdx >= 0 && nextIdx < allQuotations.length) {
-      loadQuotationForEdit(allQuotations[nextIdx]);
+    if (nextIdx >= 0 && nextIdx < sortedQuotes.length) {
+      loadQuotationForEdit(sortedQuotes[nextIdx]);
     }
   };
 
@@ -1245,8 +1338,15 @@ export default function QuotationPage() {
                   <input
                     className="xp-input xp-input-sm sl-inv-input-large"
                     style={{ borderColor: "#2c5f2d" }}
-                    value={quoteNo}
-                    onChange={(e) => setQuoteNo(e.target.value)}
+                    value={extractQuoteNumber(quoteNo)}
+                    onChange={(e) => {
+                      const newNumber = e.target.value;
+                      if (newNumber === "") {
+                        setQuoteNo("QTN-1");
+                      } else {
+                        setQuoteNo(buildFullQuoteId(newNumber));
+                      }
+                    }}
                     onKeyDown={async (e) => {
                       if (e.key === "Enter") {
                         e.preventDefault();
@@ -1256,7 +1356,7 @@ export default function QuotationPage() {
                         if (found) {
                           loadQuotationForEdit(found);
                         } else {
-                          showMsg(`Quotation "${val}" not found`, "error");
+                          showMsg(`Quotation "${extractQuoteNumber(val)}" not found`, "error");
                         }
                       }
                       if (e.key === "ArrowUp" || e.key === "ArrowDown") {
@@ -1664,7 +1764,7 @@ export default function QuotationPage() {
                           style={{ cursor: "pointer" }}
                         >
                           <td className="muted" style={{ textAlign: "center", fontSize: "var(--xp-fs-xs)" }}>{i + 1}</td>
-                          <td style={{ fontFamily: "var(--xp-mono)", fontSize: "var(--xp-fs-xs)" }}>{q.quoteNo}</td>
+                          <td style={{ fontFamily: "var(--xp-mono)", fontSize: "var(--xp-fs-xs)" }}>{extractQuoteNumber(q.quoteNo)}</td>
                           <td className="r" style={{ color: "#2c5f2d", fontWeight: 600 }}>{Number(q.amount).toLocaleString("en-PK")}</td>
                           <td className="muted" style={{ fontSize: "var(--xp-fs-xs)" }}>{q.date}</td>
                           <td style={{ textAlign: "center" }}>
@@ -1722,7 +1822,7 @@ export default function QuotationPage() {
           </button>
           <div className="xp-toolbar-divider" />
           <span className={`sl-inv-info`}>
-            📄 {quoteNo} | Items: {items.length} | Total: PKR {Number(subTotal).toLocaleString("en-PK")}
+            📄 {extractQuoteNumber(quoteNo)} | Items: {items.length} | Total: PKR {Number(subTotal).toLocaleString("en-PK")}
           </span>
           <button
             className="xp-btn xp-btn-sm"

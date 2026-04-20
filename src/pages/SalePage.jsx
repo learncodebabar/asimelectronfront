@@ -1,9 +1,10 @@
-// pages/SalePage.jsx
+// pages/SalePage.jsx - FIXED Customer Loading
 import { useState, useEffect, useRef, useCallback } from "react";
 import api from "../api/api.js";
 import EP from "../api/apiEndpoints.js";
 import "../styles/theme.css";
 import "../styles/SalePage.css";
+import { SHOP_INFO, URDU_FONT, GOOGLE_FONT_LINK, getShopHeaderHTML, getShopBannerHTML, getShopTermsHTML, getShopFooterHTML } from "../constants/shopInfo.js";
 
 /* ── helpers ── */
 const timeNow = () =>
@@ -27,20 +28,6 @@ const EMPTY_ROW = {
   amount: 0,
 };
 
-const SHOP_INFO = {
-  name: "عاصم الیکٹرک اینڈ الیکٹرونکس سٹور",
-  nameEn: "Asim Electric & Electronic Store",
-  address: "مین بازار نہاری ٹاؤن نزد بجلی گھر سٹاپ گوجرانوالہ روڈ فیصل آباد",
-  phone1: "Faqir Hussain 0300 7262129",
-  phone2: "PTCL 041 8711575",
-  phone3: "Shop 0315 7262129",
-  urduBanner:
-    "یہاں پر چانک فراڈ کی وارپس، جانچ فلک، وارنگ سیلز اور ریکارڈ کے تمام اخیری ہول سیل ریٹ پر دستیاب ہے۔",
-  urduTerms:
-    "الیکٹرانک اور چانٹا کے سپیئر پارٹس کی واپسی یا تبدیلی ہر صورت ممکن نہیں ہوگی۔\nبلی ہوئی آئٹم، پکلاہوا اکا ول واپس قابل واپسی نہیں ہے۔\nبارک کے سامان کی واپس کی صورت میں (7) دن کے اند پہلی ہوگی۔\nکل پیلی کلائی کی تمام واپسی قابل قبول نہیں ہوگی۔",
-  devBy:
-    "Software developed by: Creative Babar / 03098325271 or visit website www.digitalglobalschool.com",
-};
 
 const TYPE_COLORS = {
   credit: { bg: "#fca5a5", color: "#7f1d1d", border: "#ef4444" },
@@ -453,14 +440,10 @@ const shareViaWhatsApp = async (sale, overrides = {}) => {
       return;
     }
     
-    // Generate the HTML for A4 size
     const htmlContent = buildPrintHtml(sale, "A4", overrides);
-    
-    // Create a blob from the HTML
     const blob = new Blob([htmlContent], { type: 'text/html' });
     const url = URL.createObjectURL(blob);
     
-    // Open in new window and print to PDF
     const printWindow = window.open(url, '_blank');
     if (printWindow) {
       printWindow.onload = () => {
@@ -932,14 +915,6 @@ function SaveConfirmModal({
 /* ══════════════════════════════════════════════════════════
    PRODUCT SEARCH MODAL
 ══════════════════════════════════════════════════════════ */
-/* ══════════════════════════════════════════════════════════
-   PRODUCT SEARCH MODAL - COMPACT WITH BLACK TEXT
-══════════════════════════════════════════════════════════ */
-
-
-/* ══════════════════════════════════════════════════════════
-   PRODUCT SEARCH MODAL - LARGE SIZE, ALL BOLD, COMPACT TABLE
-══════════════════════════════════════════════════════════ */
 function SearchModal({ allProducts, onSelect, onClose }) {
   const [desc, setDesc] = useState("");
   const [cat, setCat] = useState("");
@@ -1075,7 +1050,6 @@ function SearchModal({ allProducts, onSelect, onClose }) {
           <button className="xp-cap-btn xp-cap-close" onClick={onClose} style={{ color: "#ffffff", fontSize: "18px" }}>✕</button>
         </div>
         
-        {/* Filters - Compact */}
         <div className="cs-modal-filters" style={{ 
           padding: "8px 12px", 
           gap: "10px", 
@@ -1128,7 +1102,6 @@ function SearchModal({ allProducts, onSelect, onClose }) {
           </div>
         </div>
         
-        {/* Table - Large Area, Minimal Padding, All Bold */}
         <div className="xp-modal-body" style={{ padding: 0, flex: 1, overflow: "hidden" }}>
           <div className="xp-table-panel" style={{ border: "none", height: "100%" }}>
             <div className="xp-table-scroll" style={{ 
@@ -1698,7 +1671,7 @@ export default function SalePage() {
   const [curRow, setCurRow] = useState({ ...EMPTY_ROW });
   const [items, setItems] = useState([]);
   const [invoiceDate, setInvoiceDate] = useState(isoDate());
-  const [invoiceNo, setInvoiceNo] = useState("INV-00001");
+  const [invoiceNo, setInvoiceNo] = useState("1");
   const amountRef = useRef(null);
 
   const [customerId, setCustomerId] = useState("");
@@ -1751,7 +1724,7 @@ export default function SalePage() {
   }, []);
   
   useEffect(() => {
-        fetchData();
+    fetchData();
   }, []);
   
   useEffect(() => {
@@ -1794,28 +1767,71 @@ export default function SalePage() {
     else setReceived(billAmount + (parseFloat(prevBalance) || 0));
   };
 
+  // FIXED: Properly fetch and calculate next invoice number
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [pRes, cRes, invRes] = await Promise.all([
+      const [pRes, cRes, salesRes] = await Promise.all([
         api.get(EP.PRODUCTS.GET_ALL),
         api.get(EP.CUSTOMERS.GET_ALL),
-        api.get(EP.SALES.NEXT_INVOICE),
+        api.get(EP.SALES.GET_ALL),
       ]);
       if (pRes.data.success) setAllProducts(pRes.data.data);
       if (cRes.data.success) setAllCustomers(cRes.data.data);
-      if (invRes.data.success) setInvoiceNo(invRes.data.data.invoiceNo);
-    } catch {
+      
+      // Calculate next invoice number from existing sales
+      let maxNum = 0;
+      if (salesRes.data.success && salesRes.data.data && salesRes.data.data.length > 0) {
+        salesRes.data.data.forEach(sale => {
+          // Handle both string and number invoiceNo
+          let num = sale.invoiceNo;
+          if (typeof num === 'string') {
+            // Remove any INV- prefix if exists (for backward compatibility)
+            num = num.replace(/^INV-/i, '');
+            num = num.replace(/^0+/, '');
+          }
+          num = parseInt(num, 10);
+          if (!isNaN(num) && num > maxNum) {
+            maxNum = num;
+          }
+        });
+        setInvoiceNo(String(maxNum + 1));
+      } else {
+        setInvoiceNo("1");
+      }
+    } catch (error) {
+      console.error("Failed to load data:", error);
       showMsg("Failed to load data", "error");
     }
     setLoading(false);
   };
 
+  // FIXED: Refresh invoice number after save
   const refreshInvoiceNo = async () => {
     try {
-      const r = await api.get(EP.SALES.NEXT_INVOICE);
-      if (r.data.success) setInvoiceNo(r.data.data.invoiceNo);
-    } catch {}
+      const salesRes = await api.get(EP.SALES.GET_ALL);
+      let maxNum = 0;
+      if (salesRes.data.success && salesRes.data.data && salesRes.data.data.length > 0) {
+        salesRes.data.data.forEach(sale => {
+          let num = sale.invoiceNo;
+          if (typeof num === 'string') {
+            num = num.replace(/^INV-/i, '');
+            num = num.replace(/^0+/, '');
+          }
+          num = parseInt(num, 10);
+          if (!isNaN(num) && num > maxNum) {
+            maxNum = num;
+          }
+        });
+        setInvoiceNo(String(maxNum + 1));
+      } else {
+        setInvoiceNo("1");
+      }
+    } catch (error) {
+      console.error("Failed to refresh invoice number:", error);
+      const current = parseInt(invoiceNo, 10) || 0;
+      setInvoiceNo(String(current + 1));
+    }
   };
 
   const showMsg = (text, type = "success") => {
@@ -1823,6 +1839,7 @@ export default function SalePage() {
     setTimeout(() => setMsg({ text: "", type: "" }), 3500);
   };
   
+  // FIXED: handleCustomerSelect - Properly fetch customer data
   const handleCustomerSelect = async (c) => {
     if (!c || !c._id) {
       showMsg("Invalid customer selected", "error");
@@ -1830,40 +1847,62 @@ export default function SalePage() {
     }
     
     try {
-      const freshCustomer = await api.get(EP.CUSTOMERS.GET_ONE(c._id));
-      if (freshCustomer.data.success) {
-        const customer = freshCustomer.data.data;
-        const type = customer.customerType || customer.type || "";
-        setCustomerId(customer._id);
-        setBuyerName(customer.name);
-        setCustomerType(type);
-        setPrevBalance(customer.currentBalance || 0);
-        setCodeSearch("");
-        const pm = typeToPayment(type);
-        const ss = typeToSource(type);
-        setPaymentMode(pm);
-        setSaleSource(ss);
-        if (pm === "Credit") setReceived(0);
-        else setReceived(billAmount + (customer.currentBalance || 0));
-
-        const limit = customer.creditLimit || 0;
-        const custBal = customer.currentBalance || 0;
-        if (type === "credit" && limit > 0 && custBal >= limit) {
-          setCreditWarning(true);
-        } else {
-          setCreditWarning(false);
-        }
-        setCreditStatement("");
-        setShowCustomerPanel(true);
-
-        if (type === "credit") {
-          setTimeout(() => statementRef.current?.focus(), 80);
-        } else {
-          setTimeout(() => searchRef.current?.focus(), 30);
-        }
+      // First update with the customer data we already have
+      const type = c.customerType || c.type || "";
+      setCustomerId(c._id);
+      setBuyerName(c.name);
+      setCustomerType(type);
+      setPrevBalance(c.currentBalance || 0);
+      setCodeSearch("");
+      
+      const pm = typeToPayment(type);
+      const ss = typeToSource(type);
+      setPaymentMode(pm);
+      setSaleSource(ss);
+      
+      if (pm === "Credit") {
+        setReceived(0);
+      } else {
+        setReceived(billAmount + (c.currentBalance || 0));
       }
+
+      const limit = c.creditLimit || 0;
+      const custBal = c.currentBalance || 0;
+      if (type === "credit" && limit > 0 && custBal >= limit) {
+        setCreditWarning(true);
+      } else {
+        setCreditWarning(false);
+      }
+      setCreditStatement("");
+      setShowCustomerPanel(true);
+
+      if (type === "credit") {
+        setTimeout(() => statementRef.current?.focus(), 80);
+      } else {
+        setTimeout(() => searchRef.current?.focus(), 30);
+      }
+      
+      // Optionally fetch fresh data from API to ensure latest balance
+      try {
+        const freshCustomer = await api.get(`${EP.CUSTOMERS.GET_ALL}/${c._id}`);
+        if (freshCustomer.data && freshCustomer.data.success && freshCustomer.data.data) {
+          const freshData = freshCustomer.data.data;
+          setPrevBalance(freshData.currentBalance || 0);
+          const newLimit = freshData.creditLimit || 0;
+          const newBal = freshData.currentBalance || 0;
+          if (type === "credit" && newLimit > 0 && newBal >= newLimit) {
+            setCreditWarning(true);
+          } else {
+            setCreditWarning(false);
+          }
+        }
+      } catch (freshErr) {
+        console.error("Failed to fetch fresh customer data:", freshErr);
+        // Use existing data, don't show error to user
+      }
+      
     } catch (error) {
-      console.error("Failed to fetch customer details:", error);
+      console.error("Failed to process customer selection:", error);
       showMsg("Failed to load customer data", "error");
     }
   };
@@ -2067,7 +2106,13 @@ export default function SalePage() {
   
   const loadSaleForEdit = (sale) => {
     setEditId(sale._id);
-    setInvoiceNo(sale.invoiceNo);
+    // Handle both string and number invoiceNo
+    let invNo = sale.invoiceNo;
+    if (typeof invNo === 'string') {
+      invNo = invNo.replace(/^INV-/i, '');
+      invNo = invNo.replace(/^0+/, '');
+    }
+    setInvoiceNo(String(invNo));
     setInvoiceDate(sale.invoiceDate || isoDate());
 
     const cust = allCustomers.find((c) => c._id === sale.customerId);
@@ -2103,7 +2148,7 @@ export default function SalePage() {
     setReceived(sale.paidAmount || 0);
 
     resetCurRow();
-    showMsg(`✏ Editing Invoice ${sale.invoiceNo}`, "success");
+    showMsg(`✏ Editing Invoice ${invNo}`, "success");
     setTimeout(() => searchRef.current?.focus(), 50);
   };
 
@@ -2112,9 +2157,13 @@ export default function SalePage() {
       const { data } = await api.get(EP.SALES.GET_ALL);
       if (!data.success || !data.data?.length) return;
       const allSales = data.data;
-      const curIdx = allSales.findIndex((s) =>
-        editId ? s._id === editId : s.invoiceNo === invoiceNo,
-      );
+      const currentCleanNo = String(invoiceNo).replace(/^0+/, '');
+      const curIdx = allSales.findIndex((s) => {
+        let saleNo = String(s.invoiceNo);
+        saleNo = saleNo.replace(/^INV-/i, '');
+        saleNo = saleNo.replace(/^0+/, '');
+        return saleNo === currentCleanNo;
+      });
       let nextIdx = dir === "prev" ? curIdx - 1 : curIdx + 1;
       nextIdx = Math.max(0, Math.min(nextIdx, allSales.length - 1));
       if (nextIdx === curIdx) return;
@@ -2125,7 +2174,7 @@ export default function SalePage() {
   };
 
   const buildPayload = () => ({
-    invoiceNo,
+    invoiceNo: parseInt(invoiceNo, 10) || 1,
     invoiceDate,
     customerId: customerId || undefined,
     customerName: buyerName || "COUNTER SALE",
@@ -2210,10 +2259,9 @@ export default function SalePage() {
         
         if (customerId) {
           try {
-            const customerResponse = await api.get(EP.CUSTOMERS.GET_ONE(customerId));
-            if (customerResponse.data.success) {
+            const customerResponse = await api.get(`${EP.CUSTOMERS.GET_ALL}/${customerId}`);
+            if (customerResponse.data && customerResponse.data.success && customerResponse.data.data) {
               const updatedCustomer = customerResponse.data.data;
-              console.log("Updated customer balance:", updatedCustomer.currentBalance);
               setPrevBalance(updatedCustomer.currentBalance || 0);
             }
           } catch (err) {
@@ -2395,96 +2443,95 @@ export default function SalePage() {
 
         <div className="sl-body">
           <div className="sl-left">
-            {/* Invoice info with big input and nav buttons */}
-           {/* Invoice info with integrated nav buttons inside input */}
-{/* Invoice info with integrated nav buttons inside input */}
-<div className="sl-top-bar">
-  <div className="sl-sale-title-box">Sale</div>
-  
-  <div className="sl-inv-field-grp">
-    <label>Invoice #</label>
-    <div className="sl-inv-nav-container">
-      <button
-        className="sl-inv-nav-btn sl-inv-nav-prev"
-        onClick={() => navInvoice("prev")}
-        title="Previous Invoice (↑)"
-        type="button"
-      >
-        ◀
-      </button>
-      
-      <input
-        className="xp-input xp-input-sm sl-inv-input-large"
-        value={invoiceNo}
-        onChange={(e) => setInvoiceNo(e.target.value)}
-        onKeyDown={async (e) => {
-          if (e.key === "Enter") {
-            e.preventDefault();
-            const val = invoiceNo.trim();
-            if (!val) return;
-            try {
-              const { data } = await api.get(
-                EP.SALES.GET_ALL + `?invoiceNo=${val}`,
-              );
-              const sales = data.data;
-              if (!sales || sales.length === 0) {
-                showMsg(`Invoice "${val}" not found`, "error");
-                await refreshInvoiceNo();
-                return;
-              }
-              const exact = sales.find(
-                (s) => s.invoiceNo?.toString() === val.toString(),
-              );
-              if (!exact) {
-                showMsg(`Invoice "${val}" not found`, "error");
-                await refreshInvoiceNo();
-                return;
-              }
-              setItems([]);
-              setEditId(null);
-              loadSaleForEdit(exact);
-            } catch {
-              showMsg("Search failed", "error");
-            }
-          }
-          if (e.key === "ArrowUp" || e.key === "ArrowDown") {
-            e.preventDefault();
-            await navInvoice(e.key === "ArrowUp" ? "prev" : "next");
-          }
-        }}
-        onFocus={(e) => e.target.select()}
-      />
-      
-      <button
-        className="sl-inv-nav-btn sl-inv-nav-next"
-        onClick={() => navInvoice("next")}
-        title="Next Invoice (↓)"
-        type="button"
-      >
-        ▶
-      </button>
-    </div>
-  </div>
-  
-  <div className="sl-inv-field-grp">
-    <label>Date</label>
-    <input
-      type="date"
-      className="xp-input xp-input-sm sl-date-input"
-      value={invoiceDate}
-      readOnly
-      style={{
-        background: "#f5f5f5",
-        cursor: "not-allowed",
-        color: "#888",
-      }}
-    />
-  </div>
-  <div className="sl-inv-field-grp">
-    <label>Time</label>
-    <div className="sl-time-box">{time}</div>
-  </div>
-</div>
+            {/* Invoice info with integrated nav buttons */}
+            <div className="sl-top-bar">
+              <div className="sl-sale-title-box">Sale</div>
+              
+              <div className="sl-inv-field-grp">
+                <label>Invoice #</label>
+                <div className="sl-inv-nav-container">
+                  <button
+                    className="sl-inv-nav-btn sl-inv-nav-prev"
+                    onClick={() => navInvoice("prev")}
+                    title="Previous Invoice (↑)"
+                    type="button"
+                  >
+                    ◀
+                  </button>
+                  
+                  <input
+                    className="xp-input xp-input-sm sl-inv-input-large"
+                    value={invoiceNo}
+                    onChange={(e) => setInvoiceNo(e.target.value)}
+                    onKeyDown={async (e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        const val = invoiceNo.trim();
+                        if (!val) return;
+                        try {
+                          const { data } = await api.get(EP.SALES.GET_ALL);
+                          const sales = data.data;
+                          if (!sales || sales.length === 0) {
+                            showMsg(`Invoice "${val}" not found`, "error");
+                            await refreshInvoiceNo();
+                            return;
+                          }
+                          const exact = sales.find((s) => {
+                            let saleNo = String(s.invoiceNo);
+                            saleNo = saleNo.replace(/^INV-/i, '');
+                            saleNo = saleNo.replace(/^0+/, '');
+                            return saleNo === val;
+                          });
+                          if (!exact) {
+                            showMsg(`Invoice "${val}" not found`, "error");
+                            await refreshInvoiceNo();
+                            return;
+                          }
+                          setItems([]);
+                          setEditId(null);
+                          loadSaleForEdit(exact);
+                        } catch {
+                          showMsg("Search failed", "error");
+                        }
+                      }
+                      if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+                        e.preventDefault();
+                        await navInvoice(e.key === "ArrowUp" ? "prev" : "next");
+                      }
+                    }}
+                    onFocus={(e) => e.target.select()}
+                  />
+                  
+                  <button
+                    className="sl-inv-nav-btn sl-inv-nav-next"
+                    onClick={() => navInvoice("next")}
+                    title="Next Invoice (↓)"
+                    type="button"
+                  >
+                    ▶
+                  </button>
+                </div>
+              </div>
+              
+              <div className="sl-inv-field-grp">
+                <label>Date</label>
+                <input
+                  type="date"
+                  className="xp-input xp-input-sm sl-date-input"
+                  value={invoiceDate}
+                  readOnly
+                  style={{
+                    background: "#f5f5f5",
+                    cursor: "not-allowed",
+                    color: "#888",
+                  }}
+                />
+              </div>
+              <div className="sl-inv-field-grp">
+                <label>Time</label>
+                <div className="sl-time-box">{time}</div>
+              </div>
+            </div>
 
             {/* Entry strip with product autocomplete */}
             <div className="sl-entry-strip">
@@ -2777,7 +2824,7 @@ export default function SalePage() {
                 </thead>
                 <tbody>
                   {items.length === 0 && (
-                    <tr>
+                    <tr className="sl-empty-row">
                       <td
                         colSpan={8}
                         className="xp-empty"
@@ -2976,22 +3023,6 @@ export default function SalePage() {
                   </button>
                 ))}
               </div>
-            </div>
-
-            {/* Gatepass Checkbox */}
-            <div className="sl-gatepass-bar" style={{ display: "flex", alignItems: "center", gap: 12, padding: "6px 8px", background: "var(--xp-silver-4)", borderRadius: 4, marginTop: 6 }}>
-              <label className="sl-check-label" style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <input
-                  type="checkbox"
-                  checked={gatepassPrint}
-                  onChange={(e) => setGatepassPrint(e.target.checked)}
-                  style={{ width: 16, height: 16 }}
-                />
-                <span style={{ fontSize: "var(--xp-fs-sm)", fontWeight: 500 }}>🎫 Print Gatepass (No Prices)</span>
-              </label>
-              <span style={{ fontSize: "var(--xp-fs-xs)", color: "#666" }}>
-                Gatepass will show items without rates and amounts
-              </span>
             </div>
 
             {/* Credit Warning Bar */}
@@ -3273,7 +3304,6 @@ export default function SalePage() {
           </button>
           <div className="xp-toolbar-divider" />
           
-          {/* Updated Commands Section with WhatsApp Button */}
           <div className="sl-cmd-checks">
             <label className="sl-check-label">
               <input
@@ -3286,18 +3316,16 @@ export default function SalePage() {
             <label className="sl-check-label">
               <input type="checkbox" /> Print P.Bal
             </label>
+            <label className="sl-check-label sl-gatepass-check">
+              <input
+                type="checkbox"
+                checked={gatepassPrint}
+                onChange={(e) => setGatepassPrint(e.target.checked)}
+              />{" "}
+              🎫 Gatepass
+            </label>
             <button 
-              className="xp-btn xp-btn-sm"
-              style={{ 
-                background: "#25D366", 
-                color: "#fff",
-                borderColor: "#128C7E",
-                marginLeft: "4px",
-                padding: "4px 12px",
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "4px"
-              }}
+              className="xp-btn xp-btn-sm xp-btn-whatsapp"
               onClick={() => {
                 if (items.length === 0) {
                   alert("No items to share");
@@ -3318,7 +3346,7 @@ export default function SalePage() {
                 shareViaWhatsApp(saleObj, {
                   customerName: buyerName,
                   customerPhone: "",
-                  hidePrices: false
+                  hidePrices: gatepassPrint
                 });
               }}
             >
@@ -3355,273 +3383,6 @@ export default function SalePage() {
           </button>
         </div>
       </div>
-
-      <style>{`
-      .sl-page {
-        background: #ffffff;
-      }
-      
-      input, .xp-input, .sl-product-input, .sl-num-input, .sl-sum-input, 
-      .sl-cust-input, .sl-credit-statement-input, .sl-inv-input-large,
-      .sl-date-input, .sl-sum-val {
-        border-color: #000000 !important;
-        border-width: 1px !important;
-        border-style: solid !important;
-        background: #ffffff !important;
-      }
-      
-      .sl-items-table th,
-      .sl-items-table td,
-      .sl-hold-table th,
-      .sl-hold-table td {
-        border-color: #000000 !important;
-        border-width: 1px !important;
-      }
-      
-      .xp-btn, .sl-pay-btn, .sl-entry-btns .xp-btn {
-        border-color: #000000 !important;
-        border-width: 1px !important;
-        border-style: solid !important;
-      }
-      
-      .sl-summary-bar, .sl-customer-bar, .sl-gatepass-bar,
-      .sl-top-bar, .sl-entry-strip, .sl-table-header-bar,
-      .sl-hold-panel, .sl-right, .sl-left {
-        border-color: #e0e0e0;
-      }
-      
-      .sl-items-table tbody tr.sl-empty-row {
-        display: none;
-      }
-      
-      @font-face {
-        font-family: 'UrduFont';
-        src: local('Jameel Noori Nastaleeq'),
-             local('Noto Nastaliq Urdu'),
-             local('Urdu Typesetting'),
-             local('Arial Unicode MS');
-      }
-      .urdu, .shop-urdu, .shop-addr, .banner, .terms-box, .terms {
-        font-family: 'UrduFont', 'Jameel Noori Nastaleeq', 'Noto Nastaliq Urdu', 
-                     'Urdu Typesetting', Arial, sans-serif !important;
-        direction: rtl;
-      }
-      .xp-link-btn {
-        text-decoration: none;
-      }
-      .sl-inv-input-large {
-        font-size: 18px !important;
-        font-weight: bold !important;
-        width: 160px !important;
-        text-align: center !important;
-        background: #ffffff !important;
-      }
-      .sl-nav-btn {
-        font-size: 14px !important;
-        padding: 4px 12px !important;
-        font-weight: 600 !important;
-      }
-
-      .sl-page.sl-credit-mode .sl-right {
-        background-color: #dc2626 !important;
-        border-left: 3px solid #991b1b;
-        transition: background-color 0.2s ease;
-      }
-
-      .sl-page.sl-credit-mode .sl-items-wrap {
-        background-color: #dc2626 !important;
-        border-radius: 6px;
-      }
-
-      .sl-page.sl-credit-mode .sl-items-table {
-        background-color: #dc2626 !important;
-      }
-
-      .sl-page.sl-credit-mode .sl-items-table thead th {
-        background-color: #991b1b !important;
-        color: #ffffff !important;
-        border-bottom: 2px solid #7f1d1d;
-      }
-
-      .sl-page.sl-credit-mode .sl-items-table tbody td {
-        color: #ffffff !important;
-        border-bottom-color: #b91c1c;
-      }
-
-      .sl-page.sl-credit-mode .sl-items-table td.muted,
-      .sl-page.sl-credit-mode .sl-items-table .muted {
-        color: #fecaca !important;
-      }
-
-      .sl-page.sl-credit-mode .sl-items-table tr.sl-sel-row td {
-        background-color: #b91c1c !important;
-        box-shadow: inset 0 0 0 2px #fef08a;
-      }
-
-      .sl-page.sl-credit-mode .sl-items-table tbody tr:hover td {
-        background-color: #ef4444 !important;
-        cursor: pointer;
-      }
-
-      .sl-page.sl-credit-mode .sl-items-table .sl-empty-row td {
-        background-color: transparent;
-      }
-
-      .sl-page.sl-credit-mode .sl-items-table .xp-empty {
-        color: #fef08a !important;
-        background-color: transparent;
-      }
-
-      .sl-page.sl-credit-mode .sl-items-table td[style*="color: var(--xp-blue-dark)"] {
-        color: #fef08a !important;
-        font-weight: bold;
-      }
-
-      .sl-page.sl-credit-mode .sl-hold-panel {
-        background-color: rgba(0, 0, 0, 0.1);
-        border-color: #991b1b;
-      }
-
-      .sl-page.sl-credit-mode .sl-hold-table thead th {
-        background-color: #991b1b;
-        color: #ffffff;
-      }
-
-      .sl-page.sl-credit-mode .sl-hold-table tbody td {
-        color: #ffffff;
-      }
-
-      .sl-page.sl-credit-mode .sl-hold-table td.muted {
-        color: #fecaca;
-      }
-
-      .sl-page.sl-credit-mode .sl-hold-title {
-        background-color: #991b1b;
-        color: #ffffff;
-      }
-
-      .sl-page.sl-credit-mode .sl-summary-bar {
-        background-color: rgba(0, 0, 0, 0.15);
-        border-radius: 6px;
-      }
-
-      .sl-page.sl-credit-mode .sl-customer-bar {
-        background-color: rgba(0, 0, 0, 0.1);
-        border-radius: 6px;
-      }
-
-      .sl-page.sl-credit-mode input,
-      .sl-page.sl-credit-mode .xp-input,
-      .sl-page.sl-credit-mode .sl-product-input,
-      .sl-page.sl-credit-mode .sl-num-input,
-      .sl-page.sl-credit-mode .sl-sum-input,
-      .sl-page.sl-credit-mode .sl-cust-input {
-        background-color: #fffde7 !important;
-        color: #1f2937 !important;
-        border-color: #9ca3af;
-      }
-
-      .sl-page.sl-credit-mode input:read-only,
-      .sl-page.sl-credit-mode .sl-sum-val {
-        background-color: #fef3c7 !important;
-        color: #1f2937 !important;
-      }
-
-      .sl-page.sl-credit-mode .sl-sum-val.sl-bal.danger {
-        color: #fef08a !important;
-        font-weight: bold;
-        text-shadow: 0 0 2px rgba(0,0,0,0.3);
-      }
-
-      .sl-page.sl-credit-mode .sl-items-wrap::-webkit-scrollbar-track {
-        background: #991b1b;
-      }
-
-      .sl-page.sl-credit-mode .sl-hold-table {
-        background: #991b1b;
-      }
-
-      .sl-page.sl-credit-mode .sl-items-wrap::-webkit-scrollbar-thumb {
-        background: #fecaca;
-        border-radius: 4px;
-      }
-
-      .sl-page.sl-credit-mode .sl-items-wrap::-webkit-scrollbar-thumb:hover {
-        background: #ffffff;
-      }
-
-      .sl-product-input {
-        background-color: #fffde7 !important;
-        border-color: #000000 !important;
-      }
-
-      .sl-num-input, .sl-sum-input, .sl-cust-input {
-        background-color: #fffde7 !important;
-      }
-
-      .sl-sum-val, .sl-date-input[readonly] {
-        background-color: #f5f5f5 !important;
-      }
-        /* Always Visible Clean Design */
-.sl-inv-nav-container {
-  position: relative;
-  display: inline-block;
-}
-
-.sl-inv-nav-btn {
-  position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  width: 28px;
-  height: 28px;
-  border-radius: 6px;
-  color: #64748b;
-  transition: all 0.2s ease;
-  z-index: 2;
-}
-
-.sl-inv-nav-btn:hover {
-  background: #3b82f6;
-  border-color: #3b82f6;
-  color: white;
-}
-
-.sl-inv-nav-btn:active {
-  transform: translateY(-50%) scale(0.95);
-}
-
-.sl-inv-nav-prev {
-  left: 4px;
-}
-
-.sl-inv-nav-next {
-  right: 4px;
-}
-
-.sl-inv-input-large {
-  width: 180px !important;
-  text-align: center !important;
-  padding: 6px 36px !important;
-  font-size: 16px !important;
-  font-weight: 600 !important;
-  background: #ffffff !important;
-  border: 1px solid #e2e8f0 !important;
-  border-radius: 8px !important;
-}
-
-.sl-inv-input-large:focus {
-  border-color: #3b82f6 !important;
-  outline: none;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-}
-      `}</style>
     </>
   );
 }

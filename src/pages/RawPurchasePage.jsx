@@ -27,20 +27,8 @@ const EMPTY_ROW = {
   amount: 0,
 };
 
-const SHOP_INFO = {
-  name: "عاصم الیکٹرک اینڈ الیکٹرونکس سٹور",
-  nameEn: "Asim Electric & Electronic Store",
-  address: "مین بازار نہاری ٹاؤن نزد بجلی گھر سٹاپ گوجرانوالہ روڈ فیصل آباد",
-  phone1: "Faqir Hussain 0300 7262129",
-  phone2: "PTCL 041 8711575",
-  phone3: "Shop 0315 7262129",
-  urduBanner:
-    "یہاں پر چانک فراڈ کی وارپس، جانچ فلک، وارنگ سیلز اور ریکارڈ کے تمام اخیری ہول سیل ریٹ پر دستیاب ہے۔",
-  urduTerms:
-    "الیکٹرانک اور چانٹا کے سپیئر پارٹس کی واپسی یا تبدیلی ہر صورت ممکن نہیں ہوگی۔\nبلی ہوئی آئٹم، پکلاہوا اکا ول واپس قابل واپسی نہیں ہے۔\nبارک کے سامان کی واپس کی صورت میں (7) دن کے اند پہلی ہوگی۔\nکل پیلی کلائی کی تمام واپسی قابل قبول نہیں ہوگی۔",
-  devBy:
-    "Software developed by: Creative Babar / 03098325271 or visit website www.digitalglobalschool.com",
-};
+import { SHOP_INFO, URDU_FONT, GOOGLE_FONT_LINK, getShopHeaderHTML, getShopBannerHTML, getShopTermsHTML, getShopFooterHTML } from "../constants/shopInfo.js";
+
 
 const TYPE_COLORS = {
   credit: { bg: "#fca5a5", color: "#7f1d1d", border: "#ef4444" },
@@ -63,6 +51,17 @@ const typeToPayment = (t) => {
   return "Cash";
 };
 const typeToSource = (t) => (!t ? "cash" : t);
+
+// Clean invoice number function - removes RAW-P- prefix and leading zeros
+const cleanInvoiceNo = (invNo) => {
+  if (!invNo) return "1";
+  let cleaned = String(invNo);
+  cleaned = cleaned.replace(/^RAW-P-/i, '');
+  cleaned = cleaned.replace(/^0+/, '');
+  cleaned = parseInt(cleaned, 10);
+  if (isNaN(cleaned)) return "1";
+  return String(cleaned);
+};
 
 /* ── localStorage helpers ── */
 const loadHolds = () => {
@@ -162,7 +161,7 @@ const buildPrintHtml = (sale, type, overrides = {}) => {
           </tr>
         </thead>
         <tbody>${itemRows}</tbody>
-      </table>
+      <tr>
       <hr class="divider-dash">
       <div class="totals-box">
         <div style="display:flex;justify-content:space-between;font-size:9px;margin-bottom:2px">
@@ -257,7 +256,7 @@ const buildPrintHtml = (sale, type, overrides = {}) => {
       <div class="page"${pageNum > 1 ? ' style="page-break-before:always"' : ""}>
         ${headerHtml}
         ${metaHtml}
-        <table>
+        <tr>
           <thead>
             <tr>
               <th style="width:28px;text-align:center">Sr.#</th>
@@ -266,7 +265,7 @@ const buildPrintHtml = (sale, type, overrides = {}) => {
               <th style="width:42px;text-align:right">Qty</th>
               <th style="width:70px;text-align:right">Rate</th>
               <th style="width:80px;text-align:right">Amount</th>
-            </td>
+            </tr>
           </thead>
           <tbody>${itemRows}</tbody>
         </table>
@@ -549,7 +548,7 @@ function SaveConfirmModal({
 }
 
 /* ══════════════════════════════════════════════════════════
-   PRODUCT SEARCH MODAL — Large size, bold, compact
+   PRODUCT SEARCH MODAL — Only products with company "raw"
 ══════════════════════════════════════════════════════════ */
 function SearchModal({ allProducts, onSelect, onClose }) {
   const [desc, setDesc] = useState("");
@@ -1007,7 +1006,7 @@ export default function RawPurchasePage() {
   const [curRow, setCurRow] = useState({ ...EMPTY_ROW });
   const [items, setItems] = useState([]);
   const [invoiceDate, setInvoiceDate] = useState(isoDate());
-  const [invoiceNo, setInvoiceNo] = useState("RAW-P-00001");
+  const [invoiceNo, setInvoiceNo] = useState("1");
   const amountRef = useRef(null);
 
   const [customerId, setCustomerId] = useState("");
@@ -1090,14 +1089,28 @@ export default function RawPurchasePage() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [pRes, cRes, invRes] = await Promise.all([
+      const [pRes, cRes, salesRes] = await Promise.all([
         api.get(EP.PRODUCTS.GET_ALL),
         api.get(EP.CUSTOMERS.GET_ALL),
-        api.get(EP.RAW_PURCHASES.NEXT_INVOICE),
+        api.get(EP.RAW_PURCHASES.GET_ALL),
       ]);
       if (pRes.data.success) setAllProducts(pRes.data.data);
       if (cRes.data.success) setAllCustomers(cRes.data.data);
-      if (invRes.data.success) setInvoiceNo(invRes.data.data.invoiceNo);
+      
+      // Calculate next invoice number from existing raw purchases
+      let maxNum = 0;
+      if (salesRes.data.success && salesRes.data.data && salesRes.data.data.length > 0) {
+        salesRes.data.data.forEach(purchase => {
+          let num = cleanInvoiceNo(purchase.invoiceNo);
+          num = parseInt(num, 10);
+          if (!isNaN(num) && num > maxNum) {
+            maxNum = num;
+          }
+        });
+        setInvoiceNo(String(maxNum + 1));
+      } else {
+        setInvoiceNo("1");
+      }
     } catch (error) {
       console.error("Fetch data error:", error);
       showMsg("Failed to load data", "error");
@@ -1107,9 +1120,25 @@ export default function RawPurchasePage() {
 
   const refreshInvoiceNo = async () => {
     try {
-      const r = await api.get(EP.RAW_PURCHASES.NEXT_INVOICE);
-      if (r.data.success) setInvoiceNo(r.data.data.invoiceNo);
-    } catch {}
+      const salesRes = await api.get(EP.RAW_PURCHASES.GET_ALL);
+      let maxNum = 0;
+      if (salesRes.data.success && salesRes.data.data && salesRes.data.data.length > 0) {
+        salesRes.data.data.forEach(purchase => {
+          let num = cleanInvoiceNo(purchase.invoiceNo);
+          num = parseInt(num, 10);
+          if (!isNaN(num) && num > maxNum) {
+            maxNum = num;
+          }
+        });
+        setInvoiceNo(String(maxNum + 1));
+      } else {
+        setInvoiceNo("1");
+      }
+    } catch (error) {
+      console.error("Failed to refresh invoice number:", error);
+      const current = parseInt(invoiceNo, 10) || 0;
+      setInvoiceNo(String(current + 1));
+    }
   };
 
   const showMsg = (text, type = "success") => {
@@ -1349,7 +1378,8 @@ export default function RawPurchasePage() {
   
   const loadPurchaseForEdit = (purchase) => {
     setEditId(purchase._id);
-    setInvoiceNo(purchase.invoiceNo);
+    let invNo = cleanInvoiceNo(purchase.invoiceNo);
+    setInvoiceNo(invNo);
     setInvoiceDate(purchase.invoiceDate || isoDate());
 
     const cust = allCustomers.find((c) => c._id === purchase.customerId);
@@ -1384,7 +1414,7 @@ export default function RawPurchasePage() {
     setItems(loadedItems);
     setExtraDiscount(purchase.extraDisc || 0);
     resetCurRow();
-    showMsg(`✏ Editing Purchase Invoice ${purchase.invoiceNo}`, "success");
+    showMsg(`✏ Editing Purchase Invoice ${invNo}`, "success");
     setTimeout(() => searchRef.current?.focus(), 50);
   };
 
@@ -1393,7 +1423,10 @@ export default function RawPurchasePage() {
       const { data } = await api.get(EP.RAW_PURCHASES.GET_ALL);
       if (!data.success || !data.data?.length) return;
       const allPurchases = data.data;
-      const curIdx = allPurchases.findIndex((s) => editId ? s._id === editId : s.invoiceNo === invoiceNo);
+      const currentCleanNo = cleanInvoiceNo(invoiceNo);
+      const curIdx = allPurchases.findIndex((s) => {
+        return cleanInvoiceNo(s.invoiceNo) === currentCleanNo;
+      });
       let nextIdx = dir === "prev" ? curIdx - 1 : curIdx + 1;
       nextIdx = Math.max(0, Math.min(nextIdx, allPurchases.length - 1));
       if (nextIdx === curIdx) return;
@@ -1404,7 +1437,7 @@ export default function RawPurchasePage() {
   };
 
   const buildPayload = () => ({
-    invoiceNo,
+    invoiceNo: cleanInvoiceNo(invoiceNo),
     invoiceDate,
     customerId: customerId || undefined,
     customerName: customerName || "COUNTER SALE",
@@ -1615,21 +1648,23 @@ export default function RawPurchasePage() {
                   <input 
                     className="xp-input xp-input-sm sl-inv-input" 
                     value={invoiceNo} 
-                    onChange={(e) => setInvoiceNo(e.target.value)}
+                    onChange={(e) => setInvoiceNo(cleanInvoiceNo(e.target.value))}
                     onKeyDown={async (e) => {
                       if (e.key === "Enter") {
                         e.preventDefault();
-                        const val = invoiceNo.trim();
+                        const val = cleanInvoiceNo(invoiceNo);
                         if (!val) return;
                         try {
-                          const { data } = await api.get(EP.RAW_PURCHASES.GET_ALL + `?invoiceNo=${val}`);
+                          const { data } = await api.get(EP.RAW_PURCHASES.GET_ALL);
                           const purchases = data.data;
                           if (!purchases || purchases.length === 0) { 
                             showMsg(`Invoice "${val}" not found`, "error"); 
                             await refreshInvoiceNo(); 
                             return; 
                           }
-                          const exact = purchases.find((s) => s.invoiceNo?.toString() === val.toString());
+                          const exact = purchases.find((s) => {
+                            return cleanInvoiceNo(s.invoiceNo) === val;
+                          });
                           if (!exact) { 
                             showMsg(`Invoice "${val}" not found`, "error"); 
                             await refreshInvoiceNo(); 

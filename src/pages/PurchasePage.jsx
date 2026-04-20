@@ -27,20 +27,8 @@ const EMPTY_ROW = {
   amount: 0,
 };
 
-const SHOP_INFO = {
-  name: "عاصم الیکٹرک اینڈ الیکٹرونکس سٹور",
-  nameEn: "Asim Electric & Electronic Store",
-  address: "مین بازار نہاری ٹاؤن نزد بجلی گھر سٹاپ گوجرانوالہ روڈ فیصل آباد",
-  phone1: "Faqir Hussain 0300 7262129",
-  phone2: "PTCL 041 8711575",
-  phone3: "Shop 0315 7262129",
-  urduBanner:
-    "یہاں پر چانک فراڈ کی وارپس، جانچ فلک، وارنگ سیلز اور ریکارڈ کے تمام اخیری ہول سیل ریٹ پر دستیاب ہے۔",
-  urduTerms:
-    "الیکٹرانک اور چانٹا کے سپیئر پارٹس کی واپسی یا تبدیلی ہر صورت ممکن نہیں ہوگی۔\nبلی ہوئی آئٹم، پکلاہوا اکا ول واپس قابل واپسی نہیں ہے۔\nبارک کے سامان کی واپس کی صورت میں (7) دن کے اند پہلی ہوگی۔\nکل پیلی کلائی کی تمام واپسی قابل قبول نہیں ہوگی۔",
-  devBy:
-    "Software developed by: Creative Babar / 03098325271 or visit website www.digitalglobalschool.com",
-};
+import { SHOP_INFO, URDU_FONT, GOOGLE_FONT_LINK, getShopHeaderHTML, getShopBannerHTML, getShopTermsHTML, getShopFooterHTML } from "../constants/shopInfo.js";
+
 
 /* ── localStorage helpers for Hold ── */
 const loadPurchaseHolds = () => {
@@ -56,12 +44,23 @@ const savePurchaseHolds = (holds) => {
   } catch {}
 };
 
+// Clean invoice number function - removes PUR- prefix and leading zeros
+const cleanInvoiceNo = (invNo) => {
+  let cleaned = String(invNo || "0");
+  cleaned = cleaned.replace(/^PUR-/i, '');
+  cleaned = cleaned.replace(/^0+/, '');
+  cleaned = parseInt(cleaned, 10);
+  if (isNaN(cleaned)) return "1";
+  return String(cleaned);
+};
+
 /* ══════════════════════════════════════════════════════════
    PRINT HTML BUILDER — Purchase Invoice
 ══════════════════════════════════════════════════════════ */
 const buildPrintHtml = (purchase, type, overrides = {}) => {
   const buyerName = overrides.buyerName ?? purchase.supplierName;
   const buyerPhone = overrides.buyerPhone ?? "";
+  const remarks = overrides.remarks || purchase.remarks || "";
   const rows = purchase.items.map((it, i) => ({ ...it, sr: i + 1 }));
   const totalQty = rows.reduce((s, r) => s + (r.pcs || 0), 0);
 
@@ -104,6 +103,7 @@ const buildPrintHtml = (purchase, type, overrides = {}) => {
       .sum-row.sep{border-top:1px dashed #555;margin-top:2px;padding-top:2px}
       .red{color:#b00}.green{color:#060}
       .totals-box{margin-top:4px}
+      .remarks-box{font-size:8px;color:#555;margin-top:3px;padding:2px;border-top:1px dashed #ccc;word-break:break-word}
       .terms{font-family:${URDU_FONT};direction:rtl;font-size:9px;color:#333;border:1px dashed #999;padding:4px;margin-top:4px;line-height:2;text-align:right}
       .devby{text-align:center;font-size:7.5px;color:#777;margin-top:4px;border-top:1px dashed #ccc;padding-top:3px}
       @media print{@page{size:80mm auto;margin:1mm}body{width:78mm}}
@@ -125,6 +125,7 @@ const buildPrintHtml = (purchase, type, overrides = {}) => {
       <div class="meta-row"><span>Supplier:</span></div>
       <div style="font-size:10px;font-weight:bold;margin-bottom:1px">${buyerName}</div>
       ${buyerPhone ? `<div style="font-size:9px;color:#555">${buyerPhone}</div>` : ""}
+      ${remarks ? `<div class="remarks-box"><b>Remarks:</b> ${remarks}</div>` : ""}
       <hr class="divider-solid">
       <table>
         <thead><tr><th style="width:20px">#</th><th>Product</th><th class="r">Qty.</th><th class="r">Rate</th><th class="r">Amount</th></tr></thead>
@@ -188,6 +189,7 @@ const buildPrintHtml = (purchase, type, overrides = {}) => {
           <div class="meta-left">
             <div class="meta-row"><span class="meta-lbl">Supplier:</span> <span class="meta-val">${buyerName}</span></div>
             ${buyerPhone ? `<div class="meta-row"><span class="meta-val">${buyerPhone}</span></div>` : ""}
+            ${remarks ? `<div class="meta-row"><span class="meta-lbl">Remarks:</span> <span class="meta-val">${remarks}</span></div>` : ""}
           </div>
           <div class="meta-mid"><span class="meta-val">${rows.length}</span></div>
           <div class="meta-right">
@@ -262,11 +264,32 @@ const buildPrintHtml = (purchase, type, overrides = {}) => {
   </style></head><body>${allPagesHtml}</body></html>`;
 };
 
+// FIXED: Improved print function with better error handling
 const doPrint = (purchase, type, overrides = {}) => {
-  const w = window.open("", "_blank", type === "Thermal" ? "width=420,height=640" : "width=900,height=700");
-  w.document.write(buildPrintHtml(purchase, type, overrides));
-  w.document.close();
-  setTimeout(() => w.print(), 400);
+  try {
+    const printWindow = window.open("", "_blank", type === "Thermal" ? "width=420,height=640" : "width=900,height=700");
+    
+    if (!printWindow) {
+      alert("Popup blocked! Please allow popups for this website to print invoices.");
+      return false;
+    }
+    
+    printWindow.document.write(buildPrintHtml(purchase, type, overrides));
+    printWindow.document.close();
+    
+    printWindow.onload = () => {
+      setTimeout(() => {
+        printWindow.focus();
+        printWindow.print();
+      }, 300);
+    };
+    
+    return true;
+  } catch (error) {
+    console.error("Print error:", error);
+    alert("Error preparing print: " + error.message);
+    return false;
+  }
 };
 
 /* ══════════════════════════════════════════════════════════
@@ -368,7 +391,7 @@ function HoldPreviewModal({ bill, onResume, onClose }) {
 }
 
 /* ══════════════════════════════════════════════════════════
-   SUPPLIER SEARCH DROPDOWN - Only shows on Arrow Up/Down
+   SUPPLIER SEARCH DROPDOWN
 ══════════════════════════════════════════════════════════ */
 function SupplierDropdown({ allSuppliers, value, onSelect, onClear, onAddNew }) {
   const [query, setQuery] = useState("");
@@ -399,8 +422,6 @@ function SupplierDropdown({ allSuppliers, value, onSelect, onClear, onAddNew }) 
 
     const matches = getSuggestions(originalQuery);
     setSuggestions(matches);
-    // Don't show dropdown automatically - only on Arrow keys
-    // setShowDropdown(matches.length > 0);
     
     if (!isNavigating && matches.length > 0 && matches[0].name) {
       const remaining = matches[0].name.slice(originalQuery.length);
@@ -520,7 +541,6 @@ function SupplierDropdown({ allSuppliers, value, onSelect, onClear, onAddNew }) 
     setOriginalQuery(newValue);
     if (value && newValue !== value) onClear();
     setSelectedSuggestionIndex(-1);
-    // Don't show dropdown on typing
     setShowDropdown(false);
     setIsNavigating(false);
   };
@@ -579,7 +599,6 @@ function SupplierDropdown({ allSuppliers, value, onSelect, onClear, onAddNew }) 
             onBlur={(e) => {
               e.target.style.borderColor = "#000000";
               e.target.style.boxShadow = "none";
-              // Delay hiding dropdown to allow click selection
               setTimeout(() => {
                 if (!isNavigating) {
                   setShowDropdown(false);
@@ -666,9 +685,6 @@ function SupplierDropdown({ allSuppliers, value, onSelect, onClear, onAddNew }) 
 /* ══════════════════════════════════════════════════════════
    PRODUCT SEARCH MODAL
 ══════════════════════════════════════════════════════════ */
-/* ══════════════════════════════════════════════════════════
-   PRODUCT SEARCH MODAL - BOLD UPPERCASE HEADERS LIKE SALE PAGE
-══════════════════════════════════════════════════════════ */
 function SearchModal({ allProducts, onSelect, onClose }) {
   const [desc, setDesc] = useState("");
   const [cat, setCat] = useState("");
@@ -753,7 +769,6 @@ function SearchModal({ allProducts, onSelect, onClose }) {
           <button className="xp-cap-btn xp-cap-close" onClick={onClose}>✕</button>
         </div>
         
-        {/* Filters */}
         <div className="cs-modal-filters" style={{ 
           padding: "8px 12px", 
           gap: "10px", 
@@ -809,7 +824,6 @@ function SearchModal({ allProducts, onSelect, onClose }) {
           </div>
         </div>
         
-        {/* Table - BOLD UPPERCASE BLACK HEADERS */}
         <div className="xp-modal-body" style={{ padding: 0 }}>
           <div className="xp-table-panel" style={{ border: "none" }}>
             <div className="xp-table-scroll" style={{ maxHeight: "60vh", overflow: "auto" }}>
@@ -886,6 +900,7 @@ function SearchModal({ allProducts, onSelect, onClose }) {
     </div>
   );
 }
+
 /* ══════════════════════════════════════════════════════════
    MAIN PURCHASE PAGE
 ══════════════════════════════════════════════════════════ */
@@ -899,12 +914,14 @@ export default function PurchasePage() {
   const [curRow, setCurRow] = useState({ ...EMPTY_ROW });
   const [items, setItems] = useState([]);
   const [invoiceDate, setInvoiceDate] = useState(isoDate());
-  const [invoiceNo, setInvoiceNo] = useState("PUR-00001");
+  const [invoiceNo, setInvoiceNo] = useState("1");
   const amountRef = useRef(null);
 
   const [supplierName, setSupplierName] = useState("Cash Purchase");
   const [supplierId, setSupplierId] = useState("");
   const [supplierCode, setSupplierCode] = useState("");
+  const [remarks, setRemarks] = useState(""); // NEW: remarks state
+  const [showRemarksInput, setShowRemarksInput] = useState(false); // NEW: show remarks input
   const [printType, setPrintType] = useState("Thermal");
   const [editId, setEditId] = useState(null);
   const [holdBills, setHoldBills] = useState(() => loadPurchaseHolds());
@@ -918,6 +935,7 @@ export default function PurchasePage() {
   const rateRef = useRef(null);
   const addRef = useRef(null);
   const codeSearchRef = useRef(null);
+  const remarksRef = useRef(null); // NEW: remarks input ref
 
   useEffect(() => {
     const t = setInterval(() => setTime(timeNow()), 1000);
@@ -938,13 +956,27 @@ export default function PurchasePage() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [pRes, invRes] = await Promise.all([
+      const [pRes, salesRes] = await Promise.all([
         api.get(EP.PRODUCTS.GET_ALL),
-        api.get(EP.PURCHASES.NEXT_INVOICE),
+        api.get(EP.PURCHASES.GET_ALL),
       ]);
       
       if (pRes.data.success) setAllProducts(pRes.data.data);
-      if (invRes.data.success) setInvoiceNo(invRes.data.data.invoiceNo);
+      
+      // Calculate next invoice number from existing purchases
+      if (salesRes.data.success && salesRes.data.data.length > 0) {
+        let maxNum = 0;
+        salesRes.data.data.forEach(purchase => {
+          let num = cleanInvoiceNo(purchase.invoiceNo);
+          num = parseInt(num, 10);
+          if (!isNaN(num) && num > maxNum) {
+            maxNum = num;
+          }
+        });
+        setInvoiceNo(String(maxNum + 1));
+      } else {
+        setInvoiceNo("1");
+      }
       
       try {
         const sRes = await api.get("/customers/suppliers/all");
@@ -972,9 +1004,25 @@ export default function PurchasePage() {
 
   const refreshInvoiceNo = async () => {
     try {
-      const r = await api.get(EP.PURCHASES.NEXT_INVOICE);
-      if (r.data.success) setInvoiceNo(r.data.data.invoiceNo);
-    } catch {}
+      const salesRes = await api.get(EP.PURCHASES.GET_ALL);
+      if (salesRes.data.success && salesRes.data.data.length > 0) {
+        let maxNum = 0;
+        salesRes.data.data.forEach(purchase => {
+          let num = cleanInvoiceNo(purchase.invoiceNo);
+          num = parseInt(num, 10);
+          if (!isNaN(num) && num > maxNum) {
+            maxNum = num;
+          }
+        });
+        setInvoiceNo(String(maxNum + 1));
+      } else {
+        setInvoiceNo("1");
+      }
+    } catch (error) {
+      console.error("Failed to refresh invoice number:", error);
+      const current = parseInt(invoiceNo) || 0;
+      setInvoiceNo(String(current + 1));
+    }
   };
 
   const showMsg = (text, type = "success") => {
@@ -989,6 +1037,8 @@ export default function PurchasePage() {
     setSupplierName("Cash Purchase");
     setSupplierId("");
     setSupplierCode("");
+    setRemarks(""); // Reset remarks
+    setShowRemarksInput(false); // Hide remarks input
     setEditId(null);
     setMsg({ text: "", type: "" });
     if (codeSearchRef.current) codeSearchRef.current.value = "";
@@ -1056,12 +1106,21 @@ export default function PurchasePage() {
     setSupplierId(supplier._id);
     setSupplierName(supplier.name);
     setSupplierCode(supplier.code || "");
+    // NEW: Show remarks input and focus on it
+    setShowRemarksInput(true);
+    setTimeout(() => {
+      if (remarksRef.current) {
+        remarksRef.current.focus();
+      }
+    }, 100);
   };
 
   const handleSupplierClear = () => {
     setSupplierId("");
     setSupplierName("Cash Purchase");
     setSupplierCode("");
+    setRemarks(""); // Clear remarks
+    setShowRemarksInput(false); // Hide remarks input
   };
 
   const handleAddNewSupplier = async (name) => {
@@ -1076,6 +1135,13 @@ export default function PurchasePage() {
         setSupplierId(data.data._id);
         setSupplierName(data.data.name);
         setSupplierCode(data.data.code || "");
+        // NEW: Show remarks input and focus on it
+        setShowRemarksInput(true);
+        setTimeout(() => {
+          if (remarksRef.current) {
+            remarksRef.current.focus();
+          }
+        }, 100);
         showMsg(`"${name}" saved as new supplier`, "success");
       }
     } catch {
@@ -1097,7 +1163,6 @@ export default function PurchasePage() {
     }
   };
 
-  // Hold current purchase
   const holdPurchase = () => {
     if (!items.length) {
       showMsg("No items to hold", "error");
@@ -1114,13 +1179,13 @@ export default function PurchasePage() {
         supplierCode,
         amount: subTotal,
         items: [...items],
+        remarks, // Save remarks with hold
       },
     ]);
     showMsg(`Purchase held: ${invoiceNo}`, "success");
     resetToNewInvoice();
   };
 
-  // Resume held purchase
   const resumeHold = (holdId) => {
     const bill = holdBills.find((b) => b.id === holdId);
     if (!bill) return;
@@ -1130,6 +1195,8 @@ export default function PurchasePage() {
     setSupplierName(bill.supplierName || "Cash Purchase");
     setSupplierId(bill.supplierId || "");
     setSupplierCode(bill.supplierCode || "");
+    setRemarks(bill.remarks || "");
+    setShowRemarksInput(!!(bill.supplierName && bill.supplierName !== "Cash Purchase"));
     setHoldBills((prev) => prev.filter((b) => b.id !== holdId));
     setShowHoldPreview(null);
     resetCurRow();
@@ -1142,17 +1209,18 @@ export default function PurchasePage() {
       setHoldBills((prev) => prev.filter((b) => b.id !== holdId));
   };
 
+  // Main function to save and print
   const handlePrintAndSave = async () => {
     if (isPrinting) return;
     if (items.length === 0) {
-      showMsg("No items to print", "error");
+      showMsg("No items to save and print", "error");
       return;
     }
     
     setIsPrinting(true);
     
     const purchaseObj = {
-      invoiceNo,
+      invoiceNo: cleanInvoiceNo(invoiceNo),
       invoiceDate,
       supplierName: supplierName,
       items: items,
@@ -1162,18 +1230,19 @@ export default function PurchasePage() {
       prevBalance: 0,
       paidAmount: subTotal,
       balance: 0,
+      remarks: remarks, // Include remarks
     };
     
-    doPrint(purchaseObj, printType, { buyerName: supplierName });
-    
     try {
+      // Prepare payload for saving
       const payload = {
-        invoiceNo,
+        invoiceNo: cleanInvoiceNo(invoiceNo),
         invoiceDate,
         supplierId: supplierId || null,
         supplierName: supplierName,
         supplierCode: supplierCode,
         supplierPhone: "",
+        remarks: remarks, // Include remarks in payload
         items: items.map((r, idx) => ({
           productId: r.productId || undefined,
           code: r.code,
@@ -1200,6 +1269,7 @@ export default function PurchasePage() {
         saleType: "purchase",
       };
       
+      // STEP 1: SAVE to database
       let response;
       if (editId) {
         response = await api.put(EP.PURCHASES.UPDATE(editId), payload);
@@ -1207,29 +1277,62 @@ export default function PurchasePage() {
         response = await api.post(EP.PURCHASES.CREATE, payload);
       }
       
-      if (response.data.success) {
-        showMsg(editId ? `✓ Invoice ${invoiceNo} updated & printed` : `✓ Invoice ${invoiceNo} saved & printed successfully`);
-        if (!editId) await refreshInvoiceNo();
-        await resetToNewInvoice();
-      } else {
+      if (!response.data.success) {
         showMsg(response.data.message || "Save failed", "error");
+        setIsPrinting(false);
+        return;
       }
+      
+      // STEP 2: Show success message
+      showMsg(editId ? `✓ Invoice ${invoiceNo} updated successfully` : `✓ Invoice ${invoiceNo} saved successfully`);
+      
+      // STEP 3: PRINT after successful save
+      setTimeout(() => {
+        try {
+          const printWindow = window.open("", "_blank", printType === "Thermal" ? "width=420,height=640" : "width=900,height=700");
+          
+          if (!printWindow) {
+            alert("Popup blocked! Please allow popups for this website to print invoices.\nThe invoice has been saved but you can print it later.");
+            return;
+          }
+          
+          printWindow.document.write(buildPrintHtml(purchaseObj, printType, { buyerName: supplierName, remarks: remarks }));
+          printWindow.document.close();
+          
+          printWindow.onload = () => {
+            setTimeout(() => {
+              printWindow.focus();
+              printWindow.print();
+            }, 300);
+          };
+        } catch (printError) {
+          console.error("Print failed:", printError);
+          showMsg("Save successful but print failed - you can print later from records", "error");
+        }
+      }, 300);
+      
+      // STEP 4: Reset for next invoice
+      if (!editId) await refreshInvoiceNo();
+      await resetToNewInvoice();
       
     } catch (error) {
       console.error("Save failed:", error);
-      showMsg("Print done but save failed: " + (error.response?.data?.message || error.message), "error");
+      showMsg("Save failed: " + (error.response?.data?.message || error.message), "error");
+    } finally {
+      setIsPrinting(false);
     }
-    
-    setIsPrinting(false);
   };
 
   const loadPurchaseForEdit = (purchase) => {
     setEditId(purchase._id);
-    setInvoiceNo(purchase.invoiceNo);
+    let invNo = cleanInvoiceNo(purchase.invoiceNo);
+    setInvoiceNo(invNo);
     setInvoiceDate(purchase.invoiceDate || isoDate());
     setSupplierName(purchase.supplierName || "Cash Purchase");
     setSupplierId(purchase.supplierId || "");
     setSupplierCode(purchase.supplierCode || "");
+    setRemarks(purchase.remarks || "");
+    setShowRemarksInput(!!(purchase.supplierName && purchase.supplierName !== "Cash Purchase"));
     
     const loadedItems = (purchase.items || []).map((it) => ({
       productId: it.productId || it.product || "",
@@ -1244,7 +1347,7 @@ export default function PurchasePage() {
     setItems(loadedItems);
     
     resetCurRow();
-    showMsg(`✏ Editing Purchase Invoice ${purchase.invoiceNo}`, "success");
+    showMsg(`✏ Editing Purchase Invoice ${invNo}`, "success");
     setTimeout(() => searchRef.current?.focus(), 50);
   };
 
@@ -1253,9 +1356,10 @@ export default function PurchasePage() {
       const { data } = await api.get(EP.PURCHASES.GET_ALL);
       if (!data.success || !data.data?.length) return;
       const allPurchases = data.data;
-      const curIdx = allPurchases.findIndex((s) =>
-        editId ? s._id === editId : s.invoiceNo === invoiceNo
-      );
+      const currentCleanNo = cleanInvoiceNo(invoiceNo);
+      const curIdx = allPurchases.findIndex((s) => {
+        return cleanInvoiceNo(s.invoiceNo) === currentCleanNo;
+      });
       let nextIdx = dir === "prev" ? curIdx - 1 : curIdx + 1;
       nextIdx = Math.max(0, Math.min(nextIdx, allPurchases.length - 1));
       if (nextIdx === curIdx) return;
@@ -1265,18 +1369,40 @@ export default function PurchasePage() {
     }
   };
 
-  // Keyboard handler for F4 (Hold)
+  // Handle star key press (*) and remarks Enter key
   useEffect(() => {
     const handler = (e) => {
       if (showProductModal || showHoldPreview) return;
+      
+      // Star key (*) - prints and saves
+      if (e.key === "*") {
+        e.preventDefault();
+        if (items.length > 0) {
+          handlePrintAndSave();
+        }
+        return;
+      }
+      
+      // F4 key - hold purchase
       if (e.key === "F4") {
         e.preventDefault();
         holdPurchase();
+        return;
+      }
+      
+      // Enter key on remarks input - prints and saves
+      if (e.key === "Enter" && document.activeElement === remarksRef.current) {
+        e.preventDefault();
+        if (items.length > 0) {
+          handlePrintAndSave();
+        }
+        return;
       }
     };
+    
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [items, showProductModal, showHoldPreview]);
+  }, [items, showProductModal, showHoldPreview, remarks]);
 
   return (
     <>
@@ -1292,9 +1418,9 @@ export default function PurchasePage() {
           <svg width="15" height="15" viewBox="0 0 16 16" fill="rgba(255,255,255,0.85)">
             <path d="M0 4a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2zm2-1a1 1 0 0 0-1 1v1h14V4a1 1 0 0 0-1-1zm13 4H1v5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1zM2 10h2a1 1 0 0 1 0 2H2a1 1 0 0 1 0-2m4 0h6a1 1 0 0 1 0 2H6a1 1 0 0 1 0-2" />
           </svg>
-          <span className="xp-tb-title">Purchase Invoice — Direct Print (*) | F4 Hold</span>
+          <span className="xp-tb-title">Purchase Invoice — * Print & Save | F4 Hold</span>
           <div className="xp-tb-actions">
-            <div className="sl-shortcut-hints"><span>F2 Product</span><span>F4 Hold</span><span>* Print</span></div>
+            <div className="sl-shortcut-hints"><span>F2 Product</span><span>F4 Hold</span><span>* Print/Save</span></div>
             <div className="xp-tb-divider" />
             <button className="xp-cap-btn">─</button>
             <button className="xp-cap-btn" onClick={() => { if (!document.fullscreenElement) document.documentElement.requestFullscreen(); else document.exitFullscreen(); }}>□</button>
@@ -1324,23 +1450,23 @@ export default function PurchasePage() {
                   <input 
                     className="xp-input xp-input-sm sl-inv-input-large" 
                     value={invoiceNo} 
-                    onChange={(e) => setInvoiceNo(e.target.value)}
+                    onChange={(e) => setInvoiceNo(cleanInvoiceNo(e.target.value))}
                     onKeyDown={async (e) => {
                       if (e.key === "Enter") {
                         e.preventDefault();
-                        const val = invoiceNo.trim();
+                        const val = cleanInvoiceNo(invoiceNo);
                         if (!val) return;
                         try {
-                          const { data } = await api.get(EP.PURCHASES.GET_ALL + `?invoiceNo=${val}`);
+                          const { data } = await api.get(EP.PURCHASES.GET_ALL);
                           const purchases = data.data;
                           if (!purchases || purchases.length === 0) {
                             showMsg(`Invoice "${val}" not found`, "error");
                             await refreshInvoiceNo();
                             return;
                           }
-                          const exact = purchases.find(
-                            (s) => s.invoiceNo?.toString() === val.toString()
-                          );
+                          const exact = purchases.find((s) => {
+                            return cleanInvoiceNo(s.invoiceNo) === val;
+                          });
                           if (!exact) {
                             showMsg(`Invoice "${val}" not found`, "error");
                             await refreshInvoiceNo();
@@ -1589,83 +1715,122 @@ export default function PurchasePage() {
                   disabled={isPrinting || items.length === 0}
                   style={{ padding: "6px 20px", fontSize: 14, background: "#10b981", borderColor: "#059669" }}
                 >
-                  {isPrinting ? "Printing..." : "🖨 Print (*)"}
+                  {isPrinting ? "Processing..." : "🖨 Print & Save (*)"}
                 </button>
               </div>
             </div>
+
+            {/* NEW: Remarks Input Section */}
+            {showRemarksInput && (
+              <div className="sl-remarks-section" style={{
+                marginTop: "10px",
+                padding: "8px 12px",
+                background: "#f0fdf4",
+                borderRadius: "6px",
+                border: "1px solid #10b981",
+                display: "flex",
+                alignItems: "center",
+                gap: "10px"
+              }}>
+                <label style={{ fontWeight: "bold", color: "#065f46", minWidth: "70px" }}>Remarks:</label>
+                <input
+                  ref={remarksRef}
+                  type="text"
+                  className="sl-remarks-input"
+                  value={remarks}
+                  onChange={(e) => setRemarks(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && items.length > 0) {
+                      e.preventDefault();
+                      handlePrintAndSave();
+                    }
+                  }}
+                  placeholder="Enter remarks and press Enter to print & save..."
+                  style={{
+                    flex: 1,
+                    padding: "8px 12px",
+                    border: "1px solid #10b981",
+                    borderRadius: "4px",
+                    fontSize: "13px",
+                    outline: "none",
+                    background: "white"
+                  }}
+                  autoComplete="off"
+                />
+                <span style={{ fontSize: "11px", color: "#065f46" }}>Press Enter → Print & Save</span>
+              </div>
+            )}
           </div>
 
-             {/* Right panel - Hold Bills */}
-        <div className="sl-right">
-          <div className="sl-hold-panel">
-            <div className="sl-hold-title" style={{ background: "#10b981" }}>
-              <span>Hold Bills <kbd style={{ fontSize: 9, background: "rgba(255,255,255,0.2)", padding: "0 3px", borderRadius: 2 }}>F4</kbd></span>
-              <span className="sl-hold-cnt">{holdBills.length}</span>
-            </div>
-            <div className="sl-hold-table-wrap">
-              <table className="sl-hold-table">
-                <thead>
-                  <tr>
-                    <th style={{ width: 24 }}>#</th>
-                    <th>Invoice #</th>
-                    <th className="r">Amount</th>
-                    <th>Supplier</th>
-                    <th style={{ width: 22 }}></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {holdBills.length === 0 ? (
-                    Array.from({ length: 8 }).map((_, i) => (
-                      <tr key={i}>
-                        <td colSpan={5} style={{ height: 22 }} />
-                      </tr>
-                    ))
-                  ) : (
-                    holdBills.map((b, i) => (
-                      <tr
-                        key={b.id}
-                        onClick={() => setShowHoldPreview(b)}
-                        onDoubleClick={() => resumeHold(b.id)}
-                        title="Click = preview · Double-click = resume"
-                        style={{ cursor: "pointer" }}
-                      >
-                        <td className="muted" style={{ textAlign: "center", fontSize: "var(--xp-fs-xs)" }}>{i + 1}</td>
-                        <td style={{ fontFamily: "var(--xp-mono)", fontSize: "var(--xp-fs-xs)" }}>{b.invoiceNo}</td>
-                        <td className="r" style={{ color: "#10b981" }}>{fmt(b.amount)}</td>
-                        <td className="muted" style={{ fontSize: "var(--xp-fs-xs)" }}>{b.supplierName || "Cash Purchase"}</td>
-                        <td style={{ textAlign: "center" }}>
-                          <button
-                            className="xp-btn xp-btn-sm xp-btn-ico"
-                            style={{ width: 18, height: 18, fontSize: 9, color: "var(--xp-red)" }}
-                            onClick={(e) => deleteHold(b.id, e)}
-                          >
-                            ✕
-                          </button>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-            <div style={{ padding: "4px 8px", flexShrink: 0 }}>
-              <button
-                className="xp-btn xp-btn-sm"
-                style={{ width: "100%", background: "#10b981", color: "white", borderColor: "#059669" }}
-                onClick={holdPurchase}
-                disabled={!items.length}
-              >
-                Hold Bill (F4)
-              </button>
-            </div>
-            <div className="sl-hold-hint" style={{ padding: "4px 8px", fontSize: 10, color: "#666", textAlign: "center", borderTop: "1px solid #e5e7eb" }}>
-              Click = preview · Double-click = resume · ✕ = delete
+          {/* Right panel - Hold Bills */}
+          <div className="sl-right">
+            <div className="sl-hold-panel">
+              <div className="sl-hold-title" style={{ background: "#10b981" }}>
+                <span>Hold Bills <kbd style={{ fontSize: 9, background: "rgba(255,255,255,0.2)", padding: "0 3px", borderRadius: 2 }}>F4</kbd></span>
+                <span className="sl-hold-cnt">{holdBills.length}</span>
+              </div>
+              <div className="sl-hold-table-wrap">
+                <table className="sl-hold-table">
+                  <thead>
+                    <tr>
+                      <th style={{ width: 24 }}>#</th>
+                      <th>Invoice #</th>
+                      <th className="r">Amount</th>
+                      <th>Supplier</th>
+                      <th style={{ width: 22 }}></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {holdBills.length === 0 ? (
+                      Array.from({ length: 8 }).map((_, i) => (
+                        <tr key={i}>
+                          <td colSpan={5} style={{ height: 22 }} />
+                        </tr>
+                      ))
+                    ) : (
+                      holdBills.map((b, i) => (
+                        <tr
+                          key={b.id}
+                          onClick={() => setShowHoldPreview(b)}
+                          onDoubleClick={() => resumeHold(b.id)}
+                          title="Click = preview · Double-click = resume"
+                          style={{ cursor: "pointer" }}
+                        >
+                          <td className="muted" style={{ textAlign: "center", fontSize: "var(--xp-fs-xs)" }}>{i + 1}</td>
+                          <td style={{ fontFamily: "var(--xp-mono)", fontSize: "var(--xp-fs-xs)" }}>{b.invoiceNo}</td>
+                          <td className="r" style={{ color: "#10b981" }}>{fmt(b.amount)}</td>
+                          <td className="muted" style={{ fontSize: "var(--xp-fs-xs)" }}>{b.supplierName || "Cash Purchase"}</td>
+                          <td style={{ textAlign: "center" }}>
+                            <button
+                              className="xp-btn xp-btn-sm xp-btn-ico"
+                              style={{ width: 18, height: 18, fontSize: 9, color: "var(--xp-red)" }}
+                              onClick={(e) => deleteHold(b.id, e)}
+                            >
+                              ✕
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+              <div style={{ padding: "4px 8px", flexShrink: 0 }}>
+                <button
+                  className="xp-btn xp-btn-sm"
+                  style={{ width: "100%", background: "#10b981", color: "white", borderColor: "#059669" }}
+                  onClick={holdPurchase}
+                  disabled={!items.length}
+                >
+                  Hold Bill (F4)
+                </button>
+              </div>
+              <div className="sl-hold-hint" style={{ padding: "4px 8px", fontSize: 10, color: "#666", textAlign: "center", borderTop: "1px solid #e5e7eb" }}>
+                Click = preview · Double-click = resume · ✕ = delete
+              </div>
             </div>
           </div>
         </div>
-        </div>
-
-     
 
         <div className="sl-cmd-bar">
           <button 
@@ -1863,6 +2028,11 @@ export default function PurchasePage() {
 
         .sl-nav-btn {
           display: none;
+        }
+
+        .sl-remarks-input:focus {
+          border-color: #059669 !important;
+          box-shadow: 0 0 0 2px rgba(5,150,105,0.2) !important;
         }
       `}</style>
     </>
