@@ -457,8 +457,6 @@ export default function GeneralLedgerPage() {
   };
   
   const buildPrintHtml = () => {
-    const totalDebit = transactions.reduce((sum, t) => sum + (t.debit || 0), 0);
-    const totalCredit = transactions.reduce((sum, t) => sum + (t.credit || 0), 0);
     const closingBalance = transactions[transactions.length - 1]?.runningBalance || 0;
     const printDateTime = new Date().toLocaleString("en-PK", {
       year: 'numeric',
@@ -525,9 +523,8 @@ export default function GeneralLedgerPage() {
           table{width:100%;border-collapse:collapse;margin:15px 0}
           th{background:#555;color:#fff;padding:14px 10px;font-size:14px;border:2px solid #000;text-transform:uppercase;font-weight:bold}
           td{padding:10px;border:2px solid #000;font-size:13px}
-          .totals{width:400px;margin-left:auto;margin-top:20px}
-          .totals-row{display:flex;justify-content:space-between;padding:10px 0;font-size:14px}
-          .totals-row.bold{font-weight:bold;border-top:3px solid #000;margin-top:8px;padding-top:12px;font-size:16px}
+          .balance-box{width:400px;margin-left:auto;margin-top:20px;border:2px solid #000;padding:15px;background:#f8fafc}
+          .balance-row{display:flex;justify-content:space-between;font-size:16px;font-weight:bold}
           .footer{text-align:center;margin-top:30px;padding-top:12px;border-top:1px solid #ddd;font-size:11px;color:#666}
           .text-center{text-align:center}
           .text-right{text-align:right}
@@ -582,20 +579,13 @@ export default function GeneralLedgerPage() {
             </tr>
           </thead>
           <tbody>${rows}</tbody>
-          <tfoot>
-            <tr>
-              <td colspan="5" style="text-align:right;font-weight:bold;font-size:14px;padding:12px">TOTALS:</td>
-              <td class="text-right" style="font-weight:bold;font-size:14px">PKR ${fmt(totalDebit)}</td>
-              <td class="text-right" style="font-weight:bold;font-size:14px">PKR ${fmt(totalCredit)}</td>
-              <td class="text-right" style="font-weight:bold;font-size:14px">PKR ${fmt(Math.abs(closingBalance))}</td>
-            </tr>
-          </tfoot>
         </table>
         
-        <div class="totals">
-          <div class="totals-row"><span>Total Debit:</span><span>PKR ${fmt(totalDebit)}</span></div>
-          <div class="totals-row"><span>Total Credit:</span><span>PKR ${fmt(totalCredit)}</span></div>
-          <div class="totals-row bold"><span>Closing Balance:</span><span class="${closingBalance > 0 ? 'red' : 'green'}">PKR ${fmt(Math.abs(closingBalance))} ${closingBalance > 0 ? '(Receivable)' : '(Payable)'}</span></div>
+        <div class="balance-box">
+          <div class="balance-row">
+            <span>Closing Balance:</span>
+            <span class="${closingBalance > 0 ? 'red' : 'green'}">PKR ${fmt(Math.abs(closingBalance))} ${closingBalance > 0 ? '(Receivable)' : '(Payable)'}</span>
+          </div>
         </div>
         
         <div class="footer">Thank you for your business! | Developed by: Creative Babar / 03098325271| www.digitalglobalschool.com</div>
@@ -615,7 +605,7 @@ export default function GeneralLedgerPage() {
                   <th style="padding:4px 6px;border:1px solid #000;text-align:center;font-size:10px;">Qty</th>
                   <th style="padding:4px 6px;border:1px solid #000;text-align:right;font-size:10px;">Rate</th>
                   <th style="padding:4px 6px;border:1px solid #000;text-align:right;font-size:10px;">Amount</th>
-                </tr>
+                </td>
               </thead>
               <tbody>`;
           
@@ -706,9 +696,8 @@ export default function GeneralLedgerPage() {
           table{width:100%;border-collapse:collapse;margin:12px 0}
           th{background:#555;color:#fff;padding:10px 8px;font-size:12px;border:2px solid #000;text-transform:uppercase;font-weight:bold}
           td{padding:10px 8px;border:2px solid #000;vertical-align:top}
-          .totals{width:380px;margin-left:auto;margin-top:15px}
-          .totals-row{display:flex;justify-content:space-between;padding:8px 0;font-size:12px}
-          .totals-row.bold{font-weight:bold;border-top:2px solid #000;margin-top:6px;padding-top:10px;font-size:14px}
+          .balance-box{width:380px;margin-left:auto;margin-top:15px;border:2px solid #000;padding:12px;background:#f8fafc}
+          .balance-row{display:flex;justify-content:space-between;font-size:14px;font-weight:bold}
           .footer{text-align:center;margin-top:25px;padding-top:10px;border-top:1px solid #ddd;font-size:10px;color:#666}
           .text-center{text-align:center}
           .text-right{text-align:right}
@@ -771,20 +760,13 @@ export default function GeneralLedgerPage() {
             </tr>
           </thead>
           <tbody>${detailedRows}</tbody>
-          <tfoot>
-            <tr>
-              <td colspan="5" style="text-align:right;font-weight:bold;padding:10px;border:2px solid #000;">TOTALS:</td>
-              <td class="text-right" style="font-weight:bold;border:2px solid #000;padding:10px;">PKR ${fmt(totalDebit)}</td>
-              <td class="text-right" style="font-weight:bold;border:2px solid #000;padding:10px;">PKR ${fmt(totalCredit)}</td>
-              <td class="text-right" style="font-weight:bold;border:2px solid #000;padding:10px;">PKR ${fmt(Math.abs(closingBalance))}</td>
-            </tr>
-          </tfoot>
         </table>
         
-        <div class="totals">
-          <div class="totals-row"><span>Total Debit:</span><span>PKR ${fmt(totalDebit)}</span></div>
-          <div class="totals-row"><span>Total Credit:</span><span>PKR ${fmt(totalCredit)}</span></div>
-          <div class="totals-row bold"><span>Closing Balance:</span><span class="${closingBalance > 0 ? 'red' : 'green'}">PKR ${fmt(Math.abs(closingBalance))} ${closingBalance > 0 ? '(Receivable)' : '(Payable)'}</span></div>
+        <div class="balance-box">
+          <div class="balance-row">
+            <span>Closing Balance:</span>
+            <span class="${closingBalance > 0 ? 'red' : 'green'}">PKR ${fmt(Math.abs(closingBalance))} ${closingBalance > 0 ? '(Receivable)' : '(Payable)'}</span>
+          </div>
         </div>
         
         <div class="footer">Thank you for your business! | Developed by: Creative Babar / 03098325271 | www.digitalglobalschool.com</div>
@@ -801,8 +783,6 @@ export default function GeneralLedgerPage() {
     setShowPrintModal(false);
   };
   
-  const totalDebit = transactions.reduce((sum, t) => sum + (t.debit || 0), 0);
-  const totalCredit = transactions.reduce((sum, t) => sum + (t.credit || 0), 0);
   const closingBalance = transactions[transactions.length - 1]?.runningBalance || 0;
   
   return (
@@ -1257,11 +1237,11 @@ export default function GeneralLedgerPage() {
                 </tbody>
                 <tfoot style={{ background: "#f8fafc", borderTop: "3px solid #000000" }}>
                   <tr>
-                    <td colSpan="5" style={{ padding: "6px 3px", textAlign: "right", fontWeight: "bold", border: "1px solid #000000", fontSize: "13px", textTransform: "uppercase", color: "#000000" }}>TOTALS:</td>
-                    <td style={{ padding: "6px 3px", textAlign: "right", fontWeight: "bold", border: "1px solid #000000", fontSize: "13px", color: "#dc2626" }}>PKR ${fmt(totalDebit)}</td>
-                    <td style={{ padding: "6px 3px", textAlign: "right", fontWeight: "bold", border: "1px solid #000000", fontSize: "13px", color: "#059669" }}>PKR ${fmt(totalCredit)}</td>
+                    <td colSpan="7" style={{ padding: "6px 3px", textAlign: "right", fontWeight: "bold", border: "1px solid #000000", fontSize: "13px", textTransform: "uppercase", color: "#000000" }}>
+                      Closing Balance:
+                    </td>
                     <td style={{ padding: "6px 3px", textAlign: "right", fontWeight: "bold", border: "1px solid #000000", fontSize: "13px", color: closingBalance > 0 ? "#dc2626" : "#059669" }}>
-                      PKR ${fmt(Math.abs(closingBalance))}
+                      PKR {fmt(Math.abs(closingBalance))}
                     </td>
                   </tr>
                 </tfoot>
