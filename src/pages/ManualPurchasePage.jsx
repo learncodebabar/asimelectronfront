@@ -391,7 +391,7 @@ export default function ManualPurchasePage() {
           </div>
         </div>
 
-        {/* Main Content Area - Two column layout: 70% inputs / 30% supplier image */}
+        {/* Main Content Area - Two column layout: 85% inputs / 15% supplier image */}
         <div style={{
           background: "#ffffff",
           borderRadius: "6px",
@@ -403,13 +403,13 @@ export default function ManualPurchasePage() {
           alignItems: "flex-start"
         }}>
           
-          {/* Left side: Input fields (70%) */}
-          <div style={{ flex: "7", minWidth: 0 }}>
+          {/* Left side: Input fields (85%) */}
+          <div style={{ flex: "85", minWidth: 0 }}>
             <div style={{ fontWeight: "bold", fontSize: "12px", marginBottom: "8px", color: "#1e40af", background: "#dbeafe", padding: "4px 8px", borderRadius: "4px", display: "inline-block" }}>📥 PURCHASE - DEBIT (Money OUT)</div>
             
             <div style={{ 
               display: "grid", 
-              gridTemplateColumns: "1fr 2fr 2fr 1fr 1.2fr 1.2fr", 
+              gridTemplateColumns: "0.8fr 1.8fr 3.5fr 1fr 1.2fr 1.2fr", 
               gap: "10px", 
               alignItems: "end"
             }}>
@@ -423,7 +423,6 @@ export default function ManualPurchasePage() {
                   value={row.code} 
                   onChange={(e) => setRow(prev => ({ ...prev, code: e.target.value }))}
                   onKeyDown={handleCodeKeyDown}
-                  placeholder="Enter code & press Enter"
                 />
               </div>
               
@@ -468,7 +467,6 @@ export default function ManualPurchasePage() {
                     value={searchQuery}
                     onChange={handleSupplierChange}
                     onKeyDown={handleSupplierKeyDown}
-                    placeholder="Type name - ghost text appears..."
                     autoComplete="off"
                   />
                 </div>
@@ -477,7 +475,21 @@ export default function ManualPurchasePage() {
               {/* DESCRIPTION */}
               <div>
                 <label style={{ fontSize: "10px", fontWeight: "bold", display: "block", marginBottom: "2px" }}>DESCRIPTION</label>
-                <input ref={descRef} type="text" style={{ fontSize: "12px", padding: "6px 8px", border: "1px solid #000000", borderRadius: "3px", width: "100%" }} value={row.description} onChange={(e) => updateRow("description", e.target.value)} onKeyDown={(e) => handleRowKeyDown(e, 'desc')} />
+                <input 
+                  ref={descRef} 
+                  type="text" 
+                  style={{ 
+                    fontSize: "12px", 
+                    padding: "6px 8px", 
+                    border: "1px solid #000000", 
+                    borderRadius: "3px", 
+                    width: "100%",
+                    minWidth: "280px"
+                  }} 
+                  value={row.description} 
+                  onChange={(e) => updateRow("description", e.target.value)} 
+                  onKeyDown={(e) => handleRowKeyDown(e, 'desc')} 
+                />
               </div>
               
               {/* INVOICE # */}
@@ -500,27 +512,27 @@ export default function ManualPurchasePage() {
             </div>
           </div>
           
-          {/* Right side: Supplier Image (30%) */}
-          <div style={{ flex: "3", display: "flex", justifyContent: "flex-end", alignItems: "center", minWidth: "160px" }}>
+          {/* Right side: Supplier Image (15%) */}
+          <div style={{ flex: "15", display: "flex", justifyContent: "flex-end", alignItems: "center", minWidth: "140px" }}>
             {selectedSupplier && selectedSupplier.imageFront ? (
               <div style={{ textAlign: "center" }}>
                 <img 
                   src={selectedSupplier.imageFront} 
                   alt={selectedSupplier.name} 
                   style={{ 
-                    width: "120px", 
-                    height: "120px", 
+                    width: "100px", 
+                    height: "100px", 
                     objectFit: "cover", 
                     border: "2px solid #000000",
                     boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
                     borderRadius: "4px"
                   }} 
                 />
-                <div style={{ fontSize: "11px", marginTop: "6px", fontWeight: "bold", color: "#1e293b" }}>
+                <div style={{ fontSize: "10px", marginTop: "4px", fontWeight: "bold", color: "#1e293b" }}>
                   {selectedSupplier.name}
                 </div>
                 {selectedSupplier.phone && (
-                  <div style={{ fontSize: "10px", color: "#64748b" }}>
+                  <div style={{ fontSize: "9px", color: "#64748b" }}>
                     📞 {selectedSupplier.phone}
                   </div>
                 )}
@@ -528,41 +540,41 @@ export default function ManualPurchasePage() {
             ) : selectedSupplier ? (
               <div style={{ textAlign: "center" }}>
                 <div style={{ 
-                  width: "120px", 
-                  height: "120px", 
+                  width: "100px", 
+                  height: "100px", 
                   background: "#e2e8f0", 
                   display: "flex", 
                   alignItems: "center", 
                   justifyContent: "center", 
-                  fontSize: "60px", 
+                  fontSize: "50px", 
                   border: "2px solid #000000",
                   boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
                   borderRadius: "4px"
                 }}>
                   🏭
                 </div>
-                <div style={{ fontSize: "11px", marginTop: "6px", fontWeight: "bold", color: "#1e293b" }}>
+                <div style={{ fontSize: "10px", marginTop: "4px", fontWeight: "bold", color: "#1e293b" }}>
                   {selectedSupplier.name}
                 </div>
                 {selectedSupplier.phone && (
-                  <div style={{ fontSize: "10px", color: "#64748b" }}>
+                  <div style={{ fontSize: "9px", color: "#64748b" }}>
                     📞 {selectedSupplier.phone}
                   </div>
                 )}
               </div>
             ) : (
-              <div style={{ textAlign: "center", color: "#94a3b8", fontSize: "11px", fontWeight: "bold", padding: "20px" }}>
+              <div style={{ textAlign: "center", color: "#94a3b8", fontSize: "10px", fontWeight: "bold", padding: "10px" }}>
                 <div style={{ 
-                  width: "120px", 
-                  height: "120px", 
+                  width: "100px", 
+                  height: "100px", 
                   background: "#f1f5f9", 
                   display: "flex", 
                   alignItems: "center", 
                   justifyContent: "center", 
-                  fontSize: "50px", 
+                  fontSize: "40px", 
                   border: "2px dashed #cbd5e1",
                   borderRadius: "4px",
-                  marginBottom: "8px"
+                  marginBottom: "4px"
                 }}>
                   🖼️
                 </div>
@@ -593,7 +605,7 @@ export default function ManualPurchasePage() {
                   <th style={{ padding: "8px 6px", textAlign: "left", border: "1px solid #000000", fontWeight: "bold" }}>Date</th>
                   <th style={{ padding: "8px 6px", textAlign: "left", border: "1px solid #000000", fontWeight: "bold" }}>Code</th>
                   <th style={{ padding: "8px 6px", textAlign: "left", border: "1px solid #000000", fontWeight: "bold" }}>Supplier</th>
-                  <th style={{ padding: "8px 6px", textAlign: "center", width: "80px", border: "1px solid #000000", fontWeight: "bold" }}>Type</th>
+                  <th style={{ padding: "8px 6px", textAlign: "center", width: "100px", border: "1px solid #000000", fontWeight: "bold" }}>Type</th>
                   <th style={{ padding: "8px 6px", textAlign: "right", width: "100px", border: "1px solid #000000", fontWeight: "bold" }}>Amount</th>
                   <th style={{ padding: "8px 6px", textAlign: "left", border: "1px solid #000000", fontWeight: "bold" }}>Remarks</th>
                 </tr>
@@ -613,7 +625,15 @@ export default function ManualPurchasePage() {
                     <td style={{ padding: "6px", border: "1px solid #000000", fontWeight: "600" }}>{record.items?.[0]?.code || record.code || "—"}</td>
                     <td style={{ padding: "6px", border: "1px solid #000000", fontWeight: "bold" }}>{record.customerName || "—"}</td>
                     <td style={{ padding: "6px", textAlign: "center", border: "1px solid #000000" }}>
-                      <span style={{ padding: "2px 8px", borderRadius: "3px", fontSize: "10px", fontWeight: "bold", background: "#dbeafe", border: "1px solid #000000" }}>PURCHASE</span>
+                      <span style={{ 
+                        padding: "2px 10px", 
+                        borderRadius: "3px", 
+                        fontSize: "10px", 
+                        fontWeight: "bold", 
+                        background: "#dbeafe", 
+                        border: "1px solid #000000",
+                        whiteSpace: "nowrap"
+                      }}>PURCHASE</span>
                     </td>
                     <td style={{ padding: "6px", textAlign: "right", border: "1px solid #000000", fontWeight: "bold", color: "#1e40af" }}>
                       {fmt(record.netTotal)}
@@ -648,7 +668,7 @@ export default function ManualPurchasePage() {
                     <th style={{ padding: "5px", textAlign: "left", border: "1px solid #000000" }}>Supplier</th>
                     <th style={{ padding: "5px", textAlign: "left", border: "1px solid #000000" }}>Description</th>
                     <th style={{ padding: "5px", textAlign: "right", border: "1px solid #000000" }}>Amount</th>
-                    <th style={{ padding: "5px", textAlign: "center", border: "1px solid #000000" }}>Type</th>
+                    <th style={{ padding: "5px", textAlign: "center", width: "90px", border: "1px solid #000000" }}>Type</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -660,7 +680,14 @@ export default function ManualPurchasePage() {
                       <td style={{ padding: "4px", border: "1px solid #000000" }}>{entry.description || "—"}</td>
                       <td style={{ padding: "4px", textAlign: "right", border: "1px solid #000000", fontWeight: "bold", color: "#1e40af" }}>{fmt(entry.amount)}</td>
                       <td style={{ padding: "4px", textAlign: "center", border: "1px solid #000000" }}>
-                        <span style={{ padding: "2px 6px", borderRadius: "2px", fontSize: "9px", fontWeight: "bold", background: "#dbeafe" }}>PURCHASE</span>
+                        <span style={{ 
+                          padding: "2px 8px", 
+                          borderRadius: "2px", 
+                          fontSize: "9px", 
+                          fontWeight: "bold", 
+                          background: "#dbeafe",
+                          whiteSpace: "nowrap"
+                        }}>PURCHASE</span>
                       </td>
                     </tr>
                   ))}

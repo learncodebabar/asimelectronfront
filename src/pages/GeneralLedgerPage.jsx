@@ -895,7 +895,7 @@ export default function GeneralLedgerPage() {
       {/* Main Content */}
       <div className="xp-page-body" style={{ padding: "16px", background: "#ffffff", flex: 1, overflow: "auto" }}>
         
-        {/* Search Section - Two column layout: 60% inputs / 40% customer image (bigger) */}
+        {/* Search Section - Two column layout: 85% inputs / 15% customer image */}
         <div style={{
           background: "#ffffff",
           borderRadius: "8px",
@@ -906,8 +906,8 @@ export default function GeneralLedgerPage() {
           gap: "20px",
           alignItems: "start"
         }}>
-          {/* Left side: Input fields (60%) */}
-          <div style={{ flex: "6", minWidth: 0 }}>
+          {/* Left side: Input fields (85%) */}
+          <div style={{ flex: "85", minWidth: 0 }}>
             <div style={{ 
               display: "flex", 
               gap: "12px", 
@@ -966,7 +966,6 @@ export default function GeneralLedgerPage() {
                   value={codeSearch}
                   onChange={(e) => setCodeSearch(e.target.value)}
                   onKeyDown={handleCodeKeyDown}
-                  placeholder="Enter code & press Enter"
                   style={{ 
                     height: "36px", 
                     padding: "0 10px", 
@@ -1014,7 +1013,6 @@ export default function GeneralLedgerPage() {
                     value={searchQuery}
                     onChange={handleAccountTitleChange}
                     onKeyDown={handleKeyDown}
-                    placeholder="Type name - suggestions appear as ghost text..."
                     autoComplete="off"
                     style={{ 
                       width: "100%", 
@@ -1057,23 +1055,23 @@ export default function GeneralLedgerPage() {
             </div>
           </div>
           
-          {/* Right side: Customer Image (40%) - BIGGER SQUARE 150x150 */}
-          <div style={{ flex: "4", display: "flex", justifyContent: "flex-end", alignItems: "center", minWidth: "200px" }}>
+          {/* Right side: Customer Image (15%) - SQUARE 120x120 */}
+          <div style={{ flex: "15", display: "flex", justifyContent: "flex-end", alignItems: "center", minWidth: "140px" }}>
             {selectedEntity && selectedEntity.imageFront ? (
               <div style={{ textAlign: "center" }}>
                 <img 
                   src={selectedEntity.imageFront} 
                   alt={selectedEntity.name} 
                   style={{ 
-                    width: "150px", 
-                    height: "150px", 
+                    width: "120px", 
+                    height: "120px", 
                     objectFit: "cover", 
                     border: "3px solid #000000",
                     boxShadow: "0 4px 8px rgba(0,0,0,0.2)",
                     borderRadius: "4px"
                   }} 
                 />
-                <div style={{ fontSize: "12px", marginTop: "6px", fontWeight: "bold", color: "#1e293b" }}>
+                <div style={{ fontSize: "11px", marginTop: "6px", fontWeight: "bold", color: "#1e293b" }}>
                   {selectedEntity.name}
                 </div>
                 {selectedEntity.phone && (
@@ -1085,20 +1083,20 @@ export default function GeneralLedgerPage() {
             ) : selectedEntity ? (
               <div style={{ textAlign: "center" }}>
                 <div style={{ 
-                  width: "150px", 
-                  height: "150px", 
+                  width: "120px", 
+                  height: "120px", 
                   background: "#e2e8f0", 
                   display: "flex", 
                   alignItems: "center", 
                   justifyContent: "center", 
-                  fontSize: "75px", 
+                  fontSize: "60px", 
                   border: "3px solid #000000",
                   boxShadow: "0 4px 8px rgba(0,0,0,0.2)",
                   borderRadius: "4px"
                 }}>
                   {activeTab === "customer" ? "👤" : "🏢"}
                 </div>
-                <div style={{ fontSize: "12px", marginTop: "6px", fontWeight: "bold", color: "#1e293b" }}>
+                <div style={{ fontSize: "11px", marginTop: "6px", fontWeight: "bold", color: "#1e293b" }}>
                   {selectedEntity.name}
                 </div>
                 {selectedEntity.phone && (
@@ -1108,18 +1106,18 @@ export default function GeneralLedgerPage() {
                 )}
               </div>
             ) : (
-              <div style={{ textAlign: "center", color: "#94a3b8", fontSize: "13px", fontWeight: "bold", padding: "30px" }}>
+              <div style={{ textAlign: "center", color: "#94a3b8", fontSize: "11px", fontWeight: "bold", padding: "20px" }}>
                 <div style={{ 
-                  width: "150px", 
-                  height: "150px", 
+                  width: "120px", 
+                  height: "120px", 
                   background: "#f1f5f9", 
                   display: "flex", 
                   alignItems: "center", 
                   justifyContent: "center", 
-                  fontSize: "75px", 
+                  fontSize: "60px", 
                   border: "2px dashed #cbd5e1",
                   borderRadius: "4px",
-                  marginBottom: "10px"
+                  marginBottom: "8px"
                 }}>
                   🖼️
                 </div>
@@ -1260,10 +1258,10 @@ export default function GeneralLedgerPage() {
                 <tfoot style={{ background: "#f8fafc", borderTop: "3px solid #000000" }}>
                   <tr>
                     <td colSpan="5" style={{ padding: "6px 3px", textAlign: "right", fontWeight: "bold", border: "1px solid #000000", fontSize: "13px", textTransform: "uppercase", color: "#000000" }}>TOTALS:</td>
-                    <td style={{ padding: "6px 3px", textAlign: "right", fontWeight: "bold", border: "1px solid #000000", fontSize: "13px", color: "#dc2626" }}>PKR {fmt(totalDebit)}</td>
-                    <td style={{ padding: "6px 3px", textAlign: "right", fontWeight: "bold", border: "1px solid #000000", fontSize: "13px", color: "#059669" }}>PKR {fmt(totalCredit)}</td>
+                    <td style={{ padding: "6px 3px", textAlign: "right", fontWeight: "bold", border: "1px solid #000000", fontSize: "13px", color: "#dc2626" }}>PKR ${fmt(totalDebit)}</td>
+                    <td style={{ padding: "6px 3px", textAlign: "right", fontWeight: "bold", border: "1px solid #000000", fontSize: "13px", color: "#059669" }}>PKR ${fmt(totalCredit)}</td>
                     <td style={{ padding: "6px 3px", textAlign: "right", fontWeight: "bold", border: "1px solid #000000", fontSize: "13px", color: closingBalance > 0 ? "#dc2626" : "#059669" }}>
-                      PKR {fmt(Math.abs(closingBalance))}
+                      PKR ${fmt(Math.abs(closingBalance))}
                     </td>
                   </tr>
                 </tfoot>

@@ -1,4 +1,4 @@
-// pages/SalePage.jsx - FIXED Customer Loading
+// pages/SalePage.jsx - FIXED Customer Loading & Product Focus Flow
 import { useState, useEffect, useRef, useCallback } from "react";
 import api from "../api/api.js";
 import EP from "../api/apiEndpoints.js";
@@ -303,7 +303,7 @@ const buildPrintHtml = (sale, type, overrides = {}) => {
         <td style="text-align:right">${it.pcs}</td>
         ${!hidePrices ? `<td style="text-align:right">${Number(it.rate).toLocaleString()}</td>
         <td style="text-align:right"><b>${Number(it.amount).toLocaleString()}</b></td>` : '<td colspan="2" style="text-align:center;color:#888">[Price Hidden]</td>'}
-      </tr>`,
+       </tr>`,
       )
       .join("");
 
@@ -1947,6 +1947,7 @@ export default function SalePage() {
     setTimeout(() => searchRef.current?.focus(), 30);
   };
   
+  // FIXED: pickProduct - Focus on search input first, NOT packing
   const pickProduct = (product) => {
     if (!product._id) {
       showMsg("Product ID missing", "error");
@@ -1966,7 +1967,8 @@ export default function SalePage() {
     setSearchText(product.code || "");
     setShowProductModal(false);
     setShowProductSuggestions(false);
-    setTimeout(() => packingRef.current?.focus(), 30);
+    // FIXED: Focus on search input first, NOT packing
+    setTimeout(() => searchRef.current?.focus(), 30);
   };
 
   const updateCurRow = (field, val) => {
@@ -2578,6 +2580,8 @@ export default function SalePage() {
                           });
                           setProductSuggestions([]);
                           setShowProductSuggestions(false);
+                          // FIXED: AFTER product is selected, focus on packing field on Enter
+                          setTimeout(() => packingRef.current?.focus(), 50);
                         } else if (searchText.trim()) {
                           const q = searchText.trim().toLowerCase();
                           let found = allProducts.find(p => p.code?.toLowerCase() === q);
@@ -2598,6 +2602,8 @@ export default function SalePage() {
                               _stock: pk?.openingQty || 0,
                               _name: [found.category, found.description, found.company].filter(Boolean).join(" "),
                             });
+                            // FIXED: AFTER product is selected, focus on packing field on Enter
+                            setTimeout(() => packingRef.current?.focus(), 50);
                           } else {
                             setShowProductModal(true);
                           }
@@ -2618,6 +2624,33 @@ export default function SalePage() {
                     }}
                     autoFocus
                   />
+                  {showProductSuggestions && productSuggestions.length > 0 && (
+                    <div className="sl-product-suggestions">
+                      {productSuggestions.map((p, idx) => (
+                        <div
+                          key={p._id}
+                          className={`sl-suggestion-item ${idx === selectedProductSuggestionIdx ? 'selected' : ''}`}
+                          onClick={() => {
+                            const pk = p.packingInfo?.[0];
+                            pickProduct({
+                              ...p,
+                              _pi: 0,
+                              _meas: pk?.measurement || "",
+                              _rate: pk?.saleRate || 0,
+                              _pack: pk?.packing || 1,
+                              _stock: pk?.openingQty || 0,
+                              _name: [p.category, p.description, p.company].filter(Boolean).join(" "),
+                            });
+                            setShowProductSuggestions(false);
+                            setTimeout(() => packingRef.current?.focus(), 50);
+                          }}
+                        >
+                          <span className="sl-suggestion-code">{p.code}</span>
+                          <span className="sl-suggestion-name">{p.description}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
               <div className="sl-entry-cell" style={{ position: "relative" }}>

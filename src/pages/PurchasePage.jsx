@@ -293,6 +293,201 @@ const doPrint = (purchase, type, overrides = {}) => {
 };
 
 /* ══════════════════════════════════════════════════════════
+   CONFIRMATION MODAL - White background, black text
+══════════════════════════════════════════════════════════ */
+function ConfirmModal({ invoiceNo, supplierName, totalAmount, totalQty, itemsCount, onConfirm, onClose }) {
+  const modalRef = useRef(null);
+
+  useEffect(() => {
+    modalRef.current?.focus();
+    
+    const handleKeyDown = (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        onConfirm(true); // Print and Save
+      } else if (e.key === " " || e.key === "Space") {
+        e.preventDefault();
+        onConfirm(false); // Save only
+      } else if (e.key === "Escape") {
+        e.preventDefault();
+        onClose();
+      }
+    };
+    
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [onConfirm, onClose]);
+
+  return (
+    <div
+      className="scm-overlay"
+      style={{ zIndex: 3000, background: "rgba(0,0,0,0.5)" }}
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    >
+      <div
+        ref={modalRef}
+        className="scm-window"
+        style={{
+          maxWidth: 480,
+          textAlign: "center",
+          background: "#ffffff",
+          border: "2px solid #000000",
+          boxShadow: "0 10px 40px rgba(0,0,0,0.2)",
+          borderRadius: "12px",
+          padding: "0"
+        }}
+        tabIndex={-1}
+      >
+        <div className="scm-tb" style={{ 
+          background: "#1e40af", 
+          borderBottom: "2px solid #000000",
+          borderRadius: "10px 10px 0 0",
+          padding: "12px 20px"
+        }}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z" fill="#ffffff"/>
+          </svg>
+          <span className="scm-tb-title" style={{ color: "#ffffff", fontWeight: "bold", fontSize: "16px" }}>Confirm Purchase Invoice</span>
+          <button className="xp-cap-btn xp-cap-close" onClick={onClose} style={{ color: "#ffffff" }}>✕</button>
+        </div>
+        
+        <div style={{ padding: "20px 24px" }}>
+          <div style={{ 
+            background: "#f8fafc", 
+            borderRadius: "8px", 
+            padding: "16px", 
+            marginBottom: "20px",
+            border: "1px solid #000000"
+          }}>
+            <div style={{ fontSize: "12px", color: "#666", marginBottom: "4px" }}>Invoice Number</div>
+            <div style={{ fontSize: "24px", fontWeight: "bold", color: "#000000", fontFamily: "monospace" }}>{invoiceNo}</div>
+            <div style={{ marginTop: "12px", display: "flex", justifyContent: "space-between", borderTop: "1px solid #e5e7eb", paddingTop: "12px" }}>
+              <div>
+                <div style={{ fontSize: "10px", color: "#666" }}>Supplier</div>
+                <div style={{ fontSize: "13px", fontWeight: "bold", color: "#000000" }}>{supplierName}</div>
+              </div>
+              <div>
+                <div style={{ fontSize: "10px", color: "#666" }}>Total Amount</div>
+                <div style={{ fontSize: "16px", fontWeight: "bold", color: "#10b981" }}>PKR {fmt(totalAmount)}</div>
+              </div>
+            </div>
+            <div style={{ marginTop: "8px", display: "flex", justifyContent: "space-between" }}>
+              <div>
+                <div style={{ fontSize: "10px", color: "#666" }}>Items</div>
+                <div style={{ fontSize: "13px", fontWeight: "bold", color: "#000000" }}>{itemsCount}</div>
+              </div>
+              <div>
+                <div style={{ fontSize: "10px", color: "#666" }}>Total Qty</div>
+                <div style={{ fontSize: "13px", fontWeight: "bold", color: "#000000" }}>{totalQty}</div>
+              </div>
+            </div>
+          </div>
+          
+          <div style={{ marginBottom: "20px" }}>
+            <div style={{ 
+              background: "#f0fdf4", 
+              border: "1px solid #10b981", 
+              borderRadius: "8px", 
+              padding: "12px",
+              marginBottom: "12px"
+            }}>
+              <div style={{ fontSize: "13px", fontWeight: "bold", color: "#065f46", marginBottom: "8px" }}>
+                ✅ This will SAVE the invoice to database
+              </div>
+            </div>
+            
+            <div style={{ 
+              display: "flex", 
+              gap: "12px", 
+              justifyContent: "center",
+              marginTop: "8px"
+            }}>
+              <div style={{ 
+                background: "#dbeafe", 
+                border: "1px solid #1e40af", 
+                borderRadius: "8px", 
+                padding: "8px 12px",
+                flex: 1
+              }}>
+                <div style={{ fontSize: "20px", fontWeight: "bold", color: "#1e40af" }}>↵ ENTER</div>
+                <div style={{ fontSize: "10px", color: "#1e40af" }}>Save & Print</div>
+              </div>
+              <div style={{ 
+                background: "#fef3c7", 
+                border: "1px solid #d97706", 
+                borderRadius: "8px", 
+                padding: "8px 12px",
+                flex: 1
+              }}>
+                <div style={{ fontSize: "20px", fontWeight: "bold", color: "#d97706" }}>␣ SPACE</div>
+                <div style={{ fontSize: "10px", color: "#d97706" }}>Save Only</div>
+              </div>
+            </div>
+          </div>
+          
+          <div style={{ display: "flex", gap: "10px", justifyContent: "center" }}>
+            <button
+              onClick={() => onConfirm(true)}
+              style={{
+                background: "#1e40af",
+                color: "white",
+                border: "1px solid #000000",
+                padding: "10px 20px",
+                borderRadius: "6px",
+                fontSize: "13px",
+                fontWeight: "bold",
+                cursor: "pointer",
+                transition: "all 0.2s ease"
+              }}
+              onMouseEnter={(e) => e.target.style.background = "#1e3a8a"}
+              onMouseLeave={(e) => e.target.style.background = "#1e40af"}
+            >
+              🖨 Save & Print (Enter)
+            </button>
+            <button
+              onClick={() => onConfirm(false)}
+              style={{
+                background: "#10b981",
+                color: "white",
+                border: "1px solid #000000",
+                padding: "10px 20px",
+                borderRadius: "6px",
+                fontSize: "13px",
+                fontWeight: "bold",
+                cursor: "pointer",
+                transition: "all 0.2s ease"
+              }}
+              onMouseEnter={(e) => e.target.style.background = "#059669"}
+              onMouseLeave={(e) => e.target.style.background = "#10b981"}
+            >
+              💾 Save Only (Space)
+            </button>
+            <button
+              onClick={onClose}
+              style={{
+                background: "#ef4444",
+                color: "white",
+                border: "1px solid #000000",
+                padding: "10px 20px",
+                borderRadius: "6px",
+                fontSize: "13px",
+                fontWeight: "bold",
+                cursor: "pointer",
+                transition: "all 0.2s ease"
+              }}
+              onMouseEnter={(e) => e.target.style.background = "#dc2626"}
+              onMouseLeave={(e) => e.target.style.background = "#ef4444"}
+            >
+              Cancel (Esc)
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════
    HOLD PREVIEW MODAL
 ══════════════════════════════════════════════════════════ */
 function HoldPreviewModal({ bill, onResume, onClose }) {
@@ -910,6 +1105,7 @@ export default function PurchasePage() {
   const [allSuppliers, setAllSuppliers] = useState([]);
   const [showProductModal, setShowProductModal] = useState(false);
   const [showHoldPreview, setShowHoldPreview] = useState(null);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [searchText, setSearchText] = useState("");
   const [curRow, setCurRow] = useState({ ...EMPTY_ROW });
   const [items, setItems] = useState([]);
@@ -920,22 +1116,22 @@ export default function PurchasePage() {
   const [supplierName, setSupplierName] = useState("Cash Purchase");
   const [supplierId, setSupplierId] = useState("");
   const [supplierCode, setSupplierCode] = useState("");
-  const [remarks, setRemarks] = useState(""); // NEW: remarks state
-  const [showRemarksInput, setShowRemarksInput] = useState(false); // NEW: show remarks input
+  const [remarks, setRemarks] = useState("");
+  const [showRemarksInput, setShowRemarksInput] = useState(false);
   const [printType, setPrintType] = useState("Thermal");
   const [editId, setEditId] = useState(null);
   const [holdBills, setHoldBills] = useState(() => loadPurchaseHolds());
 
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState({ text: "", type: "" });
-  const [isPrinting, setIsPrinting] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   const searchRef = useRef(null);
   const pcsRef = useRef(null);
   const rateRef = useRef(null);
   const addRef = useRef(null);
   const codeSearchRef = useRef(null);
-  const remarksRef = useRef(null); // NEW: remarks input ref
+  const remarksRef = useRef(null);
 
   useEffect(() => {
     const t = setInterval(() => setTime(timeNow()), 1000);
@@ -963,7 +1159,6 @@ export default function PurchasePage() {
       
       if (pRes.data.success) setAllProducts(pRes.data.data);
       
-      // Calculate next invoice number from existing purchases
       if (salesRes.data.success && salesRes.data.data.length > 0) {
         let maxNum = 0;
         salesRes.data.data.forEach(purchase => {
@@ -1037,14 +1232,13 @@ export default function PurchasePage() {
     setSupplierName("Cash Purchase");
     setSupplierId("");
     setSupplierCode("");
-    setRemarks(""); // Reset remarks
-    setShowRemarksInput(false); // Hide remarks input
+    setRemarks("");
+    setShowRemarksInput(false);
     setEditId(null);
     setMsg({ text: "", type: "" });
     if (codeSearchRef.current) codeSearchRef.current.value = "";
     await refreshInvoiceNo();
     setTimeout(() => searchRef.current?.focus(), 100);
-    showMsg("Screen refreshed - Ready for new invoice", "success");
   };
 
   const pickProduct = (product) => {
@@ -1106,7 +1300,6 @@ export default function PurchasePage() {
     setSupplierId(supplier._id);
     setSupplierName(supplier.name);
     setSupplierCode(supplier.code || "");
-    // NEW: Show remarks input and focus on it
     setShowRemarksInput(true);
     setTimeout(() => {
       if (remarksRef.current) {
@@ -1119,8 +1312,8 @@ export default function PurchasePage() {
     setSupplierId("");
     setSupplierName("Cash Purchase");
     setSupplierCode("");
-    setRemarks(""); // Clear remarks
-    setShowRemarksInput(false); // Hide remarks input
+    setRemarks("");
+    setShowRemarksInput(false);
   };
 
   const handleAddNewSupplier = async (name) => {
@@ -1135,7 +1328,6 @@ export default function PurchasePage() {
         setSupplierId(data.data._id);
         setSupplierName(data.data.name);
         setSupplierCode(data.data.code || "");
-        // NEW: Show remarks input and focus on it
         setShowRemarksInput(true);
         setTimeout(() => {
           if (remarksRef.current) {
@@ -1179,7 +1371,7 @@ export default function PurchasePage() {
         supplierCode,
         amount: subTotal,
         items: [...items],
-        remarks, // Save remarks with hold
+        remarks,
       },
     ]);
     showMsg(`Purchase held: ${invoiceNo}`, "success");
@@ -1209,15 +1401,15 @@ export default function PurchasePage() {
       setHoldBills((prev) => prev.filter((b) => b.id !== holdId));
   };
 
-  // Main function to save and print
-  const handlePrintAndSave = async () => {
-    if (isPrinting) return;
+  // Main function to save and optionally print
+  const savePurchase = async (shouldPrint) => {
+    if (isProcessing) return;
     if (items.length === 0) {
-      showMsg("No items to save and print", "error");
+      showMsg("No items to save", "error");
       return;
     }
     
-    setIsPrinting(true);
+    setIsProcessing(true);
     
     const purchaseObj = {
       invoiceNo: cleanInvoiceNo(invoiceNo),
@@ -1230,7 +1422,7 @@ export default function PurchasePage() {
       prevBalance: 0,
       paidAmount: subTotal,
       balance: 0,
-      remarks: remarks, // Include remarks
+      remarks: remarks,
     };
     
     try {
@@ -1242,7 +1434,7 @@ export default function PurchasePage() {
         supplierName: supplierName,
         supplierCode: supplierCode,
         supplierPhone: "",
-        remarks: remarks, // Include remarks in payload
+        remarks: remarks,
         items: items.map((r, idx) => ({
           productId: r.productId || undefined,
           code: r.code,
@@ -1279,37 +1471,39 @@ export default function PurchasePage() {
       
       if (!response.data.success) {
         showMsg(response.data.message || "Save failed", "error");
-        setIsPrinting(false);
+        setIsProcessing(false);
         return;
       }
       
       // STEP 2: Show success message
       showMsg(editId ? `✓ Invoice ${invoiceNo} updated successfully` : `✓ Invoice ${invoiceNo} saved successfully`);
       
-      // STEP 3: PRINT after successful save
-      setTimeout(() => {
-        try {
-          const printWindow = window.open("", "_blank", printType === "Thermal" ? "width=420,height=640" : "width=900,height=700");
-          
-          if (!printWindow) {
-            alert("Popup blocked! Please allow popups for this website to print invoices.\nThe invoice has been saved but you can print it later.");
-            return;
+      // STEP 3: PRINT if requested
+      if (shouldPrint) {
+        setTimeout(() => {
+          try {
+            const printWindow = window.open("", "_blank", printType === "Thermal" ? "width=420,height=640" : "width=900,height=700");
+            
+            if (!printWindow) {
+              alert("Popup blocked! Please allow popups for this website to print invoices.\nThe invoice has been saved.");
+              return;
+            }
+            
+            printWindow.document.write(buildPrintHtml(purchaseObj, printType, { buyerName: supplierName, remarks: remarks }));
+            printWindow.document.close();
+            
+            printWindow.onload = () => {
+              setTimeout(() => {
+                printWindow.focus();
+                printWindow.print();
+              }, 300);
+            };
+          } catch (printError) {
+            console.error("Print failed:", printError);
+            showMsg("Save successful but print failed - you can print later from records", "error");
           }
-          
-          printWindow.document.write(buildPrintHtml(purchaseObj, printType, { buyerName: supplierName, remarks: remarks }));
-          printWindow.document.close();
-          
-          printWindow.onload = () => {
-            setTimeout(() => {
-              printWindow.focus();
-              printWindow.print();
-            }, 300);
-          };
-        } catch (printError) {
-          console.error("Print failed:", printError);
-          showMsg("Save successful but print failed - you can print later from records", "error");
-        }
-      }, 300);
+        }, 300);
+      }
       
       // STEP 4: Reset for next invoice
       if (!editId) await refreshInvoiceNo();
@@ -1319,8 +1513,18 @@ export default function PurchasePage() {
       console.error("Save failed:", error);
       showMsg("Save failed: " + (error.response?.data?.message || error.message), "error");
     } finally {
-      setIsPrinting(false);
+      setIsProcessing(false);
+      setShowConfirmModal(false);
     }
+  };
+
+  // Open confirmation modal when pressing *
+  const openConfirmModal = () => {
+    if (items.length === 0) {
+      showMsg("No items to save", "error");
+      return;
+    }
+    setShowConfirmModal(true);
   };
 
   const loadPurchaseForEdit = (purchase) => {
@@ -1369,16 +1573,16 @@ export default function PurchasePage() {
     }
   };
 
-  // Handle star key press (*) and remarks Enter key
+  // Handle star key press (*) - open confirmation modal
   useEffect(() => {
     const handler = (e) => {
-      if (showProductModal || showHoldPreview) return;
+      if (showProductModal || showHoldPreview || showConfirmModal) return;
       
-      // Star key (*) - prints and saves
+      // Star key (*) - opens confirmation modal
       if (e.key === "*") {
         e.preventDefault();
         if (items.length > 0) {
-          handlePrintAndSave();
+          openConfirmModal();
         }
         return;
       }
@@ -1390,11 +1594,11 @@ export default function PurchasePage() {
         return;
       }
       
-      // Enter key on remarks input - prints and saves
+      // Enter key on remarks input - opens confirmation modal
       if (e.key === "Enter" && document.activeElement === remarksRef.current) {
         e.preventDefault();
         if (items.length > 0) {
-          handlePrintAndSave();
+          openConfirmModal();
         }
         return;
       }
@@ -1402,7 +1606,7 @@ export default function PurchasePage() {
     
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [items, showProductModal, showHoldPreview, remarks]);
+  }, [items, showProductModal, showHoldPreview, showConfirmModal, remarks]);
 
   return (
     <>
@@ -1413,6 +1617,17 @@ export default function PurchasePage() {
         {showHoldPreview && (
           <HoldPreviewModal bill={showHoldPreview} onResume={resumeHold} onClose={() => setShowHoldPreview(null)} />
         )}
+        {showConfirmModal && (
+          <ConfirmModal
+            invoiceNo={invoiceNo}
+            supplierName={supplierName}
+            totalAmount={subTotal}
+            totalQty={totalQty}
+            itemsCount={items.length}
+            onConfirm={(shouldPrint) => savePurchase(shouldPrint)}
+            onClose={() => setShowConfirmModal(false)}
+          />
+        )}
 
         <div className="xp-titlebar" style={{ background: "#10b981" }}>
           <svg width="15" height="15" viewBox="0 0 16 16" fill="rgba(255,255,255,0.85)">
@@ -1420,7 +1635,7 @@ export default function PurchasePage() {
           </svg>
           <span className="xp-tb-title">Purchase Invoice — * Print & Save | F4 Hold</span>
           <div className="xp-tb-actions">
-            <div className="sl-shortcut-hints"><span>F2 Product</span><span>F4 Hold</span><span>* Print/Save</span></div>
+            <div className="sl-shortcut-hints"><span>F2 Product</span><span>F4 Hold</span><span>* Save</span></div>
             <div className="xp-tb-divider" />
             <button className="xp-cap-btn">─</button>
             <button className="xp-cap-btn" onClick={() => { if (!document.fullscreenElement) document.documentElement.requestFullscreen(); else document.exitFullscreen(); }}>□</button>
@@ -1711,16 +1926,16 @@ export default function PurchasePage() {
               <div className="sl-sum-cell">
                 <button 
                   className="xp-btn xp-btn-primary" 
-                  onClick={handlePrintAndSave} 
-                  disabled={isPrinting || items.length === 0}
+                  onClick={openConfirmModal} 
+                  disabled={isProcessing || items.length === 0}
                   style={{ padding: "6px 20px", fontSize: 14, background: "#10b981", borderColor: "#059669" }}
                 >
-                  {isPrinting ? "Processing..." : "🖨 Print & Save (*)"}
+                  {isProcessing ? "Processing..." : "💾 Save (*)"}
                 </button>
               </div>
             </div>
 
-            {/* NEW: Remarks Input Section */}
+            {/* Remarks Input Section */}
             {showRemarksInput && (
               <div className="sl-remarks-section" style={{
                 marginTop: "10px",
@@ -1742,10 +1957,10 @@ export default function PurchasePage() {
                   onKeyDown={(e) => {
                     if (e.key === "Enter" && items.length > 0) {
                       e.preventDefault();
-                      handlePrintAndSave();
+                      openConfirmModal();
                     }
                   }}
-                  placeholder="Enter remarks and press Enter to print & save..."
+                  placeholder="Enter remarks and press Enter to save..."
                   style={{
                     flex: 1,
                     padding: "8px 12px",
@@ -1757,7 +1972,7 @@ export default function PurchasePage() {
                   }}
                   autoComplete="off"
                 />
-                <span style={{ fontSize: "11px", color: "#065f46" }}>Press Enter → Print & Save</span>
+                <span style={{ fontSize: "11px", color: "#065f46" }}>Press Enter → Save</span>
               </div>
             )}
           </div>
