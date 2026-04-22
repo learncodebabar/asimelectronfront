@@ -616,7 +616,7 @@ export default function GeneralLedgerPage() {
                 <td style="padding:4px 6px;border:1px solid #000;text-align:center;font-size:10px;">${item.pcs || item.qty || 1}</td>
                 <td style="padding:4px 6px;border:1px solid #000;text-align:right;font-size:10px;">${fmt(item.rate || 0)}</td>
                 <td style="padding:4px 6px;border:1px solid #000;text-align:right;font-size:10px;font-weight:bold;">${fmt(item.amount || 0)}</td>
-              </tr>
+              </td>
             `;
           });
           
@@ -875,7 +875,7 @@ export default function GeneralLedgerPage() {
       {/* Main Content */}
       <div className="xp-page-body" style={{ padding: "16px", background: "#ffffff", flex: 1, overflow: "auto" }}>
         
-        {/* Search Section - Two column layout: 85% inputs / 15% customer image */}
+        {/* Search Section */}
         <div style={{
           background: "#ffffff",
           borderRadius: "8px",
@@ -883,225 +883,70 @@ export default function GeneralLedgerPage() {
           marginBottom: "20px",
           border: "1px solid #000000",
           display: "flex",
-          gap: "20px",
-          alignItems: "start"
+          justifyContent: "space-between",
+          alignItems: "flex-start",
+          position: "relative"
         }}>
-          {/* Left side: Input fields (85%) */}
-          <div style={{ flex: "85", minWidth: 0 }}>
+          {/* Left side: Input fields */}
+          <div style={{ flex: 1, minWidth: 0, marginRight: "20px" }}>
             <div style={{ 
               display: "flex", 
-              gap: "12px", 
+              gap: "8px", 
               alignItems: "flex-end", 
               flexWrap: "wrap"
             }}>
-              {/* From Date */}
-              <div style={{ minWidth: "120px" }}>
-                <label style={{ fontSize: "10px", fontWeight: "bold", color: "#000000", display: "block", marginBottom: "4px", textTransform: "uppercase" }}>From Date</label>
-                <input
-                  type="date"
-                  className="xp-input"
-                  value={fromDate}
-                  onChange={(e) => setFromDate(e.target.value)}
-                  style={{ 
-                    height: "36px", 
-                    padding: "0 10px", 
-                    fontSize: "13px", 
-                    fontWeight: "500",
-                    border: "1px solid #000000", 
-                    borderRadius: "4px", 
-                    width: "100%",
-                    background: "#ffffff"
-                  }}
-                />
+              <div style={{ width: "100px" }}>
+                <label style={{ fontSize: "10px", fontWeight: "bold", color: "#000000", display: "block", marginBottom: "4px", textTransform: "uppercase" }}>From</label>
+                <input type="date" className="xp-input" value={fromDate} onChange={(e) => setFromDate(e.target.value)} style={{ height: "32px", padding: "0 8px", fontSize: "12px", fontWeight: "500", border: "1px solid #000000", borderRadius: "4px", width: "100%", background: "#ffffff" }} />
               </div>
-              
-              {/* To Date */}
-              <div style={{ minWidth: "120px" }}>
-                <label style={{ fontSize: "10px", fontWeight: "bold", color: "#000000", display: "block", marginBottom: "4px", textTransform: "uppercase" }}>To Date</label>
-                <input
-                  type="date"
-                  className="xp-input"
-                  value={toDate}
-                  onChange={(e) => setToDate(e.target.value)}
-                  style={{ 
-                    height: "36px", 
-                    padding: "0 10px", 
-                    fontSize: "13px", 
-                    fontWeight: "500",
-                    border: "1px solid #000000", 
-                    borderRadius: "4px", 
-                    width: "100%",
-                    background: "#ffffff"
-                  }}
-                />
+              <div style={{ width: "100px" }}>
+                <label style={{ fontSize: "10px", fontWeight: "bold", color: "#000000", display: "block", marginBottom: "4px", textTransform: "uppercase" }}>To</label>
+                <input type="date" className="xp-input" value={toDate} onChange={(e) => setToDate(e.target.value)} style={{ height: "32px", padding: "0 8px", fontSize: "12px", fontWeight: "500", border: "1px solid #000000", borderRadius: "4px", width: "100%", background: "#ffffff" }} />
               </div>
-              
-              {/* Code Input - Enter to Select */}
-              <div style={{ minWidth: "130px" }}>
+              <div style={{ width: "100px" }}>
                 <label style={{ fontSize: "10px", fontWeight: "bold", color: "#000000", display: "block", marginBottom: "4px", textTransform: "uppercase" }}>Code</label>
-                <input
-                  ref={codeInputRef}
-                  type="text"
-                  className="xp-input"
-                  value={codeSearch}
-                  onChange={(e) => setCodeSearch(e.target.value)}
-                  onKeyDown={handleCodeKeyDown}
-                  style={{ 
-                    height: "36px", 
-                    padding: "0 10px", 
-                    fontSize: "13px", 
-                    fontWeight: "500",
-                    border: "1px solid #000000", 
-                    borderRadius: "4px",
-                    background: "#fffde7",
-                    width: "100%",
-                    textTransform: "uppercase"
-                  }}
-                />
+                <input ref={codeInputRef} type="text" className="xp-input" value={codeSearch} onChange={(e) => setCodeSearch(e.target.value)} onKeyDown={handleCodeKeyDown} style={{ height: "32px", padding: "0 8px", fontSize: "12px", fontWeight: "500", border: "1px solid #000000", borderRadius: "4px", background: "#fffde7", width: "100%", textTransform: "uppercase" }} />
               </div>
-              
-              {/* Account Title - with ghost text */}
-              <div style={{ flex: 2, minWidth: "180px", position: "relative" }}>
+              <div style={{ flex: 1, minWidth: "300px", position: "relative" }}>
                 <label style={{ fontSize: "10px", fontWeight: "bold", color: "#000000", display: "block", marginBottom: "4px", textTransform: "uppercase" }}>Account Title</label>
                 <div style={{ position: "relative", width: "100%" }}>
                   {ghost && !isNavigating && !selectedEntity && (
-                    <div
-                      style={{
-                        position: "absolute",
-                        left: 0,
-                        top: "50%",
-                        transform: "translateY(-50%)",
-                        pointerEvents: "none",
-                        whiteSpace: "nowrap",
-                        fontSize: "13px",
-                        fontFamily: "inherit",
-                        display: "flex",
-                        zIndex: 2,
-                        color: "#a0aec0",
-                        backgroundColor: "transparent",
-                        paddingLeft: "10px",
-                      }}
-                    >
+                    <div style={{ position: "absolute", left: 0, top: "50%", transform: "translateY(-50%)", pointerEvents: "none", whiteSpace: "nowrap", fontSize: "12px", fontFamily: "inherit", display: "flex", zIndex: 2, color: "#a0aec0", backgroundColor: "transparent", paddingLeft: "10px" }}>
                       <span style={{ visibility: "hidden" }}>{originalQuery}</span>
                       <span style={{ color: "#a0aec0" }}>{ghost}</span>
                     </div>
                   )}
-                  <input
-                    ref={accountTitleRef}
-                    type="text"
-                    className="xp-input"
-                    value={searchQuery}
-                    onChange={handleAccountTitleChange}
-                    onKeyDown={handleKeyDown}
-                    autoComplete="off"
-                    style={{ 
-                      width: "100%", 
-                      height: "36px", 
-                      padding: "0 10px", 
-                      fontSize: "13px", 
-                      fontWeight: "500",
-                      border: "1px solid #000000", 
-                      borderRadius: "4px",
-                      background: "#fffde7",
-                      position: "relative",
-                      zIndex: 1
-                    }}
-                  />
+                  <input ref={accountTitleRef} type="text" className="xp-input" value={searchQuery} onChange={handleAccountTitleChange} onKeyDown={handleKeyDown} autoComplete="off" style={{ width: "100%", height: "32px", padding: "0 10px", fontSize: "12px", fontWeight: "500", border: "1px solid #000000", borderRadius: "4px", background: "#fffde7", position: "relative", zIndex: 1 }} />
                 </div>
               </div>
-              
-              {/* Show Button */}
               <div>
-                <button
-                  className="xp-btn xp-btn-primary"
-                  onClick={() => selectedEntity && loadLedger(selectedEntity._id)}
-                  disabled={!selectedEntity || loading}
-                  style={{ 
-                    height: "36px", 
-                    padding: "0 24px", 
-                    fontSize: "12px", 
-                    fontWeight: "bold",
-                    background: "#22c55e",
-                    color: "white",
-                    border: "1px solid #000000",
-                    borderRadius: "4px",
-                    cursor: "pointer",
-                    whiteSpace: "nowrap"
-                  }}
-                >
+                <button className="xp-btn xp-btn-primary" onClick={() => selectedEntity && loadLedger(selectedEntity._id)} disabled={!selectedEntity || loading} style={{ height: "32px", padding: "0 20px", fontSize: "11px", fontWeight: "bold", background: "#22c55e", color: "white", border: "1px solid #000000", borderRadius: "4px", cursor: "pointer", whiteSpace: "nowrap" }}>
                   {loading ? "Loading..." : "⟳ Show"}
                 </button>
               </div>
             </div>
           </div>
           
-          {/* Right side: Customer Image (15%) - SQUARE 120x120 */}
-          <div style={{ flex: "15", display: "flex", justifyContent: "flex-end", alignItems: "center", minWidth: "140px" }}>
+          {/* Right side: Customer Image */}
+          <div style={{ width: "110px", flexShrink: 0, display: "flex", justifyContent: "flex-end", alignItems: "flex-start", marginTop: "-8px" }}>
             {selectedEntity && selectedEntity.imageFront ? (
               <div style={{ textAlign: "center" }}>
-                <img 
-                  src={selectedEntity.imageFront} 
-                  alt={selectedEntity.name} 
-                  style={{ 
-                    width: "120px", 
-                    height: "120px", 
-                    objectFit: "cover", 
-                    border: "3px solid #000000",
-                    boxShadow: "0 4px 8px rgba(0,0,0,0.2)",
-                    borderRadius: "4px"
-                  }} 
-                />
-                <div style={{ fontSize: "11px", marginTop: "6px", fontWeight: "bold", color: "#1e293b" }}>
-                  {selectedEntity.name}
-                </div>
-                {selectedEntity.phone && (
-                  <div style={{ fontSize: "10px", color: "#64748b" }}>
-                    📞 {selectedEntity.phone}
-                  </div>
-                )}
+                <img src={selectedEntity.imageFront} alt={selectedEntity.name} style={{ width: "90px", height: "90px", objectFit: "cover", border: "3px solid #000000", boxShadow: "0 4px 8px rgba(0,0,0,0.2)", borderRadius: "4px" }} />
+                <div style={{ fontSize: "9px", marginTop: "4px", fontWeight: "bold", color: "#1e293b" }}>{selectedEntity.name}</div>
+                {selectedEntity.phone && <div style={{ fontSize: "8px", color: "#64748b" }}>📞 {selectedEntity.phone}</div>}
               </div>
             ) : selectedEntity ? (
               <div style={{ textAlign: "center" }}>
-                <div style={{ 
-                  width: "120px", 
-                  height: "120px", 
-                  background: "#e2e8f0", 
-                  display: "flex", 
-                  alignItems: "center", 
-                  justifyContent: "center", 
-                  fontSize: "60px", 
-                  border: "3px solid #000000",
-                  boxShadow: "0 4px 8px rgba(0,0,0,0.2)",
-                  borderRadius: "4px"
-                }}>
+                <div style={{ width: "90px", height: "90px", background: "#e2e8f0", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "45px", border: "3px solid #000000", boxShadow: "0 4px 8px rgba(0,0,0,0.2)", borderRadius: "4px" }}>
                   {activeTab === "customer" ? "👤" : "🏢"}
                 </div>
-                <div style={{ fontSize: "11px", marginTop: "6px", fontWeight: "bold", color: "#1e293b" }}>
-                  {selectedEntity.name}
-                </div>
-                {selectedEntity.phone && (
-                  <div style={{ fontSize: "10px", color: "#64748b" }}>
-                    📞 {selectedEntity.phone}
-                  </div>
-                )}
+                <div style={{ fontSize: "9px", marginTop: "4px", fontWeight: "bold", color: "#1e293b" }}>{selectedEntity.name}</div>
+                {selectedEntity.phone && <div style={{ fontSize: "8px", color: "#64748b" }}>📞 {selectedEntity.phone}</div>}
               </div>
             ) : (
-              <div style={{ textAlign: "center", color: "#94a3b8", fontSize: "11px", fontWeight: "bold", padding: "20px" }}>
-                <div style={{ 
-                  width: "120px", 
-                  height: "120px", 
-                  background: "#f1f5f9", 
-                  display: "flex", 
-                  alignItems: "center", 
-                  justifyContent: "center", 
-                  fontSize: "60px", 
-                  border: "2px dashed #cbd5e1",
-                  borderRadius: "4px",
-                  marginBottom: "8px"
-                }}>
-                  🖼️
-                </div>
-                No Customer Selected
+              <div style={{ textAlign: "center", color: "#94a3b8", fontSize: "9px", fontWeight: "bold" }}>
+                <div style={{ width: "90px", height: "90px", background: "#f1f5f9", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "45px", border: "2px dashed #cbd5e1", borderRadius: "4px", marginBottom: "4px" }}>🖼️</div>
+                No Customer
               </div>
             )}
           </div>
@@ -1109,60 +954,20 @@ export default function GeneralLedgerPage() {
         
         {/* Selected Entity Info Bar */}
         {selectedEntity && (
-          <div style={{
-            marginTop: "4px",
-            marginBottom: "16px",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            padding: "8px 12px",
-            background: "#f8fafc",
-            borderRadius: "6px",
-            border: "1px solid #000000"
-          }}>
-            <div style={{ fontSize: "12px", color: "#64748b" }}>
-              Code: {selectedEntity.code || "—"} | Phone: {selectedEntity.phone || "—"} | Type: {activeTab === "customer" ? (selectedEntity.customerType || selectedEntity.type || "Credit Customer") : "Supplier"}
-            </div>
-            <button
-              onClick={clearSelection}
-              style={{
-                background: "#ef4444",
-                color: "white",
-                border: "1px solid #000000",
-                borderRadius: "4px",
-                padding: "4px 12px",
-                fontSize: "11px",
-                fontWeight: "bold",
-                cursor: "pointer"
-              }}
-            >
-              Clear
-            </button>
+          <div style={{ marginTop: "4px", marginBottom: "16px", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 12px", background: "#f8fafc", borderRadius: "6px", border: "1px solid #000000" }}>
+            <div style={{ fontSize: "12px", color: "#64748b" }}>Code: {selectedEntity.code || "—"} | Phone: {selectedEntity.phone || "—"} | Type: {activeTab === "customer" ? (selectedEntity.customerType || selectedEntity.type || "Credit Customer") : "Supplier"}</div>
+            <button onClick={clearSelection} style={{ background: "#ef4444", color: "white", border: "1px solid #000000", borderRadius: "4px", padding: "4px 12px", fontSize: "11px", fontWeight: "bold", cursor: "pointer" }}>Clear</button>
           </div>
         )}
         
         {/* Transaction Table */}
-        <div style={{
-          background: "#ffffff",
-          borderRadius: "8px",
-          padding: "16px",
-          border: "2px solid #000000"
-        }}>
-          <div style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            marginBottom: "12px",
-            paddingBottom: "8px",
-            borderBottom: "2px solid #000000"
-          }}>
+        <div style={{ background: "#ffffff", borderRadius: "8px", padding: "16px", border: "2px solid #000000" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px", paddingBottom: "8px", borderBottom: "2px solid #000000" }}>
             <h3 style={{ margin: 0, fontSize: "13px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>
               📋 Transaction History {selectedEntity && `- ${selectedEntity.name}`}
               {transactions.length > 0 && <span style={{ fontSize: "11px", marginLeft: "8px", color: "#64748b" }}>({transactions.length})</span>}
             </h3>
-            <div style={{ fontSize: "10px", color: "#64748b" }}>
-              {fromDate} to {toDate}
-            </div>
+            <div style={{ fontSize: "10px", color: "#64748b" }}>{fromDate} to {toDate}</div>
           </div>
           
           {!selectedEntity && (
@@ -1185,12 +990,7 @@ export default function GeneralLedgerPage() {
           
           {!loading && transactions.length > 0 && (
             <div style={{ overflowX: "auto" }}>
-              <table style={{ 
-                width: "100%", 
-                borderCollapse: "collapse", 
-                fontSize: "11px", 
-                border: "2px solid #000000"
-              }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "11px", border: "2px solid #000000" }}>
                 <thead>
                   <tr style={{ background: "#f1f5f9" }}>
                     <th style={{ padding: "6px 3px", textAlign: "center", width: "40px", border: "2px solid #000000", fontSize: "13px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>#</th>
@@ -1210,15 +1010,7 @@ export default function GeneralLedgerPage() {
                       <td style={{ padding: "4px 3px", whiteSpace: "nowrap", border: "1px solid #000000", fontSize: "13px", fontWeight: "bold", color: "#1e293b" }}>{t.date}</td>
                       <td style={{ padding: "4px 3px", fontFamily: "monospace", fontWeight: "bold", border: "1px solid #000000", fontSize: "13px", color: "#1e293b" }}>{t.transactionId}</td>
                       <td style={{ padding: "4px 3px", border: "1px solid #000000" }}>
-                        <span style={{
-                          padding: "2px 8px",
-                          borderRadius: "4px",
-                          fontSize: "11px",
-                          fontWeight: "bold",
-                          background: t.type === "sale" ? "#dbeafe" : t.type === "return" ? "#fef3c7" : t.type === "payment" || t.type === "cash-receipt" ? "#dcfce7" : "#fef3c7",
-                          border: "1px solid #000000",
-                          display: "inline-block"
-                        }}>
+                        <span style={{ padding: "2px 8px", borderRadius: "4px", fontSize: "11px", fontWeight: "bold", background: t.type === "sale" ? "#dbeafe" : t.type === "return" ? "#fef3c7" : t.type === "payment" || t.type === "cash-receipt" ? "#dcfce7" : "#fef3c7", border: "1px solid #000000", display: "inline-block" }}>
                           {t.transType}
                         </span>
                       </td>
