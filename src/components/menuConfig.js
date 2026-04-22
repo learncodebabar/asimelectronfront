@@ -37,8 +37,7 @@ const MENU_CONFIG = [
     items: [
       { label: "Debit Customers", route: "/debit-customers" },
       { label: "Credit Customers", route: "/credit-customers" },
-      { label: "Cash Receipts", route: "/cash-receipts" },
-      { label: "Cash Payment", route: "/cash-payment" },
+   
       { label: "All Customers", route: "/customers" },
       { label: "───" },
       { label: "Accounts Receivable", route: "/accounts-receivable" },
@@ -49,6 +48,8 @@ const MENU_CONFIG = [
     label: "Reports",
     items: [
       { label: "Chart of Products", route: "/chart-of-products" },
+         { label: "Cash Receipts", route: "/cash-receipts" },
+      { label: "Cash Payment", route: "/cash-payment" },
       { label: "───" },
       { label: "P.O", route: "/purchase-order-list" },
       { label: "Purchase", route: "/purchase-list" },
