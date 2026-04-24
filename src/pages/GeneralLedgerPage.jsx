@@ -1,4 +1,4 @@
-// pages/GeneralLedgerPage.jsx
+// pages/GeneralLedgerPage.jsx - Small compact date row
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../api/api.js";
@@ -20,6 +20,7 @@ export default function GeneralLedgerPage() {
   const [originalQuery, setOriginalQuery] = useState("");
   const [ghost, setGhost] = useState("");
   const [codeSearch, setCodeSearch] = useState("");
+  const [remarks, setRemarks] = useState("");
   const [filteredEntities, setFilteredEntities] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(-1);
@@ -44,6 +45,7 @@ export default function GeneralLedgerPage() {
   // Refs for keyboard navigation
   const codeInputRef = useRef(null);
   const accountTitleRef = useRef(null);
+  const remarksRef = useRef(null);
   
   // Load customers and suppliers on mount
   useEffect(() => {
@@ -151,6 +153,7 @@ export default function GeneralLedgerPage() {
     setOriginalQuery("");
     setGhost("");
     setCodeSearch("");
+    setRemarks("");
     setTransactions([]);
     setFilteredEntities([]);
     setShowSuggestions(false);
@@ -427,6 +430,15 @@ export default function GeneralLedgerPage() {
     setIsNavigating(false);
   };
   
+  const handleRemarksKeyDown = (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      if (selectedEntity) {
+        loadLedger(selectedEntity._id);
+      }
+    }
+  };
+  
   const handleTabChange = (tab) => {
     setActiveTab(tab);
     setSelectedEntity(null);
@@ -434,6 +446,7 @@ export default function GeneralLedgerPage() {
     setOriginalQuery("");
     setGhost("");
     setCodeSearch("");
+    setRemarks("");
     setTransactions([]);
     setFilteredEntities([]);
     setShowSuggestions(false);
@@ -489,27 +502,9 @@ export default function GeneralLedgerPage() {
         <style>
           *{margin:0;padding:0;box-sizing:border-box}
           body{font-family:Arial,sans-serif;padding:20px;font-size:14px}
-          
-          .print-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 25px;
-            padding-bottom: 15px;
-            border-bottom: 3px solid #000;
-          }
-          .shop-section {
-            text-align: left;
-            flex: 2;
-          }
-          .customer-section {
-            text-align: right;
-            flex: 1;
-            display: flex;
-            justify-content: flex-end;
-            align-items: center;
-            gap: 15px;
-          }
+          .print-header{display:flex;justify-content:space-between;margin-bottom:25px;padding-bottom:15px;border-bottom:3px solid #000}
+          .shop-section{text-align:left;flex:2}
+          .customer-section{text-align:right;flex:1;display:flex;justify-content:flex-end;align-items:center;gap:15px}
           .shop-name{font-size:22px;font-weight:bold;font-family:${URDU_FONT};margin-bottom:8px}
           .shop-name-en{font-size:16px;font-weight:bold;margin-bottom:5px;text-transform:uppercase}
           .shop-addr{font-size:11px;color:#444;margin:3px 0}
@@ -518,7 +513,6 @@ export default function GeneralLedgerPage() {
           .customer-name{font-size:18px;font-weight:bold;margin-bottom:8px;text-transform:uppercase}
           .customer-phone{font-size:13px;color:#333}
           .customer-code{font-size:12px;color:#666}
-          
           .section-title{font-size:16px;font-weight:bold;margin:20px 0 15px;padding:10px;background:#333;color:#fff;text-transform:uppercase}
           table{width:100%;border-collapse:collapse;margin:15px 0}
           th{background:#555;color:#fff;padding:14px 10px;font-size:14px;border:2px solid #000;text-transform:uppercase;font-weight:bold}
@@ -526,15 +520,10 @@ export default function GeneralLedgerPage() {
           .balance-box{width:400px;margin-left:auto;margin-top:20px;border:2px solid #000;padding:15px;background:#f8fafc}
           .balance-row{display:flex;justify-content:space-between;font-size:16px;font-weight:bold}
           .footer{text-align:center;margin-top:30px;padding-top:12px;border-top:1px solid #ddd;font-size:11px;color:#666}
-          .text-center{text-align:center}
           .text-right{text-align:right}
           .red{color:#dc2626}
           .green{color:#059669}
-          @media print{
-            body{padding:8mm}
-            .print-header{margin-bottom:15px}
-            th,td{padding:8px}
-          }
+          @media print{body{padding:8mm}}
         </style>
       </head>
       <body>
@@ -559,35 +548,12 @@ export default function GeneralLedgerPage() {
             </div>
           </div>
         </div>
-        
         <div class="section-title">📋 LEDGER STATEMENT</div>
-        <div class="date-range" style="background:#f8fafc;padding:10px;margin:15px 0;border:2px solid #000;text-align:center;font-size:13px;font-weight:bold">
-          Period: ${fromDate} to ${toDate}
-        </div>
-        
-        <table>
-          <thead>
-            <tr>
-              <th style="width:45px">#</th>
-              <th>DATE</th>
-              <th>VOUCHER #</th>
-              <th>TYPE</th>
-              <th>REMARKS</th>
-              <th class="text-right">DEBIT</th>
-              <th class="text-right">CREDIT</th>
-              <th class="text-right">BALANCE</th>
-            </tr>
-          </thead>
-          <tbody>${rows}</tbody>
-        </table>
-        
-        <div class="balance-box">
-          <div class="balance-row">
-            <span>Closing Balance:</span>
-            <span class="${closingBalance > 0 ? 'red' : 'green'}">PKR ${fmt(Math.abs(closingBalance))} ${closingBalance > 0 ? '(Receivable)' : '(Payable)'}</span>
-          </div>
-        </div>
-        
+        <div class="date-range" style="background:#f8fafc;padding:10px;margin:15px 0;border:2px solid #000;text-align:center;font-size:13px;font-weight:bold">Period: ${fromDate} to ${toDate}</div>
+        <table><thead><tr><th style="width:45px">#</th><th>DATE</th><th>VOUCHER #</th><th>TYPE</th><th>REMARKS</th><th class="text-right">DEBIT</th><th class="text-right">CREDIT</th><th class="text-right">BALANCE</th></tr></thead>
+        <tbody>${rows}</tbody>
+        <tr>
+        <div class="balance-box"><div class="balance-row"><span>Closing Balance:</span><span class="${closingBalance > 0 ? 'red' : 'green'}">PKR ${fmt(Math.abs(closingBalance))} ${closingBalance > 0 ? '(Receivable)' : '(Payable)'}</span></div></div>
         <div class="footer">Thank you for your business! | Developed by: Creative Babar / 03098325271| www.digitalglobalschool.com</div>
       </body>
       </html>`;
@@ -599,31 +565,14 @@ export default function GeneralLedgerPage() {
         if (t.items && t.items.length > 0) {
           itemsHtml = `<div style="border:1px solid #000;border-radius:4px;overflow:hidden;">
             <table style="width:100%;border-collapse:collapse;font-size:11px;margin:0;">
-              <thead>
-                <tr style="background:#f0f0f0;">
-                  <th style="padding:4px 6px;border:1px solid #000;text-align:left;font-size:10px;">Item</th>
-                  <th style="padding:4px 6px;border:1px solid #000;text-align:center;font-size:10px;">Qty</th>
-                  <th style="padding:4px 6px;border:1px solid #000;text-align:right;font-size:10px;">Rate</th>
-                  <th style="padding:4px 6px;border:1px solid #000;text-align:right;font-size:10px;">Amount</th>
-                </td>
-              </thead>
+              <thead><tr style="background:#f0f0f0;"><th style="padding:4px 6px;border:1px solid #000;text-align:left;">Item</th><th style="padding:4px 6px;border:1px solid #000;text-align:center;">Qty</th><th style="padding:4px 6px;border:1px solid #000;text-align:right;">Rate</th><th style="padding:4px 6px;border:1px solid #000;text-align:right;">Amount</th></tr></thead>
               <tbody>`;
           
           t.items.forEach((item, idx) => {
-            itemsHtml += `
-              <tr>
-                <td style="padding:4px 6px;border:1px solid #000;font-size:10px;">${item.name || item.description || "—"} (${item.code || "—"})</td>
-                <td style="padding:4px 6px;border:1px solid #000;text-align:center;font-size:10px;">${item.pcs || item.qty || 1}</td>
-                <td style="padding:4px 6px;border:1px solid #000;text-align:right;font-size:10px;">${fmt(item.rate || 0)}</td>
-                <td style="padding:4px 6px;border:1px solid #000;text-align:right;font-size:10px;font-weight:bold;">${fmt(item.amount || 0)}</td>
-              </td>
-            `;
+            itemsHtml += `<tr><td style="padding:4px 6px;border:1px solid #000;font-size:10px;">${item.name || item.description || "—"} (${item.code || "—"})</td><td style="padding:4px 6px;border:1px solid #000;text-align:center;">${item.pcs || item.qty || 1}</td><td style="padding:4px 6px;border:1px solid #000;text-align:right;">${fmt(item.rate || 0)}</td><td style="padding:4px 6px;border:1px solid #000;text-align:right;font-weight:bold;">${fmt(item.amount || 0)}</td></td>`;
           });
           
-          itemsHtml += `
-              </tbody>
-            </table>
-          </div>`;
+          itemsHtml += `</tbody></table></div>`;
         } else {
           itemsHtml = `<div style="border:1px solid #000;border-radius:4px;padding:6px 8px;font-size:11px;background:#fafafa;">${t.remarks || "—"}</div>`;
         }
@@ -633,23 +582,11 @@ export default function GeneralLedgerPage() {
             <td style="padding:12px 8px;border:2px solid #000;font-size:13px;font-weight:bold;text-align:center;vertical-align:top;">${i + 1}</td>
             <td style="padding:12px 8px;border:2px solid #000;font-size:13px;font-weight:bold;vertical-align:top;">${t.date}</td>
             <td style="padding:12px 8px;border:2px solid #000;font-size:13px;font-weight:bold;font-family:monospace;vertical-align:top;">${t.transactionId}</td>
-            <td style="padding:12px 8px;border:2px solid #000;vertical-align:top;">
-              <span style="padding:4px 10px;border-radius:4px;font-size:11px;font-weight:bold;background:${t.type === "sale" ? "#dbeafe" : t.type === "return" ? "#fef3c7" : "#dcfce7"};border:1px solid #000;display:inline-block;">
-                ${t.transType}
-              </span>
-            </td>
-            <td style="padding:12px 8px;border:2px solid #000;font-size:12px;vertical-align:top;max-width:300px;">
-              ${itemsHtml}
-            </td>
-            <td style="padding:12px 8px;border:2px solid #000;text-align:right;font-size:13px;font-weight:bold;color:#dc2626;vertical-align:top;">
-              ${t.debit > 0 ? `PKR ${fmt(t.debit)}` : "—"}
-            </td>
-            <td style="padding:12px 8px;border:2px solid #000;text-align:right;font-size:13px;font-weight:bold;color:#059669;vertical-align:top;">
-              ${t.credit > 0 ? `PKR ${fmt(t.credit)}` : "—"}
-            </td>
-            <td style="padding:12px 8px;border:2px solid #000;text-align:right;font-size:13px;font-weight:bold;color:${t.runningBalance > 0 ? "#dc2626" : "#059669"};vertical-align:top;">
-              PKR ${fmt(Math.abs(t.runningBalance))}
-            </td>
+            <td style="padding:12px 8px;border:2px solid #000;vertical-align:top;"><span style="padding:4px 10px;border-radius:4px;font-size:11px;font-weight:bold;background:${t.type === "sale" ? "#dbeafe" : t.type === "return" ? "#fef3c7" : "#dcfce7"};border:1px solid #000;display:inline-block;">${t.transType}</span></td>
+            <td style="padding:12px 8px;border:2px solid #000;font-size:12px;vertical-align:top;max-width:300px;">${itemsHtml}</td>
+            <td style="padding:12px 8px;border:2px solid #000;text-align:right;font-size:13px;font-weight:bold;color:#dc2626;vertical-align:top;">${t.debit > 0 ? `PKR ${fmt(t.debit)}` : "—"}</td>
+            <td style="padding:12px 8px;border:2px solid #000;text-align:right;font-size:13px;font-weight:bold;color:#059669;vertical-align:top;">${t.credit > 0 ? `PKR ${fmt(t.credit)}` : "—"}</td>
+            <td style="padding:12px 8px;border:2px solid #000;text-align:right;font-size:13px;font-weight:bold;color:${t.runningBalance > 0 ? "#dc2626" : "#059669"};vertical-align:top;">PKR ${fmt(Math.abs(t.runningBalance))}</td>
           </tr>
         `;
       });
@@ -662,27 +599,9 @@ export default function GeneralLedgerPage() {
         <style>
           *{margin:0;padding:0;box-sizing:border-box}
           body{font-family:Arial,sans-serif;padding:15px;font-size:13px}
-          
-          .print-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-            padding-bottom: 12px;
-            border-bottom: 3px solid #000;
-          }
-          .shop-section {
-            text-align: left;
-            flex: 2;
-          }
-          .customer-section {
-            text-align: right;
-            flex: 1;
-            display: flex;
-            justify-content: flex-end;
-            align-items: center;
-            gap: 15px;
-          }
+          .print-header{display:flex;justify-content:space-between;margin-bottom:20px;padding-bottom:12px;border-bottom:3px solid #000}
+          .shop-section{text-align:left;flex:2}
+          .customer-section{text-align:right;flex:1;display:flex;justify-content:flex-end;align-items:center;gap:15px}
           .shop-name{font-size:20px;font-weight:bold;font-family:${URDU_FONT};margin-bottom:6px}
           .shop-name-en{font-size:14px;font-weight:bold;margin-bottom:4px;text-transform:uppercase}
           .shop-addr{font-size:10px;color:#444;margin:2px 0}
@@ -691,7 +610,6 @@ export default function GeneralLedgerPage() {
           .customer-name{font-size:16px;font-weight:bold;margin-bottom:6px;text-transform:uppercase}
           .customer-phone{font-size:11px;color:#333}
           .customer-code{font-size:10px;color:#666}
-          
           .section-title{font-size:14px;font-weight:bold;margin:15px 0 12px;padding:8px;background:#333;color:#fff;text-transform:uppercase}
           table{width:100%;border-collapse:collapse;margin:12px 0}
           th{background:#555;color:#fff;padding:10px 8px;font-size:12px;border:2px solid #000;text-transform:uppercase;font-weight:bold}
@@ -699,23 +617,11 @@ export default function GeneralLedgerPage() {
           .balance-box{width:380px;margin-left:auto;margin-top:15px;border:2px solid #000;padding:12px;background:#f8fafc}
           .balance-row{display:flex;justify-content:space-between;font-size:14px;font-weight:bold}
           .footer{text-align:center;margin-top:25px;padding-top:10px;border-top:1px solid #ddd;font-size:10px;color:#666}
-          .text-center{text-align:center}
           .text-right{text-align:right}
           .red{color:#dc2626}
           .green{color:#059669}
-          .statement-note {
-            text-align: center;
-            font-size: 11px;
-            color: #666;
-            margin: 12px 0;
-            font-style: italic;
-            font-weight: bold;
-          }
-          @media print{
-            body{padding:5mm}
-            .print-header{margin-bottom:12px}
-            th,td{padding:6px}
-          }
+          .statement-note{text-align:center;font-size:11px;color:#666;margin:12px 0;font-style:italic;font-weight:bold}
+          @media print{body{padding:5mm}}
         </style>
       </head>
       <body>
@@ -740,35 +646,12 @@ export default function GeneralLedgerPage() {
             </div>
           </div>
         </div>
-        
         <div class="statement-note">📋 DETAILED LEDGER STATEMENT (WITH ITEMS)</div>
-        <div class="date-range" style="background:#f8fafc;padding:8px;margin:12px 0;border:1.5px solid #000;text-align:center;font-size:11px;font-weight:bold">
-          Period: ${fromDate} to ${toDate}
-        </div>
-        
-        <table>
-          <thead>
-            <tr>
-              <th style="width:40px">#</th>
-              <th>DATE</th>
-              <th>VOUCHER #</th>
-              <th>TYPE</th>
-              <th>REMARKS / ITEMS</th>
-              <th class="text-right">DEBIT</th>
-              <th class="text-right">CREDIT</th>
-              <th class="text-right">BALANCE</th>
-            </tr>
-          </thead>
-          <tbody>${detailedRows}</tbody>
+        <div class="date-range" style="background:#f8fafc;padding:8px;margin:12px 0;border:1.5px solid #000;text-align:center;font-size:11px;font-weight:bold">Period: ${fromDate} to ${toDate}</div>
+        <tr><thead><tr><th style="width:40px">#</th><th>DATE</th><th>VOUCHER #</th><th>TYPE</th><th>REMARKS / ITEMS</th><th class="text-right">DEBIT</th><th class="text-right">CREDIT</th><th class="text-right">BALANCE</th></tr></thead>
+        <tbody>${detailedRows}</tbody>
         </table>
-        
-        <div class="balance-box">
-          <div class="balance-row">
-            <span>Closing Balance:</span>
-            <span class="${closingBalance > 0 ? 'red' : 'green'}">PKR ${fmt(Math.abs(closingBalance))} ${closingBalance > 0 ? '(Receivable)' : '(Payable)'}</span>
-          </div>
-        </div>
-        
+        <div class="balance-box"><div class="balance-row"><span>Closing Balance:</span><span class="${closingBalance > 0 ? 'red' : 'green'}">PKR ${fmt(Math.abs(closingBalance))} ${closingBalance > 0 ? '(Receivable)' : '(Payable)'}</span></div></div>
         <div class="footer">Thank you for your business! | Developed by: Creative Babar / 03098325271 | www.digitalglobalschool.com</div>
       </body>
       </html>`;
@@ -784,6 +667,11 @@ export default function GeneralLedgerPage() {
   };
   
   const closingBalance = transactions[transactions.length - 1]?.runningBalance || 0;
+  
+  // Filter transactions by remarks
+  const filteredTransactions = remarks 
+    ? transactions.filter(t => t.remarks?.toLowerCase().includes(remarks.toLowerCase()))
+    : transactions;
   
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%", background: "#ffffff" }}>
@@ -875,7 +763,55 @@ export default function GeneralLedgerPage() {
       {/* Main Content */}
       <div className="xp-page-body" style={{ padding: "16px", background: "#ffffff", flex: 1, overflow: "auto" }}>
         
-        {/* Search Section */}
+        {/* DATE ROW - Short and Small */}
+        <div style={{
+          display: "flex",
+          gap: "12px",
+          alignItems: "flex-end",
+          marginBottom: "16px",
+          padding: "8px 12px",
+          background: "#f8fafc",
+          borderRadius: "6px",
+          border: "1px solid #000000"
+        }}>
+          <div style={{ width: "130px" }}>
+            <label style={{ fontSize: "9px", fontWeight: "bold", color: "#000000", display: "block", marginBottom: "3px", textTransform: "uppercase" }}>FROM DATE</label>
+            <input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} style={{ height: "28px", padding: "0 8px", fontSize: "11px", border: "1px solid #000000", borderRadius: "4px", width: "100%", background: "#ffffff" }} />
+          </div>
+          <div style={{ width: "130px" }}>
+            <label style={{ fontSize: "9px", fontWeight: "bold", color: "#000000", display: "block", marginBottom: "3px", textTransform: "uppercase" }}>TO DATE</label>
+            <input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} style={{ height: "28px", padding: "0 8px", fontSize: "11px", border: "1px solid #000000", borderRadius: "4px", width: "100%", background: "#ffffff" }} />
+          </div>
+          <div>
+            <button onClick={() => {
+              const today = isoD();
+              setFromDate(today);
+              setToDate(today);
+            }} style={{ height: "28px", padding: "0 12px", fontSize: "10px", fontWeight: "bold", border: "1px solid #000000", borderRadius: "4px", background: "#ffffff", cursor: "pointer" }}>
+              Today
+            </button>
+          </div>
+          <div>
+            <button onClick={() => {
+              const today = new Date();
+              const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+              setFromDate(firstDay.toISOString().split("T")[0]);
+              setToDate(isoD());
+            }} style={{ height: "28px", padding: "0 12px", fontSize: "10px", fontWeight: "bold", border: "1px solid #000000", borderRadius: "4px", background: "#ffffff", cursor: "pointer" }}>
+              This Month
+            </button>
+          </div>
+          <div>
+            <button onClick={() => {
+              setFromDate("");
+              setToDate("");
+            }} style={{ height: "28px", padding: "0 12px", fontSize: "10px", fontWeight: "bold", border: "1px solid #000000", borderRadius: "4px", background: "#ffffff", cursor: "pointer" }}>
+              All Time
+            </button>
+          </div>
+        </div>
+        
+        {/* Search Section - Remaining inputs */}
         <div style={{
           background: "#ffffff",
           borderRadius: "8px",
@@ -895,19 +831,11 @@ export default function GeneralLedgerPage() {
               alignItems: "flex-end", 
               flexWrap: "wrap"
             }}>
-              <div style={{ width: "100px" }}>
-                <label style={{ fontSize: "10px", fontWeight: "bold", color: "#000000", display: "block", marginBottom: "4px", textTransform: "uppercase" }}>From</label>
-                <input type="date" className="xp-input" value={fromDate} onChange={(e) => setFromDate(e.target.value)} style={{ height: "32px", padding: "0 8px", fontSize: "12px", fontWeight: "500", border: "1px solid #000000", borderRadius: "4px", width: "100%", background: "#ffffff" }} />
-              </div>
-              <div style={{ width: "100px" }}>
-                <label style={{ fontSize: "10px", fontWeight: "bold", color: "#000000", display: "block", marginBottom: "4px", textTransform: "uppercase" }}>To</label>
-                <input type="date" className="xp-input" value={toDate} onChange={(e) => setToDate(e.target.value)} style={{ height: "32px", padding: "0 8px", fontSize: "12px", fontWeight: "500", border: "1px solid #000000", borderRadius: "4px", width: "100%", background: "#ffffff" }} />
-              </div>
-              <div style={{ width: "100px" }}>
+              <div style={{ width: "40px" }}>
                 <label style={{ fontSize: "10px", fontWeight: "bold", color: "#000000", display: "block", marginBottom: "4px", textTransform: "uppercase" }}>Code</label>
                 <input ref={codeInputRef} type="text" className="xp-input" value={codeSearch} onChange={(e) => setCodeSearch(e.target.value)} onKeyDown={handleCodeKeyDown} style={{ height: "32px", padding: "0 8px", fontSize: "12px", fontWeight: "500", border: "1px solid #000000", borderRadius: "4px", background: "#fffde7", width: "100%", textTransform: "uppercase" }} />
               </div>
-              <div style={{ flex: 1, minWidth: "300px", position: "relative" }}>
+              <div style={{ flex: 2, minWidth: "250px", position: "relative" }}>
                 <label style={{ fontSize: "10px", fontWeight: "bold", color: "#000000", display: "block", marginBottom: "4px", textTransform: "uppercase" }}>Account Title</label>
                 <div style={{ position: "relative", width: "100%" }}>
                   {ghost && !isNavigating && !selectedEntity && (
@@ -919,6 +847,19 @@ export default function GeneralLedgerPage() {
                   <input ref={accountTitleRef} type="text" className="xp-input" value={searchQuery} onChange={handleAccountTitleChange} onKeyDown={handleKeyDown} autoComplete="off" style={{ width: "100%", height: "32px", padding: "0 10px", fontSize: "12px", fontWeight: "500", border: "1px solid #000000", borderRadius: "4px", background: "#fffde7", position: "relative", zIndex: 1 }} />
                 </div>
               </div>
+              <div style={{ flex: 2, minWidth: "250px" }}>
+                <label style={{ fontSize: "10px", fontWeight: "bold", color: "#000000", display: "block", marginBottom: "4px", textTransform: "uppercase" }}>📝 Remarks</label>
+                <input 
+                  ref={remarksRef} 
+                  type="text" 
+                  className="xp-input" 
+                  value={remarks} 
+                  onChange={(e) => setRemarks(e.target.value)} 
+                  onKeyDown={handleRemarksKeyDown}
+                  placeholder="Filter by remarks..." 
+                  style={{ height: "32px", padding: "0 8px", fontSize: "12px", fontWeight: "500", border: "1px solid #000000", borderRadius: "4px", width: "100%", background: "#ffffff" }} 
+                />
+              </div>
               <div>
                 <button className="xp-btn xp-btn-primary" onClick={() => selectedEntity && loadLedger(selectedEntity._id)} disabled={!selectedEntity || loading} style={{ height: "32px", padding: "0 20px", fontSize: "11px", fontWeight: "bold", background: "#22c55e", color: "white", border: "1px solid #000000", borderRadius: "4px", cursor: "pointer", whiteSpace: "nowrap" }}>
                   {loading ? "Loading..." : "⟳ Show"}
@@ -927,32 +868,27 @@ export default function GeneralLedgerPage() {
             </div>
           </div>
           
-          {/* Right side: Customer Image */}
-          <div style={{ width: "110px", flexShrink: 0, display: "flex", justifyContent: "flex-end", alignItems: "flex-start", marginTop: "-8px" }}>
+          {/* Right side: Customer Image - ONLY IMAGE, NO NAME OR PHONE */}
+          <div style={{ width: "110px", flexShrink: 0, display: "flex", justifyContent: "flex-end", alignItems: "flex-start" }}>
             {selectedEntity && selectedEntity.imageFront ? (
               <div style={{ textAlign: "center" }}>
-                <img src={selectedEntity.imageFront} alt={selectedEntity.name} style={{ width: "90px", height: "90px", objectFit: "cover", border: "3px solid #000000", boxShadow: "0 4px 8px rgba(0,0,0,0.2)", borderRadius: "4px" }} />
-                <div style={{ fontSize: "9px", marginTop: "4px", fontWeight: "bold", color: "#1e293b" }}>{selectedEntity.name}</div>
-                {selectedEntity.phone && <div style={{ fontSize: "8px", color: "#64748b" }}>📞 {selectedEntity.phone}</div>}
+                <img src={selectedEntity.imageFront} alt={selectedEntity.name} style={{ width: "100px", height: "100px", objectFit: "cover", border: "3px solid #000000", boxShadow: "0 4px 8px rgba(0,0,0,0.2)", borderRadius: "8px" }} />
               </div>
             ) : selectedEntity ? (
               <div style={{ textAlign: "center" }}>
-                <div style={{ width: "90px", height: "90px", background: "#e2e8f0", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "45px", border: "3px solid #000000", boxShadow: "0 4px 8px rgba(0,0,0,0.2)", borderRadius: "4px" }}>
+                <div style={{ width: "100px", height: "100px", background: "#e2e8f0", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "50px", border: "3px solid #000000", boxShadow: "0 4px 8px rgba(0,0,0,0.2)", borderRadius: "8px" }}>
                   {activeTab === "customer" ? "👤" : "🏢"}
                 </div>
-                <div style={{ fontSize: "9px", marginTop: "4px", fontWeight: "bold", color: "#1e293b" }}>{selectedEntity.name}</div>
-                {selectedEntity.phone && <div style={{ fontSize: "8px", color: "#64748b" }}>📞 {selectedEntity.phone}</div>}
               </div>
             ) : (
-              <div style={{ textAlign: "center", color: "#94a3b8", fontSize: "9px", fontWeight: "bold" }}>
-                <div style={{ width: "90px", height: "90px", background: "#f1f5f9", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "45px", border: "2px dashed #cbd5e1", borderRadius: "4px", marginBottom: "4px" }}>🖼️</div>
-                No Customer
+              <div style={{ textAlign: "center", color: "#94a3b8" }}>
+                <div style={{ width: "100px", height: "100px", background: "#f1f5f9", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "50px", border: "2px dashed #cbd5e1", borderRadius: "8px" }}>🖼️</div>
               </div>
             )}
           </div>
         </div>
         
-        {/* Selected Entity Info Bar */}
+        {/* Selected Entity Info Bar - Only code, phone, type */}
         {selectedEntity && (
           <div style={{ marginTop: "4px", marginBottom: "16px", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 12px", background: "#f8fafc", borderRadius: "6px", border: "1px solid #000000" }}>
             <div style={{ fontSize: "12px", color: "#64748b" }}>Code: {selectedEntity.code || "—"} | Phone: {selectedEntity.phone || "—"} | Type: {activeTab === "customer" ? (selectedEntity.customerType || selectedEntity.type || "Credit Customer") : "Supplier"}</div>
@@ -965,9 +901,9 @@ export default function GeneralLedgerPage() {
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px", paddingBottom: "8px", borderBottom: "2px solid #000000" }}>
             <h3 style={{ margin: 0, fontSize: "13px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>
               📋 Transaction History {selectedEntity && `- ${selectedEntity.name}`}
-              {transactions.length > 0 && <span style={{ fontSize: "11px", marginLeft: "8px", color: "#64748b" }}>({transactions.length})</span>}
+              {filteredTransactions.length > 0 && <span style={{ fontSize: "11px", marginLeft: "8px", color: "#64748b" }}>({filteredTransactions.length})</span>}
             </h3>
-            <div style={{ fontSize: "10px", color: "#64748b" }}>{fromDate} to {toDate}</div>
+            <div style={{ fontSize: "10px", color: "#64748b" }}>{fromDate && toDate ? `${fromDate} to ${toDate}` : fromDate ? `From ${fromDate}` : toDate ? `Until ${toDate}` : "All Time"}</div>
           </div>
           
           {!selectedEntity && (
@@ -982,13 +918,14 @@ export default function GeneralLedgerPage() {
             </div>
           )}
           
-          {!loading && selectedEntity && transactions.length === 0 && (
+          {!loading && selectedEntity && filteredTransactions.length === 0 && (
             <div style={{ padding: "40px", textAlign: "center", fontSize: "12px", color: "#94a3b8", fontWeight: "500" }}>
-              📭 No transactions found for {fromDate} to {toDate}
+              📭 No transactions found
+              {remarks && ` with remarks containing "${remarks}"`}
             </div>
           )}
           
-          {!loading && transactions.length > 0 && (
+          {!loading && filteredTransactions.length > 0 && (
             <div style={{ overflowX: "auto" }}>
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "11px", border: "2px solid #000000" }}>
                 <thead>
@@ -1004,7 +941,7 @@ export default function GeneralLedgerPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {transactions.map((t, i) => (
+                  {filteredTransactions.map((t, i) => (
                     <tr key={t._id || i} style={{ borderBottom: "2px solid #000000" }}>
                       <td style={{ padding: "4px 3px", textAlign: "center", border: "1px solid #000000", fontSize: "13px", fontWeight: "bold", color: "#1e293b" }}>{i + 1}</td>
                       <td style={{ padding: "4px 3px", whiteSpace: "nowrap", border: "1px solid #000000", fontSize: "13px", fontWeight: "bold", color: "#1e293b" }}>{t.date}</td>
@@ -1051,6 +988,7 @@ export default function GeneralLedgerPage() {
         </div>
         <div className="xp-status-pane" style={{ color: "#1e293b", fontSize: "10px", fontWeight: "500" }}>
           {transactions.length > 0 && `Balance: PKR ${fmt(Math.abs(closingBalance))}`}
+          {remarks && ` | Filtered by: "${remarks}"`}
         </div>
       </div>
     </div>

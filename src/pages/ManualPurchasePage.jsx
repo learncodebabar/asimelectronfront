@@ -233,7 +233,6 @@ export default function ManualPurchasePage() {
       } else if (filteredSuppliers.length > 0 && filteredSuppliers[0]) {
         selectSupplier(filteredSuppliers[0]);
       } else if (searchQuery.trim()) {
-        // If no match found, clear the field
         clearSupplier();
       }
       return;
@@ -279,7 +278,6 @@ export default function ManualPurchasePage() {
   };
 
   const saveSingleEntry = async () => {
-    // Validate amount matches confirmation
     if (row.amount !== row.confirmAmount) {
       showMsg(`Purchase amount does not match confirmation!`, "error");
       return;
@@ -391,197 +389,176 @@ export default function ManualPurchasePage() {
           </div>
         </div>
 
-        {/* Main Content Area - Two column layout: 85% inputs / 15% supplier image */}
+        {/* Main Content Area - Title and Image in same row */}
         <div style={{
           background: "#ffffff",
           borderRadius: "6px",
           padding: "12px 16px",
           marginBottom: "12px",
-          border: "2px solid #1e40af",
-          display: "flex",
-          gap: "20px",
-          alignItems: "flex-start"
+          border: "2px solid #1e40af"
         }}>
-          
-          {/* Left side: Input fields (85%) */}
-          <div style={{ flex: "85", minWidth: 0 }}>
-            <div style={{ fontWeight: "bold", fontSize: "12px", marginBottom: "8px", color: "#1e40af", background: "#dbeafe", padding: "4px 8px", borderRadius: "4px", display: "inline-block" }}>📥 PURCHASE - DEBIT (Money OUT)</div>
+          {/* Title Row - Header on left, Image on right */}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
+            <div style={{ fontWeight: "bold", fontSize: "12px", color: "#1e40af", background: "#dbeafe", padding: "4px 8px", borderRadius: "4px", display: "inline-block" }}>
+              📥 PURCHASE - DEBIT (Money OUT)
+            </div>
             
-            <div style={{ 
-              display: "grid", 
-              gridTemplateColumns: "0.8fr 1.8fr 3.5fr 1fr 1.2fr 1.2fr", 
-              gap: "10px", 
-              alignItems: "end"
-            }}>
-              {/* CODE */}
-              <div>
-                <label style={{ fontSize: "10px", fontWeight: "bold", display: "block", marginBottom: "2px" }}>CODE</label>
-                <input 
-                  ref={codeRef} 
-                  type="text" 
-                  style={{ fontSize: "12px", padding: "6px 8px", border: "1px solid #000000", borderRadius: "3px", width: "100%", background: "#fffde7", textTransform: "uppercase" }} 
-                  value={row.code} 
-                  onChange={(e) => setRow(prev => ({ ...prev, code: e.target.value }))}
-                  onKeyDown={handleCodeKeyDown}
-                />
-              </div>
-              
-              {/* SUPPLIER NAME with Ghost Text */}
-              <div>
-                <label style={{ fontSize: "10px", fontWeight: "bold", display: "block", marginBottom: "2px" }}>SUPPLIER NAME</label>
-                <div style={{ position: "relative", width: "100%" }}>
-                  {ghost && !isNavigating && !selectedSupplier && originalQuery && (
-                    <div
-                      style={{
-                        position: "absolute",
-                        left: 8,
-                        top: "50%",
-                        transform: "translateY(-50%)",
-                        pointerEvents: "none",
-                        whiteSpace: "nowrap",
-                        fontSize: "12px",
-                        fontFamily: "inherit",
-                        display: "flex",
-                        zIndex: 2,
-                        color: "#a0aec0",
-                        backgroundColor: "transparent",
-                      }}
-                    >
-                      <span style={{ visibility: "hidden" }}>{originalQuery}</span>
-                      <span style={{ color: "#a0aec0" }}>{ghost}</span>
-                    </div>
-                  )}
-                  <input
-                    ref={supplierRef}
-                    type="text"
+            {/* Supplier Image - Right side */}
+            {selectedSupplier && (
+              <div style={{ textAlign: "center" }}>
+                {selectedSupplier.imageFront ? (
+                  <img 
+                    src={selectedSupplier.imageFront} 
+                    alt={selectedSupplier.name} 
                     style={{ 
-                      fontSize: "12px", 
-                      padding: "6px 8px", 
-                      border: "1px solid #000000", 
-                      borderRadius: "3px", 
-                      width: "100%", 
-                      background: "#fffde7",
-                      position: "relative",
-                      zIndex: 1
-                    }}
-                    value={searchQuery}
-                    onChange={handleSupplierChange}
-                    onKeyDown={handleSupplierKeyDown}
-                    autoComplete="off"
+                      width: "50px", 
+                      height: "50px", 
+                      objectFit: "cover", 
+                      border: "2px solid #000000",
+                      borderRadius: "4px"
+                    }} 
                   />
-                </div>
+                ) : (
+                  <div style={{ 
+                    width: "50px", 
+                    height: "50px", 
+                    background: "#e2e8f0", 
+                    display: "flex", 
+                    alignItems: "center", 
+                    justifyContent: "center", 
+                    fontSize: "25px", 
+                    border: "2px solid #000000",
+                    borderRadius: "4px"
+                  }}>
+                    🏭
+                  </div>
+                )}
               </div>
-              
-              {/* DESCRIPTION */}
-              <div>
-                <label style={{ fontSize: "10px", fontWeight: "bold", display: "block", marginBottom: "2px" }}>DESCRIPTION</label>
-                <input 
-                  ref={descRef} 
-                  type="text" 
+            )}
+          </div>
+          
+          {/* Input Fields Row - Adjusted column sizes */}
+          <div style={{ 
+            display: "grid", 
+            gridTemplateColumns: "80px 1fr 1fr 80px 100px 100px", 
+            gap: "10px", 
+            alignItems: "end"
+          }}>
+            {/* CODE - Short */}
+            <div>
+              <label style={{ fontSize: "10px", fontWeight: "bold", display: "block", marginBottom: "2px" }}>CODE</label>
+              <input 
+                ref={codeRef} 
+                type="text" 
+                style={{ fontSize: "12px", padding: "6px 8px", border: "1px solid #000000", borderRadius: "3px", width: "100%", background: "#fffde7", textTransform: "uppercase" }} 
+                value={row.code} 
+                onChange={(e) => setRow(prev => ({ ...prev, code: e.target.value }))}
+                onKeyDown={handleCodeKeyDown}
+              />
+            </div>
+            
+            {/* SUPPLIER NAME with Ghost Text - Equal with DESCRIPTION */}
+            <div>
+              <label style={{ fontSize: "10px", fontWeight: "bold", display: "block", marginBottom: "2px" }}>SUPPLIER NAME</label>
+              <div style={{ position: "relative", width: "100%" }}>
+                {ghost && !isNavigating && !selectedSupplier && originalQuery && (
+                  <div
+                    style={{
+                      position: "absolute",
+                      left: 8,
+                      top: "50%",
+                      transform: "translateY(-50%)",
+                      pointerEvents: "none",
+                      whiteSpace: "nowrap",
+                      fontSize: "12px",
+                      fontFamily: "inherit",
+                      display: "flex",
+                      zIndex: 2,
+                      color: "#a0aec0",
+                      backgroundColor: "transparent",
+                    }}
+                  >
+                    <span style={{ visibility: "hidden" }}>{originalQuery}</span>
+                    <span style={{ color: "#a0aec0" }}>{ghost}</span>
+                  </div>
+                )}
+                <input
+                  ref={supplierRef}
+                  type="text"
                   style={{ 
                     fontSize: "12px", 
                     padding: "6px 8px", 
                     border: "1px solid #000000", 
                     borderRadius: "3px", 
-                    width: "100%",
-                    minWidth: "280px"
-                  }} 
-                  value={row.description} 
-                  onChange={(e) => updateRow("description", e.target.value)} 
-                  onKeyDown={(e) => handleRowKeyDown(e, 'desc')} 
+                    width: "100%", 
+                    background: "#fffde7",
+                    position: "relative",
+                    zIndex: 1
+                  }}
+                  value={searchQuery}
+                  onChange={handleSupplierChange}
+                  onKeyDown={handleSupplierKeyDown}
+                  autoComplete="off"
                 />
               </div>
-              
-              {/* INVOICE # */}
-              <div>
-                <label style={{ fontSize: "10px", fontWeight: "bold", display: "block", marginBottom: "2px" }}>INVOICE #</label>
-                <input ref={invRef} type="text" style={{ fontSize: "12px", padding: "6px 8px", border: "1px solid #000000", borderRadius: "3px", width: "100%" }} value={row.invoiceNo} onChange={(e) => updateRow("invoiceNo", e.target.value)} onKeyDown={(e) => handleRowKeyDown(e, 'inv')} />
-              </div>
-              
-              {/* AMOUNT */}
-              <div>
-                <label style={{ fontSize: "10px", fontWeight: "bold", display: "block", marginBottom: "2px" }}>AMOUNT (PKR)</label>
-                <input ref={amountRef} type="number" style={{ fontSize: "13px", fontWeight: "bold", padding: "6px 8px", textAlign: "right", border: "1px solid #000000", borderRadius: "3px", width: "100%" }} value={row.amount} onChange={(e) => updateRow("amount", e.target.value)} onKeyDown={(e) => handleRowKeyDown(e, 'amount')} />
-              </div>
-              
-              {/* CONFIRM AMOUNT */}
-              <div>
-                <label style={{ fontSize: "10px", fontWeight: "bold", display: "block", marginBottom: "2px", color: "#dc2626" }}>CONFIRM AMOUNT</label>
-                <input ref={confirmAmountRef} type="number" style={{ fontSize: "13px", fontWeight: "bold", padding: "6px 8px", textAlign: "right", border: "2px solid #dc2626", borderRadius: "3px", width: "100%", background: "#fef2f2" }} value={row.confirmAmount} onChange={(e) => updateRow("confirmAmount", e.target.value)} onKeyDown={(e) => handleRowKeyDown(e, 'confirmAmount')} />
-              </div>
+            </div>
+            
+            {/* DESCRIPTION - Equal with SUPPLIER NAME */}
+            <div>
+              <label style={{ fontSize: "10px", fontWeight: "bold", display: "block", marginBottom: "2px" }}>DESCRIPTION</label>
+              <input 
+                ref={descRef} 
+                type="text" 
+                style={{ 
+                  fontSize: "12px", 
+                  padding: "6px 8px", 
+                  border: "1px solid #000000", 
+                  borderRadius: "3px", 
+                  width: "100%"
+                }} 
+                value={row.description} 
+                onChange={(e) => updateRow("description", e.target.value)} 
+                onKeyDown={(e) => handleRowKeyDown(e, 'desc')} 
+              />
+            </div>
+            
+            {/* INVOICE # - Short */}
+            <div>
+              <label style={{ fontSize: "10px", fontWeight: "bold", display: "block", marginBottom: "2px" }}>INVOICE #</label>
+              <input ref={invRef} type="text" style={{ fontSize: "12px", padding: "6px 8px", border: "1px solid #000000", borderRadius: "3px", width: "100%" }} value={row.invoiceNo} onChange={(e) => updateRow("invoiceNo", e.target.value)} onKeyDown={(e) => handleRowKeyDown(e, 'inv')} />
+            </div>
+            
+            {/* AMOUNT - Short */}
+            <div>
+              <label style={{ fontSize: "10px", fontWeight: "bold", display: "block", marginBottom: "2px" }}>AMOUNT</label>
+              <input ref={amountRef} type="number" style={{ fontSize: "13px", fontWeight: "bold", padding: "6px 8px", textAlign: "right", border: "1px solid #000000", borderRadius: "3px", width: "100%" }} value={row.amount} onChange={(e) => updateRow("amount", e.target.value)} onKeyDown={(e) => handleRowKeyDown(e, 'amount')} />
+            </div>
+            
+            {/* CONFIRM AMOUNT - Short */}
+            <div>
+              <label style={{ fontSize: "10px", fontWeight: "bold", display: "block", marginBottom: "2px", color: "#dc2626" }}>CONFIRM</label>
+              <input ref={confirmAmountRef} type="number" style={{ fontSize: "13px", fontWeight: "bold", padding: "6px 8px", textAlign: "right", border: "2px solid #dc2626", borderRadius: "3px", width: "100%", background: "#fef2f2" }} value={row.confirmAmount} onChange={(e) => updateRow("confirmAmount", e.target.value)} onKeyDown={(e) => handleRowKeyDown(e, 'confirmAmount')} />
             </div>
           </div>
           
-          {/* Right side: Supplier Image (15%) */}
-          <div style={{ flex: "15", display: "flex", justifyContent: "flex-end", alignItems: "center", minWidth: "140px" }}>
-            {selectedSupplier && selectedSupplier.imageFront ? (
-              <div style={{ textAlign: "center" }}>
-                <img 
-                  src={selectedSupplier.imageFront} 
-                  alt={selectedSupplier.name} 
-                  style={{ 
-                    width: "100px", 
-                    height: "100px", 
-                    objectFit: "cover", 
-                    border: "2px solid #000000",
-                    boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
-                    borderRadius: "4px"
-                  }} 
-                />
-                <div style={{ fontSize: "10px", marginTop: "4px", fontWeight: "bold", color: "#1e293b" }}>
-                  {selectedSupplier.name}
-                </div>
-                {selectedSupplier.phone && (
-                  <div style={{ fontSize: "9px", color: "#64748b" }}>
-                    📞 {selectedSupplier.phone}
-                  </div>
-                )}
+          {/* Supplier Info Bar (when selected) */}
+          {selectedSupplier && (
+            <div style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              padding: "6px 10px",
+              background: "#f8fafc",
+              borderRadius: "4px",
+              border: "1px solid #000000",
+              marginTop: "10px"
+            }}>
+              <div style={{ fontSize: "11px", color: "#64748b" }}>
+                <strong>{selectedSupplier.name}</strong> | Code: {selectedSupplier.code || "—"} | Phone: {selectedSupplier.phone || "—"} | Balance: <span style={{ fontWeight: "bold", color: (selectedSupplier.currentBalance || 0) > 0 ? "#dc2626" : "#059669" }}>PKR {fmt(selectedSupplier.currentBalance || 0)}</span>
               </div>
-            ) : selectedSupplier ? (
-              <div style={{ textAlign: "center" }}>
-                <div style={{ 
-                  width: "100px", 
-                  height: "100px", 
-                  background: "#e2e8f0", 
-                  display: "flex", 
-                  alignItems: "center", 
-                  justifyContent: "center", 
-                  fontSize: "50px", 
-                  border: "2px solid #000000",
-                  boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
-                  borderRadius: "4px"
-                }}>
-                  🏭
-                </div>
-                <div style={{ fontSize: "10px", marginTop: "4px", fontWeight: "bold", color: "#1e293b" }}>
-                  {selectedSupplier.name}
-                </div>
-                {selectedSupplier.phone && (
-                  <div style={{ fontSize: "9px", color: "#64748b" }}>
-                    📞 {selectedSupplier.phone}
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div style={{ textAlign: "center", color: "#94a3b8", fontSize: "10px", fontWeight: "bold", padding: "10px" }}>
-                <div style={{ 
-                  width: "100px", 
-                  height: "100px", 
-                  background: "#f1f5f9", 
-                  display: "flex", 
-                  alignItems: "center", 
-                  justifyContent: "center", 
-                  fontSize: "40px", 
-                  border: "2px dashed #cbd5e1",
-                  borderRadius: "4px",
-                  marginBottom: "4px"
-                }}>
-                  🖼️
-                </div>
-                No Supplier Selected
-              </div>
-            )}
-          </div>
+              <button onClick={clearSupplier} style={{ background: "#ef4444", color: "white", border: "1px solid #000000", borderRadius: "4px", padding: "3px 10px", fontSize: "10px", fontWeight: "bold", cursor: "pointer" }}>CLEAR</button>
+            </div>
+          )}
         </div>
 
         {/* Save Button */}
@@ -647,7 +624,7 @@ export default function ManualPurchasePage() {
                   <tr>
                     <td colSpan="6" style={{ padding: "8px", textAlign: "right", fontWeight: "bold", border: "1px solid #000000" }}>Total:</td>
                     <td style={{ padding: "8px", textAlign: "right", fontWeight: "bold", color: "#1e40af", fontSize: "13px", border: "1px solid #000000" }}>{fmt(totalFilteredAmount)}</td>
-                    <td style={{ border: "1px solid #000000" }}></td>
+                    <td style={{ border: "1px solid #000000" }}> </td>
                   </tr>
                 </tfoot>
               )}
@@ -696,7 +673,7 @@ export default function ManualPurchasePage() {
                   <tr>
                     <td colSpan="4" style={{ padding: "5px", textAlign: "right", fontWeight: "bold", border: "1px solid #000000" }}>Purchase Total:</td>
                     <td style={{ padding: "5px", textAlign: "right", fontWeight: "bold", color: "#1e40af", border: "1px solid #000000" }}>{fmt(purchaseTotal)}</td>
-                    <td style={{ border: "1px solid #000000" }}></td>
+                    <td style={{ border: "1px solid #000000" }}> </td>
                   </tr>
                 </tfoot>
               </table>
