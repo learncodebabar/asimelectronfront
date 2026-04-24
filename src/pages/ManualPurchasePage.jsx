@@ -87,13 +87,22 @@ export default function ManualPurchasePage() {
     try {
       const { data } = await api.get(EP.CUSTOMERS.GET_ALL);
       if (data.success) {
-        const supplierList = data.data.filter(c => 
-          (c.customerType === "supplier" || c.type === "supplier" || c.isSupplier === true) &&
-          c.name && c.name.trim() !== ""
-        );
+        // Filter only suppliers - check multiple possible field names
+        const supplierList = data.data.filter(c => {
+          const type = (c.customerType || c.type || "").toLowerCase();
+          // Also check if it's NOT a credit customer (exclude regular customers)
+          const isNotCreditCustomer = type !== "credit";
+          const isSupplier = type === "supplier";
+          // Include if type is supplier OR (type is not credit and name doesn't suggest it's a customer)
+          return isSupplier || (isNotCreditCustomer && c.name && c.name.trim() !== "");
+        });
         setSuppliers(supplierList);
+        console.log("Suppliers loaded:", supplierList.length);
       }
-    } catch (error) { console.error("Failed to fetch suppliers:", error); }
+    } catch (error) { 
+      console.error("Failed to fetch suppliers:", error); 
+      showMsg("Failed to load suppliers", "error");
+    }
   };
 
   const fetchPurchaseRecords = async () => {
@@ -123,6 +132,7 @@ export default function ManualPurchasePage() {
     setSelectedSuggestionIndex(-1);
     setIsNavigating(false);
     setTimeout(() => descRef.current?.focus(), 50);
+    showMsg(`Supplier selected: ${supplier.name}`, "success");
   };
 
   const clearSupplier = () => {
@@ -499,6 +509,7 @@ export default function ManualPurchasePage() {
                   onChange={handleSupplierChange}
                   onKeyDown={handleSupplierKeyDown}
                   autoComplete="off"
+                  placeholder="Type supplier name or code..."
                 />
               </div>
             </div>
@@ -519,25 +530,26 @@ export default function ManualPurchasePage() {
                 value={row.description} 
                 onChange={(e) => updateRow("description", e.target.value)} 
                 onKeyDown={(e) => handleRowKeyDown(e, 'desc')} 
+                placeholder="Purchase description..."
               />
             </div>
             
             {/* INVOICE # - Short */}
             <div>
               <label style={{ fontSize: "10px", fontWeight: "bold", display: "block", marginBottom: "2px" }}>INVOICE #</label>
-              <input ref={invRef} type="text" style={{ fontSize: "12px", padding: "6px 8px", border: "1px solid #000000", borderRadius: "3px", width: "100%" }} value={row.invoiceNo} onChange={(e) => updateRow("invoiceNo", e.target.value)} onKeyDown={(e) => handleRowKeyDown(e, 'inv')} />
+              <input ref={invRef} type="text" style={{ fontSize: "12px", padding: "6px 8px", border: "1px solid #000000", borderRadius: "3px", width: "100%" }} value={row.invoiceNo} onChange={(e) => updateRow("invoiceNo", e.target.value)} onKeyDown={(e) => handleRowKeyDown(e, 'inv')} placeholder="Optional" />
             </div>
             
             {/* AMOUNT - Short */}
             <div>
               <label style={{ fontSize: "10px", fontWeight: "bold", display: "block", marginBottom: "2px" }}>AMOUNT</label>
-              <input ref={amountRef} type="number" style={{ fontSize: "13px", fontWeight: "bold", padding: "6px 8px", textAlign: "right", border: "1px solid #000000", borderRadius: "3px", width: "100%" }} value={row.amount} onChange={(e) => updateRow("amount", e.target.value)} onKeyDown={(e) => handleRowKeyDown(e, 'amount')} />
+              <input ref={amountRef} type="number" style={{ fontSize: "13px", fontWeight: "bold", padding: "6px 8px", textAlign: "right", border: "1px solid #000000", borderRadius: "3px", width: "100%" }} value={row.amount} onChange={(e) => updateRow("amount", e.target.value)} onKeyDown={(e) => handleRowKeyDown(e, 'amount')} placeholder="0" />
             </div>
             
             {/* CONFIRM AMOUNT - Short */}
             <div>
               <label style={{ fontSize: "10px", fontWeight: "bold", display: "block", marginBottom: "2px", color: "#dc2626" }}>CONFIRM</label>
-              <input ref={confirmAmountRef} type="number" style={{ fontSize: "13px", fontWeight: "bold", padding: "6px 8px", textAlign: "right", border: "2px solid #dc2626", borderRadius: "3px", width: "100%", background: "#fef2f2" }} value={row.confirmAmount} onChange={(e) => updateRow("confirmAmount", e.target.value)} onKeyDown={(e) => handleRowKeyDown(e, 'confirmAmount')} />
+              <input ref={confirmAmountRef} type="number" style={{ fontSize: "13px", fontWeight: "bold", padding: "6px 8px", textAlign: "right", border: "2px solid #dc2626", borderRadius: "3px", width: "100%", background: "#fef2f2" }} value={row.confirmAmount} onChange={(e) => updateRow("confirmAmount", e.target.value)} onKeyDown={(e) => handleRowKeyDown(e, 'confirmAmount')} placeholder="0" />
             </div>
           </div>
           
