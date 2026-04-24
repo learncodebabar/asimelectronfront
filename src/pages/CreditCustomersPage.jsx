@@ -11,7 +11,6 @@ const fmt = (n) => Number(n || 0).toLocaleString("en-PK");
 const isoD = () => new Date().toISOString().split("T")[0];
 
 // Build Complete Customer Statement HTML for Print (Full with Items - Items in same cell with labels)
-// Build Complete Customer Statement HTML for Print (Full with Items - Items in same cell with labels)
 const buildCustomerStatementHtml = (customer, sales, rawPurchases, payments) => {
   const totalSales = sales.reduce((s, x) => s + (x.netTotal || 0), 0);
   const totalPaid = sales.reduce((s, x) => s + (x.paidAmount || 0), 0);
@@ -39,7 +38,7 @@ const buildCustomerStatementHtml = (customer, sales, rawPurchases, payments) => 
               <th style="padding: 3px 4px; border: 1px solid #ccc; text-align: right; width: 75px;">Amount</th>
               <th style="padding: 3px 4px; border: 1px solid #ccc; text-align: center; width: 40px;">Rack</th>
               <th style="padding: 3px 4px; border: 1px solid #ccc; text-align: center; width: 45px;">UOM</th>
-            </tr>
+             </tr>
           </thead>
           <tbody>`;
       
@@ -1027,7 +1026,7 @@ function CustomerDetailPage({ customer, onBack }) {
 }
 
 /* ═══════════════════════════════════════════════════════════
-   MAIN PAGE - Credit Customers List with Search
+   MAIN PAGE - Credit Customers List with Search (Image only, no label)
 ════════════════════════════════════════════════════════════ */
 export default function CreditCustomersPage() {
   const navigate = useNavigate();
@@ -1111,15 +1110,31 @@ export default function CreditCustomersPage() {
           </div>
         </div>
 
-        {/* Search Bar */}
-        <div className="xp-toolbar" style={{ marginTop: 12, display: "flex", gap: "12px", alignItems: "center", marginBottom: "16px" }}>
-          <div className="xp-search-wrap" style={{ flex: 1, position: "relative" }}>
+        {/* Search Bar - Full width input with margin-top -30px, no label */}
+        <div className="xp-toolbar" style={{ marginTop: "-30px", marginBottom: "16px" }}>
+          <div className="xp-search-wrap" style={{ width: "100%" }}>
             <svg className="xp-search-icon" width="14" height="14" viewBox="0 0 16 16" fill="currentColor" style={{ position: "absolute", left: "10px", top: "50%", transform: "translateY(-50%)", color: "#666" }}>
               <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.044.06.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1 1 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0"/>
             </svg>
-            <input ref={searchRef} type="text" className="xp-input" style={{ paddingLeft: "32px", border: "2px solid #000000", borderRadius: "6px", height: "38px", width: "100%", fontSize: "13px" }} value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search by name, phone, code or area..." autoFocus />
+            <input 
+              ref={searchRef} 
+              type="text" 
+              className="xp-input" 
+              style={{ 
+                paddingLeft: "32px", 
+                border: "2px solid #000000", 
+                borderRadius: "6px", 
+                height: "42px", 
+                width: "100%", 
+                fontSize: "14px",
+                background: "#ffffff"
+              }} 
+              value={search} 
+              onChange={(e) => setSearch(e.target.value)} 
+              placeholder="Search by name, phone, code or area..." 
+              autoFocus 
+            />
           </div>
-          <span className="text-muted" style={{ fontSize: "12px", fontWeight: "bold", color: "#000000" }}>{filtered.length} customers found</span>
         </div>
 
         {/* Customers Table */}

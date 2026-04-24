@@ -1,4 +1,4 @@
-// pages/CashPaymentVoucher.jsx
+// pages/CashPaymentVoucher.jsx - Same design as Cash Receipt
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../api/api.js";
@@ -45,7 +45,6 @@ function SupplierDropdown({
     );
   };
 
-  // Reset query when displayName changes (customer selection changes)
   useEffect(() => {
     if (displayName) {
       setQuery("");
@@ -175,7 +174,6 @@ function SupplierDropdown({
     setIsNavigating(false);
   };
 
-  // Determine what to show in the input
   const getInputValue = () => {
     if (value && displayName) {
       return displayName;
@@ -208,7 +206,7 @@ function SupplierDropdown({
               transform: "translateY(-50%)",
               pointerEvents: "none",
               whiteSpace: "nowrap",
-              fontSize: "14px",
+              fontSize: "13px",
               fontFamily: "inherit",
               display: "flex",
               zIndex: 2,
@@ -232,8 +230,8 @@ function SupplierDropdown({
               width: "100%",
               border: "none",
               outline: "none",
-              padding: "8px 6px",
-              fontSize: "14px",
+              padding: "6px 6px",
+              fontSize: "13px",
               fontWeight: "500",
             }}
             value={getInputValue()}
@@ -257,12 +255,12 @@ function SupplierDropdown({
             type="button"
             style={{
               height: 28,
-              padding: "0 10px",
-              fontSize: 12,
+              padding: "0 8px",
+              fontSize: 10,
               flexShrink: 0,
               background: "#ef4444",
               color: "white",
-              border: "none",
+              border: "1px solid #000000",
               borderRadius: "4px",
               cursor: "pointer",
               fontWeight: "bold"
@@ -281,7 +279,7 @@ function SupplierDropdown({
             }}
             title="Clear"
           >
-            Clear
+            ✕
           </button>
         )}
       </div>
@@ -306,7 +304,7 @@ function SupplierDropdown({
               key={supplier._id}
               onClick={() => selectSupplier(supplier)}
               style={{
-                padding: "10px 12px",
+                padding: "8px 12px",
                 cursor: "pointer",
                 backgroundColor: idx === selectedSuggestionIndex ? "#e5f0ff" : "white",
                 borderBottom: "1px solid #e2e8f0",
@@ -320,10 +318,10 @@ function SupplierDropdown({
               }}
               onMouseLeave={() => setIsNavigating(false)}
             >
-              <div style={{ fontWeight: "bold", fontSize: 14, color: "#1e293b" }}>
+              <div style={{ fontWeight: "bold", fontSize: 13, color: "#1e293b" }}>
                 {supplier.name}
               </div>
-              <div style={{ fontSize: 11, color: "#6b7280", marginTop: 2 }}>
+              <div style={{ fontSize: 10, color: "#6b7280", marginTop: 2 }}>
                 {supplier.code && <span>📋 Code: {supplier.code}</span>}
                 {supplier.phone && <span> | 📞 {supplier.phone}</span>}
               </div>
@@ -344,7 +342,7 @@ export default function CashPaymentVoucher() {
   const [supplierCode, setSupplierCode] = useState("");
   const [supplierName, setSupplierName] = useState("");
   const [selectedSupplier, setSelectedSupplier] = useState(null);
-  const [description, setDescription] = useState("");
+  const [remarks, setRemarks] = useState("");
   const [invoiceNo, setInvoiceNo] = useState("");
   const [amount, setAmount] = useState("");
   const [sendSms, setSendSms] = useState(false);
@@ -352,30 +350,39 @@ export default function CashPaymentVoucher() {
   const [errors, setErrors] = useState({ supplier: "", amount: "" });
   const [allSuppliers, setAllSuppliers] = useState([]);
   const [transactions, setTransactions] = useState([]);
+  const [filteredTransactions, setFilteredTransactions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [msg, setMsg] = useState({ text: "", type: "" });
   const [editId, setEditId] = useState(null);
+  const [searchVoucherNo, setSearchVoucherNo] = useState("");
+  const [showVoucherSearch, setShowVoucherSearch] = useState(false);
+  const [searchVoucherResult, setSearchVoucherResult] = useState(null);
   
   const codeInputRef = useRef(null);
-  const descriptionRef = useRef(null);
+  const remarksRef = useRef(null);
   const invoiceRef = useRef(null);
   const amountRef = useRef(null);
   const submitRef = useRef(null);
+  const searchRef = useRef(null);
   
   useEffect(() => {
     loadSuppliers();
+    loadTransactions();
     codeInputRef.current?.focus();
   }, []);
   
-  // Load payment history for selected supplier
+  // Filter transactions when search is performed
   useEffect(() => {
-    if (selectedSupplier) {
-      loadSupplierPayments(selectedSupplier._id);
+    if (searchVoucherResult) {
+      setFilteredTransactions([searchVoucherResult]);
+    } else if (selectedSupplier) {
+      const supplierTransactions = transactions.filter(t => t.account_title?.toLowerCase() === selectedSupplier?.name?.toLowerCase());
+      setFilteredTransactions(supplierTransactions);
     } else {
-      setTransactions([]);
+      setFilteredTransactions(transactions);
     }
-  }, [selectedSupplier]);
+  }, [transactions, searchVoucherResult, selectedSupplier]);
   
   const loadSuppliers = async () => {
     try {
@@ -392,24 +399,16 @@ export default function CashPaymentVoucher() {
     }
   };
   
-  const loadSupplierPayments = async (supplierId) => {
+  const loadTransactions = async () => {
     setLoading(true);
     try {
-      // Get all CPV records and filter by supplier
       const { data } = await api.get(EP.CPV.GET_ALL);
       const allRecords = Array.isArray(data) ? data : data.data || [];
-      
-      // Filter payments for the selected supplier (by account_title)
-      const supplierPayments = allRecords.filter(record => 
-        record.account_title?.toLowerCase() === supplierName?.toLowerCase()
-      );
-      
-      // Sort by date (newest first)
-      supplierPayments.sort((a, b) => new Date(b.date) - new Date(a.date));
-      
-      setTransactions(supplierPayments);
+      allRecords.sort((a, b) => new Date(b.date) - new Date(a.date));
+      setTransactions(allRecords);
+      setFilteredTransactions(allRecords);
     } catch (err) {
-      console.error("Failed to load payments:", err);
+      console.error("Failed to load transactions:", err);
     }
     setLoading(false);
   };
@@ -433,7 +432,11 @@ export default function CashPaymentVoucher() {
         setSupplierName(sup.name);
         setSelectedSupplier(sup);
         setErrors({ ...errors, supplier: "" });
-        setTimeout(() => descriptionRef.current?.focus(), 100);
+        setSearchVoucherResult(null);
+        // Filter transactions by this supplier
+        const supplierTransactions = transactions.filter(t => t.account_title?.toLowerCase() === sup.name?.toLowerCase());
+        setFilteredTransactions(supplierTransactions);
+        setTimeout(() => remarksRef.current?.focus(), 100);
       }
     } catch (error) {
       console.error("Failed to fetch supplier details:", error);
@@ -446,8 +449,16 @@ export default function CashPaymentVoucher() {
     setSupplierCode("");
     setSupplierName("");
     setSelectedSupplier(null);
-    setTransactions([]);
+    setFilteredTransactions(transactions);
     setErrors({ supplier: "", amount: "" });
+    setEditId(null);
+    setVoucherId(generateVoucherNo());
+    setVoucherDate(isoD());
+    setRemarks("");
+    setInvoiceNo("");
+    setAmount("");
+    setSendSms(false);
+    setSearchVoucherResult(null);
     codeInputRef.current?.focus();
   };
   
@@ -467,11 +478,11 @@ export default function CashPaymentVoucher() {
   const validateAmount = (value) => {
     const amt = parseFloat(value);
     if (!value || value === "") {
-      setErrors({ ...errors, amount: "Amount is required" });
+      setErrors({ ...errors, amount: "Required" });
       return false;
     }
     if (isNaN(amt) || amt <= 0) {
-      setErrors({ ...errors, amount: "Valid amount > 0 required" });
+      setErrors({ ...errors, amount: "Valid amount > 0" });
       return false;
     }
     setErrors({ ...errors, amount: "" });
@@ -483,7 +494,7 @@ export default function CashPaymentVoucher() {
     validateAmount(value);
   };
   
-  const handleDescriptionKeyDown = (e) => {
+  const handleRemarksKeyDown = (e) => {
     if (e.key === "Enter") {
       e.preventDefault();
       invoiceRef.current?.focus();
@@ -511,12 +522,12 @@ export default function CashPaymentVoucher() {
     setSupplierCode("");
     setSupplierName("");
     setSelectedSupplier(null);
-    setDescription("");
+    setRemarks("");
     setInvoiceNo("");
     setAmount("");
     setSendSms(false);
     setEditId(null);
-    setTransactions([]);
+    setSearchVoucherResult(null);
     setErrors({ supplier: "", amount: "" });
     codeInputRef.current?.focus();
   };
@@ -527,12 +538,11 @@ export default function CashPaymentVoucher() {
     setVoucherDate(row.date?.slice(0, 10) || isoD());
     setSupplierCode(row.code || "");
     setSupplierName(row.account_title || "");
-    setDescription(row.description || "");
+    setRemarks(row.remarks || "");
     setInvoiceNo(row.invoice || "");
     setAmount(row.amount || "");
     setSendSms(row.send_sms || false);
     
-    // Find and set selected supplier
     const found = allSuppliers.find(s => s.name === row.account_title);
     if (found) {
       setSupplierId(found._id);
@@ -542,7 +552,7 @@ export default function CashPaymentVoucher() {
       setSelectedSupplier(null);
     }
     
-    setTimeout(() => descriptionRef.current?.focus(), 100);
+    setTimeout(() => remarksRef.current?.focus(), 100);
   };
   
   const handleDelete = async () => {
@@ -551,12 +561,61 @@ export default function CashPaymentVoucher() {
     try {
       await api.delete(EP.CPV.DELETE(editId));
       showMsg("Record deleted");
+      await loadTransactions();
       handleNew();
-      if (selectedSupplier) {
-        loadSupplierPayments(selectedSupplier._id);
-      }
     } catch (e) {
       showMsg(e.response?.data?.error || "Delete failed", "error");
+    }
+  };
+  
+  const searchVoucher = () => {
+    const voucherNo = searchVoucherNo.trim();
+    if (!voucherNo) {
+      showMsg("Enter voucher number to search", "error");
+      return;
+    }
+    
+    const found = transactions.find(t => 
+      t.cpv_number && t.cpv_number.toLowerCase().includes(voucherNo.toLowerCase())
+    );
+    
+    if (found) {
+      setSearchVoucherResult(found);
+      setFilteredTransactions([found]);
+      setShowVoucherSearch(false);
+      showMsg(`Found voucher: ${found.cpv_number}`, "success");
+    } else {
+      showMsg(`Voucher "${voucherNo}" not found`, "error");
+      setSearchVoucherResult(null);
+      if (selectedSupplier) {
+        const supplierTransactions = transactions.filter(t => t.account_title?.toLowerCase() === selectedSupplier.name?.toLowerCase());
+        setFilteredTransactions(supplierTransactions);
+      } else {
+        setFilteredTransactions(transactions);
+      }
+    }
+  };
+  
+  const clearSearch = () => {
+    setSearchVoucherResult(null);
+    if (selectedSupplier) {
+      const supplierTransactions = transactions.filter(t => t.account_title?.toLowerCase() === selectedSupplier.name?.toLowerCase());
+      setFilteredTransactions(supplierTransactions);
+    } else {
+      setFilteredTransactions(transactions);
+    }
+    setSearchVoucherNo("");
+    showMsg("Search cleared", "success");
+  };
+  
+  const handleSearchKeyDown = (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      searchVoucher();
+    }
+    if (e.key === "Escape") {
+      setShowVoucherSearch(false);
+      setSearchVoucherNo("");
     }
   };
   
@@ -581,7 +640,7 @@ export default function CashPaymentVoucher() {
         date: voucherDate,
         code: supplierCode,
         account_title: supplierName,
-        description: description,
+        remarks: remarks,
         invoice: invoiceNo || 0,
         amount: parseFloat(amount),
         send_sms: sendSms,
@@ -596,28 +655,27 @@ export default function CashPaymentVoucher() {
         showMsg(`CPV #${response.data.cpv_number} saved`);
       }
       
-      // Reset form but keep supplier selected
       setVoucherId(generateVoucherNo());
-      setDescription("");
+      setRemarks("");
       setInvoiceNo("");
       setAmount("");
       setSendSms(false);
       setEditId(null);
       
-      // Refresh payment history for the selected supplier
+      await loadTransactions();
       if (selectedSupplier) {
-        loadSupplierPayments(selectedSupplier._id);
+        const supplierTransactions = transactions.filter(t => t.account_title?.toLowerCase() === selectedSupplier.name?.toLowerCase());
+        setFilteredTransactions(supplierTransactions);
       }
       
-      // Focus back on description
-      setTimeout(() => descriptionRef.current?.focus(), 100);
+      setTimeout(() => remarksRef.current?.focus(), 100);
     } catch (err) {
       showMsg(err.response?.data?.error || "Save failed", "error");
     }
     setSubmitting(false);
   };
   
-  const totalAmount = transactions.reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0);
+  const totalAmount = filteredTransactions.reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0);
   
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%", background: "#ffffff" }}>
@@ -625,67 +683,87 @@ export default function CashPaymentVoucher() {
         <button className="xp-cap-btn" onClick={() => navigate("/")} style={{ color: "white", fontSize: "16px" }}>←</button>
         <span className="xp-tb-title" style={{ color: "white", fontSize: "16px", fontWeight: "bold" }}>Cash Payment Voucher</span>
         <div className="xp-tb-actions">
-          <button className="xp-btn xp-btn-sm" onClick={handleNew} style={{ fontSize: "12px", padding: "6px 12px", fontWeight: "bold" }}>🔄 New Voucher</button>
+          <button className="xp-btn xp-btn-sm" onClick={() => setShowVoucherSearch(!showVoucherSearch)} style={{ fontSize: "11px", padding: "5px 10px", fontWeight: "bold", marginRight: "8px", background: "#f59e0b", color: "white", border: "1px solid #000000" }}>🔍 Search Voucher</button>
+          <button className="xp-btn xp-btn-sm" onClick={handleNew} style={{ fontSize: "11px", padding: "5px 10px", fontWeight: "bold", background: "#10b981", color: "white", border: "1px solid #000000" }}>🔄 New Voucher</button>
         </div>
       </div>
       
       {msg.text && (
-        <div className={`xp-alert ${msg.type === "success" ? "xp-alert-success" : "xp-alert-error"}`} style={{ margin: "8px 16px", fontSize: "13px", padding: "8px 16px", fontWeight: "500" }}>
+        <div className={`xp-alert ${msg.type === "success" ? "xp-alert-success" : "xp-alert-error"}`} style={{ margin: "6px 12px", fontSize: "12px", padding: "6px 12px", fontWeight: "500", border: "1px solid #000000" }}>
           {msg.text}
         </div>
       )}
       
-      <div className="xp-page-body" style={{ padding: "12px 16px", background: "#ffffff" }}>
-        {/* Main Form - ALL IN ONE ROW */}
+      {showVoucherSearch && (
+        <div style={{ margin: "6px 12px", padding: "8px 12px", background: "#f8fafc", borderRadius: "6px", border: "2px solid #000000", display: "flex", gap: "8px", alignItems: "center" }}>
+          <span style={{ fontWeight: "bold", fontSize: "11px" }}>🔍 Search Voucher:</span>
+          <input
+            ref={searchRef}
+            type="text"
+            value={searchVoucherNo}
+            onChange={(e) => setSearchVoucherNo(e.target.value)}
+            onKeyDown={handleSearchKeyDown}
+            placeholder="Enter Voucher Number"
+            style={{ flex: 1, padding: "6px 10px", border: "1px solid #000000", borderRadius: "4px", fontSize: "12px" }}
+          />
+          <button onClick={searchVoucher} style={{ padding: "6px 16px", background: "#1e40af", color: "white", border: "1px solid #000000", borderRadius: "4px", cursor: "pointer", fontWeight: "bold", fontSize: "11px" }}>Search</button>
+          <button onClick={clearSearch} style={{ padding: "6px 16px", background: "#10b981", color: "white", border: "1px solid #000000", borderRadius: "4px", cursor: "pointer", fontWeight: "bold", fontSize: "11px" }}>Clear</button>
+          <button onClick={() => setShowVoucherSearch(false)} style={{ padding: "6px 16px", background: "#ef4444", color: "white", border: "1px solid #000000", borderRadius: "4px", cursor: "pointer", fontWeight: "bold", fontSize: "11px" }}>Cancel</button>
+        </div>
+      )}
+      
+      <div className="xp-page-body" style={{ padding: "10px 12px", background: "#ffffff" }}>
+        {/* Main Form - ALL IN ONE ROW like Cash Receipt */}
         <div style={{
           background: "#ffffff",
-          borderRadius: "8px",
-          padding: "16px",
-          marginBottom: "16px",
+          borderRadius: "6px",
+          padding: "12px",
+          marginBottom: "12px",
           border: "2px solid #000000"
         }}>
           <form onSubmit={handleSubmit}>
             <div style={{
               display: "flex",
-              gap: "12px",
-              alignItems: "flex-end",
+              gap: "8px",
+              alignItems: "flex-start",
               flexWrap: "wrap"
             }}>
               {/* Voucher ID */}
-              <div style={{ width: "160px" }}>
-                <label style={{ fontSize: "11px", fontWeight: "bold", color: "#000000", display: "block", marginBottom: "4px", textTransform: "uppercase" }}>Voucher ID</label>
+              <div style={{ width: "145px" }}>
+                <label style={{ fontSize: "9px", fontWeight: "bold", color: "#000000", display: "block", marginBottom: "3px", textTransform: "uppercase" }}>Voucher ID</label>
                 <input
                   type="text"
                   value={voucherId}
-                  readOnly
+                  readOnly={!editId}
                   style={{ 
-                    background: "#f5f5f5", 
+                    background: editId ? "#fffde7" : "#f5f5f5", 
                     fontFamily: "monospace", 
-                    fontSize: "13px", 
+                    fontSize: "9px", 
                     fontWeight: "bold",
-                    height: "38px", 
-                    padding: "0 10px",
+                    height: "28px", 
+                    padding: "0 6px",
                     border: "1px solid #000000",
                     borderRadius: "4px",
                     width: "100%"
                   }}
                 />
+                {editId && <div style={{ fontSize: "7px", color: "#f59e0b", marginTop: "1px", fontWeight: "bold" }}>✏ Editing</div>}
               </div>
               
               {/* Date */}
-              <div style={{ width: "130px" }}>
-                <label style={{ fontSize: "11px", fontWeight: "bold", color: "#000000", display: "block", marginBottom: "4px", textTransform: "uppercase" }}>Date</label>
+              <div style={{ width: "100px" }}>
+                <label style={{ fontSize: "9px", fontWeight: "bold", color: "#000000", display: "block", marginBottom: "3px", textTransform: "uppercase" }}>Date</label>
                 <input
                   type="date"
                   value={voucherDate}
                   onChange={(e) => setVoucherDate(e.target.value)}
-                  style={{ height: "38px", padding: "0 10px", fontSize: "13px", fontWeight: "500", border: "1px solid #000000", borderRadius: "4px", width: "100%" }}
+                  style={{ height: "28px", padding: "0 6px", fontSize: "11px", border: "1px solid #000000", borderRadius: "4px", width: "100%" }}
                 />
               </div>
               
               {/* Supplier Code */}
-              <div style={{ width: "130px" }}>
-                <label style={{ fontSize: "11px", fontWeight: "bold", color: "#000000", display: "block", marginBottom: "4px", textTransform: "uppercase" }}>Supplier Code</label>
+              <div style={{ width: "95px" }}>
+                <label style={{ fontSize: "9px", fontWeight: "bold", color: "#000000", display: "block", marginBottom: "3px", textTransform: "uppercase" }}>Code</label>
                 <input
                   ref={codeInputRef}
                   type="text"
@@ -697,12 +775,11 @@ export default function CashPaymentVoucher() {
                       handleCodeSearch(); 
                     } 
                   }}
-                  placeholder="Enter code"
+                  placeholder="Code"
                   style={{ 
-                    height: "38px", 
-                    padding: "0 10px", 
-                    fontSize: "13px", 
-                    fontWeight: "500",
+                    height: "28px", 
+                    padding: "0 6px", 
+                    fontSize: "11px", 
                     textTransform: "uppercase",
                     border: errors.supplier ? "2px solid #ef4444" : "1px solid #000000",
                     borderRadius: "4px",
@@ -711,14 +788,14 @@ export default function CashPaymentVoucher() {
                 />
               </div>
               
-              {/* Account Title (Supplier Name) */}
-              <div style={{ minWidth: "240px", flex: 2 }}>
-                <label style={{ fontSize: "11px", fontWeight: "bold", color: "#000000", display: "block", marginBottom: "4px", textTransform: "uppercase" }}>Account Title <span style={{ color: "#ef4444" }}>*</span></label>
+              {/* Account Title - LARGER like Cash Receipt */}
+              <div style={{ flex: 2, minWidth: "220px" }}>
+                <label style={{ fontSize: "9px", fontWeight: "bold", color: "#000000", display: "block", marginBottom: "3px", textTransform: "uppercase" }}>🏦 Account Title <span style={{ color: "#ef4444" }}>*</span></label>
                 <div style={{
                   border: errors.supplier ? "2px solid #ef4444" : "1px solid #000000",
                   borderRadius: "4px",
                   background: "#ffffff",
-                  minHeight: "38px"
+                  minHeight: "28px"
                 }}>
                   <SupplierDropdown
                     allSuppliers={allSuppliers}
@@ -726,29 +803,36 @@ export default function CashPaymentVoucher() {
                     displayName={supplierName}
                     onSelect={handleSupplierSelect}
                     onClear={handleSupplierClear}
-                    onEnterPress={() => descriptionRef.current?.focus()}
+                    onEnterPress={() => remarksRef.current?.focus()}
                   />
                 </div>
-                {errors.supplier && <div style={{ fontSize: "10px", color: "#ef4444", marginTop: "3px", fontWeight: "500" }}>{errors.supplier}</div>}
+                {errors.supplier && <div style={{ fontSize: "8px", color: "#ef4444", marginTop: "2px" }}>{errors.supplier}</div>}
               </div>
               
-              {/* Description */}
-              <div style={{ minWidth: "180px", flex: 1 }}>
-                <label style={{ fontSize: "11px", fontWeight: "bold", color: "#000000", display: "block", marginBottom: "4px", textTransform: "uppercase" }}>Description</label>
+              {/* Remarks - LARGER like Cash Receipt */}
+              <div style={{ flex: 2, minWidth: "220px" }}>
+                <label style={{ fontSize: "9px", fontWeight: "bold", color: "#000000", display: "block", marginBottom: "3px", textTransform: "uppercase" }}>📝 Remarks</label>
                 <input
-                  ref={descriptionRef}
+                  ref={remarksRef}
                   type="text"
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  onKeyDown={handleDescriptionKeyDown}
-                  placeholder="Payment description"
-                  style={{ height: "38px", padding: "0 10px", fontSize: "13px", border: "1px solid #000000", borderRadius: "4px", width: "100%" }}
+                  value={remarks}
+                  onChange={(e) => setRemarks(e.target.value)}
+                  onKeyDown={handleRemarksKeyDown}
+                  placeholder="Enter remarks..."
+                  style={{ 
+                    height: "28px", 
+                    padding: "0 8px", 
+                    fontSize: "11px", 
+                    border: "1px solid #000000", 
+                    borderRadius: "4px", 
+                    width: "100%"
+                  }}
                 />
               </div>
               
               {/* Invoice No */}
-              <div style={{ width: "120px" }}>
-                <label style={{ fontSize: "11px", fontWeight: "bold", color: "#000000", display: "block", marginBottom: "4px", textTransform: "uppercase" }}>Invoice No</label>
+              <div style={{ width: "90px" }}>
+                <label style={{ fontSize: "9px", fontWeight: "bold", color: "#000000", display: "block", marginBottom: "3px", textTransform: "uppercase" }}>Invoice #</label>
                 <input
                   ref={invoiceRef}
                   type="text"
@@ -756,13 +840,13 @@ export default function CashPaymentVoucher() {
                   onChange={(e) => setInvoiceNo(e.target.value)}
                   onKeyDown={handleInvoiceKeyDown}
                   placeholder="0"
-                  style={{ height: "38px", padding: "0 10px", fontSize: "13px", fontWeight: "500", border: "1px solid #000000", borderRadius: "4px", width: "100%" }}
+                  style={{ height: "28px", padding: "0 6px", fontSize: "11px", border: "1px solid #000000", borderRadius: "4px", width: "100%" }}
                 />
               </div>
               
               {/* Amount */}
-              <div style={{ width: "140px" }}>
-                <label style={{ fontSize: "11px", fontWeight: "bold", color: "#000000", display: "block", marginBottom: "4px", textTransform: "uppercase" }}>Amount <span style={{ color: "#ef4444" }}>*</span></label>
+              <div style={{ width: "100px" }}>
+                <label style={{ fontSize: "9px", fontWeight: "bold", color: "#000000", display: "block", marginBottom: "3px", textTransform: "uppercase" }}>Amount <span style={{ color: "#ef4444" }}>*</span></label>
                 <input
                   ref={amountRef}
                   type="number"
@@ -772,9 +856,9 @@ export default function CashPaymentVoucher() {
                   placeholder="0"
                   step="1"
                   style={{ 
-                    height: "38px", 
-                    padding: "0 10px", 
-                    fontSize: "14px", 
+                    height: "28px", 
+                    padding: "0 6px", 
+                    fontSize: "11px", 
                     fontWeight: "bold", 
                     textAlign: "right", 
                     border: errors.amount ? "2px solid #ef4444" : "1px solid #000000",
@@ -782,178 +866,180 @@ export default function CashPaymentVoucher() {
                     width: "100%"
                   }}
                 />
-                {errors.amount && <div style={{ fontSize: "10px", color: "#ef4444", marginTop: "3px", fontWeight: "500" }}>{errors.amount}</div>}
+                {errors.amount && <div style={{ fontSize: "7px", color: "#ef4444", marginTop: "1px" }}>{errors.amount}</div>}
               </div>
               
-              {/* Save Button */}
-              <div>
+              {/* Submit Button */}
+              <div style={{ marginTop: "18px" }}>
                 <button
                   ref={submitRef}
                   type="submit"
-                  disabled={submitting || !selectedSupplier || !amount}
+                  disabled={submitting || (!selectedSupplier && !editId) || !amount}
                   style={{
-                    background: "#22c55e",
+                    background: editId ? "#f59e0b" : "#22c55e",
                     color: "white",
-                    padding: "0 28px",
-                    height: "38px",
-                    fontSize: "13px",
+                    padding: "0 16px",
+                    height: "28px",
+                    fontSize: "11px",
                     fontWeight: "bold",
                     border: "1px solid #000000",
                     cursor: "pointer",
                     borderRadius: "4px",
-                    marginBottom: "0"
+                    whiteSpace: "nowrap"
                   }}
                 >
-                  {submitting ? "SAVING..." : "💾 SAVE"}
+                  {submitting ? "SAVING..." : (editId ? "✏ UPDATE" : "💾 SAVE")}
                 </button>
               </div>
             </div>
             
             {/* Send SMS Checkbox */}
             <div style={{
-              marginTop: "12px",
+              marginTop: "10px",
               display: "flex",
               alignItems: "center",
-              gap: "12px",
-              padding: "8px 12px",
+              gap: "10px",
+              padding: "6px 12px",
               background: "#f8fafc",
-              borderRadius: "6px",
+              borderRadius: "4px",
               border: "1px solid #000000"
             }}>
-              <label style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer" }}>
+              <label style={{ display: "flex", alignItems: "center", gap: "6px", cursor: "pointer" }}>
                 <input
                   type="checkbox"
                   checked={sendSms}
                   onChange={(e) => setSendSms(e.target.checked)}
-                  style={{ width: "16px", height: "16px" }}
+                  style={{ width: "14px", height: "14px" }}
                 />
-                <span style={{ fontSize: "12px", fontWeight: "500", color: "#1e293b" }}>📱 Send SMS to Supplier</span>
+                <span style={{ fontSize: "10px", fontWeight: "500", color: "#1e293b" }}>📱 Send SMS to Supplier</span>
               </label>
             </div>
             
             {/* Supplier Info Display */}
             {selectedSupplier && (
               <div style={{
-                marginTop: "12px",
+                marginTop: "10px",
                 display: "flex",
                 alignItems: "center",
-                gap: "12px",
-                padding: "10px 16px",
+                gap: "8px",
+                padding: "6px 12px",
                 background: "#f8fafc",
-                borderRadius: "6px",
+                borderRadius: "4px",
                 border: "1px solid #000000"
               }}>
                 {selectedSupplier.imageFront ? (
-                  <img src={selectedSupplier.imageFront} alt="" style={{ width: "40px", height: "40px", borderRadius: "50%", objectFit: "cover", border: "1px solid #000000" }} />
+                  <img src={selectedSupplier.imageFront} alt="" style={{ width: "30px", height: "30px", borderRadius: "50%", objectFit: "cover", border: "1px solid #000000" }} />
                 ) : (
-                  <div style={{ width: "40px", height: "40px", borderRadius: "50%", background: "#e2e8f0", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "20px", border: "1px solid #000000" }}>🏢</div>
+                  <div style={{ width: "30px", height: "30px", borderRadius: "50%", background: "#e2e8f0", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "16px", border: "1px solid #000000" }}>🏢</div>
                 )}
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: "14px", fontWeight: "bold", color: "#1e293b" }}>{selectedSupplier.name}</div>
-                  <div style={{ fontSize: "11px", color: "#64748b", marginTop: "2px" }}>
-                    Code: {selectedSupplier.code || "—"} | Phone: {selectedSupplier.phone || "—"} | Type: Supplier
+                  <div style={{ fontSize: "12px", fontWeight: "bold", color: "#1e293b" }}>{selectedSupplier.name}</div>
+                  <div style={{ fontSize: "9px", color: "#64748b" }}>
+                    Code: {selectedSupplier.code || "—"} | Phone: {selectedSupplier.phone || "—"}
                   </div>
                 </div>
-                <button type="button" onClick={handleSupplierClear} style={{ background: "#ef4444", color: "white", border: "1px solid #000000", borderRadius: "4px", padding: "6px 16px", fontSize: "12px", fontWeight: "bold", cursor: "pointer" }}>CLEAR</button>
+                <button type="button" onClick={handleSupplierClear} style={{ background: "#ef4444", color: "white", border: "1px solid #000000", borderRadius: "4px", padding: "4px 12px", fontSize: "10px", fontWeight: "bold", cursor: "pointer" }}>Clear</button>
               </div>
             )}
           </form>
         </div>
         
-        {/* Action Buttons Row */}
+        {/* Transaction History Table */}
         <div style={{
           background: "#ffffff",
-          borderRadius: "8px",
-          padding: "12px",
-          marginBottom: "16px",
-          border: "2px solid #000000",
-          display: "flex",
-          gap: "10px",
-          alignItems: "center",
-          flexWrap: "wrap"
-        }}>
-          <button className="xp-btn xp-btn-sm" onClick={() => selectedSupplier && loadSupplierPayments(selectedSupplier._id)} style={{ fontSize: "12px", padding: "6px 12px", fontWeight: "bold", border: "1px solid #000000" }}>⟳ Refresh</button>
-          {editId && <button className="xp-btn xp-btn-sm" onClick={() => { setEditId(null); handleNew(); }} style={{ fontSize: "12px", padding: "6px 12px", fontWeight: "bold", border: "1px solid #000000" }}>✏ New Record</button>}
-          <button className="xp-btn xp-btn-sm xp-btn-danger" disabled={!editId} onClick={handleDelete} style={{ fontSize: "12px", padding: "6px 12px", fontWeight: "bold", border: "1px solid #000000", background: "#ef4444", color: "white" }}>🗑 Delete Record</button>
-          <div className="xp-toolbar-divider" style={{ width: "1px", height: "24px", background: "#000000", margin: "0 4px" }} />
-          <span style={{ fontSize: "12px", fontWeight: "500", color: "#1e293b" }}>Records: {transactions.length}</span>
-          <span style={{ fontSize: "13px", fontWeight: "bold", color: "#059669", marginLeft: "auto" }}>Total Paid: PKR {fmt(totalAmount)}</span>
-        </div>
-        
-        {/* Payment History Table - Shows only for selected supplier */}
-        <div style={{
-          background: "#ffffff",
-          borderRadius: "8px",
-          padding: "12px",
+          borderRadius: "6px",
+          padding: "8px",
           border: "2px solid #000000"
         }}>
           <div style={{
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
-            marginBottom: "12px",
-            paddingBottom: "8px",
+            marginBottom: "8px",
+            paddingBottom: "6px",
             borderBottom: "2px solid #000000"
           }}>
-            <h3 style={{ margin: 0, fontSize: "14px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>
-              📋 Payment History {selectedSupplier ? `- ${selectedSupplier.name}` : ""} {transactions.length > 0 && `(${transactions.length})`}
+            <h3 style={{ margin: 0, fontSize: "12px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>
+              📋 Payment History {selectedSupplier ? `- ${selectedSupplier.name}` : ""} {filteredTransactions.length > 0 && `(${filteredTransactions.length})`}
+              {searchVoucherResult && <span style={{ fontSize: "10px", color: "#f59e0b", marginLeft: "8px" }}> - Search Result</span>}
             </h3>
+            <div style={{ display: "flex", gap: "8px" }}>
+              {searchVoucherResult && (
+                <button onClick={clearSearch} style={{ fontSize: "10px", padding: "3px 10px", border: "1px solid #000000", borderRadius: "4px", background: "#f59e0b", color: "white", cursor: "pointer", fontWeight: "bold" }}>Clear Search</button>
+              )}
+              <button onClick={loadTransactions} style={{ fontSize: "10px", padding: "3px 10px", border: "1px solid #000000", borderRadius: "4px", background: "#f8fafc", cursor: "pointer", fontWeight: "bold" }}>⟳ Refresh</button>
+            </div>
           </div>
           
-          {!selectedSupplier && (
-            <div style={{ padding: "40px", textAlign: "center", fontSize: "13px", color: "#94a3b8", fontWeight: "500" }}>
-              🔍 Select a supplier to view payment history
+          {filteredTransactions.length === 0 && (
+            <div style={{ padding: "30px", textAlign: "center", fontSize: "12px", color: "#94a3b8" }}>
+              📭 No payment records found
+              {searchVoucherResult && <div>Try clearing the search</div>}
             </div>
           )}
           
           {loading && (
-            <div style={{ padding: "40px", textAlign: "center", fontSize: "13px", color: "#64748b", fontWeight: "500" }}>Loading...</div>
+            <div style={{ padding: "30px", textAlign: "center", fontSize: "12px", color: "#64748b" }}>Loading...</div>
           )}
           
-          {!loading && selectedSupplier && transactions.length === 0 && (
-            <div style={{ padding: "40px", textAlign: "center", fontSize: "13px", color: "#94a3b8", fontWeight: "500" }}>
-              📭 No payment records found for {selectedSupplier.name}
-            </div>
-          )}
-          
-          {!loading && selectedSupplier && transactions.length > 0 && (
+          {!loading && filteredTransactions.length > 0 && (
             <div style={{ overflowX: "auto" }}>
               <table style={{ 
                 width: "100%", 
                 borderCollapse: "collapse", 
-                fontSize: "13px", 
-                border: "2px solid #000000"
+                fontSize: "10px", 
+                border: "1px solid #000000"
               }}>
                 <thead>
                   <tr style={{ background: "#f1f5f9" }}>
-                    <th style={{ padding: "4px 4px", textAlign: "center", width: "40px", border: "1px solid #000000", fontSize: "13px", fontWeight: "bold", textTransform: "uppercase" }}>#</th>
-                    <th style={{ padding: "4px 4px", textAlign: "left", border: "1px solid #000000", fontSize: "13px", fontWeight: "bold", textTransform: "uppercase" }}>Date</th>
-                    <th style={{ padding: "4px 4px", textAlign: "left", border: "1px solid #000000", fontSize: "13px", fontWeight: "bold", textTransform: "uppercase" }}>CPV #</th>
-                    <th style={{ padding: "4px 4px", textAlign: "left", border: "1px solid #000000", fontSize: "13px", fontWeight: "bold", textTransform: "uppercase" }}>Description</th>
-                    <th style={{ padding: "4px 4px", textAlign: "right", border: "1px solid #000000", fontSize: "13px", fontWeight: "bold", textTransform: "uppercase" }}>Invoice No</th>
-                    <th style={{ padding: "4px 4px", textAlign: "right", border: "1px solid #000000", fontSize: "13px", fontWeight: "bold", textTransform: "uppercase" }}>Amount</th>
+                    <th style={{ padding: "4px 4px", textAlign: "center", width: "30px", border: "1px solid #000000", fontSize: "9px", fontWeight: "bold" }}>#</th>
+                    <th style={{ padding: "4px 4px", textAlign: "left", border: "1px solid #000000", fontSize: "9px", fontWeight: "bold" }}>Date</th>
+                    <th style={{ padding: "4px 4px", textAlign: "left", border: "1px solid #000000", fontSize: "9px", fontWeight: "bold" }}>Voucher #</th>
+                    <th style={{ padding: "4px 4px", textAlign: "left", border: "1px solid #000000", fontSize: "9px", fontWeight: "bold" }}>Account Title</th>
+                    <th style={{ padding: "4px 4px", textAlign: "left", border: "1px solid #000000", fontSize: "9px", fontWeight: "bold" }}>Remarks</th>
+                    <th style={{ padding: "4px 4px", textAlign: "right", border: "1px solid #000000", fontSize: "9px", fontWeight: "bold" }}>Invoice #</th>
+                    <th style={{ padding: "4px 4px", textAlign: "right", border: "1px solid #000000", fontSize: "9px", fontWeight: "bold" }}>Amount</th>
+                    <th style={{ padding: "4px 4px", textAlign: "center", width: "75px", border: "1px solid #000000", fontWeight: "bold" }}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {transactions.map((t, i) => (
+                  {filteredTransactions.map((t, i) => (
                     <tr 
                       key={t._id || i} 
                       onClick={() => handleEdit(t)}
-                      style={{ cursor: "pointer", backgroundColor: editId === t._id ? "#e5f0ff" : "transparent" }}
+                      style={{ cursor: "pointer", backgroundColor: editId === t._id ? "#fef3c7" : "transparent" }}
                     >
-                      <td style={{ padding: "3px 4px", textAlign: "center", border: "1px solid #000000", fontSize: "13px", fontWeight: "600" }}>{i + 1}</td>
-                      <td style={{ padding: "3px 4px", whiteSpace: "nowrap", border: "1px solid #000000", fontSize: "13px", fontWeight: "600" }}>{t.date?.slice(0, 10) || "—"}</td>
-                      <td style={{ padding: "3px 4px", fontFamily: "monospace", fontWeight: "bold", border: "1px solid #000000", fontSize: "13px" }}>{t.cpv_number}</td>
-                      <td style={{ padding: "3px 4px", maxWidth: "250px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", border: "1px solid #000000", fontSize: "13px", fontWeight: "600" }}>{t.description || "—"}</td>
-                      <td style={{ padding: "3px 4px", textAlign: "right", fontWeight: "600", border: "1px solid #000000", fontSize: "13px" }}>{t.invoice || "—"}</td>
-                      <td style={{ padding: "3px 4px", textAlign: "right", fontWeight: "bold", color: "#059669", border: "1px solid #000000", fontSize: "13px" }}>PKR {fmt(t.amount)}</td>
+                      <td style={{ padding: "4px 4px", textAlign: "center", border: "1px solid #000000", fontWeight: "600" }}>{i + 1}</td>
+                      <td style={{ padding: "4px 4px", whiteSpace: "nowrap", border: "1px solid #000000" }}>{t.date?.slice(0, 10) || "—"}</td>
+                      <td style={{ padding: "4px 4px", fontFamily: "monospace", fontWeight: "bold", border: "1px solid #000000", fontSize: "9px" }}>{t.cpv_number}</td>
+                      <td style={{ padding: "4px 4px", border: "1px solid #000000", fontWeight: "bold" }}>{t.account_title || "—"}</td>
+                      <td style={{ padding: "4px 4px", maxWidth: "150px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", border: "1px solid #000000" }}>{t.remarks || "—"}</td>
+                      <td style={{ padding: "4px 4px", textAlign: "right", fontWeight: "600", border: "1px solid #000000" }}>{t.invoice || "—"}</td>
+                      <td style={{ padding: "4px 4px", textAlign: "right", fontWeight: "bold", color: "#059669", border: "1px solid #000000" }}>PKR {fmt(t.amount)}</td>
+                      <td style={{ padding: "4px 4px", textAlign: "center", border: "1px solid #000000" }}>
+                        <div style={{ display: "flex", gap: "4px", justifyContent: "center" }}>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleEdit(t); }}
+                            style={{ background: "#f59e0b", color: "white", border: "1px solid #000000", borderRadius: "3px", padding: "3px 8px", fontSize: "9px", fontWeight: "bold", cursor: "pointer" }}
+                          >
+                            ✏ Edit
+                          </button>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleDelete(t._id, t.cpv_number); }}
+                            style={{ background: "#ef4444", color: "white", border: "1px solid #000000", borderRadius: "3px", padding: "3px 8px", fontSize: "9px", fontWeight: "bold", cursor: "pointer" }}
+                          >
+                            🗑 Del
+                          </button>
+                        </div>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
                 <tfoot style={{ background: "#f1f5f9" }}>
                   <tr>
-                    <td colSpan="5" style={{ padding: "4px 4px", textAlign: "right", fontWeight: "bold", border: "1px solid #000000", fontSize: "13px", textTransform: "uppercase" }}>TOTAL:</td>
-                    <td style={{ padding: "4px 4px", textAlign: "right", fontWeight: "bold", color: "#059669", border: "1px solid #000000", fontSize: "13px" }}>PKR {fmt(totalAmount)}</td>
+                    <td colSpan="6" style={{ padding: "4px 4px", textAlign: "right", fontWeight: "bold", border: "1px solid #000000", fontSize: "9px" }}>TOTAL:</td>
+                    <td style={{ padding: "4px 4px", textAlign: "right", fontWeight: "bold", color: "#059669", border: "1px solid #000000", fontSize: "9px" }}>PKR {fmt(totalAmount)}</td>
+                    <td style={{ padding: "4px 4px", border: "1px solid #000000" }}></td>
                   </tr>
                 </tfoot>
               </table>
@@ -963,10 +1049,10 @@ export default function CashPaymentVoucher() {
       </div>
       
       {/* Status Bar */}
-      <div className="xp-statusbar" style={{ background: "#f8fafc", borderTop: "2px solid #000000", padding: "6px 16px" }}>
-        <div className="xp-status-pane" style={{ color: "#1e293b", fontSize: "11px", fontWeight: "500" }}>💰 Cash Payment Voucher</div>
-        <div className="xp-status-pane" style={{ color: "#1e293b", fontSize: "11px", fontWeight: "500" }}>{selectedSupplier ? selectedSupplier.name : "No supplier selected"}</div>
-        <div className="xp-status-pane" style={{ color: "#1e293b", fontSize: "11px", fontWeight: "500" }}>{amount && `Paying: PKR ${fmt(amount)}`}</div>
+      <div className="xp-statusbar" style={{ background: "#f8fafc", borderTop: "2px solid #000000", padding: "4px 12px" }}>
+        <div className="xp-status-pane" style={{ fontSize: "10px", fontWeight: "500" }}>💰 Cash Payment Voucher</div>
+        <div className="xp-status-pane" style={{ fontSize: "10px", fontWeight: "500" }}>{selectedSupplier ? selectedSupplier.name : `${filteredTransactions.length} records`}</div>
+        <div className="xp-status-pane" style={{ fontSize: "10px", fontWeight: "500" }}>{editId ? "✏ Editing Mode" : (amount && `Paying: PKR ${fmt(amount)}`)}</div>
       </div>
     </div>
   );

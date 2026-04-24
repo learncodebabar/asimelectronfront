@@ -12,6 +12,8 @@ const MENU_CONFIG = [
     label: "Vouchers",
     items: [
       { label: "Cash Sale", route: "/sale", shortcut: "F3" },
+         { label: "Cash Receipts", route: "/cash-receipts" },
+      { label: "Cash Payment", route: "/cash-payment" },
       { label: "───" },
       { label: "Manual Sale Bill", route: "/manual-sale" },
       { label: "Manual Purchase Bill", route: "/manual-purchase" },
@@ -48,8 +50,7 @@ const MENU_CONFIG = [
     label: "Reports",
     items: [
       { label: "Chart of Products", route: "/chart-of-products" },
-         { label: "Cash Receipts", route: "/cash-receipts" },
-      { label: "Cash Payment", route: "/cash-payment" },
+      
       { label: "───" },
       { label: "P.O", route: "/purchase-order-list" },
       { label: "Purchase", route: "/purchase-list" },
