@@ -20,7 +20,6 @@ export default function GeneralLedgerPage() {
   const [originalQuery, setOriginalQuery] = useState("");
   const [ghost, setGhost] = useState("");
   const [codeSearch, setCodeSearch] = useState("");
-  const [remarks, setRemarks] = useState("");
   const [filteredEntities, setFilteredEntities] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(-1);
@@ -45,7 +44,6 @@ export default function GeneralLedgerPage() {
   // Refs for keyboard navigation
   const codeInputRef = useRef(null);
   const accountTitleRef = useRef(null);
-  const remarksRef = useRef(null);
   
   // Load customers and suppliers on mount
   useEffect(() => {
@@ -153,7 +151,6 @@ export default function GeneralLedgerPage() {
     setOriginalQuery("");
     setGhost("");
     setCodeSearch("");
-    setRemarks("");
     setTransactions([]);
     setFilteredEntities([]);
     setShowSuggestions(false);
@@ -430,15 +427,6 @@ export default function GeneralLedgerPage() {
     setIsNavigating(false);
   };
   
-  const handleRemarksKeyDown = (e) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      if (selectedEntity) {
-        loadLedger(selectedEntity._id);
-      }
-    }
-  };
-  
   const handleTabChange = (tab) => {
     setActiveTab(tab);
     setSelectedEntity(null);
@@ -446,7 +434,6 @@ export default function GeneralLedgerPage() {
     setOriginalQuery("");
     setGhost("");
     setCodeSearch("");
-    setRemarks("");
     setTransactions([]);
     setFilteredEntities([]);
     setShowSuggestions(false);
@@ -482,7 +469,7 @@ export default function GeneralLedgerPage() {
     
     if (printType === "simple") {
       const rows = transactions.map((t, i) => `
-        <tr>
+        <td>
           <td style="padding:12px 10px;border:2px solid #000;font-size:14px;font-weight:bold;text-align:center">${i + 1}</td>
           <td style="padding:12px 10px;border:2px solid #000;font-size:14px;font-weight:bold">${t.date}</td>
           <td style="padding:12px 10px;border:2px solid #000;font-size:14px;font-weight:bold;font-family:monospace">${t.transactionId}</td>
@@ -552,7 +539,7 @@ export default function GeneralLedgerPage() {
         <div class="date-range" style="background:#f8fafc;padding:10px;margin:15px 0;border:2px solid #000;text-align:center;font-size:13px;font-weight:bold">Period: ${fromDate} to ${toDate}</div>
         <table><thead><tr><th style="width:45px">#</th><th>DATE</th><th>VOUCHER #</th><th>TYPE</th><th>REMARKS</th><th class="text-right">DEBIT</th><th class="text-right">CREDIT</th><th class="text-right">BALANCE</th></tr></thead>
         <tbody>${rows}</tbody>
-        <tr>
+        </table>
         <div class="balance-box"><div class="balance-row"><span>Closing Balance:</span><span class="${closingBalance > 0 ? 'red' : 'green'}">PKR ${fmt(Math.abs(closingBalance))} ${closingBalance > 0 ? '(Receivable)' : '(Payable)'}</span></div></div>
         <div class="footer">Thank you for your business! | Developed by: Creative Babar / 03098325271| www.digitalglobalschool.com</div>
       </body>
@@ -569,7 +556,7 @@ export default function GeneralLedgerPage() {
               <tbody>`;
           
           t.items.forEach((item, idx) => {
-            itemsHtml += `<tr><td style="padding:4px 6px;border:1px solid #000;font-size:10px;">${item.name || item.description || "—"} (${item.code || "—"})</td><td style="padding:4px 6px;border:1px solid #000;text-align:center;">${item.pcs || item.qty || 1}</td><td style="padding:4px 6px;border:1px solid #000;text-align:right;">${fmt(item.rate || 0)}</td><td style="padding:4px 6px;border:1px solid #000;text-align:right;font-weight:bold;">${fmt(item.amount || 0)}</td></td>`;
+            itemsHtml += `<tr><td style="padding:4px 6px;border:1px solid #000;font-size:10px;">${item.name || item.description || "—"} (${item.code || "—"})</td><td style="padding:4px 6px;border:1px solid #000;text-align:center;">${item.pcs || item.qty || 1}</td><td style="padding:4px 6px;border:1px solid #000;text-align:right;">${fmt(item.rate || 0)}</td><td style="padding:4px 6px;border:1px solid #000;text-align:right;font-weight:bold;">${fmt(item.amount || 0)}</td></tr>`;
           });
           
           itemsHtml += `</tbody></table></div>`;
@@ -587,7 +574,7 @@ export default function GeneralLedgerPage() {
             <td style="padding:12px 8px;border:2px solid #000;text-align:right;font-size:13px;font-weight:bold;color:#dc2626;vertical-align:top;">${t.debit > 0 ? `PKR ${fmt(t.debit)}` : "—"}</td>
             <td style="padding:12px 8px;border:2px solid #000;text-align:right;font-size:13px;font-weight:bold;color:#059669;vertical-align:top;">${t.credit > 0 ? `PKR ${fmt(t.credit)}` : "—"}</td>
             <td style="padding:12px 8px;border:2px solid #000;text-align:right;font-size:13px;font-weight:bold;color:${t.runningBalance > 0 ? "#dc2626" : "#059669"};vertical-align:top;">PKR ${fmt(Math.abs(t.runningBalance))}</td>
-          </tr>
+          </table>
         `;
       });
       
@@ -648,7 +635,7 @@ export default function GeneralLedgerPage() {
         </div>
         <div class="statement-note">📋 DETAILED LEDGER STATEMENT (WITH ITEMS)</div>
         <div class="date-range" style="background:#f8fafc;padding:8px;margin:12px 0;border:1.5px solid #000;text-align:center;font-size:11px;font-weight:bold">Period: ${fromDate} to ${toDate}</div>
-        <tr><thead><tr><th style="width:40px">#</th><th>DATE</th><th>VOUCHER #</th><th>TYPE</th><th>REMARKS / ITEMS</th><th class="text-right">DEBIT</th><th class="text-right">CREDIT</th><th class="text-right">BALANCE</th></tr></thead>
+        <table><thead><tr><th style="width:40px">#</th><th>DATE</th><th>VOUCHER #</th><th>TYPE</th><th>REMARKS / ITEMS</th><th class="text-right">DEBIT</th><th class="text-right">CREDIT</th><th class="text-right">BALANCE</th></tr></thead>
         <tbody>${detailedRows}</tbody>
         </table>
         <div class="balance-box"><div class="balance-row"><span>Closing Balance:</span><span class="${closingBalance > 0 ? 'red' : 'green'}">PKR ${fmt(Math.abs(closingBalance))} ${closingBalance > 0 ? '(Receivable)' : '(Payable)'}</span></div></div>
@@ -667,11 +654,6 @@ export default function GeneralLedgerPage() {
   };
   
   const closingBalance = transactions[transactions.length - 1]?.runningBalance || 0;
-  
-  // Filter transactions by remarks
-  const filteredTransactions = remarks 
-    ? transactions.filter(t => t.remarks?.toLowerCase().includes(remarks.toLowerCase()))
-    : transactions;
   
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%", background: "#ffffff" }}>
@@ -831,7 +813,7 @@ export default function GeneralLedgerPage() {
               alignItems: "flex-end", 
               flexWrap: "wrap"
             }}>
-              <div style={{ width: "40px" }}>
+              <div style={{ width: "60px" }}>
                 <label style={{ fontSize: "10px", fontWeight: "bold", color: "#000000", display: "block", marginBottom: "4px", textTransform: "uppercase" }}>Code</label>
                 <input ref={codeInputRef} type="text" className="xp-input" value={codeSearch} onChange={(e) => setCodeSearch(e.target.value)} onKeyDown={handleCodeKeyDown} style={{ height: "32px", padding: "0 8px", fontSize: "12px", fontWeight: "500", border: "1px solid #000000", borderRadius: "4px", background: "#fffde7", width: "100%", textTransform: "uppercase" }} />
               </div>
@@ -846,19 +828,6 @@ export default function GeneralLedgerPage() {
                   )}
                   <input ref={accountTitleRef} type="text" className="xp-input" value={searchQuery} onChange={handleAccountTitleChange} onKeyDown={handleKeyDown} autoComplete="off" style={{ width: "100%", height: "32px", padding: "0 10px", fontSize: "12px", fontWeight: "500", border: "1px solid #000000", borderRadius: "4px", background: "#fffde7", position: "relative", zIndex: 1 }} />
                 </div>
-              </div>
-              <div style={{ flex: 2, minWidth: "250px" }}>
-                <label style={{ fontSize: "10px", fontWeight: "bold", color: "#000000", display: "block", marginBottom: "4px", textTransform: "uppercase" }}>📝 Remarks</label>
-                <input 
-                  ref={remarksRef} 
-                  type="text" 
-                  className="xp-input" 
-                  value={remarks} 
-                  onChange={(e) => setRemarks(e.target.value)} 
-                  onKeyDown={handleRemarksKeyDown}
-                  placeholder="Filter by remarks..." 
-                  style={{ height: "32px", padding: "0 8px", fontSize: "12px", fontWeight: "500", border: "1px solid #000000", borderRadius: "4px", width: "100%", background: "#ffffff" }} 
-                />
               </div>
               <div>
                 <button className="xp-btn xp-btn-primary" onClick={() => selectedEntity && loadLedger(selectedEntity._id)} disabled={!selectedEntity || loading} style={{ height: "32px", padding: "0 20px", fontSize: "11px", fontWeight: "bold", background: "#22c55e", color: "white", border: "1px solid #000000", borderRadius: "4px", cursor: "pointer", whiteSpace: "nowrap" }}>
@@ -901,7 +870,7 @@ export default function GeneralLedgerPage() {
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px", paddingBottom: "8px", borderBottom: "2px solid #000000" }}>
             <h3 style={{ margin: 0, fontSize: "13px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>
               📋 Transaction History {selectedEntity && `- ${selectedEntity.name}`}
-              {filteredTransactions.length > 0 && <span style={{ fontSize: "11px", marginLeft: "8px", color: "#64748b" }}>({filteredTransactions.length})</span>}
+              {transactions.length > 0 && <span style={{ fontSize: "11px", marginLeft: "8px", color: "#64748b" }}>({transactions.length})</span>}
             </h3>
             <div style={{ fontSize: "10px", color: "#64748b" }}>{fromDate && toDate ? `${fromDate} to ${toDate}` : fromDate ? `From ${fromDate}` : toDate ? `Until ${toDate}` : "All Time"}</div>
           </div>
@@ -918,14 +887,13 @@ export default function GeneralLedgerPage() {
             </div>
           )}
           
-          {!loading && selectedEntity && filteredTransactions.length === 0 && (
+          {!loading && selectedEntity && transactions.length === 0 && (
             <div style={{ padding: "40px", textAlign: "center", fontSize: "12px", color: "#94a3b8", fontWeight: "500" }}>
               📭 No transactions found
-              {remarks && ` with remarks containing "${remarks}"`}
             </div>
           )}
           
-          {!loading && filteredTransactions.length > 0 && (
+          {!loading && transactions.length > 0 && (
             <div style={{ overflowX: "auto" }}>
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "11px", border: "2px solid #000000" }}>
                 <thead>
@@ -941,7 +909,7 @@ export default function GeneralLedgerPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredTransactions.map((t, i) => (
+                  {transactions.map((t, i) => (
                     <tr key={t._id || i} style={{ borderBottom: "2px solid #000000" }}>
                       <td style={{ padding: "4px 3px", textAlign: "center", border: "1px solid #000000", fontSize: "13px", fontWeight: "bold", color: "#1e293b" }}>{i + 1}</td>
                       <td style={{ padding: "4px 3px", whiteSpace: "nowrap", border: "1px solid #000000", fontSize: "13px", fontWeight: "bold", color: "#1e293b" }}>{t.date}</td>
@@ -988,7 +956,6 @@ export default function GeneralLedgerPage() {
         </div>
         <div className="xp-status-pane" style={{ color: "#1e293b", fontSize: "10px", fontWeight: "500" }}>
           {transactions.length > 0 && `Balance: PKR ${fmt(Math.abs(closingBalance))}`}
-          {remarks && ` | Filtered by: "${remarks}"`}
         </div>
       </div>
     </div>

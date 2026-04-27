@@ -28,6 +28,7 @@ import PurchaseReturnListPage from "./pages/PurchaseReturnListPage.jsx";
 import SettingsPage from "./pages/SettingsPage.jsx";
 
 
+
 // Report Pages (from Reports folder)
 import PurchaseReportPage from "./pages/Reports/PurchaseReportPage.jsx";
 import PurchaseWithoutValuesPage from "./pages/Reports/PurchaseWithoutValuesPage.jsx";
@@ -67,7 +68,7 @@ import AboutPage from "./pages/AboutPage.jsx";
 import SupportPage from "./pages/SupportPage.jsx";
 
 
-
+import RawSaleListPage from './pages/RawSaleListPage.jsx'
 import { GlobalFontProvider } from "./components/GlobalFontProvider.jsx";
 import ProductHistoryPage from "./pages/ProductHistoryPage.jsx";
 import RawPurchaseReportPage from "./pages/Reports/RawPurchaseReportPage.jsx";
@@ -130,7 +131,7 @@ function AppRoutes() {
       <Route path="/exchange-list" element={<ExchangeListPage key={`exchange-list-${location.pathname}`} />} />
       <Route path="/profit-report-number-wise" element={<ProfitReportNumberWisePage key={`profit-report-number-wise-${location.pathname}`} />} />
       <Route path="/raw-purchase-list" element={<RawPurchaseReportPage key={`raw-purchase-list-${location.pathname}`} />} />
-      <Route path="/raw-sale-list" element={<RawSalePage key={`raw-sale-list-${location.pathname}`} />} />
+      <Route path="/raw-sale-list" element={<RawSaleListPage key={`raw-sale-list-${location.pathname}`} />} />
       <Route path="/counter-summary" element={<CounterSummaryPage key={`counter-summary-${location.pathname}`} />} />
       <Route path="/stock-report" element={<StockReportPage key={`stock-report-${location.pathname}`} />} />
       <Route path="/daily-sale" element={<DailySaleReportPage key={`daily-sale-${location.pathname}`} />} />

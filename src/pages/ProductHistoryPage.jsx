@@ -69,6 +69,7 @@ function ProductSearchModal({ allProducts, onSelect, onClose }) {
   const [company, setCompany] = useState("");
   const [rows, setRows] = useState([]);
   const [hiIdx, setHiIdx] = useState(0);
+  const [focusedField, setFocusedField] = useState("description");
   const rDesc = useRef(null);
   const rCat = useRef(null);
   const rCompany = useRef(null);
@@ -98,6 +99,7 @@ function ProductSearchModal({ allProducts, onSelect, onClose }) {
 
   useEffect(() => {
     rDesc.current?.focus();
+    setFocusedField("description");
     setRows(buildFlat(allProducts, "", "", ""));
   }, [allProducts, buildFlat]);
 
@@ -113,19 +115,52 @@ function ProductSearchModal({ allProducts, onSelect, onClose }) {
   }, [hiIdx]);
 
   const handleKeyDown = (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      
+      if (focusedField === "description") {
+        rCat.current?.focus();
+        setFocusedField("category");
+      }
+      else if (focusedField === "category") {
+        rCompany.current?.focus();
+        setFocusedField("company");
+      }
+      else if (focusedField === "company") {
+        if (tbodyRef.current && rows.length > 0) {
+          tbodyRef.current.focus();
+          setHiIdx(0);
+          setFocusedField("table");
+        }
+      }
+      else if (focusedField === "table") {
+        if (hiIdx >= 0 && rows[hiIdx]) {
+          onSelect(rows[hiIdx]);
+        }
+      }
+    }
+    
+    if (e.key === "Escape") {
+      onClose();
+    }
+  };
+
+  const handleTableKeyDown = (e) => {
     if (e.key === "ArrowDown") {
       e.preventDefault();
       setHiIdx((i) => Math.min(i + 1, rows.length - 1));
     }
-    if (e.key === "ArrowUp") {
+    else if (e.key === "ArrowUp") {
       e.preventDefault();
       setHiIdx((i) => Math.max(i - 1, 0));
     }
-    if (e.key === "Enter") {
+    else if (e.key === "Enter") {
       e.preventDefault();
       if (hiIdx >= 0 && rows[hiIdx]) onSelect(rows[hiIdx]);
     }
-    if (e.key === "Escape") onClose();
+    else if (e.key === "Escape") {
+      onClose();
+    }
   };
 
   return (
@@ -139,7 +174,7 @@ function ProductSearchModal({ allProducts, onSelect, onClose }) {
           <button className="xp-cap-btn xp-cap-close" onClick={onClose} style={{ color: "white" }}>✕</button>
         </div>
         
-        <div style={{ padding: "6px 10px", background: "#fff", borderBottom: "1px solid #000", display: "flex", gap: "8px", flexWrap: "wrap" }}>
+        <div style={{ padding: "6px 10px", background: "#fff", borderBottom: "1px solid #000", display: "flex", gap: "8px", flexWrap: "wrap" }} onKeyDown={handleKeyDown}>
           <input 
             ref={rDesc} 
             type="text" 
@@ -147,7 +182,8 @@ function ProductSearchModal({ allProducts, onSelect, onClose }) {
             placeholder="Description / Code" 
             value={desc} 
             onChange={(e) => setDesc(e.target.value)} 
-            style={{ flex: 2, padding: "4px 8px", fontSize: "12px", border: "1px solid #000" }} 
+            onFocus={() => setFocusedField("description")}
+            style={{ flex: 2, padding: "4px 8px", fontSize: "12px", border: "1px solid #000", background: focusedField === "description" ? "#fff9c4" : "white" }} 
           />
           <input 
             ref={rCat} 
@@ -156,7 +192,8 @@ function ProductSearchModal({ allProducts, onSelect, onClose }) {
             placeholder="Category" 
             value={cat} 
             onChange={(e) => setCat(e.target.value)} 
-            style={{ flex: 1, padding: "4px 8px", fontSize: "12px", border: "1px solid #000" }} 
+            onFocus={() => setFocusedField("category")}
+            style={{ flex: 1, padding: "4px 8px", fontSize: "12px", border: "1px solid #000", background: focusedField === "category" ? "#fff9c4" : "white" }} 
           />
           <input 
             ref={rCompany} 
@@ -165,13 +202,20 @@ function ProductSearchModal({ allProducts, onSelect, onClose }) {
             placeholder="Company" 
             value={company} 
             onChange={(e) => setCompany(e.target.value)} 
-            style={{ flex: 1, padding: "4px 8px", fontSize: "12px", border: "1px solid #000" }} 
+            onFocus={() => setFocusedField("company")}
+            style={{ flex: 1, padding: "4px 8px", fontSize: "12px", border: "1px solid #000", background: focusedField === "company" ? "#fff9c4" : "white" }} 
           />
           <span style={{ fontSize: "11px", color: "#000", alignSelf: "center" }}>{rows.length} products</span>
         </div>
         
         <div className="xp-modal-body" style={{ padding: 0, flex: 1, overflow: "auto", background: "#fff" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px" }} onKeyDown={handleKeyDown} tabIndex={0}>
+          <table 
+            style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px" }} 
+            onKeyDown={handleTableKeyDown} 
+            tabIndex={0}
+            ref={tbodyRef}
+            onFocus={() => setFocusedField("table")}
+          >
             <thead style={{ position: "sticky", top: 0, background: "#f5f5f5", borderBottom: "2px solid #000" }}>
               <tr>
                 <th style={{ width: 40, padding: "4px 6px", textAlign: "center", border: "1px solid #000", color: "#000" }}>#</th>
@@ -182,9 +226,9 @@ function ProductSearchModal({ allProducts, onSelect, onClose }) {
                 <th style={{ width: 70, padding: "4px 6px", textAlign: "center", border: "1px solid #000", color: "#000" }}>Rack</th>
               </tr>
             </thead>
-            <tbody ref={tbodyRef}>
+            <tbody>
               {rows.length === 0 && (
-                <tr><td colSpan="6" style={{ padding: "30px", textAlign: "center", color: "#000", border: "1px solid #000" }}>No products found</td></tr>
+                <td><td colSpan="6" style={{ padding: "30px", textAlign: "center", color: "#000", border: "1px solid #000" }}>No products found</td></td>
               )}
               {rows.map((p, i) => (
                 <tr 
@@ -205,7 +249,7 @@ function ProductSearchModal({ allProducts, onSelect, onClose }) {
           </table>
         </div>
         <div style={{ padding: "4px 10px", borderTop: "1px solid #000", fontSize: "10px", color: "#000", background: "#f5f5f5" }}>
-          ↑↓ Navigate | Enter / Double-click = Select | Esc = Close
+          Tab / Enter to navigate | ↑↓ Navigate products | Enter = Select | Esc = Close
         </div>
       </div>
     </div>
@@ -288,10 +332,16 @@ export default function ProductHistoryPage() {
   const [toDate, setToDate] = useState("");
   const [typeFilter, setTypeFilter] = useState("ALL");
   
-  const searchRef = useRef(null);
+  const productInputRef = useRef(null);
 
   useEffect(() => {
     fetchProducts();
+    // Focus the product input when page loads
+    setTimeout(() => {
+      if (productInputRef.current) {
+        productInputRef.current.focus();
+      }
+    }, 100);
   }, []);
 
   useEffect(() => {
@@ -318,6 +368,14 @@ export default function ProductHistoryPage() {
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, []);
+
+  // Handle Enter key on the product input
+  const handleProductInputKeyDown = (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      setShowProductModal(true);
+    }
+  };
 
   const fetchProducts = async () => {
     setLoading(true);
@@ -413,6 +471,12 @@ export default function ProductHistoryPage() {
   const handleProductSelect = (product) => {
     setShowProductModal(false);
     fetchProductHistory(product);
+    // Refocus the product input after modal closes
+    setTimeout(() => {
+      if (productInputRef.current) {
+        productInputRef.current.focus();
+      }
+    }, 100);
   };
 
   const clearFilters = () => {
@@ -442,7 +506,7 @@ export default function ProductHistoryPage() {
         <span className="xp-tb-title" style={{ color: "white", fontWeight: "bold" }}>Product Transaction History — Complete Audit Trail</span>
         <div className="xp-tb-actions">
           <div className="sl-shortcut-hints" style={{ color: "white" }}>
-            <span>F2 = Select Product</span>
+            <span>Enter / F2 = Select Product</span>
           </div>
           <button className="xp-cap-btn" style={{ color: "white", background: "transparent", border: "1px solid #fff" }}>─</button>
           <button className="xp-cap-btn" style={{ color: "white", background: "transparent", border: "1px solid #fff" }}>□</button>
@@ -458,24 +522,32 @@ export default function ProductHistoryPage() {
 
       <div style={{ padding: "10px" }}>
         
-        {/* Product Selection */}
+        {/* Product Selection - Read-only display with focus and yellow highlight */}
         <div style={{ background: "white", padding: "10px", marginBottom: "10px", border: "1px solid #000" }}>
           <div style={{ display: "flex", gap: "10px", alignItems: "flex-end" }}>
             <div style={{ flex: 2 }}>
-              <label style={{ fontSize: "11px", fontWeight: "600", marginBottom: "2px", display: "block", color: "#000" }}>Select Product <span style={{ fontSize: "10px" }}>(Press F2)</span></label>
+              <label style={{ fontSize: "11px", fontWeight: "600", marginBottom: "2px", display: "block", color: "#000" }}>Select Product <span style={{ fontSize: "10px" }}>(Press Enter or F2)</span></label>
               <div style={{ display: "flex", gap: "6px" }}>
                 <input
-                  ref={searchRef}
+                  ref={productInputRef}
                   type="text"
-                  placeholder="Click to search product..."
+                  placeholder="Press Enter or F2 to select product..."
                   value={selectedProduct ? `${selectedProduct.code} - ${selectedProduct.description}` : ""}
-                  onClick={() => setShowProductModal(true)}
+                  onKeyDown={handleProductInputKeyDown}
                   readOnly
-                  style={{ flex: 1, padding: "4px 8px", border: "1px solid #000", fontSize: "12px", cursor: "pointer", background: "#f9fafb", color: "#000" }}
+                  style={{ 
+                    flex: 1, 
+                    padding: "4px 8px", 
+                    border: "1px solid #000", 
+                    fontSize: "12px", 
+                    background: "#fff9c4",  // Yellow background for focus indication
+                    color: "#000",
+                    cursor: "pointer"
+                  }}
                 />
                 <button onClick={() => setShowProductModal(true)} style={{ padding: "4px 12px", background: "#1a1a1a", color: "white", border: "1px solid #000", cursor: "pointer", fontSize: "11px" }}>Browse (F2)</button>
                 {selectedProduct && (
-                  <button onClick={() => { setSelectedProduct(null); setTransactions([]); setFilteredTransactions([]); }} style={{ padding: "4px 10px", background: "#fff", color: "#000", border: "1px solid #000", cursor: "pointer", fontSize: "11px" }}>Clear</button>
+                  <button onClick={() => { setSelectedProduct(null); setTransactions([]); setFilteredTransactions([]); productInputRef.current?.focus(); }} style={{ padding: "4px 10px", background: "#fff", color: "#000", border: "1px solid #000", cursor: "pointer", fontSize: "11px" }}>Clear</button>
                 )}
               </div>
             </div>
@@ -610,8 +682,7 @@ export default function ProductHistoryPage() {
               <path d="M9 14h6" />
             </svg>
             <h3 style={{ fontSize: "14px", marginBottom: "4px", color: "#000" }}>No Product Selected</h3>
-            <p style={{ fontSize: "11px", color: "#000" }}>Click Browse or press <kbd style={{ background: "#f5f5f5", padding: "2px 5px", border: "1px solid #000" }}>F2</kbd> to select a product</p>
-            <button onClick={() => setShowProductModal(true)} style={{ marginTop: "10px", padding: "4px 16px", background: "#1a1a1a", color: "white", border: "1px solid #000", cursor: "pointer", fontSize: "11px" }}>Select Product</button>
+            <p style={{ fontSize: "11px", color: "#000" }}>Press <kbd style={{ background: "#f5f5f5", padding: "2px 5px", border: "1px solid #000" }}>Enter</kbd> or <kbd style={{ background: "#f5f5f5", padding: "2px 5px", border: "1px solid #000" }}>F2</kbd> to select a product</p>
           </div>
         )}
       </div>

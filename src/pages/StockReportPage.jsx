@@ -1,9 +1,9 @@
 // pages/StockReportPage.jsx
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import api from "../../api/api.js";
-import EP from "../../api/apiEndpoints.js";
-import "../../styles/theme.css";
+import api from "../api/api.js";
+import EP from "../api/apiEndpoints.js";
+import "../styles/theme.css";
 
 const fmt = (n) => Number(n || 0).toLocaleString("en-PK");
 
