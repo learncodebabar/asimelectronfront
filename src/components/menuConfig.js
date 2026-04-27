@@ -12,8 +12,9 @@ const MENU_CONFIG = [
     label: "Vouchers",
     items: [
       { label: "Cash Sale", route: "/sale", shortcut: "F3" },
-         { label: "Cash Receipts", route: "/cash-receipts" },
+      { label: "Cash Receipts", route: "/cash-receipts" },
       { label: "Cash Payment", route: "/cash-payment" },
+      { label: "Bank Payment", route: "/bank-payments" }, // NEW
       { label: "───" },
       { label: "Manual Sale Bill", route: "/manual-sale" },
       { label: "Manual Purchase Bill", route: "/manual-purchase" },
@@ -22,7 +23,6 @@ const MENU_CONFIG = [
       { label: "Purchase Return", route: "/purchase-return" },
       { label: "Quotation", route: "/quotation-page", shortcut: "Ctrl+Q" },
       { label: "Purchase Order", route: "/purchase-order" },
-   
       { label: "───" },
       { label: "Raw Sale", route: "/raw-sale" },
       { label: "Damage In", route: "/damage-in" },
@@ -39,7 +39,6 @@ const MENU_CONFIG = [
     items: [
       { label: "Debit Customers", route: "/debit-customers" },
       { label: "Credit Customers", route: "/credit-customers" },
-   
       { label: "All Customers", route: "/customers" },
       { label: "───" },
       { label: "Accounts Receivable", route: "/accounts-receivable" },
@@ -50,13 +49,12 @@ const MENU_CONFIG = [
     label: "Reports",
     items: [
       { label: "Chart of Products", route: "/chart-of-products" },
-      
       { label: "───" },
       { label: "P.O", route: "/purchase-order-list" },
       { label: "Purchase", route: "/purchase-list" },
       { label: "Purchase w/o Values", route: "/purchase-without-values" },
       { label: "Purchase Return", route: "/purchase-return-list" },
-         { label: "Purchase Report", route: "/purchase-report" },
+      { label: "Purchase Report", route: "/purchase-report" },
       { label: "───" },
       { label: "Quotation", route: "/quotation-list" },
       { label: "───" },
@@ -77,6 +75,7 @@ const MENU_CONFIG = [
       { label: "───" },
       { label: "Cash Receipt", route: "/cash-receipts-report" },
       { label: "Cash Payment", route: "/cash-payment-report" },
+      { label: "Bank Payment", route: "/bank-payment-report" }, // NEW
       { label: "Bank Deposits", route: "/bank-deposits" },
       { label: "Bank Payments", route: "/bank-payments" },
       { label: "───" },
