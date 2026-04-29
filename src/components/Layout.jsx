@@ -1,7 +1,8 @@
 // components/Layout.jsx
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useNavigate, useLocation, Link } from "react-router-dom";
-import MENU_CONFIG from "./menuConfig.js";
+import { useAuth } from "../context/AuthContext";
+import { getMenuConfig } from "./menuConfig.js";
 import TOOLBAR_CONFIG from "./toolbarConfig.js";
 
 /* ── Toolbar SVG Icons ─────────────────────────────────────────────────────── */
@@ -84,6 +85,12 @@ function MenuBar() {
   const navigate = useNavigate();
   const location = useLocation();
   const ref = useRef(null);
+  const { hasPermission, logout, user, isAdmin } = useAuth();
+  
+  // Get dynamic menu configuration based on user permissions
+  const menuConfig = useMemo(() => {
+    return getMenuConfig(hasPermission);
+  }, [hasPermission]);
 
   useEffect(() => {
     const close = (e) => {
@@ -97,26 +104,43 @@ function MenuBar() {
     setOpenIdx(null);
   }, [location.pathname]);
 
-  const handleMenuClick = useCallback((route) => {
+  const handleMenuClick = useCallback((item, e) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    
+    // Don't navigate if disabled
+    if (item.disabled) {
+      alert(`Access Denied!\n\nYou don't have permission to access "${item.label}".\nPlease contact your administrator.`);
+      setOpenIdx(null);
+      return;
+    }
+    
     setOpenIdx(null);
-    if (route) {
-      if (location.pathname === route) {
+    if (item.route) {
+      if (location.pathname === item.route) {
         window.location.reload();
       } else {
-        navigate(route);
+        navigate(item.route);
       }
     }
   }, [navigate, location.pathname]);
 
+  const handleLogout = () => {
+    setOpenIdx(null);
+    if (window.confirm('Are you sure you want to logout?')) {
+      logout();
+      navigate('/login');
+    }
+  };
+
   return (
     <div
       ref={ref}
-      onKeyDown={(e) => {
-        // Allow keyboard shortcuts to pass through to pages
-        e.stopPropagation();
-      }}
       style={{
         display: "flex",
+        justifyContent: "space-between",
         background: "linear-gradient(180deg,#f0ede4 0%,#dedad0 100%)",
         borderBottom: "1px solid #aca899",
         boxShadow: "inset 0 -1px 0 #fff",
@@ -129,104 +153,149 @@ function MenuBar() {
         flexShrink: 0,
       }}
     >
-      {MENU_CONFIG.map((menu, idx) => (
-        <div key={menu.label} style={{ position: "relative" }}>
-          <a
-            href="#"
-            onClick={(e) => {
-              e.preventDefault();
-              setOpenIdx(openIdx === idx ? null : idx);
-            }}
-            onMouseEnter={() => openIdx !== null && setOpenIdx(idx)}
-            style={{
-              display: "inline-block",
-              background: openIdx === idx ? "#316ac5" : "transparent",
-              color: openIdx === idx ? "#fff" : "#000",
-              border: "1px solid transparent",
-              padding: "2px 8px",
-              fontSize: 12,
-              fontFamily: "inherit",
-              cursor: "pointer",
-              height: 22,
-              borderRadius: 2,
-              textDecoration: "none",
-              lineHeight: "16px",
-            }}
-          >
-            {menu.label}
-          </a>
-          
-          {openIdx === idx && (
-            <div
+      <div style={{ display: "flex", flexWrap: "wrap" }}>
+        {menuConfig.map((menu, idx) => (
+          <div key={menu.label} style={{ position: "relative" }}>
+            <a
+              href="#"
+              onClick={(e) => {
+                e.preventDefault();
+                setOpenIdx(openIdx === idx ? null : idx);
+              }}
+              onMouseEnter={() => openIdx !== null && setOpenIdx(idx)}
               style={{
-                position: "absolute",
-                top: "100%",
-                left: 0,
-                background: "#f5f5f0",
-                border: "1px solid #aca899",
-                boxShadow: "2px 2px 6px rgba(0,0,0,0.3)",
-                minWidth: 200,
-                zIndex: 2000,
-                padding: "2px 0",
+                display: "inline-block",
+                background: openIdx === idx ? "#316ac5" : "transparent",
+                color: openIdx === idx ? "#fff" : "#000",
+                border: "1px solid transparent",
+                padding: "2px 8px",
+                fontSize: 12,
+                fontFamily: "inherit",
+                cursor: "pointer",
+                height: 22,
+                borderRadius: 2,
+                textDecoration: "none",
+                lineHeight: "16px",
               }}
             >
-              {menu.items.map((item, i) => {
-                if (item.label === "───")
+              {menu.label}
+            </a>
+            
+            {openIdx === idx && (
+              <div
+                style={{
+                  position: "absolute",
+                  top: "100%",
+                  left: 0,
+                  background: "#f5f5f0",
+                  border: "1px solid #aca899",
+                  boxShadow: "2px 2px 6px rgba(0,0,0,0.3)",
+                  minWidth: 220,
+                  zIndex: 2000,
+                  padding: "2px 0",
+                }}
+              >
+                {menu.items.map((item, i) => {
+                  if (item.label === "───")
+                    return (
+                      <div
+                        key={i}
+                        style={{
+                          height: 1,
+                          background: "#ccc",
+                          margin: "2px 4px",
+                        }}
+                      />
+                    );
+                  
+                  const isActive = item.route && location.pathname === item.route;
+                  
                   return (
                     <div
                       key={i}
+                      onClick={(e) => handleMenuClick(item, e)}
                       style={{
-                        height: 1,
-                        background: "#ccc",
-                        margin: "2px 4px",
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        padding: "3px 20px 3px 24px",
+                        cursor: item.disabled ? "not-allowed" : "pointer",
+                        fontSize: 12,
+                        background: isActive && !item.disabled ? "#316ac5" : "transparent",
+                        color: item.disabled ? "#999" : (isActive ? "#fff" : "#000"),
+                        whiteSpace: "nowrap",
+                        textDecoration: "none",
+                        opacity: item.disabled ? 0.6 : 1,
+                        minHeight: 24,
                       }}
-                    />
-                  );
-                const isActive = item.route && location.pathname === item.route;
-                return (
-                  <Link
-                    key={i}
-                    to={item.route || "#"}
-                    onClick={() => handleMenuClick(item.route)}
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      padding: "3px 20px 3px 24px",
-                      cursor: "pointer",
-                      fontSize: 12,
-                      background: isActive ? "#316ac5" : "transparent",
-                      color: isActive ? "#fff" : "#000",
-                      whiteSpace: "nowrap",
-                      textDecoration: "none",
-                    }}
-                    onMouseEnter={(e) => {
-                      if (!isActive) {
-                        e.currentTarget.style.background = "#316ac5";
-                        e.currentTarget.style.color = "#fff";
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      if (!isActive) {
-                        e.currentTarget.style.background = "transparent";
-                        e.currentTarget.style.color = "#000";
-                      }
-                    }}
-                  >
-                    <span>{item.label}</span>
-                    {item.shortcut && (
-                      <span
-                        style={{ marginLeft: 30, color: "#888", fontSize: 11 }}
-                      >
-                        {item.shortcut}
+                      onMouseEnter={(e) => {
+                        if (!isActive && !item.disabled) {
+                          e.currentTarget.style.background = "#316ac5";
+                          e.currentTarget.style.color = "#fff";
+                        } else if (item.disabled) {
+                          e.currentTarget.style.background = "transparent";
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!isActive && !item.disabled) {
+                          e.currentTarget.style.background = "transparent";
+                          e.currentTarget.style.color = "#000";
+                        }
+                      }}
+                    >
+                      <span style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                        {item.disabled && <span style={{ fontSize: "11px" }}>🔒</span>}
+                        <span>{item.label}</span>
                       </span>
-                    )}
-                  </Link>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      ))}
+                      {item.shortcut && (
+                        <span
+                          style={{ 
+                            marginLeft: 30, 
+                            color: item.disabled ? "#ccc" : "#888", 
+                            fontSize: 10,
+                            fontFamily: "monospace"
+                          }}
+                        >
+                          {item.shortcut}
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+      
+      {/* User info and logout on the right */}
+      <div style={{ display: "flex", alignItems: "center", gap: 12, paddingRight: 8 }}>
+        <span style={{ fontSize: 11, display: "flex", alignItems: "center", gap: 6 }}>
+          <span>👤</span>
+          <span>{user?.name || user?.username}</span>
+          {isAdmin && <span style={{ color: "#0a246a", fontSize: 10, background: "#e8e4d8", padding: "2px 6px", borderRadius: 3 }}>Admin</span>}
+        </span>
+        <button
+          onClick={handleLogout}
+          style={{
+            background: "transparent",
+            border: "1px solid #aca899",
+            padding: "2px 8px",
+            cursor: "pointer",
+            fontSize: 11,
+            borderRadius: 2,
+            fontFamily: "inherit",
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = "#e8e4d8";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = "transparent";
+          }}
+        >
+          Logout
+        </button>
+      </div>
     </div>
   );
 }
@@ -235,13 +304,32 @@ function MenuBar() {
 function ToolBar() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { hasPermission } = useAuth();
   
   const buttons = useMemo(() => {
-    return TOOLBAR_CONFIG[location.pathname] || TOOLBAR_CONFIG.DEFAULT;
-  }, [location.pathname]);
+    const allButtons = TOOLBAR_CONFIG[location.pathname] || TOOLBAR_CONFIG.DEFAULT;
+    // Add disabled property to buttons based on permissions
+    return allButtons.map(btn => {
+      if (btn.divider) return btn;
+      return {
+        ...btn,
+        disabled: btn.permission ? !hasPermission(btn.permission) : false
+      };
+    });
+  }, [location.pathname, hasPermission]);
 
   const handleButtonClick = useCallback((btn, e) => {
-    if (e) e.preventDefault();
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    
+    // Don't navigate if disabled
+    if (btn.disabled) {
+      alert(`Access Denied!\n\nYou don't have permission to access "${btn.label}".\nPlease contact your administrator.`);
+      return;
+    }
+    
     if (btn.route) {
       if (location.pathname === btn.route) {
         window.location.reload();
@@ -250,7 +338,9 @@ function ToolBar() {
       }
     }
     if (btn.action === "exit") {
-      window.close();
+      if (window.confirm('Are you sure you want to exit?')) {
+        window.close();
+      }
     }
   }, [navigate, location.pathname]);
 
@@ -272,14 +362,13 @@ function ToolBar() {
       }
 
       const isActive = btn.route && location.pathname === btn.route;
-      const iconColor = isActive
+      const iconColor = isActive && !btn.disabled
         ? "#316ac5"
-        : ICON_COLORS[btn.icon] || "#333";
+        : btn.disabled ? "#999" : (ICON_COLORS[btn.icon] || "#333");
 
       return (
-        <Link
+        <div
           key={btn.route || btn.label || i}
-          to={btn.route || "#"}
           onClick={(e) => handleButtonClick(btn, e)}
           style={{
             display: "flex",
@@ -291,22 +380,23 @@ function ToolBar() {
             fontSize: 10,
             fontFamily: "inherit",
             fontWeight: isActive ? 700 : 400,
-            color: isActive ? "#0a246a" : "#222",
-            border: isActive ? "1px solid #7aabda" : "1px solid transparent",
-            background: isActive
+            color: btn.disabled ? "#999" : (isActive ? "#0a246a" : "#222"),
+            border: isActive && !btn.disabled ? "1px solid #7aabda" : "1px solid transparent",
+            background: isActive && !btn.disabled
               ? "linear-gradient(180deg,#c5d9f1 0%,#ddeeff 100%)"
               : "transparent",
-            cursor: "pointer",
+            cursor: btn.disabled ? "not-allowed" : "pointer",
             padding: "3px 5px 2px",
             gap: 2,
             borderRadius: 3,
-            boxShadow: isActive
+            boxShadow: isActive && !btn.disabled
               ? "inset 1px 1px 0 rgba(255,255,255,0.8), inset -1px -1px 0 rgba(0,0,100,0.1)"
               : "none",
             textDecoration: "none",
+            opacity: btn.disabled ? 0.5 : 1,
           }}
           onMouseEnter={(e) => {
-            if (!isActive) {
+            if (!isActive && !btn.disabled) {
               e.currentTarget.style.background =
                 "linear-gradient(180deg,#ddeeff 0%,#c5d9f1 100%)";
               e.currentTarget.style.border = "1px solid #7aabda";
@@ -315,20 +405,22 @@ function ToolBar() {
             }
           }}
           onMouseLeave={(e) => {
-            if (!isActive) {
+            if (!isActive && !btn.disabled) {
               e.currentTarget.style.background = "transparent";
               e.currentTarget.style.border = "1px solid transparent";
               e.currentTarget.style.boxShadow = "none";
             }
           }}
           onMouseDown={(e) => {
-            e.currentTarget.style.background =
-              "linear-gradient(180deg,#b0ccec 0%,#c5d9f1 100%)";
-            e.currentTarget.style.boxShadow =
-              "inset 1px 1px 0 rgba(0,0,80,0.12), inset -1px -1px 0 rgba(255,255,255,0.6)";
+            if (!btn.disabled && !isActive) {
+              e.currentTarget.style.background =
+                "linear-gradient(180deg,#b0ccec 0%,#c5d9f1 100%)";
+              e.currentTarget.style.boxShadow =
+                "inset 1px 1px 0 rgba(0,0,80,0.12), inset -1px -1px 0 rgba(255,255,255,0.6)";
+            }
           }}
           onMouseUp={(e) => {
-            if (!isActive) {
+            if (!isActive && !btn.disabled) {
               e.currentTarget.style.background = "transparent";
               e.currentTarget.style.boxShadow = "none";
             }
@@ -346,17 +438,13 @@ function ToolBar() {
           >
             {btn.label}
           </span>
-        </Link>
+        </div>
       );
     });
   }, [buttons, location.pathname, handleButtonClick]);
 
   return (
     <div
-      onKeyDown={(e) => {
-        // Allow keyboard shortcuts to pass through to pages
-        e.stopPropagation();
-      }}
       style={{
         display: "flex",
         alignItems: "center",
@@ -368,6 +456,7 @@ function ToolBar() {
         minHeight: 56,
         fontFamily: "Tahoma, sans-serif",
         flexShrink: 0,
+        overflowX: "auto",
       }}
     >
       {renderedButtons}
@@ -378,15 +467,15 @@ function ToolBar() {
 /* ── Layout ───────────────────────────────────────────────────────────────── */
 export default function Layout({ children }) {
   const location = useLocation();
+  const { user } = useAuth();
+  
+  // Don't render layout if no user (should be redirected by App)
+  if (!user) {
+    return null;
+  }
   
   return (
     <div
-      onKeyDown={(e) => {
-        // Don't prevent default for menu shortcuts, let them bubble
-        if (e.target.closest?.('.xp-nav, .xp-dropdown-menu, .xp-toolbar')) {
-          return;
-        }
-      }}
       style={{
         height: "100vh",
         display: "flex",

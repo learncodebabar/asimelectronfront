@@ -1,5 +1,7 @@
+// config/env.js
 const ENV = {
-  BASE_URL: import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api",
+  // Use relative path for production, local for development
+  BASE_URL: import.meta.env.VITE_API_BASE_URL || "/api",
 };
 
 export default ENV;
