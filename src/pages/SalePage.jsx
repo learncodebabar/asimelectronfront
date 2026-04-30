@@ -1,5 +1,6 @@
-// pages/SalePage.jsx - FIXED Customer Loading & Product Focus Flow
+// pages/SalePage.jsx - COMPLETE FILE with User & Counter Tracking
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useAuth } from "../context/AuthContext";
 import api from "../api/api.js";
 import EP from "../api/apiEndpoints.js";
 import "../styles/theme.css";
@@ -131,7 +132,7 @@ const buildPrintHtml = (sale, type, overrides = {}) => {
       </div>
       <hr class="divider-dash">
 
-      <table>
+      <tr>
         <thead>
           <tr>
             <th style="width:30px">#</th>
@@ -1661,6 +1662,7 @@ function CustomerDropdown({
    MAIN PAGE
 ══════════════════════════════════════════════════════════ */
 export default function SalePage() {
+  const { user } = useAuth(); // Get current logged-in user
 
   const [time, setTime] = useState(timeNow());
   const [allProducts, setAllProducts] = useState([]);
@@ -1717,6 +1719,34 @@ export default function SalePage() {
   const saveRef = useRef(null);
   const statementRef = useRef(null);
   const [gatepassPrint, setGatepassPrint] = useState(false);
+
+  // COUNTER TRACKING STATES
+  const [counterId, setCounterId] = useState(() => {
+    return localStorage.getItem('selectedCounterId') || 'default';
+  });
+  const [counterName, setCounterName] = useState(() => {
+    return localStorage.getItem('selectedCounterName') || 'Main Counter';
+  });
+  const [availableCounters, setAvailableCounters] = useState([]);
+
+  // Fetch counters on component mount
+  useEffect(() => {
+    fetchCounters();
+  }, []);
+
+  const fetchCounters = async () => {
+    try {
+      const response = await api.get('/api/counters');
+      if (response.data && response.data.length > 0) {
+        setAvailableCounters(response.data);
+      } else {
+        setAvailableCounters([{ counterId: 'default', counterName: 'Main Counter' }]);
+      }
+    } catch (error) {
+      console.error('Failed to fetch counters:', error);
+      setAvailableCounters([{ counterId: 'default', counterName: 'Main Counter' }]);
+    }
+  };
 
   useEffect(() => {
     const t = setInterval(() => setTime(timeNow()), 1000);
@@ -2208,6 +2238,11 @@ export default function SalePage() {
     printType,
     remarks: creditStatement || "",
     saleType: "sale",
+    // USER AND COUNTER TRACKING
+    userId: user?.id || user?._id,
+    username: user?.username || 'unknown',
+    counterId: counterId,
+    counterName: counterName
   });
   
   const openSaleConfirm = () => {
@@ -2445,6 +2480,34 @@ export default function SalePage() {
 
         <div className="sl-body">
           <div className="sl-left">
+            {/* Counter Selector added in the top bar */}
+            <div className="sl-top-bar" style={{ marginBottom: "8px", display: "flex", justifyContent: "space-between" }}>
+              <div className="sl-inv-field-grp">
+                <label>Counter</label>
+                <select 
+                  className="xp-input xp-input-sm"
+                  value={counterId}
+                  onChange={(e) => {
+                    const selected = availableCounters.find(c => c.counterId === e.target.value);
+                    setCounterId(e.target.value);
+                    setCounterName(selected?.counterName || e.target.value);
+                    localStorage.setItem('selectedCounterId', e.target.value);
+                    localStorage.setItem('selectedCounterName', selected?.counterName || e.target.value);
+                  }}
+                  style={{ width: '130px' }}
+                >
+                  {availableCounters.map(counter => (
+                    <option key={counter.counterId} value={counter.counterId}>
+                      {counter.counterName}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="sl-inv-field-grp">
+                <span style={{ fontSize: "11px", color: "#555" }}>👤 {user?.username || 'User'}</span>
+              </div>
+            </div>
+
             {/* Invoice info with integrated nav buttons */}
             <div className="sl-top-bar">
               <div className="sl-sale-title-box">Sale</div>

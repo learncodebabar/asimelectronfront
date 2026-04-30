@@ -1,45 +1,52 @@
-// pages/DailySaleReportPage.jsx
+// pages/DailySaleReportPage.jsx - CLEAN NEAT DESIGN
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../../context/AuthContext";
 import api from "../../api/api.js";
 import EP from "../../api/apiEndpoints.js";
-import "../../styles/globalTheme.css";
-import "../../styles/DailySaleReportPage.css";
 
 const fmt = (n) => Number(n || 0).toLocaleString("en-PK");
 const isoD = () => new Date().toISOString().split("T")[0];
 
 export default function DailySaleReportPage() {
   const navigate = useNavigate();
+  const { user, isAdmin } = useAuth();
   
-  // State
   const [sales, setSales] = useState([]);
   const [loading, setLoading] = useState(true);
-  
-  // Three search inputs
   const [descSearch, setDescSearch] = useState("");
   const [categorySearch, setCategorySearch] = useState("");
   const [companySearch, setCompanySearch] = useState("");
-  
   const [filteredSales, setFilteredSales] = useState([]);
   const [selectedSale, setSelectedSale] = useState(null);
   const [dateRange, setDateRange] = useState({ from: isoD(), to: isoD() });
-  const [summary, setSummary] = useState({ 
-    totalSales: 0, 
-    totalAmount: 0, 
-    totalItems: 0,
-    totalQty: 0 
-  });
+  const [summary, setSummary] = useState({ totalSales: 0, totalAmount: 0, totalItems: 0, totalQty: 0 });
+  const [userSummary, setUserSummary] = useState([]);
+  const [counterSummary, setCounterSummary] = useState([]);
+  const [showUserReport, setShowUserReport] = useState(true);
+  const [selectedFilterUser, setSelectedFilterUser] = useState("");
+  const [selectedFilterCounter, setSelectedFilterCounter] = useState("");
+  const [availableCounters, setAvailableCounters] = useState([]);
   
-  // Refs
-  const descInputRef = useRef(null);
-  const categoryInputRef = useRef(null);
-  const companyInputRef = useRef(null);
-  
-  // Fetch sales on mount
+  const searchRef = useRef(null);
+
   useEffect(() => {
     fetchSales();
+    fetchCounters();
   }, []);
+  
+  const fetchCounters = async () => {
+    try {
+      const response = await api.get('/api/counters');
+      if (response.data && response.data.length > 0) {
+        setAvailableCounters(response.data);
+      } else {
+        setAvailableCounters([{ counterId: 'default', counterName: 'Main Counter' }]);
+      }
+    } catch (error) {
+      setAvailableCounters([{ counterId: 'default', counterName: 'Main Counter' }]);
+    }
+  };
   
   const fetchSales = async () => {
     setLoading(true);
@@ -54,30 +61,33 @@ export default function DailySaleReportPage() {
     setLoading(false);
   };
   
-  // Filter sales based on all three search criteria and date range
   useEffect(() => {
     if (!sales.length) {
       setFilteredSales([]);
-      setSummary({ totalSales: 0, totalAmount: 0, totalItems: 0, totalQty: 0 });
+      setUserSummary([]);
+      setCounterSummary([]);
       return;
     }
     
     let filtered = [...sales];
     
-    // Filter by date range
     if (dateRange.from && dateRange.to) {
-      filtered = filtered.filter(s => 
-        s.invoiceDate >= dateRange.from && s.invoiceDate <= dateRange.to
-      );
+      filtered = filtered.filter(s => s.invoiceDate >= dateRange.from && s.invoiceDate <= dateRange.to);
     }
     
-    // Filter by Description (product name, description, code)
+    if (selectedFilterUser) {
+      filtered = filtered.filter(s => s.userId === selectedFilterUser || s.username === selectedFilterUser);
+    }
+    
+    if (selectedFilterCounter) {
+      filtered = filtered.filter(s => s.counterId === selectedFilterCounter);
+    }
+    
     if (descSearch.trim()) {
       const term = descSearch.toLowerCase().trim();
       filtered = filtered.filter(s => 
         s.items?.some(item => 
-          item.name?.toLowerCase().includes(term) ||
-          item.description?.toLowerCase().includes(term) ||
+          (item.name?.toLowerCase().includes(term) || item.description?.toLowerCase().includes(term)) ||
           item.code?.toLowerCase().includes(term)
         ) ||
         s.customerName?.toLowerCase().includes(term) ||
@@ -85,85 +95,89 @@ export default function DailySaleReportPage() {
       );
     }
     
-    // Filter by Category
     if (categorySearch.trim()) {
       const term = categorySearch.toLowerCase().trim();
-      filtered = filtered.filter(s => 
-        s.items?.some(item => 
-          item.category?.toLowerCase().includes(term)
-        )
-      );
+      filtered = filtered.filter(s => s.items?.some(item => item.category?.toLowerCase().includes(term)));
     }
     
-    // Filter by Company
     if (companySearch.trim()) {
       const term = companySearch.toLowerCase().trim();
-      filtered = filtered.filter(s => 
-        s.items?.some(item => 
-          item.company?.toLowerCase().includes(term)
-        )
-      );
+      filtered = filtered.filter(s => s.items?.some(item => item.company?.toLowerCase().includes(term)));
     }
     
-    // Sort by date (newest first)
     filtered.sort((a, b) => new Date(b.invoiceDate) - new Date(a.invoiceDate));
-    
     setFilteredSales(filtered);
     
-    // Calculate summary
     const totalAmount = filtered.reduce((sum, s) => sum + (s.netTotal || 0), 0);
     const totalItems = filtered.reduce((sum, s) => sum + (s.items?.length || 0), 0);
     const totalQty = filtered.reduce((sum, s) => {
-      const itemsQty = (s.items || []).reduce((itemSum, item) => itemSum + (item.pcs || item.qty || 0), 0);
-      return sum + itemsQty;
+      return sum + (s.items || []).reduce((itemSum, item) => itemSum + (item.pcs || item.qty || 0), 0);
     }, 0);
     
-    setSummary({
-      totalSales: filtered.length,
-      totalAmount: totalAmount,
-      totalItems: totalItems,
-      totalQty: totalQty
+    setSummary({ totalSales: filtered.length, totalAmount, totalItems, totalQty });
+    
+    // User Summary
+    const userMap = new Map();
+    filtered.forEach(sale => {
+      const key = sale.username || 'Unknown';
+      if (!userMap.has(key)) {
+        userMap.set(key, { username: key, count: 0, total: 0, cash: 0, credit: 0, qty: 0 });
+      }
+      const u = userMap.get(key);
+      u.count++;
+      u.total += sale.netTotal || 0;
+      if (sale.paymentMode === 'Cash') u.cash += sale.netTotal || 0;
+      if (sale.paymentMode === 'Credit') u.credit += sale.netTotal || 0;
+      u.qty += (sale.items || []).reduce((sum, item) => sum + (item.pcs || item.qty || 0), 0);
     });
-  }, [sales, descSearch, categorySearch, companySearch, dateRange]);
+    setUserSummary(Array.from(userMap.values()).sort((a, b) => b.total - a.total));
+    
+    // Counter Summary
+    const counterMap = new Map();
+    filtered.forEach(sale => {
+      const key = sale.counterName || 'Main Counter';
+      if (!counterMap.has(key)) {
+        counterMap.set(key, { counterName: key, count: 0, total: 0, cash: 0, credit: 0, qty: 0 });
+      }
+      const c = counterMap.get(key);
+      c.count++;
+      c.total += sale.netTotal || 0;
+      if (sale.paymentMode === 'Cash') c.cash += sale.netTotal || 0;
+      if (sale.paymentMode === 'Credit') c.credit += sale.netTotal || 0;
+      c.qty += (sale.items || []).reduce((sum, item) => sum + (item.pcs || item.qty || 0), 0);
+    });
+    setCounterSummary(Array.from(counterMap.values()).sort((a, b) => b.total - a.total));
+    
+  }, [sales, descSearch, categorySearch, companySearch, dateRange, selectedFilterUser, selectedFilterCounter]);
   
   const clearFilters = () => {
     setDescSearch("");
     setCategorySearch("");
     setCompanySearch("");
-    setSelectedSale(null);
-    descInputRef.current?.focus();
+    setSelectedFilterUser("");
+    setSelectedFilterCounter("");
+    setDateRange({ from: isoD(), to: isoD() });
+    searchRef.current?.focus();
   };
   
   const handleViewDetails = (sale) => {
     setSelectedSale(selectedSale?._id === sale._id ? null : sale);
   };
   
-  const formatCurrency = (value) => {
-    if (!value) return "0";
-    return parseFloat(value).toLocaleString();
-  };
+  const formatCurrency = (value) => value ? parseFloat(value).toLocaleString() : "0";
   
   const exportToCSV = () => {
-    const headers = ["Invoice #", "Date", "Customer", "Items", "Qty", "Total Amount", "Paid", "Balance"];
+    const headers = ["Invoice #", "Date", "Customer", "User", "Counter", "Items", "Qty", "Total", "Paid", "Balance"];
     const rows = filteredSales.map(s => {
-      const totalQty = (s.items || []).reduce((sum, item) => sum + (item.pcs || item.qty || 0), 0);
-      return [
-        s.invoiceNo,
-        s.invoiceDate,
-        s.customerName || "COUNTER SALE",
-        s.items?.length || 0,
-        totalQty,
-        s.netTotal || 0,
-        s.paidAmount || 0,
-        s.balance || 0
-      ];
+      const qty = (s.items || []).reduce((sum, item) => sum + (item.pcs || item.qty || 0), 0);
+      return [s.invoiceNo, s.invoiceDate, s.customerName || "COUNTER SALE", s.username || "Unknown", s.counterName || "Main Counter", s.items?.length || 0, qty, s.netTotal || 0, s.paidAmount || 0, s.balance || 0];
     });
     const csvContent = [headers, ...rows].map(row => row.join(",")).join("\n");
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `daily_sales_report_${new Date().toISOString().split("T")[0]}.csv`;
+    a.download = `sales_report_${new Date().toISOString().split("T")[0]}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -176,328 +190,301 @@ export default function DailySaleReportPage() {
   };
   
   const buildPrintHtml = () => {
-    const rows = filteredSales.map((s, i) => {
-      const totalQty = (s.items || []).reduce((sum, item) => sum + (item.pcs || item.qty || 0), 0);
-      return `
-        <tr>
-          <td style="padding:8px;border:1px solid #000;text-align:center">${i + 1}</td>
-          <td style="padding:8px;border:1px solid #000">${s.invoiceNo}</td>
-          <td style="padding:8px;border:1px solid #000">${s.invoiceDate}</td>
-          <td style="padding:8px;border:1px solid #000">${s.customerName || "COUNTER SALE"}</td>
-          <td style="padding:8px;border:1px solid #000;text-align:center">${s.items?.length || 0}</td>
-          <td style="padding:8px;border:1px solid #000;text-align:center">${totalQty}</td>
-          <td style="padding:8px;border:1px solid #000;text-align:right">PKR ${formatCurrency(s.netTotal)}</td>
-          <td style="padding:8px;border:1px solid #000;text-align:right">PKR ${formatCurrency(s.paidAmount)}</td>
-          <td style="padding:8px;border:1px solid #000;text-align:right">PKR ${formatCurrency(s.balance)}</td>
-        </tr>
-      `;
-    }).join("");
-    
     return `<!DOCTYPE html>
-    <html><head><meta charset="utf-8"><title>Daily Sales Report</title>
+    <html>
+    <head><meta charset="utf-8"><title>Sales Report</title>
     <style>
-      body{font-family:Arial;padding:20px}
-      table{width:100%;border-collapse:collapse}
-      th,td{border:1px solid #000;padding:8px;text-align:left}
-      th{background:#000;color:#fff}
-      .text-right{text-align:right}
-      .text-center{text-align:center}
-      .header{text-align:center;margin-bottom:20px}
-      .summary{margin-top:20px;padding:10px;border:1px solid #000}
+      body{font-family:Arial;padding:20px;font-size:11px}
+      h2{color:#333;margin-bottom:5px}
+      .header{text-align:center;margin-bottom:20px;border-bottom:2px solid #333;padding-bottom:10px}
+      table{width:100%;border-collapse:collapse;margin-bottom:15px}
+      th,td{border:1px solid #ccc;padding:6px;text-align:left}
+      th{background:#333;color:#fff}
+      .r{text-align:right}
+      .section{margin:20px 0}
+      .section-title{background:#555;color:#fff;padding:6px 10px;margin:10px 0}
     </style>
-    </head><body>
+    </head>
+    <body>
       <div class="header">
-        <h2>Daily Sales Report</h2>
-        <p>Period: ${dateRange.from} to ${dateRange.to}</p>
-        <p>Generated: ${new Date().toLocaleString()} | Total: ${filteredSales.length} invoices</p>
+        <h2>ASIM ELECTRIC STORE</h2>
+        <p>Sales Report | ${dateRange.from} to ${dateRange.to} | Generated: ${new Date().toLocaleString()}</p>
       </div>
-      <table>
-        <thead>
-          <tr>
-            <th>#</th>
-            <th>Invoice #</th>
-            <th>Date</th>
-            <th>Customer</th>
-            <th>Items</th>
-            <th>Qty</th>
-            <th class="text-right">Total</th>
-            <th class="text-right">Paid</th>
-            <th class="text-right">Balance</th>
-          </tr>
-        </thead>
-        <tbody>${rows}</tbody>
-      </table>
-      <div class="summary">
-        <p><strong>Summary:</strong></p>
-        <p>Total Invoices: ${filteredSales.length}</p>
-        <p>Total Items: ${summary.totalItems}</p>
-        <p>Total Quantity: ${summary.totalQty}</p>
-        <p>Total Amount: PKR ${formatCurrency(summary.totalAmount)}</p>
-        <p>Total Received: PKR ${formatCurrency(filteredSales.reduce((sum, s) => sum + (s.paidAmount || 0), 0))}</p>
-        <p>Total Balance: PKR ${formatCurrency(filteredSales.reduce((sum, s) => sum + (s.balance || 0), 0))}</p>
+      
+      <div class="section">
+        <div class="section-title">SALES BY USER</div>
+        <table>
+          <thead><tr><th>#</th><th>User</th><th class="r">Invoices</th><th class="r">Qty</th><th class="r">Cash</th><th class="r">Credit</th><th class="r">Total</th></tr></thead>
+          <tbody>${userSummary.map((u, i) => `<tr><td>${i+1}${u.username}<td class="r">${u.count}<td class="r">${u.qty}<td class="r">PKR ${fmt(u.cash)}<td class="r">PKR ${fmt(u.credit)}<td class="r"><b>PKR ${fmt(u.total)}</b></tr>`).join('')}</tbody>
+          <tfoot><tr><td colspan="6" class="r"><b>Total</b><td class="r"><b>PKR ${fmt(userSummary.reduce((s,u)=>s+u.total,0))}</b></tr></tfoot>
+        </table>
       </div>
-    </body></html>`;
+      
+      <div class="section">
+        <div class="section-title">SALES BY COUNTER</div>
+        <table>
+          <thead><tr><th>#</th><th>Counter</th><th class="r">Invoices</th><th class="r">Qty</th><th class="r">Cash</th><th class="r">Credit</th><th class="r">Total</th></tr></thead>
+          <tbody>${counterSummary.map((c, i) => `<tr><td>${i+1}${c.counterName}<td class="r">${c.count}<td class="r">${c.qty}<td class="r">PKR ${fmt(c.cash)}<td class="r">PKR ${fmt(c.credit)}<td class="r"><b>PKR ${fmt(c.total)}</b></tr>`).join('')}</tbody>
+        </table>
+      </div>
+      
+      <div class="section">
+        <div class="section-title">DETAILED SALES</div>
+        <table>
+          <thead><tr><th>#</th><th>Invoice</th><th>Date</th><th>Customer</th><th>User</th><th>Counter</th><th>Items</th><th>Qty</th><th class="r">Total</th><th class="r">Paid</th><th class="r">Balance</th></tr></thead>
+          <tbody>${filteredSales.map((s, i) => {
+            const qty = (s.items || []).reduce((sum, item) => sum + (item.pcs || item.qty || 0), 0);
+            return `<tr><td>${i+1}<td>${s.invoiceNo}<td>${s.invoiceDate}<td>${s.customerName || "COUNTER SALE"}<td>${s.username || "Unknown"}<td>${s.counterName || "Main Counter"}<td class="r">${s.items?.length || 0}<td class="r">${qty}<td class="r">PKR ${fmt(s.netTotal)}<td class="r">PKR ${fmt(s.paidAmount)}<td class="r">PKR ${fmt(s.balance)}</tr>`;
+          }).join('')}</tbody>
+        </table>
+      </div>
+      
+      <div><b>Summary:</b> Total Invoices: ${filteredSales.length} | Total Amount: PKR ${fmt(summary.totalAmount)} | Total Received: PKR ${fmt(filteredSales.reduce((s,item)=>s+(item.paidAmount||0),0))}</div>
+    </body>
+    </html>`;
   };
   
-  const handleDescKeyDown = (e) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      categoryInputRef.current?.focus();
-    }
-  };
-  
-  const handleCategoryKeyDown = (e) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      companyInputRef.current?.focus();
-    }
-  };
-  
-  const handleCompanyKeyDown = (e) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-    }
-  };
-  
-  const hasActiveFilters = descSearch || categorySearch || companySearch;
+  const hasActiveFilters = descSearch || categorySearch || companySearch || selectedFilterUser || selectedFilterCounter;
+  const uniqueUsers = [...new Map(sales.filter(s => s.username).map(s => [s.username, s.username])).values()];
   
   return (
-    <div className="dsr-page">
-      {/* Titlebar */}
-      <div className="dsr-titlebar">
-        <div className="dsr-titlebar-left">
-          <button className="dsr-back-btn" onClick={() => navigate("/")}>←</button>
-          <span className="dsr-title">Daily Sales Report</span>
+    <div style={{ background: "#f5f5f5", minHeight: "100vh", fontFamily: "Arial, sans-serif" }}>
+      {/* Header */}
+      <div style={{ background: "#2c3e50", padding: "12px 20px", display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #34495e" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "15px" }}>
+          <button onClick={() => navigate("/")} style={{ background: "#34495e", border: "none", color: "white", padding: "6px 12px", borderRadius: "3px", cursor: "pointer", fontSize: "12px" }}>← Back</button>
+          <h1 style={{ color: "white", fontSize: "18px", margin: 0 }}>Sales Report</h1>
         </div>
-        <div className="dsr-titlebar-right">
-          <button className="dsr-icon-btn" onClick={fetchSales} title="Refresh">⟳</button>
-          <button className="dsr-icon-btn" onClick={handlePrint} title="Print">🖨️</button>
-          <button className="dsr-icon-btn" onClick={exportToCSV} title="Export">📥</button>
-          <button className="dsr-close-btn" onClick={() => navigate("/")}>✕</button>
-        </div>
-      </div>
-      
-      {/* Date Range Row */}
-      <div className="dsr-date-row">
-        <div className="dsr-date-field">
-          <label className="dsr-date-label">From Date</label>
-          <input
-            type="date"
-            className="dsr-date-input"
-            value={dateRange.from}
-            onChange={(e) => setDateRange({ ...dateRange, from: e.target.value })}
-          />
-        </div>
-        <div className="dsr-date-field">
-          <label className="dsr-date-label">To Date</label>
-          <input
-            type="date"
-            className="dsr-date-input"
-            value={dateRange.to}
-            onChange={(e) => setDateRange({ ...dateRange, to: e.target.value })}
-          />
+        <div style={{ display: "flex", gap: "8px" }}>
+          <button onClick={fetchSales} style={{ background: "#34495e", border: "none", color: "white", padding: "6px 12px", borderRadius: "3px", cursor: "pointer", fontSize: "12px" }}>⟳ Refresh</button>
+          <button onClick={handlePrint} style={{ background: "#34495e", border: "none", color: "white", padding: "6px 12px", borderRadius: "3px", cursor: "pointer", fontSize: "12px" }}>🖨 Print</button>
+          <button onClick={exportToCSV} style={{ background: "#27ae60", border: "none", color: "white", padding: "6px 12px", borderRadius: "3px", cursor: "pointer", fontSize: "12px" }}>📥 Export</button>
         </div>
       </div>
       
-      {/* 3 Search Inputs in One Row */}
-      <div className="dsr-search-row">
-        <div className="dsr-search-field">
-          <label className="dsr-search-label">🔍 Description / Code</label>
-          <input
-            ref={descInputRef}
-            type="text"
-            className="dsr-search-input"
-            placeholder="Search by product, customer, invoice..."
-            value={descSearch}
-            onChange={(e) => setDescSearch(e.target.value)}
-            onKeyDown={handleDescKeyDown}
-            autoFocus
-          />
+      {/* Stats */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "12px", padding: "20px" }}>
+        <div style={{ background: "white", padding: "12px 15px", borderRadius: "4px", borderLeft: "3px solid #3498db" }}>
+          <div style={{ fontSize: "11px", color: "#7f8c8d" }}>Total Invoices</div>
+          <div style={{ fontSize: "22px", fontWeight: "bold", color: "#2c3e50" }}>{filteredSales.length}</div>
         </div>
-        <div className="dsr-search-field">
-          <label className="dsr-search-label">📁 Category</label>
-          <input
-            ref={categoryInputRef}
-            type="text"
-            className="dsr-search-input"
-            placeholder="Search by category..."
-            value={categorySearch}
-            onChange={(e) => setCategorySearch(e.target.value)}
-            onKeyDown={handleCategoryKeyDown}
-          />
+        <div style={{ background: "white", padding: "12px 15px", borderRadius: "4px", borderLeft: "3px solid #27ae60" }}>
+          <div style={{ fontSize: "11px", color: "#7f8c8d" }}>Items Sold</div>
+          <div style={{ fontSize: "22px", fontWeight: "bold", color: "#2c3e50" }}>{summary.totalItems}</div>
         </div>
-        <div className="dsr-search-field">
-          <label className="dsr-search-label">🏢 Company</label>
-          <input
-            ref={companyInputRef}
-            type="text"
-            className="dsr-search-input"
-            placeholder="Search by company..."
-            value={companySearch}
-            onChange={(e) => setCompanySearch(e.target.value)}
-            onKeyDown={handleCompanyKeyDown}
-          />
+        <div style={{ background: "white", padding: "12px 15px", borderRadius: "4px", borderLeft: "3px solid #f39c12" }}>
+          <div style={{ fontSize: "11px", color: "#7f8c8d" }}>Total Qty</div>
+          <div style={{ fontSize: "22px", fontWeight: "bold", color: "#2c3e50" }}>{summary.totalQty}</div>
         </div>
-        <div className="dsr-search-actions">
-          {hasActiveFilters && (
-            <button className="dsr-clear-btn" onClick={clearFilters} title="Clear all filters">
-              ✕ Clear
-            </button>
-          )}
+        <div style={{ background: "white", padding: "12px 15px", borderRadius: "4px", borderLeft: "3px solid #e74c3c" }}>
+          <div style={{ fontSize: "11px", color: "#7f8c8d" }}>Total Amount</div>
+          <div style={{ fontSize: "22px", fontWeight: "bold", color: "#2c3e50" }}>PKR {formatCurrency(summary.totalAmount)}</div>
         </div>
       </div>
       
-      {/* Active Filters Tags */}
-      {hasActiveFilters && (
-        <div className="dsr-active-filters">
-          <span className="dsr-filter-label">Active:</span>
-          {descSearch && (
-            <span className="dsr-filter-tag">
-              Description: {descSearch}
-              <button onClick={() => setDescSearch("")}>✕</button>
-            </span>
+      {/* Filters */}
+      <div style={{ background: "white", margin: "0 20px 20px", padding: "15px", borderRadius: "4px", border: "1px solid #ddd" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px", paddingBottom: "8px", borderBottom: "1px solid #eee" }}>
+          <span style={{ fontWeight: "bold", fontSize: "13px" }}>🔍 Filters</span>
+          {hasActiveFilters && <button onClick={clearFilters} style={{ background: "#e74c3c", border: "none", color: "white", padding: "3px 8px", borderRadius: "3px", cursor: "pointer", fontSize: "10px" }}>Clear All</button>}
+        </div>
+        
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "10px" }}>
+          <div>
+            <label style={{ fontSize: "11px", color: "#7f8c8d", display: "block", marginBottom: "3px" }}>Date From</label>
+            <input type="date" value={dateRange.from} onChange={(e) => setDateRange({...dateRange, from: e.target.value})} style={{ width: "100%", padding: "6px", border: "1px solid #ddd", borderRadius: "3px", fontSize: "12px" }} />
+          </div>
+          <div>
+            <label style={{ fontSize: "11px", color: "#7f8c8d", display: "block", marginBottom: "3px" }}>Date To</label>
+            <input type="date" value={dateRange.to} onChange={(e) => setDateRange({...dateRange, to: e.target.value})} style={{ width: "100%", padding: "6px", border: "1px solid #ddd", borderRadius: "3px", fontSize: "12px" }} />
+          </div>
+          <div>
+            <label style={{ fontSize: "11px", color: "#7f8c8d", display: "block", marginBottom: "3px" }}>Search</label>
+            <input ref={searchRef} type="text" placeholder="Product / Customer / Invoice" value={descSearch} onChange={(e) => setDescSearch(e.target.value)} style={{ width: "100%", padding: "6px", border: "1px solid #ddd", borderRadius: "3px", fontSize: "12px" }} />
+          </div>
+          <div>
+            <label style={{ fontSize: "11px", color: "#7f8c8d", display: "block", marginBottom: "3px" }}>Category</label>
+            <input type="text" placeholder="Category" value={categorySearch} onChange={(e) => setCategorySearch(e.target.value)} style={{ width: "100%", padding: "6px", border: "1px solid #ddd", borderRadius: "3px", fontSize: "12px" }} />
+          </div>
+          <div>
+            <label style={{ fontSize: "11px", color: "#7f8c8d", display: "block", marginBottom: "3px" }}>Company</label>
+            <input type="text" placeholder="Company" value={companySearch} onChange={(e) => setCompanySearch(e.target.value)} style={{ width: "100%", padding: "6px", border: "1px solid #ddd", borderRadius: "3px", fontSize: "12px" }} />
+          </div>
+          {isAdmin && uniqueUsers.length > 0 && (
+            <div>
+              <label style={{ fontSize: "11px", color: "#7f8c8d", display: "block", marginBottom: "3px" }}>User</label>
+              <select value={selectedFilterUser} onChange={(e) => setSelectedFilterUser(e.target.value)} style={{ width: "100%", padding: "6px", border: "1px solid #ddd", borderRadius: "3px", fontSize: "12px" }}>
+                <option value="">All Users</option>
+                {uniqueUsers.map(u => <option key={u} value={u}>{u}</option>)}
+              </select>
+            </div>
           )}
-          {categorySearch && (
-            <span className="dsr-filter-tag">
-              Category: {categorySearch}
-              <button onClick={() => setCategorySearch("")}>✕</button>
-            </span>
-          )}
-          {companySearch && (
-            <span className="dsr-filter-tag">
-              Company: {companySearch}
-              <button onClick={() => setCompanySearch("")}>✕</button>
-            </span>
-          )}
+          <div>
+            <label style={{ fontSize: "11px", color: "#7f8c8d", display: "block", marginBottom: "3px" }}>Counter</label>
+            <select value={selectedFilterCounter} onChange={(e) => setSelectedFilterCounter(e.target.value)} style={{ width: "100%", padding: "6px", border: "1px solid #ddd", borderRadius: "3px", fontSize: "12px" }}>
+              <option value="">All Counters</option>
+              {availableCounters.map(c => <option key={c.counterId} value={c.counterId}>{c.counterName}</option>)}
+            </select>
+          </div>
+        </div>
+      </div>
+      
+      {/* Toggle */}
+      <div style={{ margin: "0 20px 15px", display: "flex", gap: "10px" }}>
+        <button onClick={() => setShowUserReport(true)} style={{ padding: "6px 16px", background: showUserReport ? "#2c3e50" : "#ecf0f1", border: "1px solid #ddd", borderRadius: "3px", cursor: "pointer", color: showUserReport ? "white" : "#333", fontSize: "12px" }}>👤 By User</button>
+        <button onClick={() => setShowUserReport(false)} style={{ padding: "6px 16px", background: !showUserReport ? "#2c3e50" : "#ecf0f1", border: "1px solid #ddd", borderRadius: "3px", cursor: "pointer", color: !showUserReport ? "white" : "#333", fontSize: "12px" }}>🏪 By Counter</button>
+      </div>
+      
+      {/* Summary Table */}
+      {showUserReport && userSummary.length > 0 && (
+        <div style={{ background: "white", margin: "0 20px 20px", borderRadius: "4px", border: "1px solid #ddd", overflow: "hidden" }}>
+          <div style={{ background: "#2c3e50", color: "white", padding: "8px 12px", fontSize: "13px", fontWeight: "bold" }}>👤 Sales by User</div>
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px" }}>
+              <thead>
+                <tr style={{ background: "#f8f9fa", borderBottom: "1px solid #ddd" }}>
+                  <th style={{ padding: "8px", textAlign: "left" }}>#</th><th style={{ padding: "8px", textAlign: "left" }}>User</th><th style={{ padding: "8px", textAlign: "right" }}>Invoices</th><th style={{ padding: "8px", textAlign: "right" }}>Qty</th><th style={{ padding: "8px", textAlign: "right" }}>Cash</th><th style={{ padding: "8px", textAlign: "right" }}>Credit</th><th style={{ padding: "8px", textAlign: "right" }}>Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {userSummary.map((u, i) => (
+                  <tr key={i} style={{ borderBottom: "1px solid #eee" }}>
+                    <td style={{ padding: "8px" }}>{i+1}</td>
+                    <td style={{ padding: "8px", fontWeight: "bold" }}>{u.username}</td>
+                    <td style={{ padding: "8px", textAlign: "right" }}>{u.count}</td>
+                    <td style={{ padding: "8px", textAlign: "right" }}>{u.qty}</td>
+                    <td style={{ padding: "8px", textAlign: "right", color: "#27ae60" }}>PKR {fmt(u.cash)}</td>
+                    <td style={{ padding: "8px", textAlign: "right", color: "#e67e22" }}>PKR {fmt(u.credit)}</td>
+                    <td style={{ padding: "8px", textAlign: "right", fontWeight: "bold" }}>PKR {fmt(u.total)}</td>
+                  </tr>
+                ))}
+                <tr style={{ background: "#f8f9fa", fontWeight: "bold", borderTop: "2px solid #ddd" }}>
+                  <td colSpan="2" style={{ padding: "8px" }}>TOTAL</td>
+                  <td style={{ padding: "8px", textAlign: "right" }}>{userSummary.reduce((s,u)=>s+u.count,0)}</td>
+                  <td style={{ padding: "8px", textAlign: "right" }}>{userSummary.reduce((s,u)=>s+u.qty,0)}</td>
+                  <td style={{ padding: "8px", textAlign: "right" }}>PKR {fmt(userSummary.reduce((s,u)=>s+u.cash,0))}</td>
+                  <td style={{ padding: "8px", textAlign: "right" }}>PKR {fmt(userSummary.reduce((s,u)=>s+u.credit,0))}</td>
+                  <td style={{ padding: "8px", textAlign: "right" }}>PKR {fmt(userSummary.reduce((s,u)=>s+u.total,0))}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
       
-      {/* Stats */}
-      <div className="dsr-stats">
-        <div className="dsr-stat-card">
-          <div className="dsr-stat-value">{filteredSales.length.toLocaleString()}</div>
-          <div className="dsr-stat-label">Invoices</div>
+      {!showUserReport && counterSummary.length > 0 && (
+        <div style={{ background: "white", margin: "0 20px 20px", borderRadius: "4px", border: "1px solid #ddd", overflow: "hidden" }}>
+          <div style={{ background: "#2c3e50", color: "white", padding: "8px 12px", fontSize: "13px", fontWeight: "bold" }}>🏪 Sales by Counter</div>
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px" }}>
+              <thead>
+                <tr style={{ background: "#f8f9fa", borderBottom: "1px solid #ddd" }}>
+                  <th style={{ padding: "8px", textAlign: "left" }}>#</th><th style={{ padding: "8px", textAlign: "left" }}>Counter</th><th style={{ padding: "8px", textAlign: "right" }}>Invoices</th><th style={{ padding: "8px", textAlign: "right" }}>Qty</th><th style={{ padding: "8px", textAlign: "right" }}>Cash</th><th style={{ padding: "8px", textAlign: "right" }}>Credit</th><th style={{ padding: "8px", textAlign: "right" }}>Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {counterSummary.map((c, i) => (
+                  <tr key={i} style={{ borderBottom: "1px solid #eee" }}>
+                    <td style={{ padding: "8px" }}>{i+1}</td>
+                    <td style={{ padding: "8px", fontWeight: "bold" }}>{c.counterName}</td>
+                    <td style={{ padding: "8px", textAlign: "right" }}>{c.count}</td>
+                    <td style={{ padding: "8px", textAlign: "right" }}>{c.qty}</td>
+                    <td style={{ padding: "8px", textAlign: "right", color: "#27ae60" }}>PKR {fmt(c.cash)}</td>
+                    <td style={{ padding: "8px", textAlign: "right", color: "#e67e22" }}>PKR {fmt(c.credit)}</td>
+                    <td style={{ padding: "8px", textAlign: "right", fontWeight: "bold" }}>PKR {fmt(c.total)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
-        <div className="dsr-stat-card">
-          <div className="dsr-stat-value">{summary.totalItems.toLocaleString()}</div>
-          <div className="dsr-stat-label">Items Sold</div>
-        </div>
-        <div className="dsr-stat-card">
-          <div className="dsr-stat-value">{summary.totalQty.toLocaleString()}</div>
-          <div className="dsr-stat-label">Total Qty</div>
-        </div>
-        <div className="dsr-stat-card">
-          <div className="dsr-stat-value">PKR {formatCurrency(summary.totalAmount)}</div>
-          <div className="dsr-stat-label">Total Amount</div>
-        </div>
-      </div>
+      )}
       
       {/* Sales Table */}
-      <div className="dsr-table-wrapper">
+      <div style={{ background: "white", margin: "0 20px 20px", borderRadius: "4px", border: "1px solid #ddd", overflow: "hidden" }}>
+        <div style={{ background: "#2c3e50", color: "white", padding: "8px 12px", fontSize: "13px", fontWeight: "bold", display: "flex", justifyContent: "space-between" }}>
+          <span>📋 Sales Transactions</span>
+          <span style={{ fontSize: "11px" }}>{filteredSales.length} records</span>
+        </div>
+        
         {loading ? (
-          <div className="dsr-loading">Loading sales...</div>
+          <div style={{ padding: "40px", textAlign: "center", color: "#7f8c8d" }}>Loading...</div>
         ) : filteredSales.length === 0 ? (
-          <div className="dsr-empty">{hasActiveFilters ? "No sales match your filters" : "No sales found"}</div>
+          <div style={{ padding: "40px", textAlign: "center", color: "#7f8c8d" }}>No sales found</div>
         ) : (
-          <table className="dsr-table">
-            <thead>
-              <tr>
-                <th style={{ width: 50 }}>#</th>
-                <th style={{ width: 100 }}>Invoice #</th>
-                <th style={{ width: 100 }}>Date</th>
-                <th>Customer</th>
-                <th style={{ width: 60 }}>Items</th>
-                <th style={{ width: 60 }}>Qty</th>
-                <th className="r" style={{ width: 120 }}>Total</th>
-                <th className="r" style={{ width: 120 }}>Paid</th>
-                <th className="r" style={{ width: 120 }}>Balance</th>
-                <th style={{ width: 60 }}>Details</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredSales.map((sale, idx) => {
-                const totalQty = (sale.items || []).reduce((sum, item) => sum + (item.pcs || item.qty || 0), 0);
-                const isExpanded = selectedSale?._id === sale._id;
-                
-                return (
-                  <React.Fragment key={sale._id}>
-                    <tr className="dsr-table-row" onClick={() => handleViewDetails(sale)}>
-                      <td className="dsr-idx">{idx + 1}</td>
-                      <td className="dsr-invoice">{sale.invoiceNo}</td>
-                      <td>{sale.invoiceDate}</td>
-                      <td className="dsr-customer">{sale.customerName || "COUNTER SALE"}</td>
-                      <td className="r">{sale.items?.length || 0}</td>
-                      <td className="r">{totalQty}</td>
-                      <td className="r dsr-amount">PKR {formatCurrency(sale.netTotal)}</td>
-                      <td className="r dsr-paid">PKR {formatCurrency(sale.paidAmount)}</td>
-                      <td className="r dsr-balance">PKR {formatCurrency(sale.balance)}</td>
-                      <td className="r">
-                        <button className="dsr-details-btn">
-                          {isExpanded ? "▲" : "▼"}
-                        </button>
-                      </td>
-                    </tr>
-                    
-                    {/* Expandable Items Details */}
-                    {isExpanded && sale.items && sale.items.length > 0 && (
-                      <tr className="dsr-items-row">
-                        <td colSpan="10">
-                          <div className="dsr-items-box">
-                            <div className="dsr-items-title">📋 Items Details</div>
-                            <table className="dsr-items-table">
-                              <thead>
-                                <tr>
-                                  <th style={{ width: 40 }}>#</th>
-                                  <th>Code</th>
-                                  <th>Product Name</th>
-                                  <th style={{ width: 80 }}>UOM</th>
-                                  <th className="r" style={{ width: 60 }}>Qty</th>
-                                  <th className="r" style={{ width: 100 }}>Rate</th>
-                                  <th className="r" style={{ width: 100 }}>Amount</th>
-                                  <th style={{ width: 60 }}>Rack</th>
-                                </tr>
-                              </thead>
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px" }}>
+              <thead>
+                <tr style={{ background: "#f8f9fa", borderBottom: "2px solid #ddd" }}>
+                  <th style={{ padding: "8px", textAlign: "left", width: "40px" }}>#</th>
+                  <th style={{ padding: "8px", textAlign: "left", width: "90px" }}>Invoice</th>
+                  <th style={{ padding: "8px", textAlign: "left", width: "90px" }}>Date</th>
+                  <th style={{ padding: "8px", textAlign: "left" }}>Customer</th>
+                  <th style={{ padding: "8px", textAlign: "left", width: "80px" }}>User</th>
+                  <th style={{ padding: "8px", textAlign: "left", width: "100px" }}>Counter</th>
+                  <th style={{ padding: "8px", textAlign: "right", width: "50px" }}>Items</th>
+                  <th style={{ padding: "8px", textAlign: "right", width: "60px" }}>Qty</th>
+                  <th style={{ padding: "8px", textAlign: "right", width: "100px" }}>Total</th>
+                  <th style={{ padding: "8px", textAlign: "right", width: "100px" }}>Paid</th>
+                  <th style={{ padding: "8px", textAlign: "right", width: "100px" }}>Balance</th>
+                  <th style={{ width: "40px" }}></th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredSales.map((sale, idx) => {
+                  const qty = (sale.items || []).reduce((sum, item) => sum + (item.pcs || item.qty || 0), 0);
+                  const isExpanded = selectedSale?._id === sale._id;
+                  return (
+                    <React.Fragment key={sale._id}>
+                      <tr style={{ borderBottom: "1px solid #eee", cursor: "pointer" }} onClick={() => handleViewDetails(sale)}>
+                        <td style={{ padding: "8px" }}>{idx+1}</td>
+                        <td style={{ padding: "8px", fontWeight: "bold" }}>{sale.invoiceNo}</td>
+                        <td style={{ padding: "8px" }}>{sale.invoiceDate}</td>
+                        <td style={{ padding: "8px" }}>{sale.customerName || "COUNTER SALE"}</td>
+                        <td style={{ padding: "8px" }}><span style={{ background: "#e8f4fd", padding: "2px 6px", borderRadius: "3px", fontSize: "11px" }}>{sale.username || "Unknown"}</span></td>
+                        <td style={{ padding: "8px" }}><span style={{ background: "#fef3e8", padding: "2px 6px", borderRadius: "3px", fontSize: "11px" }}>{sale.counterName || "Main Counter"}</span></td>
+                        <td style={{ padding: "8px", textAlign: "right" }}>{sale.items?.length || 0}</td>
+                        <td style={{ padding: "8px", textAlign: "right" }}>{qty}</td>
+                        <td style={{ padding: "8px", textAlign: "right", fontWeight: "bold" }}>PKR {formatCurrency(sale.netTotal)}</td>
+                        <td style={{ padding: "8px", textAlign: "right", color: "#27ae60" }}>PKR {formatCurrency(sale.paidAmount)}</td>
+                        <td style={{ padding: "8px", textAlign: "right", color: sale.balance > 0 ? "#e74c3c" : "#27ae60" }}>PKR {formatCurrency(sale.balance)}</td>
+                        <td style={{ padding: "8px", textAlign: "center" }}>{isExpanded ? "▲" : "▼"}</td>
+                      </tr>
+                      {isExpanded && sale.items && (
+                        <tr>
+                          <td colSpan="12" style={{ padding: "12px 20px", background: "#f9f9f9" }}>
+                            <div style={{ fontSize: "12px", marginBottom: "8px", fontWeight: "bold" }}>📦 Items Details</div>
+                            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "11px" }}>
+                              <thead><tr><th style={{ padding: "6px", textAlign: "left" }}>#</th><th style={{ padding: "6px", textAlign: "left" }}>Code</th><th style={{ padding: "6px", textAlign: "left" }}>Product</th><th style={{ padding: "6px", textAlign: "left" }}>UOM</th><th style={{ padding: "6px", textAlign: "right" }}>Qty</th><th style={{ padding: "6px", textAlign: "right" }}>Rate</th><th style={{ padding: "6px", textAlign: "right" }}>Amount</th><th style={{ padding: "6px", textAlign: "left" }}>Rack</th></tr></thead>
                               <tbody>
                                 {sale.items.map((item, i) => (
-                                  <tr key={i}>
-                                    <td className="r">{i + 1}</td>
-                                    <td className="dsr-item-code">{item.code || "—"}</td>
-                                    <td>{item.name || item.description || "—"}</td>
-                                    <td>{item.uom || item.measurement || "—"}</td>
-                                    <td className="r">{item.pcs || item.qty || 0}</td>
-                                    <td className="r">PKR {formatCurrency(item.rate)}</td>
-                                    <td className="r dsr-item-amount">PKR {formatCurrency(item.amount)}</td>
-                                    <td className="r">{item.rack || "—"}</td>
-                                  </tr>
+                                  <tr key={i}><td>{i+1}</td>
+                                  <td style={{ padding: "6px" }}>{item.code || "-"}</td>
+                                  <td style={{ padding: "6px" }}>{item.name || item.description}</td>
+                                  <td style={{ padding: "6px" }}>{item.uom || item.measurement || "-"}</td>
+                                  <td style={{ padding: "6px", textAlign: "right" }}>{item.pcs || item.qty}</td><td style={{ padding: "6px", textAlign: "right" }}>PKR {formatCurrency(item.rate)}</td>
+                                  <td style={{ padding: "6px", textAlign: "right", fontWeight: "bold" }}>PKR {formatCurrency(item.amount)}</td>
+                                  <td style={{ padding: "6px" }}>{item.rack || "-"}</td></tr>
                                 ))}
                               </tbody>
-                              <tfoot>
-                                <tr>
-                                  <td colSpan="6" className="r"><strong>Total:</strong></td>
-                                  <td className="r"><strong>PKR {formatCurrency(sale.netTotal)}</strong></td>
-                                  <td></td>
-                                </tr>
-                              </tfoot>
                             </table>
-                          </div>
-                         </td>
-                       </tr>
-                    )}
-                  </React.Fragment>
-                );
-              })}
-            </tbody>
-          </table>
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
       
       {/* Footer */}
-      <div className="dsr-footer">
+      <div style={{ padding: "12px 20px", background: "#ecf0f1", borderTop: "1px solid #ddd", fontSize: "11px", color: "#7f8c8d", marginTop: "20px" }}>
         <span>📊 {filteredSales.length} of {sales.length} invoices</span>
-        {hasActiveFilters && (
-          <span>🔍 Filtered by: {descSearch && "Description"} {categorySearch && "Category"} {companySearch && "Company"}</span>
-        )}
-        <span>🕐 {new Date().toLocaleTimeString()}</span>
+        {hasActiveFilters && <span style={{ marginLeft: "20px" }}>🔍 Filtered results</span>}
+        <span style={{ float: "right" }}>🕐 {new Date().toLocaleString()}</span>
       </div>
     </div>
   );
