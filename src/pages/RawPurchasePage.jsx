@@ -161,7 +161,7 @@ const buildPrintHtml = (sale, type, overrides = {}) => {
           </tr>
         </thead>
         <tbody>${itemRows}</tbody>
-      <tr>
+      </table>
       <hr class="divider-dash">
       <div class="totals-box">
         <div style="display:flex;justify-content:space-between;font-size:9px;margin-bottom:2px">
@@ -256,7 +256,7 @@ const buildPrintHtml = (sale, type, overrides = {}) => {
       <div class="page"${pageNum > 1 ? ' style="page-break-before:always"' : ""}>
         ${headerHtml}
         ${metaHtml}
-        <tr>
+        <table>
           <thead>
             <tr>
               <th style="width:28px;text-align:center">Sr.#</th>
@@ -1225,6 +1225,7 @@ export default function RawPurchasePage() {
     setTimeout(() => searchRef.current?.focus(), 30);
   };
   
+  // FIXED: pickProduct - Focus stays on search input after product selection
   const pickProduct = (product) => {
     if (!product._id) {
       showMsg("Product ID missing", "error");
@@ -1243,7 +1244,8 @@ export default function RawPurchasePage() {
     });
     setSearchText(product.code || "");
     setShowProductModal(false);
-    setTimeout(() => packingRef.current?.focus(), 30);
+    // FIXED: Focus stays on search input after product selection
+    setTimeout(() => searchRef.current?.focus(), 30);
   };
 
   const updateCurRow = (field, val) => {
@@ -1725,14 +1727,104 @@ export default function RawPurchasePage() {
               </div>
             </div>
 
+            {/* FIXED: Entry strip with proper focus flow */}
             <div className="sl-entry-strip">
               <div className="sl-entry-cell sl-entry-product">
                 <label style={{ fontSize: "10px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>Select Product <kbd>F2</kbd></label>
-                <input ref={searchRef} type="text" className="sl-product-input" value={searchText} onKeyDown={(e) => { if (e.key === "ArrowDown") { e.preventDefault(); setShowProductModal(true); } if (e.key === "Enter") { e.preventDefault(); if (!searchText.trim()) { setShowProductModal(true); return; } const q = searchText.trim().toLowerCase(); const found = allProducts.find((p) => p.code?.toLowerCase() === q); if (found) { const pk = found.packingInfo?.[0]; pickProduct({ ...found, _pi: 0, _meas: pk?.measurement || "", _rate: pk?.purchaseRate || pk?.costRate || 0, _pack: pk?.packing || 1, _stock: pk?.openingQty || 0, _name: [found.category, found.description, found.company].filter(Boolean).join(" ") }); } else { alert(`"${searchText}" — Product not found`); searchRef.current?.select(); } } }} onChange={(e) => { setSearchText(e.target.value); if (curRow.name) { setCurRow({ ...EMPTY_ROW }); setPackingOptions([]); } }} autoFocus style={{ border: "1px solid #000000", borderRadius: "4px", height: "36px", background: "#fffde7" }} />
+                <input 
+                  ref={searchRef} 
+                  type="text" 
+                  className="sl-product-input" 
+                  value={searchText} 
+                  onKeyDown={(e) => { 
+                    if (e.key === "ArrowDown") { 
+                      e.preventDefault(); 
+                      setShowProductModal(true); 
+                    }
+                    if (e.key === "Enter") { 
+                      e.preventDefault(); 
+                      // If a product is already selected (curRow has name and productId), move to packing
+                      if (curRow.name && curRow.productId) {
+                        setTimeout(() => packingRef.current?.focus(), 50);
+                        return;
+                      }
+                      // Otherwise, try to search for product
+                      if (!searchText.trim()) { 
+                        setShowProductModal(true); 
+                        return; 
+                      }
+                      const q = searchText.trim().toLowerCase();
+                      const found = allProducts.find((p) => 
+                        p.code?.toLowerCase() === q || 
+                        p.description?.toLowerCase().includes(q) ||
+                        p.name?.toLowerCase().includes(q)
+                      );
+                      if (found) {
+                        const pk = found.packingInfo?.[0];
+                        pickProduct({ 
+                          ...found, 
+                          _pi: 0, 
+                          _meas: pk?.measurement || "", 
+                          _rate: pk?.purchaseRate || pk?.costRate || 0, 
+                          _pack: pk?.packing || 1, 
+                          _stock: pk?.openingQty || 0, 
+                          _name: [found.category, found.description, found.company].filter(Boolean).join(" ") 
+                        });
+                        // AFTER product is selected, focus stays on search input
+                        // User will press Enter again to go to packing
+                      } else { 
+                        alert(`"${searchText}" — Product not found`); 
+                        searchRef.current?.select(); 
+                      }
+                    } 
+                  }} 
+                  onChange={(e) => { 
+                    setSearchText(e.target.value); 
+                    if (curRow.name) { 
+                      setCurRow({ ...EMPTY_ROW }); 
+                      setPackingOptions([]);
+                    } 
+                  }} 
+                  autoFocus 
+                  style={{ border: "1px solid #000000", borderRadius: "4px", height: "36px", background: "#fffde7" }} 
+                />
               </div>
               <div className="sl-entry-cell" style={{ position: "relative" }}>
                 <label style={{ fontSize: "10px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>Packing</label>
-                <input ref={packingRef} type="text" className="xp-input xp-input-sm" style={{ width: 70, border: "1px solid #000000", borderRadius: "4px", height: "36px", background: "#fffde7" }} value={curRow.uom} onChange={(e) => setCurRow((p) => ({ ...p, uom: e.target.value }))} onFocus={() => { setPackingHiIdx(Math.max(0, packingOptions.indexOf(curRow.uom))); }} onBlur={() => setTimeout(() => setPackingOpen(false), 150)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); pcsRef.current?.focus(); return; } if (packingOptions.length === 0) return; if (e.key === "ArrowDown" || e.key === "ArrowUp") { e.preventDefault(); const idx = packingOptions.indexOf(curRow.uom); const next = e.key === "ArrowDown" ? (idx + 1) % packingOptions.length : (idx - 1 + packingOptions.length) % packingOptions.length; const newUom = packingOptions[next]; const product = allProducts.find((p) => p._id === curRow.productId); if (product?.packingInfo) { const pk = product.packingInfo.find((pk) => pk.measurement === newUom); if (pk) { setCurRow((p) => ({ ...p, uom: newUom, rate: pk.purchaseRate || pk.costRate || 0, pcs: pk.packing || 1, amount: (pk.packing || 1) * (pk.purchaseRate || pk.costRate || 0) })); return; } } setCurRow((p) => ({ ...p, uom: newUom })); } }} autoComplete="off" />
+                <input 
+                  ref={packingRef} 
+                  type="text" 
+                  className="xp-input xp-input-sm" 
+                  style={{ width: 70, border: "1px solid #000000", borderRadius: "4px", height: "36px", background: "#fffde7" }} 
+                  value={curRow.uom} 
+                  onChange={(e) => setCurRow((p) => ({ ...p, uom: e.target.value }))} 
+                  onFocus={() => { setPackingHiIdx(Math.max(0, packingOptions.indexOf(curRow.uom))); }} 
+                  onBlur={() => setTimeout(() => setPackingOpen(false), 150)} 
+                  onKeyDown={(e) => { 
+                    if (e.key === "Enter") { 
+                      e.preventDefault(); 
+                      pcsRef.current?.focus(); 
+                      return; 
+                    } 
+                    if (packingOptions.length === 0) return; 
+                    if (e.key === "ArrowDown" || e.key === "ArrowUp") { 
+                      e.preventDefault(); 
+                      const idx = packingOptions.indexOf(curRow.uom); 
+                      const next = e.key === "ArrowDown" ? (idx + 1) % packingOptions.length : (idx - 1 + packingOptions.length) % packingOptions.length; 
+                      const newUom = packingOptions[next]; 
+                      const product = allProducts.find((p) => p._id === curRow.productId); 
+                      if (product?.packingInfo) { 
+                        const pk = product.packingInfo.find((pk) => pk.measurement === newUom); 
+                        if (pk) { 
+                          setCurRow((p) => ({ ...p, uom: newUom, rate: pk.purchaseRate || pk.costRate || 0, pcs: pk.packing || 1, amount: (pk.packing || 1) * (pk.purchaseRate || pk.costRate || 0) })); 
+                          return; 
+                        } 
+                      } 
+                      setCurRow((p) => ({ ...p, uom: newUom })); 
+                    } 
+                  }} 
+                  autoComplete="off" 
+                />
               </div>
               <div className="sl-entry-cell">
                 <label style={{ fontSize: "10px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>Pcs</label>

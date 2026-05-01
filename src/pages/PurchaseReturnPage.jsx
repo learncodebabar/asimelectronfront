@@ -113,7 +113,7 @@ const buildPrintHtml = (purchaseReturn, type, overrides = {}) => {
       <div style="font-size:10px;font-weight:bold;margin-bottom:1px">${supplierName}</div>
       ${purchaseReturn.purchaseInvNo ? `<div style="font-size:9px;color:#555">Ref Purchase: ${purchaseReturn.purchaseInvNo}</div>` : ""}
       <hr class="divider-solid">
-      </table>
+      <table>
         <thead><tr><th style="width:20px">#</th><th>Product</th><th class="r">Qty.</th><th class="r">Rate</th><th class="r">Amount</th></tr></thead>
         <tbody>${itemRows}</tbody>
       </table>
@@ -981,6 +981,9 @@ export default function PurchaseReturnPage() {
   const [msg, setMsg] = useState({ text: "", type: "" });
   const [loading, setLoading] = useState(false);
   const [packingOptions, setPackingOptions] = useState([]);
+  const [packingOpen, setPackingOpen] = useState(false);
+  const [packingHiIdx, setPackingHiIdx] = useState(0);
+  const packingRef = useRef(null);
 
   const searchRef = useRef(null);
   const pcsRef = useRef(null);
@@ -988,7 +991,6 @@ export default function PurchaseReturnPage() {
   const addRef = useRef(null);
   const saveRef = useRef(null);
   const purchaseInvRef = useRef(null);
-  const packingRef = useRef(null);
   const refundRef = useRef(null);
   const supplierCodeInputRef = useRef(null);
 
@@ -1229,6 +1231,7 @@ export default function PurchaseReturnPage() {
     }
   };
 
+  // FIXED: pickProduct - Focus stays on search input after product selection
   const pickProduct = (product) => {
     if (!product._id) {
       showMsg("Product ID missing", "error");
@@ -1247,7 +1250,8 @@ export default function PurchaseReturnPage() {
     });
     setSearchText(product.code || "");
     setShowProductModal(false);
-    setTimeout(() => packingRef.current?.focus(), 30);
+    // FIXED: Focus stays on search input after product selection
+    setTimeout(() => searchRef.current?.focus(), 30);
   };
 
   const updateCurRow = (field, val) => {
@@ -1552,6 +1556,7 @@ export default function PurchaseReturnPage() {
               </div>
             </div>
 
+            {/* FIXED: Entry strip with proper focus flow */}
             <div className="sl-entry-strip">
               <div className="sl-entry-cell sl-entry-product">
                 <label>SELECT PRODUCT <kbd>F2</kbd></label>
@@ -1563,12 +1568,28 @@ export default function PurchaseReturnPage() {
                     style={{ width: "100%", background: "#fffde7", borderColor: "#dc2626" }} 
                     value={searchText} 
                     onKeyDown={(e) => {
-                      if (e.key === "ArrowDown") { e.preventDefault(); setShowProductModal(true); }
+                      if (e.key === "ArrowDown") { 
+                        e.preventDefault(); 
+                        setShowProductModal(true); 
+                      }
                       if (e.key === "Enter") {
                         e.preventDefault();
-                        if (!searchText.trim()) { setShowProductModal(true); return; }
+                        // If a product is already selected (curRow has name and productId), move to packing
+                        if (curRow.name && curRow.productId) {
+                          setTimeout(() => packingRef.current?.focus(), 50);
+                          return;
+                        }
+                        // Otherwise, try to search for product
+                        if (!searchText.trim()) { 
+                          setShowProductModal(true); 
+                          return; 
+                        }
                         const q = searchText.trim().toLowerCase();
-                        const found = allProducts.find((p) => p.code?.toLowerCase() === q || p.description?.toLowerCase().includes(q));
+                        const found = allProducts.find((p) => 
+                          p.code?.toLowerCase() === q || 
+                          p.description?.toLowerCase().includes(q) ||
+                          p.name?.toLowerCase().includes(q)
+                        );
                         if (found) {
                           const pk = found.packingInfo?.[0];
                           pickProduct({ 
@@ -1580,16 +1601,57 @@ export default function PurchaseReturnPage() {
                             _stock: pk?.openingQty || 0, 
                             _name: [found.category, found.description, found.company].filter(Boolean).join(" ") 
                           });
-                        } else { alert(`"${searchText}" — PRODUCT NOT FOUND`); searchRef.current?.select(); }
+                          // AFTER product is selected, focus stays on search input
+                          // User will press Enter again to go to packing
+                        } else { 
+                          alert(`"${searchText}" — PRODUCT NOT FOUND`); 
+                          searchRef.current?.select(); 
+                        }
                       }
                     }} 
-                    onChange={(e) => { setSearchText(e.target.value); if (curRow.name) { setCurRow({ ...EMPTY_ROW }); } }} 
+                    onChange={(e) => { 
+                      setSearchText(e.target.value); 
+                      if (curRow.name) { 
+                        setCurRow({ ...EMPTY_ROW });
+                        setPackingOptions([]);
+                      } 
+                    }} 
                   />
                 </div>
               </div>
               <div className="sl-entry-cell">
                 <label>PACKING</label>
-                <input ref={packingRef} type="text" className="sl-num-input" style={{ width: 70, background: "#fffde7", borderColor: "#dc2626" }} value={curRow.uom} onChange={(e) => setCurRow((p) => ({ ...p, uom: e.target.value }))} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); pcsRef.current?.focus(); } }} />
+                <input 
+                  ref={packingRef} 
+                  type="text" 
+                  className="sl-num-input" 
+                  style={{ width: 70, background: "#fffde7", borderColor: "#dc2626" }} 
+                  value={curRow.uom} 
+                  onChange={(e) => setCurRow((p) => ({ ...p, uom: e.target.value }))} 
+                  onKeyDown={(e) => { 
+                    if (e.key === "Enter") { 
+                      e.preventDefault(); 
+                      pcsRef.current?.focus(); 
+                      return; 
+                    }
+                    if (packingOptions.length === 0) return;
+                    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+                      e.preventDefault();
+                      const idx = packingOptions.indexOf(curRow.uom);
+                      const next = e.key === "ArrowDown" ? (idx + 1) % packingOptions.length : (idx - 1 + packingOptions.length) % packingOptions.length;
+                      const newUom = packingOptions[next];
+                      const product = allProducts.find(p => p._id === curRow.productId);
+                      if (product?.packingInfo) {
+                        const pk = product.packingInfo.find(pk => pk.measurement === newUom);
+                        if (pk) {
+                          setCurRow(prev => ({ ...prev, uom: newUom, rate: pk.purchaseRate || pk.costRate || 0, pcs: pk.packing || 1, amount: (pk.packing || 1) * (pk.purchaseRate || pk.costRate || 0) }));
+                          return;
+                        }
+                      }
+                      setCurRow(prev => ({ ...prev, uom: newUom }));
+                    }
+                  }} 
+                />
               </div>
               <div className="sl-entry-cell">
                 <label>QTY</label>

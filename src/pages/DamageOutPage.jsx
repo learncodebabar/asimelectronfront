@@ -355,10 +355,14 @@ function DamageInProductSearchModal({ onSelect, onClose }) {
                 </thead>
                 <tbody>
                   {loading && (
-                    <tr><td colSpan={8} style={{ padding: "30px", textAlign: "center", color: "#e65100" }}>LOADING...</td></tr>
+                    <tr>
+                      <td colSpan={8} style={{ padding: "30px", textAlign: "center", color: "#e65100" }}>LOADING...</td>
+                    </tr>
                   )}
                   {!loading && filteredProducts.length === 0 && (
-                    <tr><td colSpan={8} style={{ padding: "30px", textAlign: "center", color: "#e65100" }}>NO DAMAGED PRODUCTS FOUND</td></tr>
+                    <tr>
+                      <td colSpan={8} style={{ padding: "30px", textAlign: "center", color: "#e65100" }}>NO DAMAGED PRODUCTS FOUND</td>
+                    </tr>
                   )}
                   {filteredProducts.map((product, i) => (
                     <tr
@@ -411,7 +415,18 @@ function DamageOutHoldPreviewModal({ record, onResume, onClose }) {
           <div className="xp-table-panel">
             <div className="xp-table-scroll" style={{ maxHeight: 300 }}>
               <table className="xp-table">
-                <thead><tr><th>#</th><th>CODE</th><th>NAME</th><th>UOM</th><th className="r">QTY</th><th className="r">RATE</th><th className="r">AMOUNT</th><th>DAMAGE IN REF</th></tr></thead>
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>CODE</th>
+                    <th>NAME</th>
+                    <th>UOM</th>
+                    <th className="r">QTY</th>
+                    <th className="r">RATE</th>
+                    <th className="r">AMOUNT</th>
+                    <th>DAMAGE IN REF</th>
+                  </tr>
+                </thead>
                 <tbody>
                   {record.items.map((r, i) => (
                     <tr key={i}>
@@ -565,6 +580,7 @@ export default function DamageOutPage() {
     setTimeout(() => setMsg({ text: "", type: "" }), 3500);
   };
   
+  // FIXED: pickProduct - Focus stays on search input after product selection
   const pickProduct = (product) => {
     if (!product.productId) {
       showMsg("Product ID missing", "error");
@@ -588,7 +604,8 @@ export default function DamageOutPage() {
     setSearchText(product.code || "");
     setShowProductModal(false);
     setShowProductSuggestions(false);
-    setTimeout(() => pcsRef.current?.focus(), 30);
+    // FIXED: Focus stays on search input after product selection
+    setTimeout(() => searchRef.current?.focus(), 30);
   };
 
   const updateCurRow = (field, val) => {
@@ -931,6 +948,7 @@ export default function DamageOutPage() {
     setLoading(false);
   };
 
+  // FIXED: handleProductSearchKeyDown - Proper focus flow
   const handleProductSearchKeyDown = (e) => {
     if (e.key === "ArrowDown") {
       e.preventDefault();
@@ -947,12 +965,20 @@ export default function DamageOutPage() {
       setSelectedProductSuggestionIdx(prev => prev > 0 ? prev - 1 : -1);
     } else if (e.key === "Enter") {
       e.preventDefault();
+      // If a product is already selected (curRow has name and productId), move to pcs
+      if (curRow.name && curRow.productId) {
+        setTimeout(() => pcsRef.current?.focus(), 50);
+        return;
+      }
+      // Otherwise, try to select from suggestions or search
       if (selectedProductSuggestionIdx >= 0 && productSuggestions[selectedProductSuggestionIdx]) {
         pickProduct(productSuggestions[selectedProductSuggestionIdx]);
         setProductSuggestions([]);
         setShowProductSuggestions(false);
         setSelectedProductSuggestionIdx(-1);
-      } else if (searchText.trim()) {
+        return;
+      }
+      if (searchText.trim()) {
         const exactMatch = allDamageInProducts.find(p => 
           p.code?.toLowerCase() === searchText.trim().toLowerCase()
         );
@@ -1099,6 +1125,7 @@ export default function DamageOutPage() {
             </div>
           </div>
 
+          {/* FIXED: Entry strip with proper focus flow */}
           <div className="sl-entry-strip">
             <div className="sl-entry-cell sl-entry-product">
               <label>SELECT DAMAGED PRODUCT <kbd>F2</kbd></label>
@@ -1214,18 +1241,24 @@ export default function DamageOutPage() {
 
           <div className="sl-items-wrap">
             <table className="sl-items-table">
-              <thead><tr>
-                <th style={{ width: 32 }}>#</th>
-                <th style={{ width: 72 }}>CODE</th>
-                <th>PRODUCT NAME</th>
-                <th style={{ width: 55 }} className="r">QTY</th>
-                <th style={{ width: 80 }} className="r">RATE</th>
-                <th style={{ width: 90 }} className="r">AMOUNT</th>
-                <th style={{ width: 100 }}>DAMAGE IN REF</th>
-                <th style={{ width: 40 }}></th>
-              </tr></thead>
+              <thead>
+                <tr>
+                  <th style={{ width: 32 }}>#</th>
+                  <th style={{ width: 72 }}>CODE</th>
+                  <th>PRODUCT NAME</th>
+                  <th style={{ width: 55 }} className="r">QTY</th>
+                  <th style={{ width: 80 }} className="r">RATE</th>
+                  <th style={{ width: 90 }} className="r">AMOUNT</th>
+                  <th style={{ width: 100 }}>DAMAGE IN REF</th>
+                  <th style={{ width: 40 }}></th>
+                </tr>
+              </thead>
               <tbody>
-                {items.length === 0 && <tr><td colSpan={8} className="xp-empty" style={{ padding: 14 }}>⚠ SEARCH AND ADD DAMAGED PRODUCTS FROM DAMAGE IN RECORDS</td></tr>}
+                {items.length === 0 && (
+                  <tr>
+                    <td colSpan={8} className="xp-empty" style={{ padding: 14 }}>⚠ SEARCH AND ADD DAMAGED PRODUCTS FROM DAMAGE IN RECORDS</td>
+                  </tr>
+                )}
                 {items.map((r, i) => (
                   <tr key={i} className={selItemIdx === i ? "sl-sel-row" : ""} onClick={() => setSelItemIdx(i === selItemIdx ? null : i)} onDoubleClick={() => loadRowForEdit(i)}>
                     <td className="muted" style={{ textAlign: "center" }}>{i + 1}</td>
@@ -1254,7 +1287,15 @@ export default function DamageOutPage() {
             <div className="sl-hold-title" style={{ background: "#e65100" }}><span>📋 DAMAGE OUT HOLD <kbd>F4</kbd></span><span className="sl-hold-cnt">{holdRecords.length}</span></div>
             <div className="sl-hold-table-wrap">
               <table className="sl-hold-table">
-                <thead><tr><th style={{ width: 24 }}>#</th><th>DAMAGE OUT ID</th><th className="r">AMOUNT</th><th>DATE</th><th style={{ width: 22 }}></th></tr></thead>
+                <thead>
+                  <tr>
+                    <th style={{ width: 24 }}>#</th>
+                    <th>DAMAGE OUT ID</th>
+                    <th className="r">AMOUNT</th>
+                    <th>DATE</th>
+                    <th style={{ width: 22 }}></th>
+                  </tr>
+                </thead>
                 <tbody>
                   {holdRecords.length === 0 ? Array.from({ length: 8 }).map((_, i) => <tr key={i}><td colSpan={5} style={{ height: 22 }} /></tr>) : holdRecords.map((r, i) => (
                     <tr key={r.id} onClick={() => setShowHoldPreview(r)} onDoubleClick={() => resumeRecord(r.id)} style={{ cursor: "pointer" }}>

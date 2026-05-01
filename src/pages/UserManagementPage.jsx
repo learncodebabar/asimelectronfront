@@ -143,6 +143,15 @@ export default function UserManagementPage() {
     }
   };
 
+  // Helper function to split permissions into rows of 3
+  const chunkArray = (arr, size) => {
+    const chunks = [];
+    for (let i = 0; i < arr.length; i += size) {
+      chunks.push(arr.slice(i, i + size));
+    }
+    return chunks;
+  };
+
   return (
     <div style={{ padding: 20, fontFamily: 'Tahoma, sans-serif' }}>
       <div style={{
@@ -257,7 +266,7 @@ export default function UserManagementPage() {
           zIndex: 10000,
         }}>
           <div style={{
-            width: 600,
+            width: 650,
             maxHeight: '80vh',
             background: '#f0ede4',
             border: '1px solid #aca899',
@@ -361,16 +370,17 @@ export default function UserManagementPage() {
                   {PERMISSION_GROUPS.map(group => {
                     const allSelected = group.permissions.every(p => formData.permissions.includes(p));
                     const someSelected = group.permissions.some(p => formData.permissions.includes(p));
+                    const permissionRows = chunkArray(group.permissions, 3);
                     
                     return (
                       <div key={group.name} style={{
-                        marginBottom: 12,
+                        marginBottom: 16,
                         border: '1px solid #ddd',
                         background: '#fff',
                         borderRadius: 2,
                       }}>
                         <div style={{
-                          padding: '6px 10px',
+                          padding: '8px 12px',
                           background: '#e8e4d8',
                           borderBottom: '1px solid #ddd',
                           display: 'flex',
@@ -385,22 +395,36 @@ export default function UserManagementPage() {
                             }}
                             onChange={(e) => handleSelectAllGroup(group.permissions, e.target.checked)}
                           />
-                          <span style={{ fontWeight: 500, fontSize: 12 }}>{group.name}</span>
+                          <span style={{ fontWeight: 600, fontSize: 12 }}>{group.name}</span>
                         </div>
-                        <div style={{ padding: '8px 10px', display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                          {group.permissions.map(perm => {
-                            const label = perm.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-                            return (
-                              <label key={perm} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11 }}>
-                                <input
-                                  type="checkbox"
-                                  checked={formData.permissions.includes(perm)}
-                                  onChange={() => handleTogglePermission(perm)}
-                                />
-                                {label}
-                              </label>
-                            );
-                          })}
+                        <div style={{ padding: '10px 12px' }}>
+                          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                            <tbody>
+                              {permissionRows.map((row, rowIndex) => (
+                                <tr key={rowIndex}>
+                                  {row.map(perm => {
+                                    const label = perm.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+                                    return (
+                                      <td key={perm} style={{ padding: '4px 8px', width: '33%' }}>
+                                        <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, cursor: 'pointer' }}>
+                                          <input
+                                            type="checkbox"
+                                            checked={formData.permissions.includes(perm)}
+                                            onChange={() => handleTogglePermission(perm)}
+                                          />
+                                          {label}
+                                        </label>
+                                      </td>
+                                    );
+                                  })}
+                                  {/* Fill empty cells to maintain table structure */}
+                                  {row.length < 3 && Array(3 - row.length).fill().map((_, i) => (
+                                    <td key={`empty-${i}`} style={{ padding: '4px 8px', width: '33%' }} />
+                                  ))}
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
                         </div>
                       </div>
                     );

@@ -531,8 +531,7 @@ function HoldPreviewModal({ bill, onResume, onClose }) {
             <div className="xp-table-scroll" style={{ maxHeight: 300 }}>
               <table className="xp-table">
                 <thead>
-                  <tr>
-                    <th>#</th>
+                  <tr>                    <th>#</th>
                     <th>Code</th>
                     <th>Name</th>
                     <th>UOM</th>
@@ -1125,6 +1124,10 @@ export default function PurchasePage() {
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState({ text: "", type: "" });
   const [isProcessing, setIsProcessing] = useState(false);
+  const [packingOptions, setPackingOptions] = useState([]);
+  const [packingOpen, setPackingOpen] = useState(false);
+  const [packingHiIdx, setPackingHiIdx] = useState(0);
+  const packingRef = useRef(null);
 
   const searchRef = useRef(null);
   const pcsRef = useRef(null);
@@ -1241,11 +1244,13 @@ export default function PurchasePage() {
     setTimeout(() => searchRef.current?.focus(), 100);
   };
 
+  // MODIFIED: pickProduct - Keep focus on search input after product selection
   const pickProduct = (product) => {
     if (!product._id) {
       showMsg("Product ID missing", "error");
       return;
     }
+    setPackingOptions(product.packingInfo?.map((pk) => pk.measurement) || []);
     setCurRow({
       productId: product._id,
       code: product.code || "",
@@ -1258,7 +1263,8 @@ export default function PurchasePage() {
     });
     setSearchText(product.code || "");
     setShowProductModal(false);
-    setTimeout(() => pcsRef.current?.focus(), 30);
+    // Focus remains on search input after product selection
+    setTimeout(() => searchRef.current?.focus(), 30);
   };
 
   const updateCurRow = (field, val) => {
@@ -1289,6 +1295,7 @@ export default function PurchasePage() {
   const resetCurRow = () => {
     setCurRow({ ...EMPTY_ROW });
     setSearchText("");
+    setPackingOptions([]);
     setTimeout(() => searchRef.current?.focus(), 30);
   };
 
@@ -1743,6 +1750,7 @@ export default function PurchasePage() {
               </div>
             </div>
 
+            {/* MODIFIED: Entry strip with Packing field added before Qty */}
             <div className="sl-entry-strip">
               <div className="sl-entry-cell sl-entry-product">
                 <label>Select Product <kbd>F2</kbd></label>
@@ -1776,6 +1784,8 @@ export default function PurchasePage() {
                           _stock: pk?.openingQty || 0, 
                           _name: [found.category, found.description, found.company].filter(Boolean).join(" ") 
                         });
+                        // AFTER product is selected on Enter, focus on packing field
+                        setTimeout(() => packingRef.current?.focus(), 50);
                       } else { 
                         alert(`"${searchText}" — Product not found`); 
                         searchRef.current?.select(); 
@@ -1786,11 +1796,74 @@ export default function PurchasePage() {
                     setSearchText(e.target.value); 
                     if (curRow.name) { 
                       setCurRow({ ...EMPTY_ROW }); 
+                      setPackingOptions([]);
                     } 
                   }} 
                   autoFocus 
                 />
               </div>
+              
+              {/* NEW: Packing field added before Qty */}
+              <div className="sl-entry-cell" style={{ position: "relative" }}>
+                <label>Packing</label>
+                <input
+                  ref={packingRef}
+                  type="text"
+                  className="xp-input sl-num-input"
+                  style={{ width: 65, background: "#fffde7" }}
+                  value={curRow.uom}
+                  onChange={(e) =>
+                    setCurRow((p) => ({ ...p, uom: e.target.value }))
+                  }
+                  onFocus={() => {
+                    setPackingHiIdx(
+                      Math.max(0, packingOptions.indexOf(curRow.uom)),
+                    );
+                  }}
+                  onBlur={() => setTimeout(() => setPackingOpen(false), 150)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      // After packing Enter, focus goes to Qty field
+                      pcsRef.current?.focus();
+                      return;
+                    }
+                    if (packingOptions.length === 0) return;
+                    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+                      e.preventDefault();
+                      const idx = packingOptions.indexOf(curRow.uom);
+                      const next =
+                        e.key === "ArrowDown"
+                          ? (idx + 1) % packingOptions.length
+                          : (idx - 1 + packingOptions.length) %
+                            packingOptions.length;
+                      const newUom = packingOptions[next];
+
+                      const product = allProducts.find(
+                        (p) => p._id === curRow.productId,
+                      );
+                      if (product?.packingInfo) {
+                        const pk = product.packingInfo.find(
+                          (pk) => pk.measurement === newUom,
+                        );
+                        if (pk) {
+                          setCurRow((p) => ({
+                            ...p,
+                            uom: newUom,
+                            rate: pk.purchaseRate || pk.costRate || 0,
+                            pcs: pk.packing || 1,
+                            amount: (pk.packing || 1) * (pk.purchaseRate || pk.costRate || 0),
+                          }));
+                          return;
+                        }
+                      }
+                      setCurRow((p) => ({ ...p, uom: newUom }));
+                    }
+                  }}
+                  autoComplete="off"
+                />
+              </div>
+              
               <div className="sl-entry-cell">
                 <label>Qty</label>
                 <input 

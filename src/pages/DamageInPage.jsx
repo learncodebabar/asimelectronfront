@@ -156,7 +156,7 @@ const buildDamageInPrintHtml = (record) => {
 
     <table>
       <thead>
-        <tr>
+        <td>
           <th style="width:25px">#</th>
           <th style="width:70px">Code</th>
           <th>Product Description</th>
@@ -616,6 +616,7 @@ export default function DamageInPage() {
   const [loading, setLoading] = useState(false);
   const [packingOptions, setPackingOptions] = useState([]);
   const [editId, setEditId] = useState(null);
+  const [packingRef, setPackingRef] = useState(useRef(null));
 
   const [productSuggestions, setProductSuggestions] = useState([]);
   const [showProductSuggestions, setShowProductSuggestions] = useState(false);
@@ -707,6 +708,7 @@ export default function DamageInPage() {
     setTimeout(() => setMsg({ text: "", type: "" }), 3500);
   };
   
+  // FIXED: pickProduct - Focus stays on search input after product selection
   const pickProduct = (product) => {
     if (!product._id) {
       showMsg("Product ID missing", "error");
@@ -727,7 +729,8 @@ export default function DamageInPage() {
     setSearchText(product.code || "");
     setShowProductModal(false);
     setShowProductSuggestions(false);
-    setTimeout(() => pcsRef.current?.focus(), 30);
+    // FIXED: Focus stays on search input after product selection
+    setTimeout(() => searchRef.current?.focus(), 30);
   };
 
   const updateCurRow = (field, val) => {
@@ -1175,7 +1178,7 @@ export default function DamageInPage() {
               </div>
             </div>
 
-            {/* Entry strip */}
+            {/* FIXED: Entry strip with proper focus flow */}
             <div className="sl-entry-strip">
               <div className="sl-entry-cell sl-entry-product">
                 <label>
@@ -1207,6 +1210,12 @@ export default function DamageInPage() {
                       }
                       if (e.key === "Enter") {
                         e.preventDefault();
+                        // If a product is already selected (curRow has name and productId), move to pcs
+                        if (curRow.name && curRow.productId) {
+                          setTimeout(() => pcsRef.current?.focus(), 50);
+                          return;
+                        }
+                        // First check if there's a selected suggestion
                         if (selectedProductSuggestionIdx >= 0 && productSuggestions[selectedProductSuggestionIdx]) {
                           const found = productSuggestions[selectedProductSuggestionIdx];
                           const pk = found.packingInfo?.[0];
@@ -1221,31 +1230,38 @@ export default function DamageInPage() {
                           });
                           setProductSuggestions([]);
                           setShowProductSuggestions(false);
-                        } else if (searchText.trim()) {
-                          const q = searchText.trim().toLowerCase();
-                          let found = allProducts.find(p => p.code?.toLowerCase() === q);
-                          if (!found) {
-                            found = allProducts.find(p => 
-                              p.description?.toLowerCase().includes(q) ||
-                              p.name?.toLowerCase().includes(q)
-                            );
-                          }
-                          if (found) {
-                            const pk = found.packingInfo?.[0];
-                            pickProduct({
-                              ...found,
-                              _pi: 0,
-                              _meas: pk?.measurement || "",
-                              _rate: pk?.purchaseRate || pk?.saleRate || 0,
-                              _pack: pk?.packing || 1,
-                              _stock: pk?.openingQty || 0,
-                              _name: [found.category, found.description, found.company].filter(Boolean).join(" "),
-                            });
-                          } else {
-                            setShowProductModal(true);
-                          }
+                          return;
+                        }
+                        
+                        // Otherwise, try to search for product
+                        if (!searchText.trim()) { 
+                          setShowProductModal(true); 
+                          return; 
+                        }
+                        const q = searchText.trim().toLowerCase();
+                        let found = allProducts.find(p => p.code?.toLowerCase() === q);
+                        if (!found) {
+                          found = allProducts.find(p => 
+                            p.description?.toLowerCase().includes(q) ||
+                            p.name?.toLowerCase().includes(q)
+                          );
+                        }
+                        if (found) {
+                          const pk = found.packingInfo?.[0];
+                          pickProduct({
+                            ...found,
+                            _pi: 0,
+                            _meas: pk?.measurement || "",
+                            _rate: pk?.purchaseRate || pk?.saleRate || 0,
+                            _pack: pk?.packing || 1,
+                            _stock: pk?.openingQty || 0,
+                            _name: [found.category, found.description, found.company].filter(Boolean).join(" "),
+                          });
+                          setProductSuggestions([]);
+                          setShowProductSuggestions(false);
                         } else {
-                          setShowProductModal(true);
+                          alert(`"${searchText}" — Product not found`);
+                          searchRef.current?.select();
                         }
                       }
                       if (e.key === "Escape") {

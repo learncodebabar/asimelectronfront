@@ -256,7 +256,7 @@ const buildQuotationPrintHtml = (quotation, overrides = {}) => {
     
     <div class="divider"></div>
 
-    <table>
+    </table>
       <thead>
         <tr>
           <th style="width:25px;text-align:center">#</th>
@@ -865,6 +865,7 @@ export default function QuotationPage() {
   const [showCustomerModal, setShowCustomerModal] = useState(false);
   const [pendingSaveData, setPendingSaveData] = useState(null);
   const [editId, setEditId] = useState(null);
+  const [packingRef, setPackingRef] = useState(useRef(null));
 
   const [productSuggestions, setProductSuggestions] = useState([]);
   const [showProductSuggestions, setShowProductSuggestions] = useState(false);
@@ -949,6 +950,7 @@ export default function QuotationPage() {
     setTimeout(() => setMsg({ text: "", type: "" }), 3500);
   };
   
+  // FIXED: pickProduct - Focus stays on search input after product selection
   const pickProduct = (product) => {
     if (!product._id) {
       showMsg("Product ID missing", "error");
@@ -968,7 +970,8 @@ export default function QuotationPage() {
     setSearchText(product.code || "");
     setShowProductModal(false);
     setShowProductSuggestions(false);
-    setTimeout(() => pcsRef.current?.focus(), 30);
+    // FIXED: Focus stays on search input after product selection
+    setTimeout(() => searchRef.current?.focus(), 30);
   };
 
   const updateCurRow = (field, val) => {
@@ -1399,7 +1402,7 @@ export default function QuotationPage() {
               </div>
             </div>
 
-            {/* Entry strip */}
+            {/* FIXED: Entry strip with proper focus flow */}
             <div className="sl-entry-strip">
               <div className="sl-entry-cell sl-entry-product">
                 <label>
@@ -1431,6 +1434,12 @@ export default function QuotationPage() {
                       }
                       if (e.key === "Enter") {
                         e.preventDefault();
+                        // If a product is already selected (curRow has name and productId), move to pcs
+                        if (curRow.name && curRow.productId) {
+                          setTimeout(() => pcsRef.current?.focus(), 50);
+                          return;
+                        }
+                        // Otherwise, try to search for product
                         if (selectedProductSuggestionIdx >= 0 && productSuggestions[selectedProductSuggestionIdx]) {
                           const found = productSuggestions[selectedProductSuggestionIdx];
                           const pk = found.packingInfo?.[0];
@@ -1465,8 +1474,11 @@ export default function QuotationPage() {
                               _stock: pk?.openingQty || 0,
                               _name: [found.category, found.description, found.company].filter(Boolean).join(" "),
                             });
+                            setProductSuggestions([]);
+                            setShowProductSuggestions(false);
                           } else {
-                            setShowProductModal(true);
+                            alert(`"${searchText}" — Product not found`);
+                            searchRef.current?.select();
                           }
                         } else {
                           setShowProductModal(true);

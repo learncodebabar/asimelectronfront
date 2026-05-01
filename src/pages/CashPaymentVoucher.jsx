@@ -1,4 +1,4 @@
-// pages/CashPaymentVoucher.jsx - Same design as Cash Receipt
+// pages/CashPaymentVoucher.jsx - Added Print Functionality
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../api/api.js";
@@ -15,6 +15,95 @@ const generateVoucherNo = () => {
   const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
   return `CPV-${year}${month}${day}-${random}`;
 };
+
+// Print Voucher Component
+const PrintVoucher = React.forwardRef(({ voucherData, supplierData }, ref) => {
+  const totalAmount = voucherData.amount || 0;
+  const inWords = (amount) => {
+    const words = ['Zero', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
+    const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+    
+    const convertToWords = (num) => {
+      if (num === 0) return '';
+      if (num < 20) return words[num];
+      if (num < 100) return tens[Math.floor(num / 10)] + (num % 10 !== 0 ? ' ' + words[num % 10] : '');
+      if (num < 1000) return words[Math.floor(num / 100)] + ' Hundred' + (num % 100 !== 0 ? ' ' + convertToWords(num % 100) : '');
+      if (num < 100000) return convertToWords(Math.floor(num / 1000)) + ' Thousand' + (num % 1000 !== 0 ? ' ' + convertToWords(num % 1000) : '');
+      if (num < 10000000) return convertToWords(Math.floor(num / 100000)) + ' Lakh' + (num % 100000 !== 0 ? ' ' + convertToWords(num % 100000) : '');
+      return convertToWords(Math.floor(num / 10000000)) + ' Crore' + (num % 10000000 !== 0 ? ' ' + convertToWords(num % 10000000) : '');
+    };
+    
+    return convertToWords(Math.floor(amount)) + ' Rupees Only';
+  };
+  
+  return (
+    <div ref={ref} style={{ 
+      width: '280px', 
+      padding: '12px', 
+      fontFamily: "'Courier New', monospace", 
+      fontSize: '11px',
+      background: 'white',
+      color: 'black'
+    }}>
+      <div style={{ textAlign: 'center', borderBottom: '1px dashed #000', paddingBottom: '6px', marginBottom: '8px' }}>
+        <h3 style={{ margin: 0, fontSize: '14px' }}>CASH PAYMENT VOUCHER</h3>
+        <p style={{ margin: '2px 0', fontSize: '9px' }}>Payment Voucher / Cash Memo</p>
+      </div>
+      
+      <div style={{ marginBottom: '8px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '3px' }}>
+          <span>Voucher No:</span>
+          <span style={{ fontWeight: 'bold' }}>{voucherData.cpv_number}</span>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '3px' }}>
+          <span>Date:</span>
+          <span>{voucherData.date}</span>
+        </div>
+      </div>
+      
+      <div style={{ marginBottom: '8px', borderTop: '1px dotted #ccc', borderBottom: '1px dotted #ccc', padding: '6px 0' }}>
+        <div><strong>Paid To:</strong></div>
+        <div style={{ fontWeight: 'bold', marginTop: '2px' }}>{supplierData?.name || voucherData.account_title}</div>
+        {supplierData?.code && <div style={{ fontSize: '9px' }}>Code: {supplierData.code}</div>}
+        {supplierData?.phone && <div style={{ fontSize: '9px' }}>Phone: {supplierData.phone}</div>}
+      </div>
+      
+      <div style={{ marginBottom: '8px' }}>
+        <div><strong>Amount:</strong></div>
+        <div style={{ fontSize: '18px', fontWeight: 'bold', textAlign: 'center', margin: '4px 0' }}>
+          PKR {fmt(totalAmount)}
+        </div>
+        <div style={{ fontSize: '9px', fontStyle: 'italic', textAlign: 'center' }}>
+          {inWords(totalAmount)}
+        </div>
+      </div>
+      
+      {voucherData.invoice && voucherData.invoice !== "0" && (
+        <div style={{ marginBottom: '8px', borderTop: '1px dotted #ccc', paddingTop: '4px' }}>
+          <div><strong>Invoice #:</strong></div>
+          <div style={{ fontSize: '9px' }}>{voucherData.invoice}</div>
+        </div>
+      )}
+      
+      {voucherData.remarks && (
+        <div style={{ marginBottom: '8px', borderTop: '1px dotted #ccc', paddingTop: '4px' }}>
+          <div><strong>Remarks:</strong></div>
+          <div style={{ fontSize: '9px' }}>{voucherData.remarks}</div>
+        </div>
+      )}
+      
+      <div style={{ marginTop: '10px', borderTop: '1px dashed #000', paddingTop: '6px', textAlign: 'center' }}>
+        <div style={{ fontSize: '9px' }}>Authorized Signature</div>
+        <div style={{ marginTop: '15px' }}>
+          <div style={{ borderTop: '1px dotted #999', width: '120px', margin: '0 auto' }}></div>
+        </div>
+        <div style={{ fontSize: '8px', marginTop: '6px', color: '#666' }}>
+          Thank you for your business!
+        </div>
+      </div>
+    </div>
+  );
+});
 
 // Supplier Dropdown Component
 function SupplierDropdown({
@@ -335,6 +424,7 @@ function SupplierDropdown({
 
 export default function CashPaymentVoucher() {
   const navigate = useNavigate();
+  const printRef = useRef();
   
   const [voucherId, setVoucherId] = useState(generateVoucherNo());
   const [voucherDate, setVoucherDate] = useState(isoD());
@@ -358,6 +448,8 @@ export default function CashPaymentVoucher() {
   const [searchVoucherNo, setSearchVoucherNo] = useState("");
   const [showVoucherSearch, setShowVoucherSearch] = useState(false);
   const [searchVoucherResult, setSearchVoucherResult] = useState(null);
+  const [showPrintDialog, setShowPrintDialog] = useState(false);
+  const [voucherToPrint, setVoucherToPrint] = useState(null);
   
   const codeInputRef = useRef(null);
   const remarksRef = useRef(null);
@@ -365,12 +457,31 @@ export default function CashPaymentVoucher() {
   const amountRef = useRef(null);
   const submitRef = useRef(null);
   const searchRef = useRef(null);
+  const printConfirmRef = useRef(null);
   
   useEffect(() => {
     loadSuppliers();
     loadTransactions();
     codeInputRef.current?.focus();
   }, []);
+  
+  // Listen for Enter key when print dialog is shown
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (showPrintDialog && e.key === "Enter") {
+        e.preventDefault();
+        handlePrint();
+      }
+      if (showPrintDialog && e.key === "Escape") {
+        e.preventDefault();
+        setShowPrintDialog(false);
+        setVoucherToPrint(null);
+      }
+    };
+    
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [showPrintDialog]);
   
   // Filter transactions when search is performed
   useEffect(() => {
@@ -418,6 +529,113 @@ export default function CashPaymentVoucher() {
     setTimeout(() => setMsg({ text: "", type: "" }), 3000);
   };
   
+  const handlePrint = () => {
+    if (!voucherToPrint) return;
+    
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>Payment Voucher - ${voucherToPrint.cpv_number}</title>
+          <style>
+            body { margin: 0; padding: 20px; display: flex; justify-content: center; align-items: center; min-height: 100vh; background: #f0f0f0; }
+            @media print {
+              body { background: white; padding: 0; }
+              button { display: none; }
+            }
+          </style>
+        </head>
+        <body>
+          <div id="print-content">
+            <div style="width:280px; padding:12px; font-family:'Courier New', monospace; font-size:11px; background:white; color:black;">
+              <div style="text-align:center; border-bottom:1px dashed #000; padding-bottom:6px; margin-bottom:8px;">
+                <h3 style="margin:0; font-size:14px;">CASH PAYMENT VOUCHER</h3>
+                <p style="margin:2px 0; font-size:9px;">Payment Voucher / Cash Memo</p>
+              </div>
+              
+              <div style="margin-bottom:8px;">
+                <div style="display:flex; justify-content:space-between; margin-bottom:3px;">
+                  <span>Voucher No:</span>
+                  <span style="font-weight:bold;">${voucherToPrint.cpv_number}</span>
+                </div>
+                <div style="display:flex; justify-content:space-between; margin-bottom:3px;">
+                  <span>Date:</span>
+                  <span>${voucherToPrint.date}</span>
+                </div>
+              </div>
+              
+              <div style="margin-bottom:8px; border-top:1px dotted #ccc; border-bottom:1px dotted #ccc; padding:6px 0;">
+                <div><strong>Paid To:</strong></div>
+                <div style="font-weight:bold; margin-top:2px;">${selectedSupplier?.name || voucherToPrint.account_title}</div>
+                ${selectedSupplier?.code ? `<div style="font-size:9px;">Code: ${selectedSupplier.code}</div>` : ''}
+                ${selectedSupplier?.phone ? `<div style="font-size:9px;">Phone: ${selectedSupplier.phone}</div>` : ''}
+              </div>
+              
+              <div style="margin-bottom:8px;">
+                <div><strong>Amount:</strong></div>
+                <div style="font-size:18px; font-weight:bold; text-align:center; margin:4px 0;">
+                  PKR ${fmt(voucherToPrint.amount)}
+                </div>
+                <div style="font-size:9px; font-style:italic; text-align:center;">
+                  ${(() => {
+                    const amount = voucherToPrint.amount;
+                    const words = ['Zero', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
+                    const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+                    const convertToWords = (num) => {
+                      if (num === 0) return '';
+                      if (num < 20) return words[num];
+                      if (num < 100) return tens[Math.floor(num / 10)] + (num % 10 !== 0 ? ' ' + words[num % 10] : '');
+                      if (num < 1000) return words[Math.floor(num / 100)] + ' Hundred' + (num % 100 !== 0 ? ' ' + convertToWords(num % 100) : '');
+                      if (num < 100000) return convertToWords(Math.floor(num / 1000)) + ' Thousand' + (num % 1000 !== 0 ? ' ' + convertToWords(num % 1000) : '');
+                      if (num < 10000000) return convertToWords(Math.floor(num / 100000)) + ' Lakh' + (num % 100000 !== 0 ? ' ' + convertToWords(num % 100000) : '');
+                      return convertToWords(Math.floor(num / 10000000)) + ' Crore' + (num % 10000000 !== 0 ? ' ' + convertToWords(num % 10000000) : '');
+                    };
+                    return convertToWords(Math.floor(amount)) + ' Rupees Only';
+                  })()}
+                </div>
+              </div>
+              
+              ${voucherToPrint.invoice && voucherToPrint.invoice !== "0" ? `
+                <div style="margin-bottom:8px; border-top:1px dotted #ccc; padding-top:4px;">
+                  <div><strong>Invoice #:</strong></div>
+                  <div style="font-size:9px;">${voucherToPrint.invoice}</div>
+                </div>
+              ` : ''}
+              
+              ${voucherToPrint.remarks ? `
+                <div style="margin-bottom:8px; border-top:1px dotted #ccc; padding-top:4px;">
+                  <div><strong>Remarks:</strong></div>
+                  <div style="font-size:9px;">${voucherToPrint.remarks}</div>
+                </div>
+              ` : ''}
+              
+              <div style="margin-top:10px; border-top:1px dashed #000; padding-top:6px; text-align:center;">
+                <div style="font-size:9px;">Authorized Signature</div>
+                <div style="margin-top:15px;">
+                  <div style="border-top:1px dotted #999; width:120px; margin:0 auto;"></div>
+                </div>
+                <div style="font-size:8px; margin-top:6px; color:#666;">
+                  Thank you for your business!
+                </div>
+              </div>
+            </div>
+          </div>
+          <button onclick="window.print()" style="position: fixed; bottom: 20px; right: 20px; padding: 10px 20px; font-size: 14px;">🖨️ Print</button>
+          <button onclick="window.close()" style="position: fixed; bottom: 20px; left: 20px; padding: 10px 20px; font-size: 14px;">✕ Close</button>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+    setShowPrintDialog(false);
+    setVoucherToPrint(null);
+    setTimeout(() => codeInputRef.current?.focus(), 100);
+  };
+  
+  const handlePrintVoucher = (voucher) => {
+    setVoucherToPrint(voucher);
+    setShowPrintDialog(true);
+  };
+  
   const handleSupplierSelect = async (supplier) => {
     if (!supplier || !supplier._id) {
       showMsg("Invalid supplier selected", "error");
@@ -433,7 +651,6 @@ export default function CashPaymentVoucher() {
         setSelectedSupplier(sup);
         setErrors({ ...errors, supplier: "" });
         setSearchVoucherResult(null);
-        // Filter transactions by this supplier
         const supplierTransactions = transactions.filter(t => t.account_title?.toLowerCase() === sup.name?.toLowerCase());
         setFilteredTransactions(supplierTransactions);
         setTimeout(() => remarksRef.current?.focus(), 100);
@@ -555,14 +772,15 @@ export default function CashPaymentVoucher() {
     setTimeout(() => remarksRef.current?.focus(), 100);
   };
   
-  const handleDelete = async () => {
-    if (!editId) return;
-    if (!window.confirm(`Delete Voucher #${voucherId}?`)) return;
+  const handleDelete = async (id, voucherNo) => {
+    if (!window.confirm(`Delete Voucher "${voucherNo}"?`)) return;
     try {
-      await api.delete(EP.CPV.DELETE(editId));
-      showMsg("Record deleted");
+      await api.delete(EP.CPV.DELETE(id));
+      showMsg(`Voucher "${voucherNo}" deleted`);
       await loadTransactions();
-      handleNew();
+      if (editId === id) {
+        handleNew();
+      }
     } catch (e) {
       showMsg(e.response?.data?.error || "Delete failed", "error");
     }
@@ -655,6 +873,14 @@ export default function CashPaymentVoucher() {
         showMsg(`CPV #${response.data.cpv_number} saved`);
       }
       
+      // Store for printing
+      setVoucherToPrint({
+        ...payload,
+        _id: response.data?._id || editId,
+        cpv_number: voucherId,
+        date: voucherDate
+      });
+      
       setVoucherId(generateVoucherNo());
       setRemarks("");
       setInvoiceNo("");
@@ -668,6 +894,9 @@ export default function CashPaymentVoucher() {
         setFilteredTransactions(supplierTransactions);
       }
       
+      // Show print dialog
+      setShowPrintDialog(true);
+      
       setTimeout(() => remarksRef.current?.focus(), 100);
     } catch (err) {
       showMsg(err.response?.data?.error || "Save failed", "error");
@@ -679,6 +908,88 @@ export default function CashPaymentVoucher() {
   
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%", background: "#ffffff" }}>
+      {/* Hidden print content */}
+      <div id="print-voucher-content" style={{ display: 'none' }}>
+        {voucherToPrint && (
+          <PrintVoucher 
+            ref={printRef}
+            voucherData={voucherToPrint}
+            supplierData={selectedSupplier}
+          />
+        )}
+      </div>
+      
+      {/* Print Dialog */}
+      {showPrintDialog && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0,0,0,0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 20000,
+        }}>
+          <div style={{
+            background: 'white',
+            borderRadius: '8px',
+            padding: '20px',
+            width: '320px',
+            textAlign: 'center',
+            border: '2px solid #000000',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+          }}>
+            <div style={{ fontSize: '48px', marginBottom: '10px' }}>🖨️</div>
+            <h3 style={{ margin: '0 0 10px 0', fontSize: '16px' }}>Print Payment Voucher?</h3>
+            <p style={{ fontSize: '12px', margin: '0 0 20px 0', color: '#666' }}>
+              Voucher #{voucherToPrint?.cpv_number} has been saved successfully.
+              <br /><strong style={{ color: '#22c55e' }}>Press ENTER to print</strong> or ESC to close
+            </p>
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
+              <button
+                ref={printConfirmRef}
+                onClick={handlePrint}
+                autoFocus
+                style={{
+                  padding: '8px 20px',
+                  background: '#22c55e',
+                  color: 'white',
+                  border: '1px solid #000000',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  fontWeight: 'bold',
+                  fontSize: '12px'
+                }}
+              >
+                🖨️ Print (Enter)
+              </button>
+              <button
+                onClick={() => {
+                  setShowPrintDialog(false);
+                  setVoucherToPrint(null);
+                  codeInputRef.current?.focus();
+                }}
+                style={{
+                  padding: '8px 20px',
+                  background: '#ef4444',
+                  color: 'white',
+                  border: '1px solid #000000',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  fontWeight: 'bold',
+                  fontSize: '12px'
+                }}
+              >
+                ✕ Close (ESC)
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
       <div className="xp-titlebar" style={{ background: "#1e40af", padding: "8px 16px" }}>
         <button className="xp-cap-btn" onClick={() => navigate("/")} style={{ color: "white", fontSize: "16px" }}>←</button>
         <span className="xp-tb-title" style={{ color: "white", fontSize: "16px", fontWeight: "bold" }}>Cash Payment Voucher</span>
@@ -999,15 +1310,17 @@ export default function CashPaymentVoucher() {
                     <th style={{ padding: "4px 4px", textAlign: "left", border: "1px solid #000000", fontSize: "9px", fontWeight: "bold" }}>Remarks</th>
                     <th style={{ padding: "4px 4px", textAlign: "right", border: "1px solid #000000", fontSize: "9px", fontWeight: "bold" }}>Invoice #</th>
                     <th style={{ padding: "4px 4px", textAlign: "right", border: "1px solid #000000", fontSize: "9px", fontWeight: "bold" }}>Amount</th>
-                    <th style={{ padding: "4px 4px", textAlign: "center", width: "75px", border: "1px solid #000000", fontWeight: "bold" }}>Actions</th>
+                    <th style={{ padding: "4px 4px", textAlign: "center", width: "100px", border: "1px solid #000000", fontWeight: "bold" }}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredTransactions.map((t, i) => (
                     <tr 
                       key={t._id || i} 
-                      onClick={() => handleEdit(t)}
-                      style={{ cursor: "pointer", backgroundColor: editId === t._id ? "#fef3c7" : "transparent" }}
+                      style={{ 
+                        backgroundColor: editId === t._id ? "#fef3c7" : "transparent",
+                        borderBottom: "1px solid #000000"
+                      }}
                     >
                       <td style={{ padding: "4px 4px", textAlign: "center", border: "1px solid #000000", fontWeight: "600" }}>{i + 1}</td>
                       <td style={{ padding: "4px 4px", whiteSpace: "nowrap", border: "1px solid #000000" }}>{t.date?.slice(0, 10) || "—"}</td>
@@ -1019,14 +1332,23 @@ export default function CashPaymentVoucher() {
                       <td style={{ padding: "4px 4px", textAlign: "center", border: "1px solid #000000" }}>
                         <div style={{ display: "flex", gap: "4px", justifyContent: "center" }}>
                           <button
-                            onClick={(e) => { e.stopPropagation(); handleEdit(t); }}
-                            style={{ background: "#f59e0b", color: "white", border: "1px solid #000000", borderRadius: "3px", padding: "3px 8px", fontSize: "9px", fontWeight: "bold", cursor: "pointer" }}
+                            onClick={() => handleEdit(t)}
+                            style={{ background: "#f59e0b", color: "white", border: "1px solid #000000", borderRadius: "3px", padding: "3px 6px", fontSize: "9px", fontWeight: "bold", cursor: "pointer" }}
+                            title="Edit Voucher"
                           >
                             ✏ Edit
                           </button>
                           <button
-                            onClick={(e) => { e.stopPropagation(); handleDelete(t._id, t.cpv_number); }}
-                            style={{ background: "#ef4444", color: "white", border: "1px solid #000000", borderRadius: "3px", padding: "3px 8px", fontSize: "9px", fontWeight: "bold", cursor: "pointer" }}
+                            onClick={() => handlePrintVoucher(t)}
+                            style={{ background: "#22c55e", color: "white", border: "1px solid #000000", borderRadius: "3px", padding: "3px 6px", fontSize: "9px", fontWeight: "bold", cursor: "pointer" }}
+                            title="Print Voucher"
+                          >
+                            🖨️ Print
+                          </button>
+                          <button
+                            onClick={() => handleDelete(t._id, t.cpv_number)}
+                            style={{ background: "#ef4444", color: "white", border: "1px solid #000000", borderRadius: "3px", padding: "3px 6px", fontSize: "9px", fontWeight: "bold", cursor: "pointer" }}
+                            title="Delete Voucher"
                           >
                             🗑 Del
                           </button>

@@ -104,7 +104,7 @@ const buildPrintHtml = (ret, type) => {
       ${ret.saleInvNo ? `<div style="font-size:9px;color:#666">Ref Sale: ${ret.saleInvNo}</div>` : ""}
       <div style="font-size:10.5px;font-weight:bold">${ret.customerName}</div>
       <hr class="solid">
-      <tr>
+      <table>
         <thead><tr><th>#</th><th>Item</th><th class="r">Qty</th><th class="r">Rate</th><th class="r">Amt</th></tr></thead>
         <tbody>${itemRows}</tbody>
       </table>
@@ -185,7 +185,7 @@ const buildPrintHtml = (ret, type) => {
       </div>
     </div>
     <table>
-      <thead><tr><th style="width:28px;text-align:center">Sr.#</th><th>Product</th><th style="width:50px">Unit</th><th style="width:42px;text-align:right">Qty</th><th style="width:70px;text-align:right">Rate</th><th style="width:80px;text-align:right">Amount</th></tr></thead>
+      <thead><tr><th style="width:28px;text-align:center">Sr.#</th><th>Product</th><th style="width:50px">Unit</th><th style="width:42px;text-align:right">Qty</th><th style="width:70px;text-align:right">Rate</th><th style="width:80px;text-align:right">Amount</th></table></thead>
       <tbody>${itemRows}</tbody>
     </table>
     <div class="footer-wrap">
@@ -1040,9 +1040,10 @@ export default function SaleReturnPage() {
       rate: product._rate || 0,
       amount: (product._pack || 1) * (product._rate || 0),
     });
-    setSearchText(product._name || product.description || "");
+    setSearchText(product.code || product.description || "");
     setShowProductModal(false);
-    setTimeout(() => packingRef.current?.focus(), 30);
+    // FIXED: Focus stays on search input after product selection
+    setTimeout(() => searchRef.current?.focus(), 30);
   };
 
   const updateCurRow = (field, val) => {
@@ -1321,15 +1322,101 @@ export default function SaleReturnPage() {
             </div>
           </div>
 
-          {/* Entry strip */}
+          {/* Entry strip - FIXED: Focus stays on search after product selection, Enter moves to packing */}
           <div className="sl-entry-strip">
             <div className="sl-entry-cell sl-entry-product">
               <label>Select Product <kbd>F2</kbd></label>
-              <input ref={searchRef} type="text" className="sl-product-input" style={{ background: "#fffde7" }} value={searchText} onKeyDown={(e) => { if (e.key === "Enter" || e.key === "F2") { e.preventDefault(); setShowProductModal(true); } }} onChange={(e) => { setSearchText(e.target.value); if (curRow.name) { setCurRow({ ...EMPTY_ROW }); } }} autoFocus />
+              <input 
+                ref={searchRef} 
+                type="text" 
+                className="sl-product-input" 
+                style={{ background: "#fffde7" }} 
+                value={searchText} 
+                onKeyDown={(e) => { 
+                  if (e.key === "ArrowDown") { 
+                    e.preventDefault(); 
+                    setShowProductModal(true); 
+                  }
+                  if (e.key === "Enter") { 
+                    e.preventDefault(); 
+                    // If a product is already selected (curRow has name and productId), move to packing
+                    if (curRow.name && curRow.productId) {
+                      setTimeout(() => packingRef.current?.focus(), 50);
+                      return;
+                    }
+                    // Otherwise, try to search for product
+                    if (!searchText.trim()) { 
+                      setShowProductModal(true); 
+                      return; 
+                    }
+                    const q = searchText.trim().toLowerCase();
+                    const found = allProducts.find((p) => 
+                      p.code?.toLowerCase() === q || 
+                      p.description?.toLowerCase().includes(q) ||
+                      p.name?.toLowerCase().includes(q)
+                    );
+                    if (found) {
+                      const pk = found.packingInfo?.[0];
+                      pickProduct({ 
+                        ...found, 
+                        _pi: 0, 
+                        _meas: pk?.measurement || "", 
+                        _rate: pk?.saleRate || 0, 
+                        _pack: pk?.packing || 1, 
+                        _stock: pk?.openingQty || 0, 
+                        _name: [found.category, found.description, found.company].filter(Boolean).join(" ") 
+                      });
+                      // AFTER product is selected, focus stays on search input
+                      // User will press Enter again to go to packing
+                    } else { 
+                      alert(`"${searchText}" — Product not found`); 
+                      searchRef.current?.select(); 
+                    }
+                  } 
+                }} 
+                onChange={(e) => { 
+                  setSearchText(e.target.value); 
+                  if (curRow.name) { 
+                    setCurRow({ ...EMPTY_ROW }); 
+                  } 
+                }} 
+                autoFocus 
+              />
             </div>
             <div className="sl-entry-cell">
               <label>Packing</label>
-              <input ref={packingRef} type="text" className="xp-input sl-num-input" style={{ width: 65, background: "#fffde7" }} value={curRow.uom} onChange={(e) => setCurRow((p) => ({ ...p, uom: e.target.value }))} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); pcsRef.current?.focus(); return; } if (packingOptions.length === 0) return; if (e.key === "ArrowDown" || e.key === "ArrowUp") { e.preventDefault(); const idx = packingOptions.indexOf(curRow.uom); const next = e.key === "ArrowDown" ? (idx + 1) % packingOptions.length : (idx - 1 + packingOptions.length) % packingOptions.length; const newUom = packingOptions[next]; const product = allProducts.find(p => p._id === curRow.productId); if (product?.packingInfo) { const pk = product.packingInfo.find(pk => pk.measurement === newUom); if (pk) { setCurRow(prev => ({ ...prev, uom: newUom, rate: pk.saleRate || 0, pcs: pk.packing || 1, amount: (pk.packing || 1) * (pk.saleRate || 0) })); return; } } setCurRow(prev => ({ ...prev, uom: newUom })); } }} autoComplete="off" />
+              <input 
+                ref={packingRef} 
+                type="text" 
+                className="xp-input sl-num-input" 
+                style={{ width: 65, background: "#fffde7" }} 
+                value={curRow.uom} 
+                onChange={(e) => setCurRow((p) => ({ ...p, uom: e.target.value }))} 
+                onKeyDown={(e) => { 
+                  if (e.key === "Enter") { 
+                    e.preventDefault(); 
+                    pcsRef.current?.focus(); 
+                    return; 
+                  } 
+                  if (packingOptions.length === 0) return; 
+                  if (e.key === "ArrowDown" || e.key === "ArrowUp") { 
+                    e.preventDefault(); 
+                    const idx = packingOptions.indexOf(curRow.uom); 
+                    const next = e.key === "ArrowDown" ? (idx + 1) % packingOptions.length : (idx - 1 + packingOptions.length) % packingOptions.length; 
+                    const newUom = packingOptions[next]; 
+                    const product = allProducts.find(p => p._id === curRow.productId); 
+                    if (product?.packingInfo) { 
+                      const pk = product.packingInfo.find(pk => pk.measurement === newUom); 
+                      if (pk) { 
+                        setCurRow(prev => ({ ...prev, uom: newUom, rate: pk.saleRate || 0, pcs: pk.packing || 1, amount: (pk.packing || 1) * (pk.saleRate || 0) })); 
+                        return; 
+                      } 
+                    } 
+                    setCurRow(prev => ({ ...prev, uom: newUom })); 
+                  } 
+                }} 
+                autoComplete="off" 
+              />
             </div>
             <div className="sl-entry-cell">
               <label>Pcs</label>

@@ -208,7 +208,7 @@ const buildPrintHtml = (sale, type, overrides = {}) => {
           </tr>
         </thead>
         <tbody>${itemRows}</tbody>
-      </table>
+      <tr>
       <hr class="divider-dash">
       <div class="totals-box">
         <div style="display:flex;justify-content:space-between;font-size:9px;margin-bottom:2px">
@@ -315,7 +315,7 @@ const buildPrintHtml = (sale, type, overrides = {}) => {
             </tr>
           </thead>
           <tbody>${itemRows}</tbody>
-        </table>
+        </tr>
         ${footerHtml}
       </div>`;
   };
@@ -681,11 +681,11 @@ function SearchModal({ allProducts, onSelect, onClose }) {
                 </thead>
                 <tbody ref={tbodyRef} tabIndex={0} onKeyDown={tk}>
                   {rows.length === 0 && (
-                    <tr>
+                    <td>
                       <td colSpan={8} className="xp-empty">
                         ⚠️ No products found with company name "RAW". Please check your product data.
                       </td>
-                    </tr>
+                    </td>
                   )}
                   {rows.map((r, i) => (
                     <tr key={`${r._id}-${r._pi}`} style={{ background: i === hiIdx ? "#c3d9f5" : undefined }} onClick={() => setHiIdx(i)} onDoubleClick={() => onSelect(r)}>
@@ -993,6 +993,10 @@ export default function RawSalePage() {
   const saveRef = useRef(null);
   const statementRef = useRef(null);
 
+  const [productSuggestions, setProductSuggestions] = useState([]);
+  const [showProductSuggestions, setShowProductSuggestions] = useState(false);
+  const [selectedProductSuggestionIdx, setSelectedProductSuggestionIdx] = useState(-1);
+
   useEffect(() => {
     const t = setInterval(() => setTime(timeNow()), 1000);
     return () => clearInterval(t);
@@ -1005,6 +1009,28 @@ export default function RawSalePage() {
   useEffect(() => {
     saveHolds(holdBills);
   }, [holdBills]);
+
+  useEffect(() => {
+    if (!searchText.trim()) {
+      setProductSuggestions([]);
+      setShowProductSuggestions(false);
+      return;
+    }
+    
+    const q = searchText.trim().toLowerCase();
+    const matches = allProducts.filter(p => 
+      (p.company || "").toLowerCase() === "raw" && (
+        p.code?.toLowerCase().includes(q) ||
+        p.description?.toLowerCase().includes(q) ||
+        p.name?.toLowerCase().includes(q) ||
+        p.category?.toLowerCase().includes(q)
+      )
+    ).slice(0, 10);
+    
+    setProductSuggestions(matches);
+    setShowProductSuggestions(matches.length > 0 && !curRow.name);
+    setSelectedProductSuggestionIdx(-1);
+  }, [searchText, allProducts, curRow.name]);
 
   const subTotal = items.reduce((s, r) => s + (parseFloat(r.amount) || 0), 0);
   const billAmount = subTotal - (parseFloat(extraDiscount) || 0);
@@ -1167,6 +1193,7 @@ export default function RawSalePage() {
     setTimeout(() => searchRef.current?.focus(), 30);
   };
   
+  // FIXED: pickProduct - Focus stays on search input after product selection
   const pickProduct = (product) => {
     if (!product._id) {
       showMsg("Product ID missing", "error");
@@ -1185,7 +1212,9 @@ export default function RawSalePage() {
     });
     setSearchText(product.code || "");
     setShowProductModal(false);
-    setTimeout(() => packingRef.current?.focus(), 30);
+    setShowProductSuggestions(false);
+    // FIXED: Focus stays on search input after product selection
+    setTimeout(() => searchRef.current?.focus(), 30);
   };
 
   const updateCurRow = (field, val) => {
@@ -1225,6 +1254,7 @@ export default function RawSalePage() {
     setSearchText("");
     setPackingOptions([]);
     setSelItemIdx(null);
+    setShowProductSuggestions(false);
     setTimeout(() => searchRef.current?.focus(), 30);
   };
 
@@ -1313,6 +1343,7 @@ export default function RawSalePage() {
     setCreditWarning(false);
     setCreditStatement("");
     setShowCustomerPanel(false);
+    setShowProductSuggestions(false);
     setTimeout(() => searchRef.current?.focus(), 50);
   };
   
@@ -1676,42 +1707,188 @@ export default function RawSalePage() {
               </div>
             </div>
 
+            {/* FIXED: Entry strip with proper focus flow */}
             <div className="sl-entry-strip">
               <div className="sl-entry-cell sl-entry-product">
                 <label>Select Product <kbd>F2</kbd></label>
-                <input ref={searchRef} type="text" className="sl-product-input" style={{ width: "100%", background: "#fffde7" }} value={searchText} onKeyDown={(e) => {
-                  if (e.key === "ArrowDown") { e.preventDefault(); setShowProductModal(true); }
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    if (!searchText.trim()) { setShowProductModal(true); return; }
-                    const q = searchText.trim().toLowerCase();
-                    let found = allProducts.find(p => p.code?.toLowerCase() === q);
-                    if (!found) found = allProducts.find(p => p.description?.toLowerCase().includes(q) || p.name?.toLowerCase().includes(q));
-                    if (found) {
-                      const pk = found.packingInfo?.[0];
-                      pickProduct({ ...found, _pi: 0, _meas: pk?.measurement || "", _rate: pk?.saleRate || 0, _pack: pk?.packing || 1, _stock: pk?.openingQty || 0, _name: [found.category, found.description, found.company].filter(Boolean).join(" ") });
-                    } else { setShowProductModal(true); }
-                  }
-                }} onChange={(e) => { setSearchText(e.target.value); if (curRow.name) { setCurRow({ ...EMPTY_ROW }); setPackingOptions([]); } }} autoFocus />
+                <div style={{ position: "relative", flex: 1 }}>
+                  <input 
+                    ref={searchRef} 
+                    type="text" 
+                    className="sl-product-input" 
+                    style={{ width: "100%", background: "#fffde7" }} 
+                    value={searchText} 
+                    onKeyDown={(e) => {
+                      if (e.key === "ArrowDown") {
+                        e.preventDefault();
+                        if (productSuggestions.length > 0) {
+                          setSelectedProductSuggestionIdx(prev => 
+                            prev < productSuggestions.length - 1 ? prev + 1 : prev
+                          );
+                          setShowProductSuggestions(true);
+                        } else {
+                          setShowProductModal(true);
+                        }
+                      }
+                      if (e.key === "ArrowUp") {
+                        e.preventDefault();
+                        setSelectedProductSuggestionIdx(prev => prev > 0 ? prev - 1 : -1);
+                      }
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        // If a product is already selected (curRow has name and productId), move to packing
+                        if (curRow.name && curRow.productId) {
+                          setTimeout(() => packingRef.current?.focus(), 50);
+                          return;
+                        }
+                        // First check if there's a selected suggestion
+                        if (selectedProductSuggestionIdx >= 0 && productSuggestions[selectedProductSuggestionIdx]) {
+                          const found = productSuggestions[selectedProductSuggestionIdx];
+                          const pk = found.packingInfo?.[0];
+                          pickProduct({
+                            ...found,
+                            _pi: 0,
+                            _meas: pk?.measurement || "",
+                            _rate: pk?.saleRate || 0,
+                            _pack: pk?.packing || 1,
+                            _stock: pk?.openingQty || 0,
+                            _name: [found.category, found.description, found.company].filter(Boolean).join(" "),
+                          });
+                          setProductSuggestions([]);
+                          setShowProductSuggestions(false);
+                          return;
+                        }
+                        
+                        // Otherwise, try to search for product
+                        if (!searchText.trim()) { 
+                          setShowProductModal(true); 
+                          return; 
+                        }
+                        const q = searchText.trim().toLowerCase();
+                        let found = allProducts.find(p => p.code?.toLowerCase() === q);
+                        if (!found) {
+                          found = allProducts.find(p => 
+                            p.description?.toLowerCase().includes(q) ||
+                            p.name?.toLowerCase().includes(q)
+                          );
+                        }
+                        if (found) {
+                          const pk = found.packingInfo?.[0];
+                          pickProduct({
+                            ...found,
+                            _pi: 0,
+                            _meas: pk?.measurement || "",
+                            _rate: pk?.saleRate || 0,
+                            _pack: pk?.packing || 1,
+                            _stock: pk?.openingQty || 0,
+                            _name: [found.category, found.description, found.company].filter(Boolean).join(" "),
+                          });
+                          setProductSuggestions([]);
+                          setShowProductSuggestions(false);
+                        } else {
+                          alert(`"${searchText}" — Product not found`);
+                          searchRef.current?.select();
+                        }
+                      }
+                      if (e.key === "Escape") {
+                        setShowProductSuggestions(false);
+                      }
+                    }}
+                    onChange={(e) => { 
+                      setSearchText(e.target.value); 
+                      if (curRow.name) { 
+                        setCurRow({ ...EMPTY_ROW });
+                        setPackingOptions([]);
+                      } 
+                    }}
+                    autoFocus 
+                  />
+                  {showProductSuggestions && productSuggestions.length > 0 && (
+                    <div className="sl-product-suggestions" style={{
+                      position: "absolute",
+                      top: "100%",
+                      left: 0,
+                      right: 0,
+                      backgroundColor: "white",
+                      border: "1px solid #f59e0b",
+                      borderRadius: "4px",
+                      maxHeight: "200px",
+                      overflowY: "auto",
+                      zIndex: 1000,
+                      boxShadow: "0 4px 6px -1px rgba(0,0,0,0.1)",
+                      marginTop: "2px"
+                    }}>
+                      {productSuggestions.map((p, idx) => (
+                        <div
+                          key={p._id}
+                          className={`sl-suggestion-item ${idx === selectedProductSuggestionIdx ? 'selected' : ''}`}
+                          style={{
+                            padding: "8px 12px",
+                            cursor: "pointer",
+                            backgroundColor: idx === selectedProductSuggestionIdx ? "#fef3c7" : "white",
+                            borderBottom: "1px solid #f3f4f6",
+                            fontSize: "13px"
+                          }}
+                          onClick={() => {
+                            const pk = p.packingInfo?.[0];
+                            pickProduct({
+                              ...p,
+                              _pi: 0,
+                              _meas: pk?.measurement || "",
+                              _rate: pk?.saleRate || 0,
+                              _pack: pk?.packing || 1,
+                              _stock: pk?.openingQty || 0,
+                              _name: [p.category, p.description, p.company].filter(Boolean).join(" "),
+                            });
+                            setShowProductSuggestions(false);
+                            setProductSuggestions([]);
+                            setTimeout(() => packingRef.current?.focus(), 50);
+                          }}
+                        >
+                          <span style={{ fontWeight: "bold", color: "#000" }}>{p.code}</span>
+                          <span style={{ marginLeft: "8px", color: "#333" }}>{p.description || p.name}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
               <div className="sl-entry-cell" style={{ position: "relative" }}>
                 <label>Packing</label>
-                <input ref={packingRef} type="text" className="xp-input sl-num-input" style={{ width: 65, background: "#fffde7" }} value={curRow.uom} onChange={(e) => setCurRow((p) => ({ ...p, uom: e.target.value }))} onFocus={() => setPackingHiIdx(Math.max(0, packingOptions.indexOf(curRow.uom)))} onBlur={() => setTimeout(() => setPackingOpen(false), 150)} onKeyDown={(e) => {
-                  if (e.key === "Enter") { e.preventDefault(); pcsRef.current?.focus(); return; }
-                  if (packingOptions.length === 0) return;
-                  if (e.key === "ArrowDown" || e.key === "ArrowUp") {
-                    e.preventDefault();
-                    const idx = packingOptions.indexOf(curRow.uom);
-                    const next = e.key === "ArrowDown" ? (idx + 1) % packingOptions.length : (idx - 1 + packingOptions.length) % packingOptions.length;
-                    const newUom = packingOptions[next];
-                    const product = allProducts.find((p) => p._id === curRow.productId);
-                    if (product?.packingInfo) {
-                      const pk = product.packingInfo.find((pk) => pk.measurement === newUom);
-                      if (pk) { setCurRow((p) => ({ ...p, uom: newUom, rate: pk.saleRate || 0, pcs: pk.packing || 1, amount: (pk.packing || 1) * (pk.saleRate || 0) })); return; }
+                <input 
+                  ref={packingRef} 
+                  type="text" 
+                  className="xp-input sl-num-input" 
+                  style={{ width: 65, background: "#fffde7" }} 
+                  value={curRow.uom} 
+                  onChange={(e) => setCurRow((p) => ({ ...p, uom: e.target.value }))} 
+                  onFocus={() => setPackingHiIdx(Math.max(0, packingOptions.indexOf(curRow.uom)))} 
+                  onBlur={() => setTimeout(() => setPackingOpen(false), 150)} 
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") { 
+                      e.preventDefault(); 
+                      pcsRef.current?.focus(); 
+                      return; 
                     }
-                    setCurRow((p) => ({ ...p, uom: newUom }));
-                  }
-                }} autoComplete="off" />
+                    if (packingOptions.length === 0) return;
+                    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+                      e.preventDefault();
+                      const idx = packingOptions.indexOf(curRow.uom);
+                      const next = e.key === "ArrowDown" ? (idx + 1) % packingOptions.length : (idx - 1 + packingOptions.length) % packingOptions.length;
+                      const newUom = packingOptions[next];
+                      const product = allProducts.find((p) => p._id === curRow.productId);
+                      if (product?.packingInfo) {
+                        const pk = product.packingInfo.find((pk) => pk.measurement === newUom);
+                        if (pk) { 
+                          setCurRow((p) => ({ ...p, uom: newUom, rate: pk.saleRate || 0, pcs: pk.packing || 1, amount: (pk.packing || 1) * (pk.saleRate || 0) })); 
+                          return; 
+                        }
+                      }
+                      setCurRow((p) => ({ ...p, uom: newUom }));
+                    }
+                  }} 
+                  autoComplete="off" 
+                />
               </div>
               <div className="sl-entry-cell"><label>Pcs</label><input ref={pcsRef} type="text" className="sl-num-input" style={{ width: 60, background: "#fffde7" }} value={curRow.pcs} min={1} onChange={(e) => updateCurRow("pcs", e.target.value)} onKeyDown={(e) => e.key === "Enter" && rateRef.current?.focus()} onFocus={(e) => e.target.select()} /></div>
               <div className="sl-entry-cell"><label>Rate</label><input ref={rateRef} type="text" className="sl-num-input" style={{ width: 75, background: "#fffde7" }} value={curRow.rate} min={0} onChange={(e) => updateCurRow("rate", e.target.value)} onBlur={(e) => { const product = allProducts.find((p) => p._id === curRow.productId); if (product?.packingInfo) { const pk = product.packingInfo.find((p) => p.measurement === curRow.uom); if (pk) { const purchaseRate = pk.purchaseRate || pk.costRate || 0; if (purchaseRate > 0 && parseFloat(e.target.value) < purchaseRate) { showMsg(`Rate cannot be less than purchase rate (${purchaseRate})`, "error"); updateCurRow("rate", purchaseRate); } } } }} onKeyDown={(e) => e.key === "Enter" && amountRef.current?.focus()} onFocus={(e) => e.target.select()} /></div>
@@ -1733,7 +1910,7 @@ export default function RawSalePage() {
               <table className="sl-items-table">
                 <thead><tr><th style={{ width: 32 }}>Sr.#</th><th style={{ width: 72 }}>Code</th><th>Name</th><th style={{ width: 65 }}>UOM</th><th style={{ width: 55 }} className="r">Pcs</th><th style={{ width: 80 }} className="r">Rate</th><th style={{ width: 90 }} className="r">Amount</th><th style={{ width: 50 }}>Rack</th></tr></thead>
                 <tbody>
-                  {items.length === 0 && <tr><td colSpan={8} className="xp-empty" style={{ padding: 14 }}>Search and add raw products to start the bill</td></tr>}
+                  {items.length === 0 && <td><td colSpan={8} className="xp-empty" style={{ padding: 14 }}>Search and add raw products to start the bill</td></td>}
                   {items.map((r, i) => (
                     <tr key={i} className={selItemIdx === i ? "sl-sel-row" : ""} onClick={() => setSelItemIdx(i === selItemIdx ? null : i)} onDoubleClick={() => loadRowForEdit(i)}>
                       <td className="muted" style={{ textAlign: "center", fontSize: "var(--xp-fs-xs)" }}>{i + 1}</td>

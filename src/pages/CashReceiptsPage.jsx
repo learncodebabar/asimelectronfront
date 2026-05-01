@@ -1,4 +1,4 @@
-// pages/CashReceiptPage.jsx - Fixed to show receipts without selecting customer
+// pages/CashReceiptPage.jsx - Added Print Previous Receipts
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../api/api.js";
@@ -15,6 +15,88 @@ const generateReceiptNo = () => {
   const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
   return `CRV-${year}${month}${day}-${random}`;
 };
+
+// Print Receipt Component
+const PrintReceipt = React.forwardRef(({ receiptData, customerData }, ref) => {
+  const totalAmount = receiptData.amount || receiptData.amountReceived || 0;
+  const inWords = (amount) => {
+    const words = ['Zero', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
+    const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+    
+    const convertToWords = (num) => {
+      if (num === 0) return '';
+      if (num < 20) return words[num];
+      if (num < 100) return tens[Math.floor(num / 10)] + (num % 10 !== 0 ? ' ' + words[num % 10] : '');
+      if (num < 1000) return words[Math.floor(num / 100)] + ' Hundred' + (num % 100 !== 0 ? ' ' + convertToWords(num % 100) : '');
+      if (num < 100000) return convertToWords(Math.floor(num / 1000)) + ' Thousand' + (num % 1000 !== 0 ? ' ' + convertToWords(num % 1000) : '');
+      if (num < 10000000) return convertToWords(Math.floor(num / 100000)) + ' Lakh' + (num % 100000 !== 0 ? ' ' + convertToWords(num % 100000) : '');
+      return convertToWords(Math.floor(num / 10000000)) + ' Crore' + (num % 10000000 !== 0 ? ' ' + convertToWords(num % 10000000) : '');
+    };
+    
+    return convertToWords(Math.floor(amount)) + ' Rupees Only';
+  };
+  
+  return (
+    <div ref={ref} style={{ 
+      width: '280px', 
+      padding: '12px', 
+      fontFamily: "'Courier New', monospace", 
+      fontSize: '11px',
+      background: 'white',
+      color: 'black'
+    }}>
+      <div style={{ textAlign: 'center', borderBottom: '1px dashed #000', paddingBottom: '6px', marginBottom: '8px' }}>
+        <h3 style={{ margin: 0, fontSize: '14px' }}>CASH RECEIPT</h3>
+        <p style={{ margin: '2px 0', fontSize: '9px' }}>Tax Invoice / Cash Memo</p>
+      </div>
+      
+      <div style={{ marginBottom: '8px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '3px' }}>
+          <span>Receipt No:</span>
+          <span style={{ fontWeight: 'bold' }}>{receiptData.receiptNo}</span>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '3px' }}>
+          <span>Date:</span>
+          <span>{receiptData.receiptDate}</span>
+        </div>
+      </div>
+      
+      <div style={{ marginBottom: '8px', borderTop: '1px dotted #ccc', borderBottom: '1px dotted #ccc', padding: '6px 0' }}>
+        <div><strong>Received From:</strong></div>
+        <div style={{ fontWeight: 'bold', marginTop: '2px' }}>{customerData?.name || receiptData.customerName}</div>
+        {customerData?.code && <div style={{ fontSize: '9px' }}>Code: {customerData.code}</div>}
+        {customerData?.phone && <div style={{ fontSize: '9px' }}>Phone: {customerData.phone}</div>}
+      </div>
+      
+      <div style={{ marginBottom: '8px' }}>
+        <div><strong>Amount:</strong></div>
+        <div style={{ fontSize: '18px', fontWeight: 'bold', textAlign: 'center', margin: '4px 0' }}>
+          PKR {fmt(totalAmount)}
+        </div>
+        <div style={{ fontSize: '9px', fontStyle: 'italic', textAlign: 'center' }}>
+          {inWords(totalAmount)}
+        </div>
+      </div>
+      
+      {receiptData.remarks && (
+        <div style={{ marginBottom: '8px', borderTop: '1px dotted #ccc', paddingTop: '4px' }}>
+          <div><strong>Remarks:</strong></div>
+          <div style={{ fontSize: '9px' }}>{receiptData.remarks}</div>
+        </div>
+      )}
+      
+      <div style={{ marginTop: '10px', borderTop: '1px dashed #000', paddingTop: '6px', textAlign: 'center' }}>
+        <div style={{ fontSize: '9px' }}>Authorized Signature</div>
+        <div style={{ marginTop: '15px' }}>
+          <div style={{ borderTop: '1px dotted #999', width: '120px', margin: '0 auto' }}></div>
+        </div>
+        <div style={{ fontSize: '8px', marginTop: '6px', color: '#666' }}>
+          Thank you for your business!
+        </div>
+      </div>
+    </div>
+  );
+});
 
 // Customer Dropdown Component
 function CustomerDropdown({
@@ -374,6 +456,7 @@ const getDemoReceipts = () => {
 
 export default function CashReceiptPage() {
   const navigate = useNavigate();
+  const printRef = useRef();
   
   const [receiptId, setReceiptId] = useState(generateReceiptNo());
   const [receiptDate, setReceiptDate] = useState(isoD());
@@ -400,6 +483,10 @@ export default function CashReceiptPage() {
   const [searchReceiptNo, setSearchReceiptNo] = useState("");
   const [showReceiptSearch, setShowReceiptSearch] = useState(false);
   const [searchReceiptResult, setSearchReceiptResult] = useState(null);
+  const [showPrintDialog, setShowPrintDialog] = useState(false);
+  const [lastReceipt, setLastReceipt] = useState(null);
+  const [waitingForPrint, setWaitingForPrint] = useState(false);
+  const [receiptToPrint, setReceiptToPrint] = useState(null);
   
   const codeInputRef = useRef(null);
   const remarksRef = useRef(null);
@@ -407,6 +494,7 @@ export default function CashReceiptPage() {
   const amountReceivedRef = useRef(null);
   const submitRef = useRef(null);
   const searchRef = useRef(null);
+  const printConfirmRef = useRef(null);
   
   useEffect(() => {
     loadCustomers();
@@ -414,7 +502,6 @@ export default function CashReceiptPage() {
     codeInputRef.current?.focus();
   }, []);
   
-  // Filter receipts when search is performed or customer is selected
   useEffect(() => {
     if (searchReceiptResult) {
       setFilteredReceipts([searchReceiptResult]);
@@ -426,6 +513,25 @@ export default function CashReceiptPage() {
     }
   }, [receipts, searchReceiptResult, selectedCustomer]);
   
+  // Listen for Enter key when print dialog is shown
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (showPrintDialog && e.key === "Enter") {
+        e.preventDefault();
+        handlePrint();
+      }
+      if (showPrintDialog && e.key === "Escape") {
+        e.preventDefault();
+        setShowPrintDialog(false);
+        setWaitingForPrint(false);
+        setReceiptToPrint(null);
+      }
+    };
+    
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [showPrintDialog]);
+  
   const loadCustomers = async () => {
     try {
       const { data } = await api.get(EP.CUSTOMERS.GET_ALL);
@@ -434,7 +540,6 @@ export default function CashReceiptPage() {
       }
     } catch (err) {
       console.error("Failed to load customers:", err);
-      // Set demo customers if API fails
       setAllCustomers([
         { _id: "demo_cust_1", name: "ABC Traders", code: "ABC001", customerType: "credit", phone: "03001234567" },
         { _id: "demo_cust_2", name: "XYZ Enterprises", code: "XYZ002", customerType: "credit", phone: "03007654321" }
@@ -447,7 +552,6 @@ export default function CashReceiptPage() {
     try {
       let receiptsData = [];
       
-      // Try to get receipts from API
       try {
         const response = await api.get("/cash-receipts");
         if (response.data && response.data.success && response.data.data) {
@@ -457,12 +561,10 @@ export default function CashReceiptPage() {
         console.log("API not available, using localStorage");
       }
       
-      // If no receipts from API, use demo data
       if (receiptsData.length === 0) {
         receiptsData = getDemoReceipts();
       }
       
-      // Format receipts for display
       const formattedReceipts = receiptsData.map(r => ({
         ...r,
         transactionId: r.receiptNo,
@@ -483,7 +585,6 @@ export default function CashReceiptPage() {
       }
     } catch (err) {
       console.error("Failed to load receipts:", err);
-      // Load demo data as fallback
       const demoReceipts = getDemoReceipts();
       setReceipts(demoReceipts);
       setFilteredReceipts(demoReceipts);
@@ -494,6 +595,116 @@ export default function CashReceiptPage() {
   const showMsg = (text, type = "success") => {
     setMsg({ text, type });
     setTimeout(() => setMsg({ text: "", type: "" }), 3000);
+  };
+  
+  const handlePrint = () => {
+    const receiptToPrintData = receiptToPrint || lastReceipt;
+    if (!receiptToPrintData) return;
+    
+    // Find customer data for the receipt
+    let customer = allCustomers.find(c => c._id === receiptToPrintData.customerId);
+    if (!customer && receiptToPrintData.customerName) {
+      customer = allCustomers.find(c => c.name === receiptToPrintData.customerName);
+    }
+    
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>Receipt - ${receiptToPrintData.receiptNo}</title>
+          <style>
+            body { margin: 0; padding: 20px; display: flex; justify-content: center; align-items: center; min-height: 100vh; background: #f0f0f0; }
+            @media print {
+              body { background: white; padding: 0; }
+              button { display: none; }
+            }
+          </style>
+        </head>
+        <body>
+          <div id="print-content">
+            <div style="width:280px; padding:12px; font-family:'Courier New', monospace; font-size:11px; background:white; color:black;">
+              <div style="text-align:center; border-bottom:1px dashed #000; padding-bottom:6px; margin-bottom:8px;">
+                <h3 style="margin:0; font-size:14px;">CASH RECEIPT</h3>
+                <p style="margin:2px 0; font-size:9px;">Tax Invoice / Cash Memo</p>
+              </div>
+              
+              <div style="margin-bottom:8px;">
+                <div style="display:flex; justify-content:space-between; margin-bottom:3px;">
+                  <span>Receipt No:</span>
+                  <span style="font-weight:bold;">${receiptToPrintData.receiptNo}</span>
+                </div>
+                <div style="display:flex; justify-content:space-between; margin-bottom:3px;">
+                  <span>Date:</span>
+                  <span>${receiptToPrintData.receiptDate}</span>
+                </div>
+              </div>
+              
+              <div style="margin-bottom:8px; border-top:1px dotted #ccc; border-bottom:1px dotted #ccc; padding:6px 0;">
+                <div><strong>Received From:</strong></div>
+                <div style="font-weight:bold; margin-top:2px;">${customer?.name || receiptToPrintData.customerName}</div>
+                ${customer?.code ? `<div style="font-size:9px;">Code: ${customer.code}</div>` : ''}
+                ${customer?.phone ? `<div style="font-size:9px;">Phone: ${customer.phone}</div>` : ''}
+              </div>
+              
+              <div style="margin-bottom:8px;">
+                <div><strong>Amount:</strong></div>
+                <div style="font-size:18px; font-weight:bold; text-align:center; margin:4px 0;">
+                  PKR ${fmt(receiptToPrintData.amount || receiptToPrintData.amountReceived || 0)}
+                </div>
+                <div style="font-size:9px; font-style:italic; text-align:center;">
+                  ${(() => {
+                    const amount = receiptToPrintData.amount || receiptToPrintData.amountReceived || 0;
+                    const words = ['Zero', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
+                    const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+                    const convertToWords = (num) => {
+                      if (num === 0) return '';
+                      if (num < 20) return words[num];
+                      if (num < 100) return tens[Math.floor(num / 10)] + (num % 10 !== 0 ? ' ' + words[num % 10] : '');
+                      if (num < 1000) return words[Math.floor(num / 100)] + ' Hundred' + (num % 100 !== 0 ? ' ' + convertToWords(num % 100) : '');
+                      if (num < 100000) return convertToWords(Math.floor(num / 1000)) + ' Thousand' + (num % 1000 !== 0 ? ' ' + convertToWords(num % 1000) : '');
+                      if (num < 10000000) return convertToWords(Math.floor(num / 100000)) + ' Lakh' + (num % 100000 !== 0 ? ' ' + convertToWords(num % 100000) : '');
+                      return convertToWords(Math.floor(num / 10000000)) + ' Crore' + (num % 10000000 !== 0 ? ' ' + convertToWords(num % 10000000) : '');
+                    };
+                    return convertToWords(Math.floor(amount)) + ' Rupees Only';
+                  })()}
+                </div>
+              </div>
+              
+              ${receiptToPrintData.remarks ? `
+                <div style="margin-bottom:8px; border-top:1px dotted #ccc; padding-top:4px;">
+                  <div><strong>Remarks:</strong></div>
+                  <div style="font-size:9px;">${receiptToPrintData.remarks}</div>
+                </div>
+              ` : ''}
+              
+              <div style="margin-top:10px; border-top:1px dashed #000; padding-top:6px; text-align:center;">
+                <div style="font-size:9px;">Authorized Signature</div>
+                <div style="margin-top:15px;">
+                  <div style="border-top:1px dotted #999; width:120px; margin:0 auto;"></div>
+                </div>
+                <div style="font-size:8px; margin-top:6px; color:#666;">
+                  Thank you for your business!
+                </div>
+              </div>
+            </div>
+          </div>
+          <button onclick="window.print()" style="position: fixed; bottom: 20px; right: 20px; padding: 10px 20px; font-size: 14px;">🖨️ Print</button>
+          <button onclick="window.close()" style="position: fixed; bottom: 20px; left: 20px; padding: 10px 20px; font-size: 14px;">✕ Close</button>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+    setShowPrintDialog(false);
+    setWaitingForPrint(false);
+    setReceiptToPrint(null);
+    // Focus back to code input
+    setTimeout(() => codeInputRef.current?.focus(), 100);
+  };
+  
+  const handlePrintPrevious = (receipt) => {
+    setReceiptToPrint(receipt);
+    setShowPrintDialog(true);
+    setWaitingForPrint(true);
   };
   
   const creditCustomers = allCustomers.filter(c => {
@@ -530,7 +741,6 @@ export default function CashReceiptPage() {
     setSearchReceiptResult(null);
     setSearchReceiptNo("");
     
-    // Filter receipts by selected customer
     const customerReceipts = receipts.filter(r => r.customerId === cust._id || r.customerName === cust.name);
     setFilteredReceipts(customerReceipts);
     
@@ -646,7 +856,6 @@ export default function CashReceiptPage() {
     setRemarks(receipt.remarks || "");
     setRemainingBalance(receipt.balance || 0);
     
-    // Find customer
     let customer = allCustomers.find(c => c._id === receipt.customerId);
     if (!customer && receipt.customerName) {
       customer = allCustomers.find(c => c.name === receipt.customerName);
@@ -753,7 +962,6 @@ export default function CashReceiptPage() {
         updatedAt: new Date().toISOString()
       };
       
-      // Update in localStorage
       const allReceipts = JSON.parse(localStorage.getItem("cash_receipts_demo") || "[]");
       const index = allReceipts.findIndex(r => r._id === editingReceiptData._id);
       if (index !== -1) {
@@ -777,7 +985,6 @@ export default function CashReceiptPage() {
   const handleDeleteReceipt = async (id, receiptNo) => {
     if (!window.confirm(`Delete receipt "${receiptNo}"?`)) return;
     try {
-      // Delete from localStorage
       const allReceipts = JSON.parse(localStorage.getItem("cash_receipts_demo") || "[]");
       const filtered = allReceipts.filter(r => r._id !== id);
       localStorage.setItem("cash_receipts_demo", JSON.stringify(filtered));
@@ -846,15 +1053,29 @@ export default function CashReceiptPage() {
         isEditable: true
       };
       
-      // Save to localStorage
       const allReceipts = JSON.parse(localStorage.getItem("cash_receipts_demo") || "[]");
       allReceipts.push(newReceipt);
       localStorage.setItem("cash_receipts_demo", JSON.stringify(allReceipts));
       
       showMsg(`✓ Receipt ${receiptId} recorded! Amount: PKR ${fmt(received)}`, "success");
       
+      // Store last receipt for printing
+      setLastReceipt({
+        ...newReceipt,
+        receiptNo: receiptId,
+        receiptDate: receiptDate,
+        amount: received,
+        customerName: selectedCustomer.name
+      });
+      
       await loadReceipts();
       resetForm();
+      
+      // Show print dialog
+      setReceiptToPrint(newReceipt);
+      setShowPrintDialog(true);
+      setWaitingForPrint(true);
+      
     } catch (err) {
       showMsg("Failed to save receipt", "error");
     }
@@ -863,6 +1084,89 @@ export default function CashReceiptPage() {
   
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%", background: "#ffffff" }}>
+      {/* Hidden print content */}
+      <div id="print-receipt-content" style={{ display: 'none' }}>
+        {receiptToPrint && (
+          <PrintReceipt 
+            ref={printRef}
+            receiptData={receiptToPrint}
+            customerData={allCustomers.find(c => c._id === receiptToPrint.customerId)}
+          />
+        )}
+      </div>
+      
+      {/* Print Dialog */}
+      {showPrintDialog && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0,0,0,0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 20000,
+        }}>
+          <div style={{
+            background: 'white',
+            borderRadius: '8px',
+            padding: '20px',
+            width: '320px',
+            textAlign: 'center',
+            border: '2px solid #000000',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+          }}>
+            <div style={{ fontSize: '48px', marginBottom: '10px' }}>🖨️</div>
+            <h3 style={{ margin: '0 0 10px 0', fontSize: '16px' }}>Print Receipt?</h3>
+            <p style={{ fontSize: '12px', margin: '0 0 20px 0', color: '#666' }}>
+              Receipt #{receiptToPrint?.receiptNo || lastReceipt?.receiptNo} 
+              <br /><strong style={{ color: '#22c55e' }}>Press ENTER to print</strong> or ESC to close
+            </p>
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
+              <button
+                ref={printConfirmRef}
+                onClick={handlePrint}
+                autoFocus
+                style={{
+                  padding: '8px 20px',
+                  background: '#22c55e',
+                  color: 'white',
+                  border: '1px solid #000000',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  fontWeight: 'bold',
+                  fontSize: '12px'
+                }}
+              >
+                🖨️ Print (Enter)
+              </button>
+              <button
+                onClick={() => {
+                  setShowPrintDialog(false);
+                  setWaitingForPrint(false);
+                  setReceiptToPrint(null);
+                  codeInputRef.current?.focus();
+                }}
+                style={{
+                  padding: '8px 20px',
+                  background: '#ef4444',
+                  color: 'white',
+                  border: '1px solid #000000',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  fontWeight: 'bold',
+                  fontSize: '12px'
+                }}
+              >
+                ✕ Close (ESC)
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
       <div className="xp-titlebar" style={{ background: "#1e40af", padding: "8px 16px" }}>
         <button className="xp-cap-btn" onClick={() => navigate("/")} style={{ color: "white", fontSize: "16px" }}>←</button>
         <span className="xp-tb-title" style={{ color: "white", fontSize: "16px", fontWeight: "bold" }}>Cash Receipt Voucher</span>
@@ -906,14 +1210,12 @@ export default function CashReceiptPage() {
           border: "2px solid #000000"
         }}>
           <form onSubmit={handleSubmit}>
-            {/* ALL INPUTS IN ONE ROW */}
             <div style={{
               display: "flex",
               gap: "8px",
               alignItems: "flex-start",
               flexWrap: "wrap"
             }}>
-              {/* Receipt ID */}
               <div style={{ width: "145px" }}>
                 <label style={{ fontSize: "9px", fontWeight: "bold", color: "#000000", display: "block", marginBottom: "3px", textTransform: "uppercase" }}>Receipt ID</label>
                 <input
@@ -935,7 +1237,6 @@ export default function CashReceiptPage() {
                 {isEditing && <div style={{ fontSize: "7px", color: "#f59e0b", marginTop: "1px", fontWeight: "bold" }}>✏ Editing</div>}
               </div>
               
-              {/* Date */}
               <div style={{ width: "100px" }}>
                 <label style={{ fontSize: "9px", fontWeight: "bold", color: "#000000", display: "block", marginBottom: "3px", textTransform: "uppercase" }}>Date</label>
                 <input
@@ -946,7 +1247,6 @@ export default function CashReceiptPage() {
                 />
               </div>
               
-              {/* Customer Code */}
               <div style={{ width: "95px" }}>
                 <label style={{ fontSize: "9px", fontWeight: "bold", color: "#000000", display: "block", marginBottom: "3px", textTransform: "uppercase" }}>Code</label>
                 <input
@@ -973,7 +1273,6 @@ export default function CashReceiptPage() {
                 />
               </div>
               
-              {/* Account Title - LARGER */}
               <div style={{ flex: 2, minWidth: "220px" }}>
                 <label style={{ fontSize: "9px", fontWeight: "bold", color: "#000000", display: "block", marginBottom: "3px", textTransform: "uppercase" }}>🏦 Account Title <span style={{ color: "#ef4444" }}>*</span></label>
                 <div style={{
@@ -996,7 +1295,6 @@ export default function CashReceiptPage() {
                 {errors.customer && <div style={{ fontSize: "8px", color: "#ef4444", marginTop: "2px" }}>{errors.customer}</div>}
               </div>
               
-              {/* Remarks - LARGER */}
               <div style={{ flex: 2, minWidth: "220px" }}>
                 <label style={{ fontSize: "9px", fontWeight: "bold", color: "#000000", display: "block", marginBottom: "3px", textTransform: "uppercase" }}>📝 Remarks</label>
                 <input
@@ -1017,7 +1315,6 @@ export default function CashReceiptPage() {
                 />
               </div>
               
-              {/* Invoice Amt */}
               <div style={{ width: "90px" }}>
                 <label style={{ fontSize: "9px", fontWeight: "bold", color: "#000000", display: "block", marginBottom: "3px", textTransform: "uppercase" }}>Invoice</label>
                 <input
@@ -1032,7 +1329,6 @@ export default function CashReceiptPage() {
                 />
               </div>
               
-              {/* Amount Received */}
               <div style={{ width: "100px" }}>
                 <label style={{ fontSize: "9px", fontWeight: "bold", color: "#000000", display: "block", marginBottom: "3px", textTransform: "uppercase" }}>Received <span style={{ color: "#ef4444" }}>*</span></label>
                 <input
@@ -1057,7 +1353,6 @@ export default function CashReceiptPage() {
                 {errors.amountReceived && <div style={{ fontSize: "7px", color: "#ef4444", marginTop: "1px" }}>{errors.amountReceived}</div>}
               </div>
               
-              {/* Submit Button */}
               <div style={{ marginTop: "18px" }}>
                 <button
                   ref={submitRef}
@@ -1081,7 +1376,6 @@ export default function CashReceiptPage() {
               </div>
             </div>
             
-            {/* Remaining Balance Display */}
             {invoiceAmount && parseFloat(invoiceAmount) > 0 && (
               <div style={{
                 marginTop: "10px",
@@ -1100,7 +1394,6 @@ export default function CashReceiptPage() {
               </div>
             )}
             
-            {/* Selected Customer Info */}
             {selectedCustomer && (
               <div style={{
                 marginTop: "10px",
@@ -1129,7 +1422,6 @@ export default function CashReceiptPage() {
           </form>
         </div>
         
-        {/* Receipts Table - Now shows all receipts without customer selection */}
         <div style={{
           background: "#ffffff",
           borderRadius: "6px",
@@ -1185,7 +1477,7 @@ export default function CashReceiptPage() {
                     <th style={{ padding: "4px 4px", textAlign: "left", border: "1px solid #000000", fontSize: "9px", fontWeight: "bold" }}>Customer</th>
                     <th style={{ padding: "4px 4px", textAlign: "left", border: "1px solid #000000", fontSize: "9px", fontWeight: "bold" }}>Remarks</th>
                     <th style={{ padding: "4px 4px", textAlign: "right", border: "1px solid #000000", fontSize: "9px", fontWeight: "bold" }}>Amount</th>
-                    <th style={{ padding: "4px 4px", textAlign: "center", width: "75px", border: "1px solid #000000", fontWeight: "bold" }}>Actions</th>
+                    <th style={{ padding: "4px 4px", textAlign: "center", width: "100px", border: "1px solid #000000", fontWeight: "bold" }}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1204,7 +1496,7 @@ export default function CashReceiptPage() {
                       <td style={{ padding: "4px 4px", maxWidth: "150px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", border: "1px solid #000000" }}>{r.remarks || "—"}</td>
                       <td style={{ padding: "4px 4px", textAlign: "right", fontWeight: "bold", color: "#059669", border: "1px solid #000000" }}>PKR {fmt(r.amount || r.amountReceived || 0)}</td>
                       <td style={{ padding: "4px 4px", textAlign: "center", border: "1px solid #000000" }}>
-                        <div style={{ display: "flex", gap: "4px", justifyContent: "center" }}>
+                        <div style={{ display: "flex", gap: "4px", justifyContent: "center", }}>
                           <button
                             onClick={() => editReceipt(r)}
                             style={{
@@ -1212,7 +1504,7 @@ export default function CashReceiptPage() {
                               color: "white",
                               border: "1px solid #000000",
                               borderRadius: "3px",
-                              padding: "3px 8px",
+                              padding: "3px 6px",
                               fontSize: "9px",
                               fontWeight: "bold",
                               cursor: "pointer"
@@ -1222,13 +1514,29 @@ export default function CashReceiptPage() {
                             ✏ Edit
                           </button>
                           <button
+                            onClick={() => handlePrintPrevious(r)}
+                            style={{
+                              background: "#22c55e",
+                              color: "white",
+                              border: "1px solid #000000",
+                              borderRadius: "3px",
+                              padding: "3px 6px",
+                              fontSize: "9px",
+                              fontWeight: "bold",
+                              cursor: "pointer"
+                            }}
+                            title="Print Receipt"
+                          >
+                            🖨️ Print
+                          </button>
+                          <button
                             onClick={() => handleDeleteReceipt(r._id, r.receiptNo)}
                             style={{
                               background: "#ef4444",
                               color: "white",
                               border: "1px solid #000000",
                               borderRadius: "3px",
-                              padding: "3px 8px",
+                              padding: "3px 6px",
                               fontSize: "9px",
                               fontWeight: "bold",
                               cursor: "pointer"
@@ -1238,8 +1546,8 @@ export default function CashReceiptPage() {
                             🗑 Del
                           </button>
                         </div>
-                      </td>
-                    </tr>
+                       </td>
+                     </tr>
                   ))}
                 </tbody>
                 <tfoot style={{ background: "#f1f5f9" }}>
