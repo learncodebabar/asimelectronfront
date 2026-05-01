@@ -1,4 +1,4 @@
-// pages/ManualSalePage.jsx - Single Cash Sale Entry with Ghost Text Search & Image on Right
+// pages/ManualSalePage.jsx - Single Cash Sale Entry with Ghost Text Search, Image & Thermal Print Receipt
 import { useState, useEffect, useRef } from "react";
 import api from "../api/api.js";
 import EP from "../api/apiEndpoints.js";
@@ -6,7 +6,13 @@ import "../styles/theme.css";
 
 const isoDate = () => new Date().toISOString().split("T")[0];
 const fmt = (n) => Number(n || 0).toLocaleString("en-PK");
+
+// SHOP INFORMATION
 const SHOP = "Asim Electric and Electronic Store";
+const SHOP_ADDR = "Main Bazar Nahari Town, Near Bijli Ghar Stop, Gujranwala Road, Faisalabad";
+const SHOP_PHONE = "0300 7262129, 041 8711575, 0315 7262129";
+const URDU_FONT = `'Noto Nastaliq Urdu','Mehr Nastaliq','Jameel Noori Nastaleeq','Urdu Typesetting',serif`;
+const GOOGLE_FONT_LINK = `<link href="https://fonts.googleapis.com/css2?family=Noto+Nastaliq+Urdu:wght@400;700&amp;display=swap" rel="stylesheet">`;
 
 const EMPTY_ROW = {
   code: "",
@@ -15,6 +21,128 @@ const EMPTY_ROW = {
   invoiceNo: "",
   amount: 0,
   confirmAmount: 0,
+};
+
+// Print receipt function - Professional Thermal 80mm with Urdu
+const printSaleReceipt = (saleData) => {
+  const printDateTime = new Date().toLocaleString("en-PK", {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+  
+  const receiptHtml = `<!DOCTYPE html>
+  <html>
+  <head>
+    <meta charset="utf-8">
+    <title>Cash Sale Receipt - ${saleData.invoiceNo}</title>
+    ${GOOGLE_FONT_LINK}
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      body { 
+        font-family: 'Courier New', Courier, monospace; 
+        font-size: 9px; 
+        width: 80mm; 
+        margin: 0 auto; 
+        padding: 2mm 2mm; 
+        color: #000;
+      }
+      .urdu { font-family: ${URDU_FONT}; direction: rtl; text-align: center; }
+      .shop-urdu { font-size: 14px; font-weight: bold; text-align: center; margin-bottom: 2px; font-family: ${URDU_FONT}; direction: rtl; }
+      .shop-name-en { font-size: 8px; font-weight: bold; text-align: center; margin-bottom: 1px; }
+      .shop-addr { font-size: 7.5px; text-align: center; margin-bottom: 1px; font-family: ${URDU_FONT}; direction: rtl; line-height: 1.3; }
+      .shop-phones { font-size: 7.5px; text-align: center; font-weight: bold; margin-bottom: 2px; }
+      .banner { background: #555; color: #fff; font-size: 7px; text-align: center; padding: 2px; margin: 2px 0; font-family: ${URDU_FONT}; direction: rtl; line-height: 1.5; }
+      .receipt-title { text-align: center; font-size: 12px; font-weight: bold; margin: 5px 0; padding: 3px; background: #1e40af; color: white; }
+      .meta-row { display: flex; justify-content: space-between; font-size: 8px; margin: 2px 0; }
+      .divider-dash { border: none; border-top: 1px dashed #666; margin: 2px 0; }
+      .divider-solid { border: none; border-top: 1.5px solid #000; margin: 2px 0; }
+      .divider-dots { border: none; border-top: 1px dotted #888; margin: 2px 0; }
+      table { width: 100%; border-collapse: collapse; }
+      thead tr { border-bottom: 1px solid #000; }
+      th { font-size: 7px; font-weight: bold; padding: 2px 1px; text-align: left; }
+      th.r { text-align: right; }
+      td { padding: 2px 1px; font-size: 8px; vertical-align: top; }
+      .sum-row { display: flex; justify-content: space-between; font-size: 8.5px; padding: 1px 0; }
+      .sum-row.bold { font-weight: bold; font-size: 9.5px; margin-top: 2px; }
+      .sum-row.sep { border-top: 1px dashed #555; margin-top: 2px; padding-top: 2px; }
+      .red { color: #b00; }
+      .green { color: #060; }
+      .totals-box { margin-top: 2px; }
+      .terms { font-family: ${URDU_FONT}; direction: rtl; font-size: 7.5px; color: #333; border-top: 1px dashed #999; padding: 3px; margin-top: 3px; line-height: 1.6; text-align: right; }
+      .devby { text-align: center; font-size: 6.5px; color: #777; margin-top: 3px; border-top: 1px dotted #ccc; padding-top: 2px; }
+      .thankyou { text-align: center; font-size: 8px; font-weight: bold; margin: 3px 0; color: #1e40af; }
+      @media print { @page { size: 80mm auto; margin: 0.5mm; } body { width: 79mm; } }
+    </style>
+  </head>
+  <body>
+    <div class="shop-urdu">عاصم الیکٹرک اینڈ الیکٹرونکس سٹور</div>
+    <div class="shop-name-en">${SHOP}</div>
+    <div class="shop-addr">${SHOP_ADDR}</div>
+    <div class="shop-phones">Tel: ${SHOP_PHONE}</div>
+    <div class="banner">الیکٹریکل و الیکٹرانکس اشیاء، پنکھے، موٹر، وائرنگ مواد، ایل ای ڈی بلب اور دیگر تمام اشیاء</div>
+    
+    <div class="receipt-title">💰 CASH SALE RECEIPT</div>
+    
+    <div class="divider-dash"></div>
+    
+    <div class="meta-row">
+      <span><b>Invoice #:</b> ${saleData.invoiceNo}</span>
+      <span><b>Date:</b> ${saleData.date}</span>
+    </div>
+    <div class="meta-row">
+      <span><b>Customer:</b> ${saleData.customerName}</span>
+    </div>
+    ${saleData.customerPhone ? `<div class="meta-row"><span><b>Phone:</b> ${saleData.customerPhone}</span></div>` : ""}
+    ${saleData.code ? `<div class="meta-row"><span><b>Code:</b> ${saleData.code}</span></div>` : ""}
+    
+    <div class="divider-dots"></div>
+    
+    <table>
+      <thead>
+        <tr>
+          <th style="width:25px">#</th>
+          <th>Description</th>
+          <th style="width:40px;text-align:center">Qty</th>
+          <th style="width:50px;text-align:right">Amount</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td style="text-align:center">1</td>
+          <td>${saleData.description || "Cash Sale"}</td>
+          <td style="text-align:center">1</td>
+          <td style="text-align:right"><b>PKR ${fmt(saleData.amount)}</b></td>
+        </tr>
+      </tbody>
+    </table>
+    
+    <div class="divider-dash"></div>
+    
+    <div class="totals-box">
+      <div class="sum-row bold sep">
+        <span>TOTAL AMOUNT:</span>
+        <span>PKR ${fmt(saleData.amount)}</span>
+      </div>
+    </div>
+    
+    <div class="thankyou">★ شکرت‌ا ★</div>
+    <div class="terms">
+      براہ کرم خریداری کے بعد چیک کرلیں<br>
+      بدلا ہوا سامان واپس نہیں لیا جائے گا<br>
+      شکایت کی صورت میں 7 دن میں رابطہ کریں
+    </div>
+    <div class="devby">Developed by: Creative Babar / 03098325271 | www.digitalglobalschool.com</div>
+    <div class="devby">Printed: ${printDateTime}</div>
+  </body>
+  </html>`;
+  
+  const printWindow = window.open("", "_blank", "width=420,height=640");
+  printWindow.document.write(receiptHtml);
+  printWindow.document.close();
+  setTimeout(() => printWindow.print(), 500);
 };
 
 export default function ManualSalePage() {
@@ -308,8 +436,20 @@ export default function ManualSalePage() {
       };
       const response = await api.post(EP.SALES.CREATE, payload);
       if (response.data && response.data.success) {
-        const savedEntry = { ...row, type: "SALE", displayType: "CASH SALE", invoiceNo: finalInvoiceNo, id: Date.now() };
+        const savedEntry = { 
+          ...row, 
+          type: "SALE", 
+          displayType: "CASH SALE", 
+          invoiceNo: finalInvoiceNo, 
+          id: Date.now(),
+          date: date,
+          customerPhone: customer?.phone || ""
+        };
         setEntries(prev => [savedEntry, ...prev]);
+        
+        // Print receipt
+        printSaleReceipt(savedEntry);
+        
         clearCustomer();
         setRow({ ...EMPTY_ROW });
         setSearchQuery("");
@@ -339,6 +479,15 @@ export default function ManualSalePage() {
     setSelectedSuggestionIndex(-1);
     setIsNavigating(false);
     setTimeout(() => codeRef.current?.focus(), 50);
+  };
+
+  const reprintReceipt = (entry) => {
+    const reprintData = {
+      ...entry,
+      date: isoDate(),
+      customerPhone: entry.customerPhone || "—"
+    };
+    printSaleReceipt(reprintData);
   };
 
   const calculateTotal = () => {
@@ -389,7 +538,7 @@ export default function ManualSalePage() {
           </div>
         </div>
 
-        {/* Main Content Area - Title and Image in same row */}
+        {/* Main Content Area - Title and Large Image in same row */}
         <div style={{
           background: "#ffffff",
           borderRadius: "6px",
@@ -397,13 +546,11 @@ export default function ManualSalePage() {
           marginBottom: "12px",
           border: "2px solid #1e40af"
         }}>
-          {/* Title Row - Header on left, Image on right */}
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "12px" }}>
             <div style={{ fontWeight: "bold", fontSize: "12px", color: "#1e40af", background: "#dbeafe", padding: "4px 8px", borderRadius: "4px", display: "inline-block" }}>
               💰 DEBIT - CASH SALE
             </div>
             
-            {/* Customer Image - Right side */}
             {selectedCustomer && (
               <div style={{ textAlign: "center" }}>
                 {selectedCustomer.imageFront ? (
@@ -411,24 +558,25 @@ export default function ManualSalePage() {
                     src={selectedCustomer.imageFront} 
                     alt={selectedCustomer.name} 
                     style={{ 
-                      width: "50px", 
-                      height: "50px", 
+                      width: "100px", 
+                      height: "100px", 
                       objectFit: "cover", 
-                      border: "2px solid #000000",
-                      borderRadius: "4px"
+                      border: "3px solid #000000",
+                      borderRadius: "8px",
+                      boxShadow: "0 2px 4px rgba(0,0,0,0.1)"
                     }} 
                   />
                 ) : (
                   <div style={{ 
-                    width: "50px", 
-                    height: "50px", 
+                    width: "100px", 
+                    height: "100px", 
                     background: "#e2e8f0", 
                     display: "flex", 
                     alignItems: "center", 
                     justifyContent: "center", 
-                    fontSize: "25px", 
-                    border: "2px solid #000000",
-                    borderRadius: "4px"
+                    fontSize: "50px", 
+                    border: "3px solid #000000",
+                    borderRadius: "8px"
                   }}>
                     👤
                   </div>
@@ -437,14 +585,12 @@ export default function ManualSalePage() {
             )}
           </div>
           
-          {/* Input Fields Row - Adjusted column sizes */}
           <div style={{ 
             display: "grid", 
             gridTemplateColumns: "80px 1fr 1fr 80px 100px 100px", 
             gap: "10px", 
             alignItems: "end"
           }}>
-            {/* CODE - Short */}
             <div>
               <label style={{ fontSize: "10px", fontWeight: "bold", display: "block", marginBottom: "2px" }}>CODE</label>
               <input 
@@ -457,44 +603,19 @@ export default function ManualSalePage() {
               />
             </div>
             
-            {/* CUSTOMER NAME - Equal with DESCRIPTION */}
             <div>
               <label style={{ fontSize: "10px", fontWeight: "bold", display: "block", marginBottom: "2px" }}>CUSTOMER NAME</label>
               <div style={{ position: "relative", width: "100%" }}>
                 {ghost && !isNavigating && !selectedCustomer && originalQuery && (
-                  <div
-                    style={{
-                      position: "absolute",
-                      left: 8,
-                      top: "50%",
-                      transform: "translateY(-50%)",
-                      pointerEvents: "none",
-                      whiteSpace: "nowrap",
-                      fontSize: "12px",
-                      fontFamily: "inherit",
-                      display: "flex",
-                      zIndex: 2,
-                      color: "#a0aec0",
-                      backgroundColor: "transparent",
-                    }}
-                  >
+                  <div style={{ position: "absolute", left: 8, top: "50%", transform: "translateY(-50%)", pointerEvents: "none", whiteSpace: "nowrap", fontSize: "12px", display: "flex", zIndex: 2, color: "#a0aec0" }}>
                     <span style={{ visibility: "hidden" }}>{originalQuery}</span>
-                    <span style={{ color: "#a0aec0" }}>{ghost}</span>
+                    <span>{ghost}</span>
                   </div>
                 )}
                 <input
                   ref={customerRef}
                   type="text"
-                  style={{ 
-                    fontSize: "12px", 
-                    padding: "6px 8px", 
-                    border: "1px solid #000000", 
-                    borderRadius: "3px", 
-                    width: "100%", 
-                    background: "#fffde7",
-                    position: "relative",
-                    zIndex: 1
-                  }}
+                  style={{ fontSize: "12px", padding: "6px 8px", border: "1px solid #000000", borderRadius: "3px", width: "100%", background: "#fffde7", position: "relative", zIndex: 1 }}
                   value={searchQuery}
                   onChange={handleCustomerChange}
                   onKeyDown={handleCustomerKeyDown}
@@ -503,56 +624,29 @@ export default function ManualSalePage() {
               </div>
             </div>
             
-            {/* DESCRIPTION - Equal with CUSTOMER NAME */}
             <div>
               <label style={{ fontSize: "10px", fontWeight: "bold", display: "block", marginBottom: "2px" }}>DESCRIPTION</label>
-              <input 
-                ref={descRef} 
-                type="text" 
-                style={{ 
-                  fontSize: "12px", 
-                  padding: "6px 8px", 
-                  border: "1px solid #000000", 
-                  borderRadius: "3px", 
-                  width: "100%"
-                }} 
-                value={row.description} 
-                onChange={(e) => updateRow("description", e.target.value)} 
-                onKeyDown={(e) => handleRowKeyDown(e, 'desc')} 
-              />
+              <input ref={descRef} type="text" style={{ fontSize: "12px", padding: "6px 8px", border: "1px solid #000000", borderRadius: "3px", width: "100%" }} value={row.description} onChange={(e) => updateRow("description", e.target.value)} onKeyDown={(e) => handleRowKeyDown(e, 'desc')} />
             </div>
             
-            {/* INVOICE # - Short */}
             <div>
               <label style={{ fontSize: "10px", fontWeight: "bold", display: "block", marginBottom: "2px" }}>INVOICE #</label>
               <input ref={invRef} type="text" style={{ fontSize: "12px", padding: "6px 8px", border: "1px solid #000000", borderRadius: "3px", width: "100%" }} value={row.invoiceNo} onChange={(e) => updateRow("invoiceNo", e.target.value)} onKeyDown={(e) => handleRowKeyDown(e, 'inv')} />
             </div>
             
-            {/* AMOUNT - Short */}
             <div>
               <label style={{ fontSize: "10px", fontWeight: "bold", display: "block", marginBottom: "2px" }}>AMOUNT</label>
               <input ref={amountRef} type="number" style={{ fontSize: "13px", fontWeight: "bold", padding: "6px 8px", textAlign: "right", border: "1px solid #000000", borderRadius: "3px", width: "100%" }} value={row.amount} onChange={(e) => updateRow("amount", e.target.value)} onKeyDown={(e) => handleRowKeyDown(e, 'amount')} />
             </div>
             
-            {/* CONFIRM AMOUNT - Short */}
             <div>
               <label style={{ fontSize: "10px", fontWeight: "bold", display: "block", marginBottom: "2px", color: "#dc2626" }}>CONFIRM</label>
               <input ref={confirmAmountRef} type="number" style={{ fontSize: "13px", fontWeight: "bold", padding: "6px 8px", textAlign: "right", border: "2px solid #dc2626", borderRadius: "3px", width: "100%", background: "#fef2f2" }} value={row.confirmAmount} onChange={(e) => updateRow("confirmAmount", e.target.value)} onKeyDown={(e) => handleRowKeyDown(e, 'confirmAmount')} />
             </div>
           </div>
           
-          {/* Customer Info Bar (when selected) */}
           {selectedCustomer && (
-            <div style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              padding: "6px 10px",
-              background: "#f8fafc",
-              borderRadius: "4px",
-              border: "1px solid #000000",
-              marginTop: "10px"
-            }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "6px 10px", background: "#f8fafc", borderRadius: "4px", border: "1px solid #000000", marginTop: "10px" }}>
               <div style={{ fontSize: "11px", color: "#64748b" }}>
                 <strong>{selectedCustomer.name}</strong> | Code: {selectedCustomer.code || "—"} | Phone: {selectedCustomer.phone || "—"} | Balance: <span style={{ fontWeight: "bold", color: (selectedCustomer.currentBalance || 0) > 0 ? "#dc2626" : "#059669" }}>PKR {fmt(selectedCustomer.currentBalance || 0)}</span>
               </div>
@@ -564,11 +658,11 @@ export default function ManualSalePage() {
         {/* Save Button */}
         <div style={{ marginBottom: "12px", textAlign: "center", flexShrink: 0 }}>
           <button style={{ background: "#1e40af", color: "white", padding: "8px 28px", fontSize: "12px", fontWeight: "bold", border: "1px solid #000000", borderRadius: "4px", cursor: "pointer" }} onClick={saveSingleEntry} disabled={saving}>
-            {saving ? "Saving..." : "💾 Save Cash Sale"}
+            {saving ? "Saving..." : "💾 Save & Print Receipt"}
           </button>
         </div>
 
-        {/* Transaction Records Table */}
+        {/* Transaction Records Table with Reprint Button */}
         <div style={{ background: "#ffffff", borderRadius: "6px", border: "2px solid #000000", flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
           <div style={{ fontWeight: "bold", fontSize: "12px", padding: "10px 12px", background: "#f1f5f9", borderBottom: "2px solid #000000", flexShrink: 0 }}>
             📊 Cash Sale Records ({filteredSales.length})
@@ -584,7 +678,7 @@ export default function ManualSalePage() {
                   <th style={{ padding: "8px 6px", textAlign: "left", border: "1px solid #000000", fontWeight: "bold" }}>Customer</th>
                   <th style={{ padding: "8px 6px", textAlign: "center", width: "100px", border: "1px solid #000000", fontWeight: "bold" }}>Type</th>
                   <th style={{ padding: "8px 6px", textAlign: "right", width: "100px", border: "1px solid #000000", fontWeight: "bold" }}>Amount</th>
-                  <th style={{ padding: "8px 6px", textAlign: "left", border: "1px solid #000000", fontWeight: "bold" }}>Remarks</th>
+                  <th style={{ padding: "8px 6px", textAlign: "center", width: "80px", border: "1px solid #000000", fontWeight: "bold" }}>Action</th>
                 </tr>
               </thead>
               <tbody>
@@ -605,7 +699,25 @@ export default function ManualSalePage() {
                       <span style={{ padding: "2px 10px", borderRadius: "3px", fontSize: "10px", fontWeight: "bold", background: "#dbeafe", border: "1px solid #000000", whiteSpace: "nowrap" }}>CASH SALE</span>
                     </td>
                     <td style={{ padding: "6px", textAlign: "right", border: "1px solid #000000", fontWeight: "bold", color: "#1e40af" }}>{fmt(record.netTotal)}</td>
-                    <td style={{ padding: "6px", border: "1px solid #000000" }}>{record.remarks || "—"}</td>
+                    <td style={{ padding: "6px", textAlign: "center", border: "1px solid #000000" }}>
+                      <button 
+                        onClick={() => {
+                          const reprintData = {
+                            invoiceNo: record.invoiceNo,
+                            customerName: record.customerName,
+                            code: record.items?.[0]?.code || record.code || "",
+                            customerPhone: record.customerPhone || "—",
+                            description: record.remarks || "Cash Sale",
+                            amount: record.netTotal,
+                            date: record.invoiceDate
+                          };
+                          printSaleReceipt(reprintData);
+                        }}
+                        style={{ background: "#22c55e", color: "white", border: "1px solid #000000", borderRadius: "3px", padding: "3px 8px", fontSize: "10px", cursor: "pointer" }}
+                      >
+                        🖨 Reprint
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -622,7 +734,7 @@ export default function ManualSalePage() {
           </div>
         </div>
 
-        {/* Recent Entries Summary */}
+        {/* Recent Entries Summary with Print Button */}
         {entries.length > 0 && (
           <div style={{ background: "#ffffff", borderRadius: "6px", marginTop: "12px", border: "1px solid #000000", flexShrink: 0 }}>
             <div style={{ fontWeight: "bold", fontSize: "11px", padding: "8px 12px", background: "#f1f5f9", borderBottom: "1px solid #000000" }}>📋 This Session ({entries.length})</div>
@@ -635,7 +747,7 @@ export default function ManualSalePage() {
                     <th style={{ padding: "5px", textAlign: "left", border: "1px solid #000000" }}>Customer</th>
                     <th style={{ padding: "5px", textAlign: "left", border: "1px solid #000000" }}>Description</th>
                     <th style={{ padding: "5px", textAlign: "right", border: "1px solid #000000" }}>Amount</th>
-                    <th style={{ padding: "5px", textAlign: "center", width: "90px", border: "1px solid #000000" }}>Type</th>
+                    <th style={{ padding: "5px", textAlign: "center", width: "80px", border: "1px solid #000000" }}>Action</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -647,7 +759,7 @@ export default function ManualSalePage() {
                       <td style={{ padding: "4px", border: "1px solid #000000" }}>{entry.description || "—"}</td>
                       <td style={{ padding: "4px", textAlign: "right", border: "1px solid #000000", fontWeight: "bold", color: "#1e40af" }}>{fmt(entry.amount)}</td>
                       <td style={{ padding: "4px", textAlign: "center", border: "1px solid #000000" }}>
-                        <span style={{ padding: "2px 8px", borderRadius: "2px", fontSize: "9px", fontWeight: "bold", background: "#dbeafe", whiteSpace: "nowrap" }}>CASH SALE</span>
+                        <button onClick={() => reprintReceipt(entry)} style={{ background: "#22c55e", color: "white", border: "1px solid #000000", borderRadius: "2px", padding: "2px 6px", fontSize: "9px", cursor: "pointer" }}>🖨 Print</button>
                       </td>
                     </tr>
                   ))}

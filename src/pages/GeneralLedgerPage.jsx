@@ -1,4 +1,4 @@
-// pages/GeneralLedgerPage.jsx - Small compact date row
+// pages/GeneralLedgerPage.jsx - Small compact date row with instant balance display
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../api/api.js";
@@ -469,7 +469,7 @@ export default function GeneralLedgerPage() {
     
     if (printType === "simple") {
       const rows = transactions.map((t, i) => `
-        <td>
+        <tr>
           <td style="padding:12px 10px;border:2px solid #000;font-size:14px;font-weight:bold;text-align:center">${i + 1}</td>
           <td style="padding:12px 10px;border:2px solid #000;font-size:14px;font-weight:bold">${t.date}</td>
           <td style="padding:12px 10px;border:2px solid #000;font-size:14px;font-weight:bold;font-family:monospace">${t.transactionId}</td>
@@ -574,7 +574,7 @@ export default function GeneralLedgerPage() {
             <td style="padding:12px 8px;border:2px solid #000;text-align:right;font-size:13px;font-weight:bold;color:#dc2626;vertical-align:top;">${t.debit > 0 ? `PKR ${fmt(t.debit)}` : "—"}</td>
             <td style="padding:12px 8px;border:2px solid #000;text-align:right;font-size:13px;font-weight:bold;color:#059669;vertical-align:top;">${t.credit > 0 ? `PKR ${fmt(t.credit)}` : "—"}</td>
             <td style="padding:12px 8px;border:2px solid #000;text-align:right;font-size:13px;font-weight:bold;color:${t.runningBalance > 0 ? "#dc2626" : "#059669"};vertical-align:top;">PKR ${fmt(Math.abs(t.runningBalance))}</td>
-          </table>
+          </tr>
         `;
       });
       
@@ -654,6 +654,12 @@ export default function GeneralLedgerPage() {
   };
   
   const closingBalance = transactions[transactions.length - 1]?.runningBalance || 0;
+  
+  // Get current balance of selected entity
+  const getCurrentBalance = () => {
+    if (!selectedEntity) return 0;
+    return selectedEntity.currentBalance || 0;
+  };
   
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%", background: "#ffffff" }}>
@@ -837,17 +843,25 @@ export default function GeneralLedgerPage() {
             </div>
           </div>
           
-          {/* Right side: Customer Image - ONLY IMAGE, NO NAME OR PHONE */}
-          <div style={{ width: "110px", flexShrink: 0, display: "flex", justifyContent: "flex-end", alignItems: "flex-start" }}>
+          {/* Right side: Customer Image & Balance */}
+          <div style={{ width: "130px", flexShrink: 0, display: "flex", flexDirection: "column", justifyContent: "flex-start", alignItems: "flex-end" }}>
             {selectedEntity && selectedEntity.imageFront ? (
               <div style={{ textAlign: "center" }}>
                 <img src={selectedEntity.imageFront} alt={selectedEntity.name} style={{ width: "100px", height: "100px", objectFit: "cover", border: "3px solid #000000", boxShadow: "0 4px 8px rgba(0,0,0,0.2)", borderRadius: "8px" }} />
+                {/* Display balance right below the image 
+                <div style={{ marginTop: "6px", fontSize: "11px", fontWeight: "bold", textAlign: "center", color: getCurrentBalance() > 0 ? "#dc2626" : "#059669", background: "#f8fafc", padding: "2px 6px", borderRadius: "4px", border: "1px solid #000000", width: "100%" }}>
+                  Balance: PKR {fmt(Math.abs(getCurrentBalance()))} {getCurrentBalance() > 0 ? "(Receivable)" : "(Payable)"}
+                </div>*/}
               </div>
             ) : selectedEntity ? (
               <div style={{ textAlign: "center" }}>
                 <div style={{ width: "100px", height: "100px", background: "#e2e8f0", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "50px", border: "3px solid #000000", boxShadow: "0 4px 8px rgba(0,0,0,0.2)", borderRadius: "8px" }}>
                   {activeTab === "customer" ? "👤" : "🏢"}
                 </div>
+                {/* Display balance right below the image */}
+                {/* <div style={{ marginTop: "6px", fontSize: "11px", fontWeight: "bold", textAlign: "center", color: getCurrentBalance() > 0 ? "#dc2626" : "#059669", background: "#f8fafc", padding: "2px 6px", borderRadius: "4px", border: "1px solid #000000", width: "100%" }}>
+                  Balance: PKR {fmt(Math.abs(getCurrentBalance()))} {getCurrentBalance() > 0 ? "(Receivable)" : "(Payable)"}
+                </div> */}
               </div>
             ) : (
               <div style={{ textAlign: "center", color: "#94a3b8" }}>
@@ -857,10 +871,17 @@ export default function GeneralLedgerPage() {
           </div>
         </div>
         
-        {/* Selected Entity Info Bar - Only code, phone, type */}
+        {/* Selected Entity Info Bar - Code, Phone, Type, AND Balance */}
         {selectedEntity && (
           <div style={{ marginTop: "4px", marginBottom: "16px", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 12px", background: "#f8fafc", borderRadius: "6px", border: "1px solid #000000" }}>
-            <div style={{ fontSize: "12px", color: "#64748b" }}>Code: {selectedEntity.code || "—"} | Phone: {selectedEntity.phone || "—"} | Type: {activeTab === "customer" ? (selectedEntity.customerType || selectedEntity.type || "Credit Customer") : "Supplier"}</div>
+            <div style={{ fontSize: "12px", color: "#64748b", display: "flex", gap: "20px", flexWrap: "wrap" }}>
+              <span>Code: {selectedEntity.code || "—"}</span>
+              <span>Phone: {selectedEntity.phone || "—"}</span>
+              <span>Type: {activeTab === "customer" ? (selectedEntity.customerType || selectedEntity.type || "Credit Customer") : "Supplier"}</span>
+              <span style={{ fontWeight: "bold", color: getCurrentBalance() > 0 ? "#dc2626" : "#059669" }}>
+                Current Balance: PKR {fmt(Math.abs(getCurrentBalance()))} {getCurrentBalance() > 0 ? "(Receivable)" : "(Payable)"}
+              </span>
+            </div>
             <button onClick={clearSelection} style={{ background: "#ef4444", color: "white", border: "1px solid #000000", borderRadius: "4px", padding: "4px 12px", fontSize: "11px", fontWeight: "bold", cursor: "pointer" }}>Clear</button>
           </div>
         )}
@@ -955,7 +976,10 @@ export default function GeneralLedgerPage() {
           {selectedEntity ? `${activeTab === "customer" ? "Credit Customer" : "Supplier"}: ${selectedEntity.name}` : "No entity selected"}
         </div>
         <div className="xp-status-pane" style={{ color: "#1e293b", fontSize: "10px", fontWeight: "500" }}>
-          {transactions.length > 0 && `Balance: PKR ${fmt(Math.abs(closingBalance))}`}
+          {selectedEntity && `Balance: PKR ${fmt(Math.abs(getCurrentBalance()))}`}
+        </div>
+        <div className="xp-status-pane" style={{ color: "#1e293b", fontSize: "10px", fontWeight: "500" }}>
+          {transactions.length > 0 && `Period Balance: PKR ${fmt(Math.abs(closingBalance))}`}
         </div>
       </div>
     </div>
