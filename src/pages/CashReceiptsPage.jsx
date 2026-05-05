@@ -1,4 +1,4 @@
-// pages/CashReceiptPage.jsx - Added Print Previous Receipts
+// pages/CashReceiptPage.jsx - With Balance After Receipt display
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../api/api.js";
@@ -395,6 +395,9 @@ function CustomerDropdown({
               <div style={{ fontSize: 10, color: "#6b7280", marginTop: 2 }}>
                 {customer.code && <span>📋 Code: {customer.code}</span>}
                 {customer.phone && <span> | 📞 {customer.phone}</span>}
+                <span style={{ marginLeft: 8, fontWeight: 'bold', color: (customer.currentBalance || 0) > 0 ? '#dc2626' : '#059669' }}>
+                  | Bal: PKR {fmt(customer.currentBalance || 0)}
+                </span>
               </div>
             </div>
           ))}
@@ -468,12 +471,13 @@ export default function CashReceiptPage() {
   const [remarks, setRemarks] = useState("");
   const [invoiceAmount, setInvoiceAmount] = useState("");
   const [amountReceived, setAmountReceived] = useState("");
+  const [confirmAmount, setConfirmAmount] = useState("");
   const [remainingBalance, setRemainingBalance] = useState(0);
   const [isEditing, setIsEditing] = useState(false);
   const [editingReceiptId, setEditingReceiptId] = useState(null);
   const [editingReceiptData, setEditingReceiptData] = useState(null);
   
-  const [errors, setErrors] = useState({ customer: "", amountReceived: "" });
+  const [errors, setErrors] = useState({ customer: "", amountReceived: "", confirmAmount: "" });
   const [allCustomers, setAllCustomers] = useState([]);
   const [receipts, setReceipts] = useState([]);
   const [filteredReceipts, setFilteredReceipts] = useState([]);
@@ -492,6 +496,7 @@ export default function CashReceiptPage() {
   const remarksRef = useRef(null);
   const invoiceAmountRef = useRef(null);
   const amountReceivedRef = useRef(null);
+  const confirmAmountRef = useRef(null);
   const submitRef = useRef(null);
   const searchRef = useRef(null);
   const printConfirmRef = useRef(null);
@@ -513,7 +518,6 @@ export default function CashReceiptPage() {
     }
   }, [receipts, searchReceiptResult, selectedCustomer]);
   
-  // Listen for Enter key when print dialog is shown
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (showPrintDialog && e.key === "Enter") {
@@ -541,8 +545,8 @@ export default function CashReceiptPage() {
     } catch (err) {
       console.error("Failed to load customers:", err);
       setAllCustomers([
-        { _id: "demo_cust_1", name: "ABC Traders", code: "ABC001", customerType: "credit", phone: "03001234567" },
-        { _id: "demo_cust_2", name: "XYZ Enterprises", code: "XYZ002", customerType: "credit", phone: "03007654321" }
+        { _id: "demo_cust_1", name: "ABC Traders", code: "ABC001", customerType: "credit", phone: "03001234567", currentBalance: 52900 },
+        { _id: "demo_cust_2", name: "XYZ Enterprises", code: "XYZ002", customerType: "credit", phone: "03007654321", currentBalance: 25000 }
       ]);
     }
   };
@@ -601,7 +605,6 @@ export default function CashReceiptPage() {
     const receiptToPrintData = receiptToPrint || lastReceipt;
     if (!receiptToPrintData) return;
     
-    // Find customer data for the receipt
     let customer = allCustomers.find(c => c._id === receiptToPrintData.customerId);
     if (!customer && receiptToPrintData.customerName) {
       customer = allCustomers.find(c => c.name === receiptToPrintData.customerName);
@@ -697,7 +700,6 @@ export default function CashReceiptPage() {
     setShowPrintDialog(false);
     setWaitingForPrint(false);
     setReceiptToPrint(null);
-    // Focus back to code input
     setTimeout(() => codeInputRef.current?.focus(), 100);
   };
   
@@ -756,8 +758,9 @@ export default function CashReceiptPage() {
     setFilteredReceipts(receipts);
     setInvoiceAmount("");
     setAmountReceived("");
+    setConfirmAmount("");
     setRemainingBalance(0);
-    setErrors({ customer: "", amountReceived: "" });
+    setErrors({ customer: "", amountReceived: "", confirmAmount: "" });
     setIsEditing(false);
     setEditingReceiptId(null);
     setEditingReceiptData(null);
@@ -767,20 +770,28 @@ export default function CashReceiptPage() {
     codeInputRef.current?.focus();
   };
   
+  // Calculate balance after receipt
+  const getBalanceAfterReceipt = () => {
+    const currentBalance = selectedCustomer?.currentBalance || 0;
+    const received = Number(amountReceived) || 0;
+    return currentBalance - received;
+  };
+  
+  // Check if amounts match - returns boolean
+  const doAmountsMatch = () => {
+    if (!amountReceived || !confirmAmount) return false;
+    return Number(amountReceived) === Number(confirmAmount);
+  };
+  
   const validateAmountReceived = (value) => {
-    if (!value || value === "" || value === null) {
-      setErrors(prev => ({ ...prev, amountReceived: "Required" }));
+    if (!value || value === "") {
+      setErrors(prev => ({ ...prev, amountReceived: "Amount required" }));
       return false;
     }
     
-    const amount = parseFloat(value);
-    if (isNaN(amount)) {
-      setErrors(prev => ({ ...prev, amountReceived: "Valid amount" }));
-      return false;
-    }
-    
-    if (amount <= 0) {
-      setErrors(prev => ({ ...prev, amountReceived: ">0 required" }));
+    const amount = Number(value);
+    if (isNaN(amount) || amount <= 0) {
+      setErrors(prev => ({ ...prev, amountReceived: "Valid amount > 0 required" }));
       return false;
     }
     
@@ -788,20 +799,36 @@ export default function CashReceiptPage() {
     return true;
   };
   
-  const handleAmountReceivedChange = (value) => {
+  const handleAmountReceivedChange = (e) => {
+    const value = e.target.value;
     setAmountReceived(value);
-    if (value && value !== "") {
-      validateAmountReceived(value);
-    } else {
-      setErrors(prev => ({ ...prev, amountReceived: "" }));
+    validateAmountReceived(value);
+    
+    // Clear confirm amount error when amount changes
+    if (errors.confirmAmount) {
+      setErrors(prev => ({ ...prev, confirmAmount: "" }));
     }
   };
   
-  useEffect(() => {
-    const invAmount = parseFloat(invoiceAmount) || 0;
-    const received = parseFloat(amountReceived) || 0;
-    setRemainingBalance(invAmount - received);
-  }, [invoiceAmount, amountReceived]);
+  const handleConfirmAmountChange = (e) => {
+    const value = e.target.value;
+    setConfirmAmount(value);
+    
+    if (amountReceived && value) {
+      const received = Number(amountReceived);
+      const confirm = Number(value);
+      
+      if (received === confirm) {
+        setErrors(prev => ({ ...prev, confirmAmount: "" }));
+      } else {
+        setErrors(prev => ({ ...prev, confirmAmount: "Amounts do not match!" }));
+      }
+    } else if (value && !amountReceived) {
+      setErrors(prev => ({ ...prev, confirmAmount: "Enter received amount first" }));
+    } else {
+      setErrors(prev => ({ ...prev, confirmAmount: "" }));
+    }
+  };
   
   const handleRemarksKeyDown = (e) => {
     if (e.key === "Enter") {
@@ -820,7 +847,18 @@ export default function CashReceiptPage() {
   const handleAmountReceivedKeyDown = (e) => {
     if (e.key === "Enter") {
       e.preventDefault();
-      submitRef.current?.click();
+      confirmAmountRef.current?.focus();
+    }
+  };
+  
+  const handleConfirmAmountKeyDown = (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      const received = Number(amountReceived);
+      const confirm = Number(confirmAmount);
+      if (received === confirm && errors.amountReceived === "" && amountReceived) {
+        submitRef.current?.click();
+      }
     }
   };
   
@@ -828,6 +866,7 @@ export default function CashReceiptPage() {
     setReceiptId(generateReceiptNo());
     setInvoiceAmount("");
     setAmountReceived("");
+    setConfirmAmount("");
     setRemainingBalance(0);
     setRemarks("");
     setSearchReceiptNo("");
@@ -836,15 +875,13 @@ export default function CashReceiptPage() {
     setIsEditing(false);
     setEditingReceiptId(null);
     setEditingReceiptData(null);
-    setErrors({ customer: "", amountReceived: "" });
+    setErrors({ customer: "", amountReceived: "", confirmAmount: "" });
     setTimeout(() => {
       codeInputRef.current?.focus();
     }, 100);
   };
   
   const editReceipt = (receipt) => {
-    console.log("Editing receipt:", receipt);
-    
     setEditingReceiptData(receipt);
     setEditingReceiptId(receipt._id);
     setIsEditing(true);
@@ -852,7 +889,9 @@ export default function CashReceiptPage() {
     setReceiptId(receipt.transactionId || receipt.receiptNo || generateReceiptNo());
     setReceiptDate(receipt.date || receipt.receiptDate || isoD());
     setInvoiceAmount(receipt.invoiceAmount || "");
-    setAmountReceived(receipt.amount || receipt.amountValue || 0);
+    const amount = receipt.amount || receipt.amountValue || 0;
+    setAmountReceived(String(amount));
+    setConfirmAmount(String(amount));
     setRemarks(receipt.remarks || "");
     setRemainingBalance(receipt.balance || 0);
     
@@ -935,19 +974,20 @@ export default function CashReceiptPage() {
       return;
     }
     
-    if (!amountReceived || amountReceived === "") {
+    if (!amountReceived) {
       setErrors(prev => ({ ...prev, amountReceived: "Amount required" }));
       amountReceivedRef.current?.focus();
       return;
     }
     
-    const received = parseFloat(amountReceived);
-    if (isNaN(received) || received <= 0) {
-      setErrors(prev => ({ ...prev, amountReceived: "Valid amount > 0" }));
-      amountReceivedRef.current?.focus();
+    // Check if amounts match
+    if (Number(amountReceived) !== Number(confirmAmount)) {
+      setErrors(prev => ({ ...prev, confirmAmount: "Amounts do not match!" }));
+      confirmAmountRef.current?.focus();
       return;
     }
     
+    const received = Number(amountReceived);
     setSubmitting(true);
     try {
       const updatedReceipt = {
@@ -956,7 +996,7 @@ export default function CashReceiptPage() {
         receiptDate: receiptDate,
         amount: received,
         amountReceived: received,
-        invoiceAmount: parseFloat(invoiceAmount) || 0,
+        invoiceAmount: Number(invoiceAmount) || 0,
         remainingBalance: remainingBalance,
         remarks: remarks || "Receipt updated",
         updatedAt: new Date().toISOString()
@@ -1015,22 +1055,24 @@ export default function CashReceiptPage() {
       return;
     }
     
-    if (!amountReceived || amountReceived === "") {
+    if (!amountReceived) {
       setErrors(prev => ({ ...prev, amountReceived: "Amount required" }));
       amountReceivedRef.current?.focus();
       return;
     }
     
-    const received = parseFloat(amountReceived);
-    if (isNaN(received) || received <= 0) {
-      setErrors(prev => ({ ...prev, amountReceived: "Valid amount > 0" }));
-      amountReceivedRef.current?.focus();
+    // Check if amounts match
+    if (Number(amountReceived) !== Number(confirmAmount)) {
+      setErrors(prev => ({ ...prev, confirmAmount: "Amounts do not match!" }));
+      confirmAmountRef.current?.focus();
       return;
     }
     
-    const invAmount = parseFloat(invoiceAmount) || 0;
+    const received = Number(amountReceived);
+    const invAmount = Number(invoiceAmount) || 0;
+    
     if (invAmount > 0 && received > invAmount) {
-      setErrors(prev => ({ ...prev, amountReceived: `Cannot exceed PKR ${fmt(invAmount)}` }));
+      setErrors(prev => ({ ...prev, amountReceived: `Cannot exceed invoice amount PKR ${fmt(invAmount)}` }));
       amountReceivedRef.current?.focus();
       return;
     }
@@ -1059,7 +1101,6 @@ export default function CashReceiptPage() {
       
       showMsg(`✓ Receipt ${receiptId} recorded! Amount: PKR ${fmt(received)}`, "success");
       
-      // Store last receipt for printing
       setLastReceipt({
         ...newReceipt,
         receiptNo: receiptId,
@@ -1071,7 +1112,6 @@ export default function CashReceiptPage() {
       await loadReceipts();
       resetForm();
       
-      // Show print dialog
       setReceiptToPrint(newReceipt);
       setShowPrintDialog(true);
       setWaitingForPrint(true);
@@ -1082,9 +1122,24 @@ export default function CashReceiptPage() {
     setSubmitting(false);
   };
   
+  const isSaveEnabled = () => {
+    if (submitting) return false;
+    if (!selectedCustomer) return false;
+    if (!amountReceived) return false;
+    if (errors.amountReceived !== "") return false;
+    if (errors.confirmAmount !== "") return false;
+    if (!confirmAmount) return false;
+    if (Number(amountReceived) !== Number(confirmAmount)) return false;
+    return true;
+  };
+  
+  // Calculate if amounts match for display
+  const amountsMatch = amountReceived && confirmAmount && Number(amountReceived) === Number(confirmAmount);
+  const showMatchSuccess = amountsMatch && !errors.confirmAmount;
+  const balanceAfterReceipt = getBalanceAfterReceipt();
+  
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%", background: "#ffffff" }}>
-      {/* Hidden print content */}
       <div id="print-receipt-content" style={{ display: 'none' }}>
         {receiptToPrint && (
           <PrintReceipt 
@@ -1095,7 +1150,6 @@ export default function CashReceiptPage() {
         )}
       </div>
       
-      {/* Print Dialog */}
       {showPrintDialog && (
         <div style={{
           position: 'fixed',
@@ -1330,12 +1384,12 @@ export default function CashReceiptPage() {
               </div>
               
               <div style={{ width: "100px" }}>
-                <label style={{ fontSize: "9px", fontWeight: "bold", color: "#000000", display: "block", marginBottom: "3px", textTransform: "uppercase" }}>Received <span style={{ color: "#ef4444" }}>*</span></label>
+                <label style={{ fontSize: "9px", fontWeight: "bold", color: "#000000", display: "block", marginBottom: "3px", textTransform: "uppercase" }}>Received  <span style={{ color: "#ef4444" }}>*</span></label>
                 <input
                   ref={amountReceivedRef}
                   type="number"
                   value={amountReceived}
-                  onChange={(e) => handleAmountReceivedChange(e.target.value)}
+                  onChange={handleAmountReceivedChange}
                   onKeyDown={handleAmountReceivedKeyDown}
                   placeholder="0"
                   step="1"
@@ -1347,17 +1401,50 @@ export default function CashReceiptPage() {
                     textAlign: "right", 
                     border: errors.amountReceived ? "2px solid #ef4444" : "1px solid #000000",
                     borderRadius: "4px",
-                    width: "100%"
+                    width: "100%",
+                    background: "#fffde7"
                   }}
                 />
                 {errors.amountReceived && <div style={{ fontSize: "7px", color: "#ef4444", marginTop: "1px" }}>{errors.amountReceived}</div>}
+              </div>
+              
+              <div style={{ width: "100px" }}>
+                <label style={{ fontSize: "9px", fontWeight: "bold", color: "#dc2626", display: "block", marginBottom: "3px", textTransform: "uppercase" }}>Confirm  <span style={{ color: "#ef4444" }}>*</span></label>
+                <input
+                  ref={confirmAmountRef}
+                  type="number"
+                  value={confirmAmount}
+                  onChange={handleConfirmAmountChange}
+                  onKeyDown={handleConfirmAmountKeyDown}
+                  placeholder="0"
+                  step="1"
+                  style={{ 
+                    height: "28px", 
+                    padding: "0 6px", 
+                    fontSize: "11px", 
+                    fontWeight: "bold", 
+                    textAlign: "right", 
+                    border: errors.confirmAmount ? "2px solid #ef4444" : "1px solid #000000",
+                    borderRadius: "4px",
+                    width: "100%",
+                    background: errors.confirmAmount ? "#fef2f2" : "#fffde7"
+                  }}
+                />
+                {/* Show error message ONLY when there's an error */}
+                {errors.confirmAmount && errors.confirmAmount !== "" && (
+                  <div style={{ fontSize: "7px", color: "#ef4444", marginTop: "1px", fontWeight: "bold" }}>{errors.confirmAmount}</div>
+                )}
+                {/* Show success message ONLY when amounts match and no error */}
+                {showMatchSuccess && (
+                  <div style={{ fontSize: "7px", color: "#059669", marginTop: "1px", fontWeight: "bold" }}>✓  match</div>
+                )}
               </div>
               
               <div style={{ marginTop: "18px" }}>
                 <button
                   ref={submitRef}
                   type="submit"
-                  disabled={submitting || (!selectedCustomer && !isEditing) || !amountReceived}
+                  disabled={!isSaveEnabled()}
                   style={{
                     background: isEditing ? "#f59e0b" : "#22c55e",
                     color: "white",
@@ -1366,9 +1453,10 @@ export default function CashReceiptPage() {
                     fontSize: "11px",
                     fontWeight: "bold",
                     border: "1px solid #000000",
-                    cursor: "pointer",
+                    cursor: isSaveEnabled() ? "pointer" : "not-allowed",
                     borderRadius: "4px",
-                    whiteSpace: "nowrap"
+                    whiteSpace: "nowrap",
+                    opacity: isSaveEnabled() ? 1 : 0.6
                   }}
                 >
                   {submitting ? "SAVING..." : (isEditing ? "✏ UPDATE" : "💾 SAVE")}
@@ -1376,7 +1464,49 @@ export default function CashReceiptPage() {
               </div>
             </div>
             
-            {invoiceAmount && parseFloat(invoiceAmount) > 0 && (
+            {/* Customer Balance Display */}
+            {selectedCustomer && (
+              <div style={{
+                marginTop: "10px",
+                padding: "8px 12px",
+                background: "#f8fafc",
+                borderRadius: "4px",
+                border: "1px solid #000000"
+              }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "8px" }}>
+                  <div>
+                    <span style={{ fontSize: "11px", fontWeight: "bold", color: "#000000" }}>Current Balance:</span>
+                    <span style={{ fontSize: "14px", fontWeight: "bold", marginLeft: "8px", color: (selectedCustomer.currentBalance || 0) > 0 ? "#dc2626" : "#059669" }}>
+                      PKR {fmt(selectedCustomer.currentBalance || 0)}
+                    </span>
+                  </div>
+                  
+                  {/* Balance After Receipt - Shows remaining balance after this payment */}
+                  {amountReceived && Number(amountReceived) > 0 && (
+                    <div style={{
+                      padding: "4px 10px",
+                      background: balanceAfterReceipt > 0 ? "#fef3c7" : "#dcfce7",
+                      borderRadius: "4px",
+                      border: "1px solid #000000"
+                    }}>
+                      <span style={{ fontSize: "11px", fontWeight: "bold", color: "#000000" }}>Balance After Receipt:</span>
+                      <span style={{ fontSize: "14px", fontWeight: "bold", marginLeft: "8px", color: balanceAfterReceipt > 0 ? "#dc2626" : "#059669" }}>
+                        PKR {fmt(Math.abs(balanceAfterReceipt))} {balanceAfterReceipt > 0 ? "(Receivable)" : "(Credit)"}
+                      </span>
+                    </div>
+                  )}
+                </div>
+                
+                {/* Receiving confirmation */}
+                {amountsMatch && (
+                  <div style={{ marginTop: "8px", fontSize: "11px", color: "#059669", textAlign: "center", fontWeight: "bold" }}>
+                    ✓ Receiving PKR {fmt(amountReceived)}
+                  </div>
+                )}
+              </div>
+            )}
+            
+            {invoiceAmount && Number(invoiceAmount) > 0 && (
               <div style={{
                 marginTop: "10px",
                 padding: "6px 12px",
@@ -1387,7 +1517,7 @@ export default function CashReceiptPage() {
                 alignItems: "center",
                 border: "1px solid #000000"
               }}>
-                <span style={{ fontSize: "11px", fontWeight: "bold", color: "#000000" }}>Remaining Balance:</span>
+                <span style={{ fontSize: "11px", fontWeight: "bold", color: "#000000" }}>Invoice Remaining Balance:</span>
                 <span style={{ fontSize: "16px", fontWeight: "bold", color: remainingBalance > 0 ? "#d97706" : "#059669" }}>
                   PKR {fmt(remainingBalance)}
                 </span>
@@ -1422,6 +1552,7 @@ export default function CashReceiptPage() {
           </form>
         </div>
         
+        {/* Receipts Table Section */}
         <div style={{
           background: "#ffffff",
           borderRadius: "6px",
@@ -1496,7 +1627,7 @@ export default function CashReceiptPage() {
                       <td style={{ padding: "4px 4px", maxWidth: "150px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", border: "1px solid #000000" }}>{r.remarks || "—"}</td>
                       <td style={{ padding: "4px 4px", textAlign: "right", fontWeight: "bold", color: "#059669", border: "1px solid #000000" }}>PKR {fmt(r.amount || r.amountReceived || 0)}</td>
                       <td style={{ padding: "4px 4px", textAlign: "center", border: "1px solid #000000" }}>
-                        <div style={{ display: "flex", gap: "4px", justifyContent: "center", }}>
+                        <div style={{ display: "flex", gap: "4px", justifyContent: "center" }}>
                           <button
                             onClick={() => editReceipt(r)}
                             style={{
@@ -1554,7 +1685,7 @@ export default function CashReceiptPage() {
                   <tr>
                     <td colSpan="5" style={{ padding: "4px 4px", textAlign: "right", fontWeight: "bold", border: "1px solid #000000", fontSize: "9px" }}>TOTAL:</td>
                     <td style={{ padding: "4px 4px", textAlign: "right", fontWeight: "bold", color: "#059669", border: "1px solid #000000", fontSize: "9px" }}>PKR {fmt(filteredReceipts.reduce((sum, r) => sum + (r.amount || r.amountReceived || 0), 0))}</td>
-                    <td style={{ padding: "4px 4px", border: "1px solid #000000" }}></td>
+                    <td style={{ padding: "4px 4px", border: "1px solid #000000" }}> </td>
                   </tr>
                 </tfoot>
               </table>
@@ -1566,7 +1697,9 @@ export default function CashReceiptPage() {
       <div className="xp-statusbar" style={{ background: "#f8fafc", borderTop: "2px solid #000000", padding: "4px 12px" }}>
         <div className="xp-status-pane" style={{ fontSize: "10px", fontWeight: "500" }}>💰 Cash Receipt</div>
         <div className="xp-status-pane" style={{ fontSize: "10px", fontWeight: "500" }}>{selectedCustomer ? selectedCustomer.name : `${filteredReceipts.length} receipts total`}</div>
-        <div className="xp-status-pane" style={{ fontSize: "10px", fontWeight: "500" }}>{isEditing ? "✏ Editing Mode" : (amountReceived && `Receiving: PKR ${fmt(amountReceived)}`)}</div>
+        <div className="xp-status-pane" style={{ fontSize: "10px", fontWeight: "500" }}>
+          {isEditing ? "✏ Editing Mode" : (amountsMatch ? `✓ Confirmed: PKR ${fmt(amountReceived)}` : "Enter and confirm amount")}
+        </div>
       </div>
     </div>
   );
