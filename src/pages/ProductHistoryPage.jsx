@@ -306,7 +306,7 @@ function ProductSearchModal({ allProducts, onSelect, onClose }) {
 }
 
 /* ══════════════════════════════════════════════════════════
-   PRODUCT SEARCH INPUT WITH GHOST TEXT
+   PRODUCT SEARCH INPUT WITH GHOST TEXT & AUTO-FOCUS
 ══════════════════════════════════════════════════════════ */
 function ProductSearchInput({ allProducts, onSelect, selectedProduct, onClear, onOpenModal }) {
   const [searchQuery, setSearchQuery] = useState("");
@@ -319,6 +319,13 @@ function ProductSearchInput({ allProducts, onSelect, selectedProduct, onClear, o
   const [isFocused, setIsFocused] = useState(false);
   const inputRef = useRef(null);
   const parentRef = useRef(null);
+
+  // Auto-focus on component mount
+  useEffect(() => {
+    if (inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, []);
 
   const getFilteredProductsForGhost = (query) => {
     if (!query.trim()) return [];
@@ -361,6 +368,13 @@ function ProductSearchInput({ allProducts, onSelect, selectedProduct, onClear, o
   };
 
   const handleKeyDown = (e) => {
+    // If Enter is pressed and input is empty/open modal immediately
+    if (e.key === "Enter" && !searchQuery.trim() && !selectedProduct) {
+      e.preventDefault();
+      if (onOpenModal) onOpenModal();
+      return;
+    }
+
     if (ghost && (e.key === "ArrowRight" || e.key === "Tab") && !isNavigating) {
       e.preventDefault();
       const fullName = originalQuery + ghost;
