@@ -1,5 +1,5 @@
-// pages/StockReportPage.jsx
-import { useState, useEffect, useRef } from "react";
+// pages/StockReportPage.jsx - With Advanced Product Search System
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../api/api.js";
 import EP from "../api/apiEndpoints.js";
@@ -7,12 +7,310 @@ import "../styles/theme.css";
 
 const fmt = (n) => Number(n || 0).toLocaleString("en-PK");
 
+// Product Search Input Component with Ghost Text & Arrow Navigation
+function ProductSearchInput({ allProducts, onSelect, selectedProduct, onClear, placeholder = "Type product name or code..." }) {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [originalQuery, setOriginalQuery] = useState("");
+  const [ghost, setGhost] = useState("");
+  const [filteredProducts, setFilteredProducts] = useState([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(-1);
+  const [isNavigating, setIsNavigating] = useState(false);
+  const [isFocused, setIsFocused] = useState(false);
+  const inputRef = useRef(null);
+  const parentRef = useRef(null);
+
+  // Get filtered products based on search query
+  const getFilteredProductsForGhost = (query) => {
+    if (!query.trim()) return [];
+    const searchLower = query.toLowerCase();
+    return allProducts.filter(p => 
+      p.description?.toLowerCase().startsWith(searchLower) ||
+      p.code?.toLowerCase().startsWith(searchLower)
+    ).slice(0, 15);
+  };
+
+  // Handle ghost text and suggestions
+  useEffect(() => {
+    if (!originalQuery.trim()) {
+      setFilteredProducts([]);
+      setGhost("");
+      setShowSuggestions(false);
+      return;
+    }
+    
+    const matches = getFilteredProductsForGhost(originalQuery);
+    setFilteredProducts(matches);
+    setShowSuggestions(matches.length > 0);
+    
+    if (!isNavigating && matches.length > 0 && matches[0].description) {
+      const remaining = matches[0].description.slice(originalQuery.length);
+      setGhost(remaining);
+    } else {
+      setGhost("");
+    }
+  }, [originalQuery, isNavigating, allProducts]);
+
+  const selectProduct = (product) => {
+    onSelect(product);
+    setSearchQuery(product.description);
+    setOriginalQuery(product.description);
+    setFilteredProducts([]);
+    setGhost("");
+    setShowSuggestions(false);
+    setSelectedSuggestionIndex(-1);
+    setIsNavigating(false);
+  };
+
+  const handleKeyDown = (e) => {
+    // Handle ghost text acceptance (Right Arrow or Tab)
+    if (ghost && (e.key === "ArrowRight" || e.key === "Tab") && !isNavigating) {
+      e.preventDefault();
+      const fullName = originalQuery + ghost;
+      setSearchQuery(fullName);
+      setOriginalQuery(fullName);
+      setGhost("");
+      setIsNavigating(false);
+      
+      const matchedProduct = filteredProducts[0];
+      if (matchedProduct) {
+        selectProduct(matchedProduct);
+      }
+      return;
+    }
+    
+    // Handle Arrow Down
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      if (filteredProducts.length === 0) return;
+      
+      setIsNavigating(true);
+      setShowSuggestions(true);
+      
+      let newIndex;
+      if (selectedSuggestionIndex === -1) {
+        newIndex = 0;
+      } else {
+        newIndex = selectedSuggestionIndex + 1;
+        if (newIndex >= filteredProducts.length) {
+          newIndex = 0;
+        }
+      }
+      
+      setSelectedSuggestionIndex(newIndex);
+      
+      const selectedProductItem = filteredProducts[newIndex];
+      if (selectedProductItem) {
+        setSearchQuery(selectedProductItem.description);
+        setGhost("");
+      }
+      return;
+    }
+    
+    // Handle Arrow Up
+    if (e.key === "ArrowUp") {
+      e.preventDefault();
+      if (filteredProducts.length === 0) return;
+      
+      setIsNavigating(true);
+      setShowSuggestions(true);
+      
+      let newIndex;
+      if (selectedSuggestionIndex === -1) {
+        newIndex = filteredProducts.length - 1;
+      } else {
+        newIndex = selectedSuggestionIndex - 1;
+        if (newIndex < 0) {
+          newIndex = filteredProducts.length - 1;
+        }
+      }
+      
+      setSelectedSuggestionIndex(newIndex);
+      
+      const selectedProductItem = filteredProducts[newIndex];
+      if (selectedProductItem) {
+        setSearchQuery(selectedProductItem.description);
+        setGhost("");
+      }
+      return;
+    }
+    
+    // Handle Enter
+    if (e.key === "Enter") {
+      e.preventDefault();
+      
+      if (selectedSuggestionIndex >= 0 && filteredProducts[selectedSuggestionIndex]) {
+        selectProduct(filteredProducts[selectedSuggestionIndex]);
+      } else if (filteredProducts.length > 0 && filteredProducts[0]) {
+        selectProduct(filteredProducts[0]);
+      }
+      return;
+    }
+    
+    // Handle Escape
+    if (e.key === "Escape") {
+      e.preventDefault();
+      setSearchQuery("");
+      setOriginalQuery("");
+      setGhost("");
+      setFilteredProducts([]);
+      setSelectedSuggestionIndex(-1);
+      setShowSuggestions(false);
+      setIsNavigating(false);
+      if (selectedProduct) onClear();
+      inputRef.current?.blur();
+    }
+  };
+
+  const handleChange = (e) => {
+    const newValue = e.target.value;
+    setSearchQuery(newValue);
+    setOriginalQuery(newValue);
+    if (selectedProduct && newValue !== selectedProduct.description) {
+      onClear();
+    }
+    setSelectedSuggestionIndex(-1);
+    setShowSuggestions(true);
+    setIsNavigating(false);
+  };
+
+  return (
+    <div style={{ position: "relative", flex: 1, width: "100%" }} ref={parentRef}>
+      <div style={{ 
+        position: "relative", 
+        width: "100%",
+        background: isFocused ? "#fffbe6" : "transparent",
+        borderRadius: "4px",
+        transition: "background 0.15s ease"
+      }}>
+        {ghost && !isNavigating && !selectedProduct && originalQuery && (
+          <div
+            style={{
+              position: "absolute",
+              left: 12,
+              top: "50%",
+              transform: "translateY(-50%)",
+              pointerEvents: "none",
+              whiteSpace: "nowrap",
+              fontSize: "13px",
+              fontFamily: "inherit",
+              display: "flex",
+              zIndex: 2,
+              color: "#a0aec0",
+              backgroundColor: "transparent",
+              paddingLeft: "2px"
+            }}
+          >
+            <span style={{ visibility: "hidden" }}>{originalQuery}</span>
+            <span style={{ color: "#a0aec0" }}>{ghost}</span>
+          </div>
+        )}
+        
+        <input
+          ref={inputRef}
+          type="text"
+          placeholder={placeholder}
+          value={selectedProduct ? (searchQuery || selectedProduct.description) : searchQuery}
+          onChange={handleChange}
+          onKeyDown={handleKeyDown}
+          onFocus={() => {
+            setIsFocused(true);
+            if (!selectedProduct && originalQuery) {
+              setShowSuggestions(true);
+            }
+          }}
+          onBlur={() => {
+            setIsFocused(false);
+            setTimeout(() => {
+              if (!isNavigating) setShowSuggestions(false);
+            }, 200);
+          }}
+          autoComplete="off"
+          spellCheck={false}
+          style={{ 
+            width: "100%", 
+            padding: "8px 12px", 
+            border: "2px solid #1e40af", 
+            borderRadius: "6px", 
+            fontSize: "13px",
+            background: selectedProduct ? "#e8f5e9" : isFocused ? "#fffde7" : "#ffffff",
+            fontWeight: selectedProduct ? "bold" : "normal",
+            color: "#1e293b",
+            position: "relative",
+            zIndex: 1,
+            outline: "none"
+          }}
+        />
+      </div>
+
+      {showSuggestions && filteredProducts.length > 0 && (
+        <div
+          style={{
+            position: "absolute",
+            top: "100%",
+            left: 0,
+            right: 0,
+            backgroundColor: "white",
+            border: "2px solid #1e40af",
+            borderRadius: "6px",
+            maxHeight: 350,
+            overflowY: "auto",
+            zIndex: 1000,
+            boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+            marginTop: 4,
+          }}
+        >
+          {filteredProducts.map((product, idx) => (
+            <div
+              key={product._id}
+              onClick={() => selectProduct(product)}
+              style={{
+                padding: "8px 12px",
+                cursor: "pointer",
+                backgroundColor: idx === selectedSuggestionIndex ? "#dbeafe" : "white",
+                borderBottom: "1px solid #e2e8f0",
+                fontSize: 13,
+              }}
+              onMouseEnter={() => {
+                setSelectedSuggestionIndex(idx);
+                setIsNavigating(true);
+                setSearchQuery(product.description);
+                setGhost("");
+              }}
+              onMouseLeave={() => setIsNavigating(false)}
+            >
+              <div style={{ fontWeight: "bold", fontSize: 13, color: "#1e293b" }}>
+                {product.code} - {product.description}
+              </div>
+              <div style={{ fontSize: 10, color: "#6b7280", marginTop: 2 }}>
+                {product.category && <span>📁 {product.category}</span>}
+                {product.company && <span> | 🏭 {product.company}</span>}
+                {product.packingInfo?.[0] && (
+                  <span> | 📦 Stock: {product.packingInfo[0]?.openingQty || 0} {product.packingInfo[0]?.measurement}</span>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      
+      {selectedProduct && (
+        <div style={{ fontSize: "10px", color: "#059669", marginTop: "4px", fontWeight: "bold" }}>
+          ✓ Product selected: {selectedProduct.code} - {selectedProduct.description}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function StockReportPage() {
   const navigate = useNavigate();
   
   // State
+  const [allProducts, setAllProducts] = useState([]);
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [selectedProduct, setSelectedProduct] = useState(null);
   
   // Search inputs
   const [codeSearch, setCodeSearch] = useState("");
@@ -22,20 +320,15 @@ export default function StockReportPage() {
   const [lowStockOnly, setLowStockOnly] = useState(false);
   const [outOfStockOnly, setOutOfStockOnly] = useState(false);
   
-  // Suggestions
-  const [codeSuggestions, setCodeSuggestions] = useState([]);
-  const [showCodeSuggestions, setShowCodeSuggestions] = useState(false);
-  const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(-1);
+  // Removed code suggestions since we now use the advanced product search
   
   const [filteredProducts, setFilteredProducts] = useState([]);
   const [sortConfig, setSortConfig] = useState({ key: "productId", direction: "asc" });
   
-  // Refs
-  const codeInputRef = useRef(null);
-  const nameInputRef = useRef(null);
+  // Refs for inputs
+  const productSearchRef = useRef(null);
   const companyInputRef = useRef(null);
   const categoryInputRef = useRef(null);
-  const suggestionsRef = useRef(null);
   
   useEffect(() => {
     fetchProducts();
@@ -79,7 +372,9 @@ export default function StockReportPage() {
           };
         });
         
+        setAllProducts(processedProducts);
         setProducts(processedProducts);
+        setFilteredProducts(processedProducts);
       }
     } catch (error) {
       console.error("Failed to fetch products:", error);
@@ -87,31 +382,26 @@ export default function StockReportPage() {
     setLoading(false);
   };
   
-  // Get unique codes for suggestions
-  const getUniqueCodes = () => {
-    const codes = new Set();
-    products.forEach(p => {
-      if (p.code) codes.add(p.code);
-    });
-    return Array.from(codes).sort();
+  // Handle product selection from advanced search
+  const handleProductSelect = (product) => {
+    setSelectedProduct(product);
+    setCodeSearch(product.code || "");
+    setNameSearch(product.description || "");
+    setCompanySearch(product.company || "");
+    setCategorySearch(product.category || "");
+    setLowStockOnly(false);
+    setOutOfStockOnly(false);
   };
   
-  // Handle code search with suggestions
-  useEffect(() => {
-    if (codeSearch.length >= 1) {
-      const allCodes = getUniqueCodes();
-      const filtered = allCodes.filter(code => 
-        code.toLowerCase().includes(codeSearch.toLowerCase())
-      ).slice(0, 10);
-      setCodeSuggestions(filtered);
-      setShowCodeSuggestions(filtered.length > 0);
-      setSelectedSuggestionIndex(-1);
-    } else {
-      setCodeSuggestions([]);
-      setShowCodeSuggestions(false);
-      setSelectedSuggestionIndex(-1);
-    }
-  }, [codeSearch, products]);
+  const handleProductClear = () => {
+    setSelectedProduct(null);
+    setCodeSearch("");
+    setNameSearch("");
+    setCompanySearch("");
+    setCategorySearch("");
+    setLowStockOnly(false);
+    setOutOfStockOnly(false);
+  };
   
   // Filter products based on all search criteria
   useEffect(() => {
@@ -206,44 +496,6 @@ export default function StockReportPage() {
     setFilteredProducts(filtered);
   }, [products, codeSearch, nameSearch, companySearch, categorySearch, lowStockOnly, outOfStockOnly, sortConfig]);
   
-  const handleSelectCodeSuggestion = (code) => {
-    setCodeSearch(code);
-    setShowCodeSuggestions(false);
-    setCodeSuggestions([]);
-    nameInputRef.current?.focus();
-  };
-  
-  const handleCodeKeyDown = (e) => {
-    if (showCodeSuggestions) {
-      if (e.key === "ArrowDown") {
-        e.preventDefault();
-        setSelectedSuggestionIndex(prev => 
-          prev < codeSuggestions.length - 1 ? prev + 1 : prev
-        );
-      } else if (e.key === "ArrowUp") {
-        e.preventDefault();
-        setSelectedSuggestionIndex(prev => prev > 0 ? prev - 1 : -1);
-      } else if (e.key === "Enter" && selectedSuggestionIndex >= 0) {
-        e.preventDefault();
-        handleSelectCodeSuggestion(codeSuggestions[selectedSuggestionIndex]);
-      } else if (e.key === "Escape") {
-        setShowCodeSuggestions(false);
-      }
-    }
-    
-    if (e.key === "Enter" && !showCodeSuggestions) {
-      e.preventDefault();
-      nameInputRef.current?.focus();
-    }
-  };
-  
-  const handleNameKeyDown = (e) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      companyInputRef.current?.focus();
-    }
-  };
-  
   const handleCompanyKeyDown = (e) => {
     if (e.key === "Enter") {
       e.preventDefault();
@@ -258,16 +510,14 @@ export default function StockReportPage() {
   };
   
   const clearFilters = () => {
+    setSelectedProduct(null);
     setCodeSearch("");
     setNameSearch("");
     setCompanySearch("");
     setCategorySearch("");
     setLowStockOnly(false);
     setOutOfStockOnly(false);
-    setCodeSuggestions([]);
-    setShowCodeSuggestions(false);
-    setSelectedSuggestionIndex(-1);
-    codeInputRef.current?.focus();
+    productSearchRef.current?.focus();
   };
   
   const handleSort = (key) => {
@@ -320,84 +570,18 @@ export default function StockReportPage() {
         alignItems: "flex-end",
         position: "relative"
       }}>
-        <div style={{ flex: 1, minWidth: "130px", position: "relative" }}>
-          <label style={{ fontSize: "11px", fontWeight: "bold", color: "#000000", marginBottom: "4px", display: "block" }}>🔢 Code</label>
-          <input
-            ref={codeInputRef}
-            type="text"
-            style={{ 
-              width: "100%", 
-              padding: "8px 12px", 
-              border: "1px solid #1e40af", 
-              borderRadius: "6px", 
-              fontSize: "13px",
-              outline: "none"
-            }}
-            placeholder="Search by code..."
-            value={codeSearch}
-            onChange={(e) => setCodeSearch(e.target.value)}
-            onKeyDown={handleCodeKeyDown}
-            autoFocus
-          />
-          
-          {/* Code Suggestions Dropdown */}
-          {showCodeSuggestions && codeSuggestions.length > 0 && (
-            <div
-              ref={suggestionsRef}
-              style={{
-                position: "absolute",
-                top: "100%",
-                left: 0,
-                right: 0,
-                backgroundColor: "white",
-                border: "1px solid #1e40af",
-                borderRadius: "6px",
-                maxHeight: "200px",
-                overflowY: "auto",
-                zIndex: 1000,
-                boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
-                marginTop: "4px"
-              }}
-            >
-              {codeSuggestions.map((code, idx) => (
-                <div
-                  key={code}
-                  onClick={() => handleSelectCodeSuggestion(code)}
-                  style={{
-                    padding: "8px 12px",
-                    cursor: "pointer",
-                    backgroundColor: idx === selectedSuggestionIndex ? "#dbeafe" : "white",
-                    borderBottom: "1px solid #e2e8f0",
-                    fontFamily: "monospace",
-                    fontSize: "12px"
-                  }}
-                  onMouseEnter={() => setSelectedSuggestionIndex(idx)}
-                >
-                  {code}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-        
-        <div style={{ flex: 2, minWidth: "200px" }}>
-          <label style={{ fontSize: "11px", fontWeight: "bold", color: "#000000", marginBottom: "4px", display: "block" }}>📦 Product Name</label>
-          <input
-            ref={nameInputRef}
-            type="text"
-            style={{ 
-              width: "100%", 
-              padding: "8px 12px", 
-              border: "1px solid #1e40af", 
-              borderRadius: "6px", 
-              fontSize: "13px",
-              outline: "none"
-            }}
-            placeholder="Search by product name..."
-            value={nameSearch}
-            onChange={(e) => setNameSearch(e.target.value)}
-            onKeyDown={handleNameKeyDown}
-          />
+        {/* Advanced Product Search - Main Input */}
+        <div style={{ flex: 2, minWidth: "250px" }}>
+          <label style={{ fontSize: "11px", fontWeight: "bold", color: "#000000", marginBottom: "4px", display: "block" }}>🔍 Search Product</label>
+          <div ref={productSearchRef}>
+            <ProductSearchInput
+              allProducts={allProducts}
+              onSelect={handleProductSelect}
+              selectedProduct={selectedProduct}
+              onClear={handleProductClear}
+              placeholder="Type product name or code... (↑↓ navigate, → accept, Enter select)"
+            />
+          </div>
         </div>
         
         <div style={{ flex: 1, minWidth: "150px" }}>
@@ -411,7 +595,8 @@ export default function StockReportPage() {
               border: "1px solid #1e40af", 
               borderRadius: "6px", 
               fontSize: "13px",
-              outline: "none"
+              outline: "none",
+              background: companySearch ? "#fffde7" : "#ffffff"
             }}
             placeholder="Search by company..."
             value={companySearch}
@@ -431,7 +616,8 @@ export default function StockReportPage() {
               border: "1px solid #1e40af", 
               borderRadius: "6px", 
               fontSize: "13px",
-              outline: "none"
+              outline: "none",
+              background: categorySearch ? "#fffde7" : "#ffffff"
             }}
             placeholder="Search by category..."
             value={categorySearch}
@@ -619,7 +805,7 @@ export default function StockReportPage() {
                     <td colSpan="6" style={{ padding: "8px", textAlign: "right", border: "1px solid #1e40af" }}>GRAND TOTAL:</td>
                     <td style={{ padding: "8px", textAlign: "right", fontWeight: "bold", color: "#1e40af", fontSize: "14px", border: "1px solid #1e40af" }}>{fmt(totalStock)}</td>
                     <td style={{ padding: "8px", textAlign: "right", fontWeight: "bold", color: "#1e40af", fontSize: "14px", border: "1px solid #1e40af" }}>PKR {fmt(totalStockValue)}</td>
-                    <td colSpan="2" style={{ padding: "8px", border: "1px solid #1e40af" }}></td>
+                    <td colSpan="2" style={{ padding: "8px", border: "1px solid #1e40af" }}> </td>
                   </tr>
                 </tfoot>
               </table>

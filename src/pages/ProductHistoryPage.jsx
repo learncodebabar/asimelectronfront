@@ -1,4 +1,4 @@
-// pages/ProductHistoryPage.jsx - Complete Product Transaction History
+// pages/ProductHistoryPage.jsx - Complete with Enhanced Keyboard Navigation
 import { useState, useEffect, useRef, useCallback } from "react";
 import api from "../api/api.js";
 import EP from "../api/apiEndpoints.js";
@@ -34,7 +34,7 @@ const formatNumber = (num) => {
   return Number(num || 0).toLocaleString("en-PK");
 };
 
-// Transaction type badges with different colors
+// Transaction type badges
 const TransactionBadge = ({ type }) => {
   const styles = {
     PURCHASE: { background: "#10b981", color: "white", label: "Purchase" },
@@ -61,7 +61,7 @@ const TransactionBadge = ({ type }) => {
 };
 
 /* ══════════════════════════════════════════════════════════
-   PRODUCT SEARCH MODAL
+   PRODUCT SEARCH MODAL WITH ENHANCED KEYBOARD NAVIGATION
 ══════════════════════════════════════════════════════════ */
 function ProductSearchModal({ allProducts, onSelect, onClose }) {
   const [desc, setDesc] = useState("");
@@ -110,14 +110,15 @@ function ProductSearchModal({ allProducts, onSelect, onClose }) {
   }, [desc, cat, company, allProducts, buildFlat]);
 
   useEffect(() => {
-    if (tbodyRef.current && hiIdx >= 0)
+    if (tbodyRef.current && hiIdx >= 0) {
       tbodyRef.current.children[hiIdx]?.scrollIntoView({ block: "nearest" });
+    }
   }, [hiIdx]);
 
   const handleKeyDown = (e) => {
+    // Enter key to move to next input
     if (e.key === "Enter") {
       e.preventDefault();
-      
       if (focusedField === "description") {
         rCat.current?.focus();
         setFocusedField("category");
@@ -140,6 +141,33 @@ function ProductSearchModal({ allProducts, onSelect, onClose }) {
       }
     }
     
+    // Arrow Down key to move to next input or table
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      if (focusedField === "description") {
+        rCat.current?.focus();
+        setFocusedField("category");
+      }
+      else if (focusedField === "category") {
+        rCompany.current?.focus();
+        setFocusedField("company");
+      }
+      else if (focusedField === "company") {
+        if (tbodyRef.current && rows.length > 0) {
+          tbodyRef.current.focus();
+          setHiIdx(0);
+          setFocusedField("table");
+        }
+      }
+    }
+    
+    // Arrow Up key from table
+    if (e.key === "ArrowUp" && focusedField === "table") {
+      e.preventDefault();
+      setHiIdx((i) => Math.max(i - 1, 0));
+    }
+    
+    // Escape key
     if (e.key === "Escape") {
       onClose();
     }
@@ -156,16 +184,23 @@ function ProductSearchModal({ allProducts, onSelect, onClose }) {
     }
     else if (e.key === "Enter") {
       e.preventDefault();
-      if (hiIdx >= 0 && rows[hiIdx]) onSelect(rows[hiIdx]);
+      if (hiIdx >= 0 && rows[hiIdx]) {
+        onSelect(rows[hiIdx]);
+      }
     }
     else if (e.key === "Escape") {
       onClose();
+    }
+    else if (e.key === "Tab" || e.key === "ArrowUp" && hiIdx === 0 && focusedField === "table") {
+      e.preventDefault();
+      rCompany.current?.focus();
+      setFocusedField("company");
     }
   };
 
   return (
     <div className="xp-overlay" onClick={(e) => e.target === e.currentTarget && onClose()} style={{ zIndex: 2000 }}>
-      <div className="xp-modal" style={{ width: "90%", maxWidth: "1000px", maxHeight: "80vh", display: "flex", flexDirection: "column", border: "2px solid #000" }}>
+      <div className="xp-modal" style={{ width: "90%", maxWidth: "1000px", maxHeight: "80vh", display: "flex", flexDirection: "column", border: "2px solid #000", background: "#fff" }}>
         <div className="xp-modal-tb" style={{ background: "#1a1a1a", padding: "6px 12px", borderBottom: "1px solid #000" }}>
           <svg width="14" height="14" viewBox="0 0 16 16" fill="rgba(255,255,255,0.9)">
             <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.044.06.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1 1 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0" />
@@ -179,7 +214,7 @@ function ProductSearchModal({ allProducts, onSelect, onClose }) {
             ref={rDesc} 
             type="text" 
             className="xp-input" 
-            placeholder="Description / Code" 
+            placeholder="Description / Code (Enter/↓ to next)" 
             value={desc} 
             onChange={(e) => setDesc(e.target.value)} 
             onFocus={() => setFocusedField("description")}
@@ -189,7 +224,7 @@ function ProductSearchModal({ allProducts, onSelect, onClose }) {
             ref={rCat} 
             type="text" 
             className="xp-input" 
-            placeholder="Category" 
+            placeholder="Category (Enter/↓ to next)" 
             value={cat} 
             onChange={(e) => setCat(e.target.value)} 
             onFocus={() => setFocusedField("category")}
@@ -199,13 +234,14 @@ function ProductSearchModal({ allProducts, onSelect, onClose }) {
             ref={rCompany} 
             type="text" 
             className="xp-input" 
-            placeholder="Company" 
+            placeholder="Company (Enter/↓ to table)" 
             value={company} 
             onChange={(e) => setCompany(e.target.value)} 
             onFocus={() => setFocusedField("company")}
             style={{ flex: 1, padding: "4px 8px", fontSize: "12px", border: "1px solid #000", background: focusedField === "company" ? "#fff9c4" : "white" }} 
           />
           <span style={{ fontSize: "11px", color: "#000", alignSelf: "center" }}>{rows.length} products</span>
+          <button onClick={onClose} style={{ padding: "4px 10px", background: "#f5f5f5", border: "1px solid #000", cursor: "pointer", fontSize: "11px" }}>Close</button>
         </div>
         
         <div className="xp-modal-body" style={{ padding: 0, flex: 1, overflow: "auto", background: "#fff" }}>
@@ -228,14 +264,24 @@ function ProductSearchModal({ allProducts, onSelect, onClose }) {
             </thead>
             <tbody>
               {rows.length === 0 && (
-                <td><td colSpan="6" style={{ padding: "30px", textAlign: "center", color: "#000", border: "1px solid #000" }}>No products found</td></td>
+                <tr>
+                  <td colSpan="6" style={{ padding: "30px", textAlign: "center", color: "#000", border: "1px solid #000" }}>No products found</td>
+                </tr>
               )}
               {rows.map((p, i) => (
                 <tr 
                   key={p._id} 
-                  style={{ background: i === hiIdx ? "#f5f5f5" : "white", cursor: "pointer" }}
-                  onClick={() => setHiIdx(i)} 
+                  style={{ 
+                    background: i === hiIdx ? "#e5f0ff" : "white", 
+                    cursor: "pointer",
+                    borderBottom: "1px solid #ddd"
+                  }}
+                  onClick={() => {
+                    setHiIdx(i);
+                    onSelect(p);
+                  }}
                   onDoubleClick={() => onSelect(p)}
+                  onMouseEnter={() => setHiIdx(i)}
                 >
                   <td style={{ padding: "4px 6px", textAlign: "center", border: "1px solid #000", color: "#000" }}>{i + 1}</td>
                   <td style={{ padding: "4px 6px", fontWeight: "500", border: "1px solid #000", color: "#000" }}>{p.code}</td>
@@ -249,9 +295,320 @@ function ProductSearchModal({ allProducts, onSelect, onClose }) {
           </table>
         </div>
         <div style={{ padding: "4px 10px", borderTop: "1px solid #000", fontSize: "10px", color: "#000", background: "#f5f5f5" }}>
-          Tab / Enter to navigate | ↑↓ Navigate products | Enter = Select | Esc = Close
+          <span>Enter/↓ = Move to next field</span> &nbsp;|&nbsp;
+          <span>↑↓ in table = Navigate products</span> &nbsp;|&nbsp;
+          <span>Enter in table = Select</span> &nbsp;|&nbsp;
+          <span>Esc = Close</span>
         </div>
       </div>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════
+   PRODUCT SEARCH INPUT WITH GHOST TEXT
+══════════════════════════════════════════════════════════ */
+function ProductSearchInput({ allProducts, onSelect, selectedProduct, onClear, onOpenModal }) {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [originalQuery, setOriginalQuery] = useState("");
+  const [ghost, setGhost] = useState("");
+  const [filteredProducts, setFilteredProducts] = useState([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(-1);
+  const [isNavigating, setIsNavigating] = useState(false);
+  const [isFocused, setIsFocused] = useState(false);
+  const inputRef = useRef(null);
+  const parentRef = useRef(null);
+
+  const getFilteredProductsForGhost = (query) => {
+    if (!query.trim()) return [];
+    const searchLower = query.toLowerCase();
+    return allProducts.filter(p => 
+      p.description?.toLowerCase().startsWith(searchLower) ||
+      p.code?.toLowerCase().startsWith(searchLower)
+    ).slice(0, 15);
+  };
+
+  useEffect(() => {
+    if (!originalQuery.trim()) {
+      setFilteredProducts([]);
+      setGhost("");
+      setShowSuggestions(false);
+      return;
+    }
+    
+    const matches = getFilteredProductsForGhost(originalQuery);
+    setFilteredProducts(matches);
+    setShowSuggestions(matches.length > 0);
+    
+    if (!isNavigating && matches.length > 0 && matches[0].description) {
+      const remaining = matches[0].description.slice(originalQuery.length);
+      setGhost(remaining);
+    } else {
+      setGhost("");
+    }
+  }, [originalQuery, isNavigating, allProducts]);
+
+  const selectProduct = (product) => {
+    onSelect(product);
+    setSearchQuery(product.description);
+    setOriginalQuery(product.description);
+    setFilteredProducts([]);
+    setGhost("");
+    setShowSuggestions(false);
+    setSelectedSuggestionIndex(-1);
+    setIsNavigating(false);
+  };
+
+  const handleKeyDown = (e) => {
+    if (ghost && (e.key === "ArrowRight" || e.key === "Tab") && !isNavigating) {
+      e.preventDefault();
+      const fullName = originalQuery + ghost;
+      setSearchQuery(fullName);
+      setOriginalQuery(fullName);
+      setGhost("");
+      setIsNavigating(false);
+      
+      const matchedProduct = filteredProducts[0];
+      if (matchedProduct) {
+        selectProduct(matchedProduct);
+      }
+      return;
+    }
+    
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      if (filteredProducts.length === 0) {
+        if (onOpenModal) onOpenModal();
+        return;
+      }
+      
+      setIsNavigating(true);
+      setShowSuggestions(true);
+      
+      let newIndex;
+      if (selectedSuggestionIndex === -1) {
+        newIndex = 0;
+      } else {
+        newIndex = selectedSuggestionIndex + 1;
+        if (newIndex >= filteredProducts.length) {
+          newIndex = 0;
+        }
+      }
+      
+      setSelectedSuggestionIndex(newIndex);
+      
+      const selectedProductItem = filteredProducts[newIndex];
+      if (selectedProductItem) {
+        setSearchQuery(selectedProductItem.description);
+        setGhost("");
+      }
+      return;
+    }
+    
+    if (e.key === "ArrowUp") {
+      e.preventDefault();
+      if (filteredProducts.length === 0) return;
+      
+      setIsNavigating(true);
+      setShowSuggestions(true);
+      
+      let newIndex;
+      if (selectedSuggestionIndex === -1) {
+        newIndex = filteredProducts.length - 1;
+      } else {
+        newIndex = selectedSuggestionIndex - 1;
+        if (newIndex < 0) {
+          newIndex = filteredProducts.length - 1;
+        }
+      }
+      
+      setSelectedSuggestionIndex(newIndex);
+      
+      const selectedProductItem = filteredProducts[newIndex];
+      if (selectedProductItem) {
+        setSearchQuery(selectedProductItem.description);
+        setGhost("");
+      }
+      return;
+    }
+    
+    if (e.key === "Enter") {
+      e.preventDefault();
+      
+      if (selectedSuggestionIndex >= 0 && filteredProducts[selectedSuggestionIndex]) {
+        selectProduct(filteredProducts[selectedSuggestionIndex]);
+      } else if (filteredProducts.length > 0 && filteredProducts[0]) {
+        selectProduct(filteredProducts[0]);
+      } else if (searchQuery.trim()) {
+        const exactMatch = allProducts.find(p => 
+          p.code?.toLowerCase() === searchQuery.toLowerCase() ||
+          p.description?.toLowerCase() === searchQuery.toLowerCase()
+        );
+        if (exactMatch) {
+          selectProduct(exactMatch);
+        } else if (onOpenModal) {
+          onOpenModal();
+        }
+      } else if (onOpenModal) {
+        onOpenModal();
+      }
+      return;
+    }
+    
+    if (e.key === "Escape") {
+      e.preventDefault();
+      setSearchQuery("");
+      setOriginalQuery("");
+      setGhost("");
+      setFilteredProducts([]);
+      setSelectedSuggestionIndex(-1);
+      setShowSuggestions(false);
+      setIsNavigating(false);
+      if (selectedProduct) onClear();
+      inputRef.current?.blur();
+    }
+    
+    if (e.key === "F2") {
+      e.preventDefault();
+      if (onOpenModal) onOpenModal();
+    }
+  };
+
+  const handleChange = (e) => {
+    const newValue = e.target.value;
+    setSearchQuery(newValue);
+    setOriginalQuery(newValue);
+    if (selectedProduct && newValue !== selectedProduct.description) {
+      onClear();
+    }
+    setSelectedSuggestionIndex(-1);
+    setShowSuggestions(true);
+    setIsNavigating(false);
+  };
+
+  return (
+    <div style={{ position: "relative", flex: 1, width: "100%" }} ref={parentRef}>
+      <div style={{ 
+        position: "relative", 
+        width: "100%",
+        background: isFocused ? "#fffbe6" : "transparent",
+        borderRadius: "4px",
+        transition: "background 0.15s ease"
+      }}>
+        {ghost && !isNavigating && !selectedProduct && originalQuery && (
+          <div
+            style={{
+              position: "absolute",
+              left: 10,
+              top: "50%",
+              transform: "translateY(-50%)",
+              pointerEvents: "none",
+              whiteSpace: "nowrap",
+              fontSize: "13px",
+              fontFamily: "inherit",
+              display: "flex",
+              zIndex: 2,
+              color: "#a0aec0",
+              backgroundColor: "transparent"
+            }}
+          >
+            <span style={{ visibility: "hidden" }}>{originalQuery}</span>
+            <span style={{ color: "#a0aec0" }}>{ghost}</span>
+          </div>
+        )}
+        
+        <input
+          ref={inputRef}
+          type="text"
+          placeholder="Type product name or code... (Press ↑↓ to navigate, → to accept, Enter/F2 to browse)"
+          value={selectedProduct ? (searchQuery || selectedProduct.description) : searchQuery}
+          onChange={handleChange}
+          onKeyDown={handleKeyDown}
+          onFocus={() => {
+            setIsFocused(true);
+            if (!selectedProduct && originalQuery) {
+              setShowSuggestions(true);
+            }
+          }}
+          onBlur={() => {
+            setIsFocused(false);
+            setTimeout(() => {
+              if (!isNavigating) setShowSuggestions(false);
+            }, 200);
+          }}
+          autoComplete="off"
+          spellCheck={false}
+          style={{ 
+            width: "100%", 
+            padding: "8px 10px", 
+            border: "2px solid #000000", 
+            borderRadius: "4px", 
+            fontSize: "13px",
+            background: selectedProduct ? "#e8f5e9" : "#fffde7",
+            fontWeight: selectedProduct ? "bold" : "normal",
+            color: "#000",
+            position: "relative",
+            zIndex: 1,
+            outline: "none"
+          }}
+        />
+      </div>
+
+      {showSuggestions && filteredProducts.length > 0 && (
+        <div
+          style={{
+            position: "absolute",
+            top: "100%",
+            left: 0,
+            right: 0,
+            backgroundColor: "white",
+            border: "2px solid #000000",
+            borderRadius: "6px",
+            maxHeight: 350,
+            overflowY: "auto",
+            zIndex: 1000,
+            boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+            marginTop: 4,
+          }}
+        >
+          {filteredProducts.map((product, idx) => (
+            <div
+              key={product._id}
+              onClick={() => selectProduct(product)}
+              style={{
+                padding: "8px 12px",
+                cursor: "pointer",
+                backgroundColor: idx === selectedSuggestionIndex ? "#e5f0ff" : "white",
+                borderBottom: "1px solid #e2e8f0",
+                fontSize: 13,
+              }}
+              onMouseEnter={() => {
+                setSelectedSuggestionIndex(idx);
+                setIsNavigating(true);
+                setSearchQuery(product.description);
+                setGhost("");
+              }}
+              onMouseLeave={() => setIsNavigating(false)}
+            >
+              <div style={{ fontWeight: "bold", fontSize: 13, color: "#1e293b" }}>
+                {product.code} - {product.description}
+              </div>
+              <div style={{ fontSize: 10, color: "#6b7280", marginTop: 2 }}>
+                {product.category && <span>📁 {product.category}</span>}
+                {product.company && <span> | 🏭 {product.company}</span>}
+                {product.rackNo && <span> | 📦 Rack: {product.rackNo}</span>}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      
+      {selectedProduct && (
+        <div style={{ fontSize: "10px", color: "#059669", marginTop: "4px", fontWeight: "bold" }}>
+          ✓ Product selected: {selectedProduct.code} - {selectedProduct.description}
+        </div>
+      )}
     </div>
   );
 }
@@ -324,24 +681,18 @@ export default function ProductHistoryPage() {
   const [transactions, setTransactions] = useState([]);
   const [filteredTransactions, setFilteredTransactions] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [showProductModal, setShowProductModal] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState(null);
   const [msg, setMsg] = useState({ text: "", type: "" });
+  const [showProductModal, setShowProductModal] = useState(false);
   
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
   const [typeFilter, setTypeFilter] = useState("ALL");
   
-  const productInputRef = useRef(null);
+  const searchContainerRef = useRef(null);
 
   useEffect(() => {
     fetchProducts();
-    // Focus the product input when page loads
-    setTimeout(() => {
-      if (productInputRef.current) {
-        productInputRef.current.focus();
-      }
-    }, 100);
   }, []);
 
   useEffect(() => {
@@ -358,27 +709,7 @@ export default function ProductHistoryPage() {
     setFilteredTransactions(filtered);
   }, [transactions, fromDate, toDate, typeFilter]);
 
-  useEffect(() => {
-    const handler = (e) => {
-      if (e.key === "F2") {
-        e.preventDefault();
-        setShowProductModal(true);
-      }
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, []);
-
-  // Handle Enter key on the product input
-  const handleProductInputKeyDown = (e) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      setShowProductModal(true);
-    }
-  };
-
   const fetchProducts = async () => {
-    setLoading(true);
     try {
       const response = await api.get(EP.PRODUCTS.GET_ALL);
       if (response.data.success) {
@@ -388,7 +719,6 @@ export default function ProductHistoryPage() {
       console.error("Failed to load products:", error);
       showMsg("Failed to load products", "error");
     }
-    setLoading(false);
   };
 
   const showMsg = (text, type = "success") => {
@@ -457,9 +787,9 @@ export default function ProductHistoryPage() {
       setFilteredTransactions(allTransactions);
       
       if (allTransactions.length === 0) {
-        showMsg(`No transaction history found`, "info");
+        showMsg(`No transaction history found for ${product.code} - ${product.description}`, "info");
       } else {
-        showMsg(`Found ${allTransactions.length} transaction(s)`, "success");
+        showMsg(`Found ${allTransactions.length} transaction(s) for ${product.code} - ${product.description}`, "success");
       }
     } catch (error) {
       console.error("Failed to fetch transaction history:", error);
@@ -471,18 +801,25 @@ export default function ProductHistoryPage() {
   const handleProductSelect = (product) => {
     setShowProductModal(false);
     fetchProductHistory(product);
-    // Refocus the product input after modal closes
-    setTimeout(() => {
-      if (productInputRef.current) {
-        productInputRef.current.focus();
-      }
-    }, 100);
+  };
+
+  const handleProductClear = () => {
+    setSelectedProduct(null);
+    setTransactions([]);
+    setFilteredTransactions([]);
+    setFromDate("");
+    setToDate("");
+    setTypeFilter("ALL");
   };
 
   const clearFilters = () => {
     setFromDate("");
     setToDate("");
     setTypeFilter("ALL");
+  };
+
+  const openProductModal = () => {
+    setShowProductModal(true);
   };
 
   const getSummaryStats = () => {
@@ -506,7 +843,10 @@ export default function ProductHistoryPage() {
         <span className="xp-tb-title" style={{ color: "white", fontWeight: "bold" }}>Product Transaction History — Complete Audit Trail</span>
         <div className="xp-tb-actions">
           <div className="sl-shortcut-hints" style={{ color: "white" }}>
-            <span>Enter / F2 = Select Product</span>
+            <span>↑↓ Navigate</span>
+            <span>→ Accept</span>
+            <span>Enter/F2 Browse</span>
+            <span>Esc Clear</span>
           </div>
           <button className="xp-cap-btn" style={{ color: "white", background: "transparent", border: "1px solid #fff" }}>─</button>
           <button className="xp-cap-btn" style={{ color: "white", background: "transparent", border: "1px solid #fff" }}>□</button>
@@ -522,46 +862,18 @@ export default function ProductHistoryPage() {
 
       <div style={{ padding: "10px" }}>
         
-        {/* Product Selection - Read-only display with focus and yellow highlight */}
-        <div style={{ background: "white", padding: "10px", marginBottom: "10px", border: "1px solid #000" }}>
-          <div style={{ display: "flex", gap: "10px", alignItems: "flex-end" }}>
-            <div style={{ flex: 2 }}>
-              <label style={{ fontSize: "11px", fontWeight: "600", marginBottom: "2px", display: "block", color: "#000" }}>Select Product <span style={{ fontSize: "10px" }}>(Press Enter or F2)</span></label>
-              <div style={{ display: "flex", gap: "6px" }}>
-                <input
-                  ref={productInputRef}
-                  type="text"
-                  placeholder="Press Enter or F2 to select product..."
-                  value={selectedProduct ? `${selectedProduct.code} - ${selectedProduct.description}` : ""}
-                  onKeyDown={handleProductInputKeyDown}
-                  readOnly
-                  style={{ 
-                    flex: 1, 
-                    padding: "4px 8px", 
-                    border: "1px solid #000", 
-                    fontSize: "12px", 
-                    background: "#fff9c4",  // Yellow background for focus indication
-                    color: "#000",
-                    cursor: "pointer"
-                  }}
-                />
-                <button onClick={() => setShowProductModal(true)} style={{ padding: "4px 12px", background: "#1a1a1a", color: "white", border: "1px solid #000", cursor: "pointer", fontSize: "11px" }}>Browse (F2)</button>
-                {selectedProduct && (
-                  <button onClick={() => { setSelectedProduct(null); setTransactions([]); setFilteredTransactions([]); productInputRef.current?.focus(); }} style={{ padding: "4px 10px", background: "#fff", color: "#000", border: "1px solid #000", cursor: "pointer", fontSize: "11px" }}>Clear</button>
-                )}
-              </div>
-            </div>
-          </div>
-          
-          {selectedProduct && (
-            <div style={{ marginTop: "8px", padding: "6px", background: "#f5f5f5", border: "1px solid #000", display: "flex", flexWrap: "wrap", gap: "10px", fontSize: "11px" }}>
-              <div><strong>Code:</strong> {selectedProduct.code}</div>
-              <div><strong>Name:</strong> {selectedProduct.description}</div>
-              <div><strong>Category:</strong> {selectedProduct.category || "—"}</div>
-              <div><strong>Company:</strong> {selectedProduct.company || "—"}</div>
-              <div><strong>Rack:</strong> {selectedProduct.rackNo || "—"}</div>
-            </div>
-          )}
+        {/* Product Selection */}
+        <div style={{ background: "white", padding: "10px", marginBottom: "10px", border: "2px solid #000" }} ref={searchContainerRef}>
+          <label style={{ fontSize: "11px", fontWeight: "600", marginBottom: "4px", display: "block", color: "#000" }}>
+            🔍 Search Product <span style={{ fontSize: "10px", fontWeight: "normal" }}>(Type to search, ↑↓ to navigate, → to accept, Enter/F2 to browse)</span>
+          </label>
+          <ProductSearchInput
+            allProducts={allProducts}
+            onSelect={handleProductSelect}
+            selectedProduct={selectedProduct}
+            onClear={handleProductClear}
+            onOpenModal={openProductModal}
+          />
         </div>
 
         {/* Statistics */}
@@ -636,9 +948,13 @@ export default function ProductHistoryPage() {
                 </thead>
                 <tbody>
                   {loading ? (
-                    <tr><td colSpan="9" style={{ textAlign: "center", padding: "30px", color: "#000", border: "1px solid #000" }}>Loading...</td></tr>
+                    <tr>
+                      <td colSpan="9" style={{ textAlign: "center", padding: "30px", color: "#000", border: "1px solid #000" }}>Loading...</td>
+                    </tr>
                   ) : filteredTransactions.length === 0 ? (
-                    <tr><td colSpan="9" style={{ textAlign: "center", padding: "30px", color: "#000", border: "1px solid #000" }}>No transactions found</td></tr>
+                    <tr>
+                      <td colSpan="9" style={{ textAlign: "center", padding: "30px", color: "#000", border: "1px solid #000" }}>No transactions found</td>
+                    </tr>
                   ) : (
                     filteredTransactions.map((transaction, idx) => (
                       <tr key={transaction.id} style={{ borderBottom: "1px solid #000" }}
@@ -666,7 +982,7 @@ export default function ProductHistoryPage() {
                       <td style={{ padding: "6px 8px", textAlign: "right", border: "1px solid #000", color: "#000" }}>{formatNumber(filteredTransactions.reduce((s, t) => s + t.qty, 0))}</td>
                       <td style={{ padding: "6px 8px", textAlign: "right", border: "1px solid #000", color: "#000" }}>—</td>
                       <td style={{ padding: "6px 8px", textAlign: "right", border: "1px solid #000", color: "#000" }}>PKR {formatCurrency(filteredTransactions.reduce((s, t) => s + t.amount, 0))}</td>
-                      <td style={{ padding: "6px 8px", border: "1px solid #000" }}></td>
+                      <td style={{ padding: "6px 8px", border: "1px solid #000" }}> </td>
                     </tr>
                   </tfoot>
                 )}
@@ -674,7 +990,7 @@ export default function ProductHistoryPage() {
             </div>
           </div>
         ) : (
-          <div style={{ background: "white", padding: "40px", textAlign: "center", border: "1px solid #000" }}>
+          <div style={{ background: "white", padding: "40px", textAlign: "center", border: "2px solid #000" }}>
             <svg width="50" height="50" viewBox="0 0 24 24" fill="none" stroke="#000" strokeWidth="1" style={{ marginBottom: "10px" }}>
               <path d="M20 7h-4.18A3 3 0 0 0 16 5.18V4a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z" />
               <path d="M16 5v4h4" />
@@ -682,11 +998,16 @@ export default function ProductHistoryPage() {
               <path d="M9 14h6" />
             </svg>
             <h3 style={{ fontSize: "14px", marginBottom: "4px", color: "#000" }}>No Product Selected</h3>
-            <p style={{ fontSize: "11px", color: "#000" }}>Press <kbd style={{ background: "#f5f5f5", padding: "2px 5px", border: "1px solid #000" }}>Enter</kbd> or <kbd style={{ background: "#f5f5f5", padding: "2px 5px", border: "1px solid #000" }}>F2</kbd> to select a product</p>
+            <p style={{ fontSize: "11px", color: "#000" }}>Start typing product name or code in the search box above</p>
+            <p style={{ fontSize: "10px", color: "#666", marginTop: "6px" }}>
+              <kbd style={{ background: "#f5f5f5", padding: "2px 5px", border: "1px solid #000" }}>↑↓</kbd> Navigate suggestions &nbsp;|&nbsp;
+              <kbd style={{ background: "#f5f5f5", padding: "2px 5px", border: "1px solid #000" }}>→</kbd> Accept suggestion &nbsp;|&nbsp;
+              <kbd style={{ background: "#f5f5f5", padding: "2px 5px", border: "1px solid #000" }}>Enter/F2</kbd> Open product list
+            </p>
           </div>
         )}
       </div>
-
+      
       {showProductModal && (
         <ProductSearchModal
           allProducts={allProducts}

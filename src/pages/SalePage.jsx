@@ -1,11 +1,11 @@
-// pages/SalePage.jsx - COMPLETE FILE with User & Counter Tracking
+// pages/SalePage.jsx - COMPLETE FILE with User & Counter Tracking & Stock Validation
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useAuth } from "../context/AuthContext";
 import api from "../api/api.js";
 import EP from "../api/apiEndpoints.js";
 import "../styles/theme.css";
 import "../styles/SalePage.css";
-import { SHOP_INFO, URDU_FONT, GOOGLE_FONT_LINK, getShopHeaderHTML, getShopBannerHTML, getShopTermsHTML, getShopFooterHTML } from "../constants/shopInfo.js";
+import { SHOP_INFO, URDU_FONT, GOOGLE_FONT_LINK } from "../constants/shopInfo.js";
 
 /* ── helpers ── */
 const timeNow = () =>
@@ -28,7 +28,6 @@ const EMPTY_ROW = {
   rate: 0,
   amount: 0,
 };
-
 
 const TYPE_COLORS = {
   credit: { bg: "#fca5a5", color: "#7f1d1d", border: "#ef4444" },
@@ -58,6 +57,26 @@ const saveHolds = (bills) => {
   try {
     localStorage.setItem(HOLD_KEY, JSON.stringify(bills));
   } catch {}
+};
+
+/* ══════════════════════════════════════════════════════════
+   STOCK CHECK HELPER
+══════════════════════════════════════════════════════════ */
+const checkStockAvailability = (productId, requestedQty, currentUom, allProducts) => {
+  const product = allProducts.find(p => p._id === productId);
+  if (!product) return { available: false, message: "Product not found", availableStock: 0 };
+  
+  const packingInfo = product.packingInfo?.find(pk => pk.measurement === currentUom);
+  if (!packingInfo) return { available: false, message: "Packing info not found", availableStock: 0 };
+  
+  const availableStock = packingInfo.openingQty || 0;
+  const isAvailable = availableStock >= requestedQty;
+  
+  return {
+    available: isAvailable,
+    message: isAvailable ? "In stock" : `Only ${availableStock} ${currentUom} available`,
+    availableStock
+  };
 };
 
 /* ══════════════════════════════════════════════════════════
@@ -132,7 +151,7 @@ const buildPrintHtml = (sale, type, overrides = {}) => {
       </div>
       <hr class="divider-dash">
 
-      <tr>
+      </table>
         <thead>
           <tr>
             <th style="width:30px">#</th>
@@ -304,7 +323,7 @@ const buildPrintHtml = (sale, type, overrides = {}) => {
         <td style="text-align:right">${it.pcs}</td>
         ${!hidePrices ? `<td style="text-align:right">${Number(it.rate).toLocaleString()}</td>
         <td style="text-align:right"><b>${Number(it.amount).toLocaleString()}</b></td>` : '<td colspan="2" style="text-align:center;color:#888">[Price Hidden]</td>'}
-       </tr>`,
+        </tr>`,
       )
       .join("");
 
@@ -433,7 +452,7 @@ const buildPrintHtml = (sale, type, overrides = {}) => {
   </style></head><body>${allPagesHtml}</body></html>`;
 };
 
-// Share via WhatsApp - A4 PDF only, no database save
+// Share via WhatsApp
 const shareViaWhatsApp = async (sale, overrides = {}) => {
   try {
     if (!sale.items || sale.items.length === 0) {
@@ -1168,7 +1187,9 @@ function SearchModal({ allProducts, onSelect, onClose }) {
                       <td style={{ padding: "4px 4px", textAlign: "right", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>
                         {Number(r._rate).toLocaleString("en-PK")}
                       </td>
-                      <td style={{ padding: "4px 4px", textAlign: "right", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>{r._stock}</td>
+                      <td style={{ padding: "4px 4px", textAlign: "right", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: r._stock === 0 ? "#dc2626" : r._stock < 10 ? "#f59e0b" : "#059669" }}>
+                        {r._stock}
+                      </td>
                       <td style={{ padding: "4px 4px", textAlign: "right", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>{r._pack}</td>
                       <td style={{ padding: "4px 4px", textAlign: "center", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>{r.rackNo || "—"}</td>
                     </tr>
@@ -1659,10 +1680,45 @@ function CustomerDropdown({
 }
 
 /* ══════════════════════════════════════════════════════════
+   STOCK UPDATE HELPER
+══════════════════════════════════════════════════════════ */
+const updateProductStock = async (productId, uom, qtySold, allProducts, setAllProducts) => {
+  try {
+    const productRes = await api.get(EP.PRODUCTS.GET_ONE(productId));
+    if (productRes.data.success && productRes.data.data) {
+      const product = productRes.data.data;
+      
+      if (product.packingInfo && product.packingInfo.length > 0) {
+        const packingIndex = product.packingInfo.findIndex(pk => pk.measurement === uom);
+        if (packingIndex !== -1) {
+          const currentStock = product.packingInfo[packingIndex].openingQty || 0;
+          const newStock = Math.max(0, currentStock - qtySold);
+          
+          product.packingInfo[packingIndex].openingQty = newStock;
+          await api.put(EP.PRODUCTS.UPDATE(productId), {
+            packingInfo: product.packingInfo
+          });
+          
+          setAllProducts(prev => prev.map(p => 
+            p._id === productId ? { ...p, packingInfo: product.packingInfo } : p
+          ));
+          
+          console.log(`✅ Stock updated: ${product.code} - ${uom}: ${currentStock} -> ${newStock}`);
+          return newStock;
+        }
+      }
+    }
+  } catch (error) {
+    console.error("Failed to update stock:", error);
+  }
+  return null;
+};
+
+/* ══════════════════════════════════════════════════════════
    MAIN PAGE
 ══════════════════════════════════════════════════════════ */
 export default function SalePage() {
-  const { user } = useAuth(); // Get current logged-in user
+  const { user } = useAuth();
 
   const [time, setTime] = useState(timeNow());
   const [allProducts, setAllProducts] = useState([]);
@@ -1720,7 +1776,6 @@ export default function SalePage() {
   const statementRef = useRef(null);
   const [gatepassPrint, setGatepassPrint] = useState(false);
 
-  // COUNTER TRACKING STATES
   const [counterId, setCounterId] = useState(() => {
     return localStorage.getItem('selectedCounterId') || 'default';
   });
@@ -1729,7 +1784,6 @@ export default function SalePage() {
   });
   const [availableCounters, setAvailableCounters] = useState([]);
 
-  // Fetch counters on component mount
   useEffect(() => {
     fetchCounters();
   }, []);
@@ -1797,7 +1851,6 @@ export default function SalePage() {
     else setReceived(billAmount + (parseFloat(prevBalance) || 0));
   };
 
-  // FIXED: Properly fetch and calculate next invoice number
   const fetchData = async () => {
     setLoading(true);
     try {
@@ -1809,14 +1862,11 @@ export default function SalePage() {
       if (pRes.data.success) setAllProducts(pRes.data.data);
       if (cRes.data.success) setAllCustomers(cRes.data.data);
       
-      // Calculate next invoice number from existing sales
       let maxNum = 0;
       if (salesRes.data.success && salesRes.data.data && salesRes.data.data.length > 0) {
         salesRes.data.data.forEach(sale => {
-          // Handle both string and number invoiceNo
           let num = sale.invoiceNo;
           if (typeof num === 'string') {
-            // Remove any INV- prefix if exists (for backward compatibility)
             num = num.replace(/^INV-/i, '');
             num = num.replace(/^0+/, '');
           }
@@ -1836,7 +1886,6 @@ export default function SalePage() {
     setLoading(false);
   };
 
-  // FIXED: Refresh invoice number after save
   const refreshInvoiceNo = async () => {
     try {
       const salesRes = await api.get(EP.SALES.GET_ALL);
@@ -1869,7 +1918,6 @@ export default function SalePage() {
     setTimeout(() => setMsg({ text: "", type: "" }), 3500);
   };
   
-  // FIXED: handleCustomerSelect - Properly fetch customer data
   const handleCustomerSelect = async (c) => {
     if (!c || !c._id) {
       showMsg("Invalid customer selected", "error");
@@ -1877,7 +1925,6 @@ export default function SalePage() {
     }
     
     try {
-      // First update with the customer data we already have
       const type = c.customerType || c.type || "";
       setCustomerId(c._id);
       setBuyerName(c.name);
@@ -1912,7 +1959,6 @@ export default function SalePage() {
         setTimeout(() => searchRef.current?.focus(), 30);
       }
       
-      // Optionally fetch fresh data from API to ensure latest balance
       try {
         const freshCustomer = await api.get(`${EP.CUSTOMERS.GET_ALL}/${c._id}`);
         if (freshCustomer.data && freshCustomer.data.success && freshCustomer.data.data) {
@@ -1928,7 +1974,6 @@ export default function SalePage() {
         }
       } catch (freshErr) {
         console.error("Failed to fetch fresh customer data:", freshErr);
-        // Use existing data, don't show error to user
       }
       
     } catch (error) {
@@ -1950,45 +1995,27 @@ export default function SalePage() {
     setShowCustomerPanel(false);
   };
 
-  const handleAddNewCustomer = async (name) => {
-    try {
-      const { data } = await api.post(EP.CUSTOMERS.CREATE, {
-        name: name.trim(),
-        type: "credit",
-        phone: "",
-      });
-      if (data.success) {
-        await fetchData();
-        const newCust = data.data;
-        handleCustomerSelect({
-          _id: newCust._id,
-          name: newCust.name,
-          phone: newCust.phone || "",
-          customerType: "credit",
-          type: "credit",
-          currentBalance: 0,
-          creditLimit: newCust.creditLimit || 0,
-        });
-        showMsg(`"${name}" saved as new customer`, "success");
-      }
-    } catch {
-      showMsg("Customer save failed", "error");
-    }
-    setTimeout(() => searchRef.current?.focus(), 30);
-  };
-  
-  // FIXED: pickProduct - Focus on search input first, NOT packing
   const pickProduct = (product) => {
     if (!product._id) {
       showMsg("Product ID missing", "error");
       return;
     }
+    
+    const selectedUom = product._meas || product.packingInfo?.[0]?.measurement || "";
+    const currentStock = product._stock || product.packingInfo?.[0]?.openingQty || 0;
+    
+    if (currentStock === 0) {
+      if (!window.confirm(`⚠️ "${product.description || product.name}" is OUT OF STOCK! Still want to add?`)) {
+        return;
+      }
+    }
+    
     setPackingOptions(product.packingInfo?.map((pk) => pk.measurement) || []);
     setCurRow({
       productId: product._id,
       code: product.code || "",
       name: product._name || product.description || "",
-      uom: product._meas || "",
+      uom: selectedUom,
       rack: product.rack || "",
       pcs: product._pack || 1,
       rate: product._rate || 0,
@@ -1997,7 +2024,15 @@ export default function SalePage() {
     setSearchText(product.code || "");
     setShowProductModal(false);
     setShowProductSuggestions(false);
-    // FIXED: Focus on search input first, NOT packing
+    
+    if (currentStock === 0) {
+      showMsg(`⚠️ ${product.description || product.name} is OUT OF STOCK!`, "error");
+    } else if (currentStock < 10) {
+      showMsg(`⚠️ Low stock! Only ${currentStock} ${selectedUom} remaining`, "warning");
+    } else {
+      showMsg(`✓ ${product.description || product.name} - Stock: ${currentStock} ${selectedUom}`, "success");
+    }
+    
     setTimeout(() => searchRef.current?.focus(), 30);
   };
 
@@ -2009,6 +2044,18 @@ export default function SalePage() {
         (parseFloat(field === "rate" ? val : u.rate) || 0);
       return u;
     });
+    
+    if (field === "pcs" && curRow.productId && curRow.uom) {
+      const qty = parseFloat(val);
+      if (!isNaN(qty) && qty > 0) {
+        const stockCheck = checkStockAvailability(curRow.productId, qty, curRow.uom, allProducts);
+        if (!stockCheck.available) {
+          showMsg(`⚠️ ${stockCheck.message}`, "warning");
+        } else if (stockCheck.availableStock - qty < 5 && stockCheck.availableStock > 0) {
+          showMsg(`⚠️ Low stock! Only ${stockCheck.availableStock} ${curRow.uom} remaining`, "warning");
+        }
+      }
+    }
   };
 
   const addRow = () => {
@@ -2024,6 +2071,16 @@ export default function SalePage() {
       showMsg("Qty must be > 0", "error");
       return;
     }
+    
+    // ✅ STOCK CHECK - Prevent sale if insufficient stock
+    const stockCheck = checkStockAvailability(curRow.productId, parseFloat(curRow.pcs), curRow.uom, allProducts);
+    if (!stockCheck.available) {
+      showMsg(`❌ Insufficient stock! ${stockCheck.message}`, "error");
+      pcsRef.current?.focus();
+      pcsRef.current?.select();
+      return;
+    }
+    
     if (selItemIdx !== null) {
       setItems((p) => {
         const u = [...p];
@@ -2049,6 +2106,11 @@ export default function SalePage() {
     const r = items[idx];
     setCurRow({ ...r });
     setSearchText(r.name);
+    
+    const stockCheck = checkStockAvailability(r.productId, parseFloat(r.pcs), r.uom, allProducts);
+    if (!stockCheck.available) {
+      showMsg(`⚠️ Warning: ${stockCheck.message}`, "warning");
+    }
 
     const product = allProducts.find((p) => p._id === r.productId);
     if (product?.packingInfo?.length > 0) {
@@ -2138,7 +2200,6 @@ export default function SalePage() {
   
   const loadSaleForEdit = (sale) => {
     setEditId(sale._id);
-    // Handle both string and number invoiceNo
     let invNo = sale.invoiceNo;
     if (typeof invNo === 'string') {
       invNo = invNo.replace(/^INV-/i, '');
@@ -2238,7 +2299,6 @@ export default function SalePage() {
     printType,
     remarks: creditStatement || "",
     saleType: "sale",
-    // USER AND COUNTER TRACKING
     userId: user?.id || user?._id,
     username: user?.username || 'unknown',
     counterId: counterId,
@@ -2292,6 +2352,17 @@ export default function SalePage() {
         : await api.post(EP.SALES.CREATE, finalPayload);
 
       if (data.success) {
+        // ✅ DEDUCT STOCK AFTER SUCCESSFUL SALE
+        for (const item of payload.items) {
+          await updateProductStock(item.productId, item.uom, item.pcs, allProducts, setAllProducts);
+        }
+        
+        // Refresh products to update local state
+        const productsRes = await api.get(EP.PRODUCTS.GET_ALL);
+        if (productsRes.data.success) {
+          setAllProducts(productsRes.data.data);
+        }
+        
         showMsg(editId ? "Sale updated!" : `Saved: ${data.data.invoiceNo}`);
         
         if (customerId) {
@@ -2480,7 +2551,7 @@ export default function SalePage() {
 
         <div className="sl-body">
           <div className="sl-left">
-            {/* Counter Selector added in the top bar */}
+            {/* Counter Selector */}
             <div className="sl-top-bar" style={{ marginBottom: "8px", display: "flex", justifyContent: "space-between" }}>
               <div className="sl-inv-field-grp">
                 <label>Counter</label>
@@ -2598,7 +2669,7 @@ export default function SalePage() {
               </div>
             </div>
 
-            {/* Entry strip with product autocomplete */}
+            {/* Entry strip with product autocomplete - WITH STOCK DISPLAY */}
             <div className="sl-entry-strip">
               <div className="sl-entry-cell sl-entry-product">
                 <label>
@@ -2643,7 +2714,6 @@ export default function SalePage() {
                           });
                           setProductSuggestions([]);
                           setShowProductSuggestions(false);
-                          // FIXED: AFTER product is selected, focus on packing field on Enter
                           setTimeout(() => packingRef.current?.focus(), 50);
                         } else if (searchText.trim()) {
                           const q = searchText.trim().toLowerCase();
@@ -2665,7 +2735,6 @@ export default function SalePage() {
                               _stock: pk?.openingQty || 0,
                               _name: [found.category, found.description, found.company].filter(Boolean).join(" "),
                             });
-                            // FIXED: AFTER product is selected, focus on packing field on Enter
                             setTimeout(() => packingRef.current?.focus(), 50);
                           } else {
                             setShowProductModal(true);
@@ -2689,29 +2758,43 @@ export default function SalePage() {
                   />
                   {showProductSuggestions && productSuggestions.length > 0 && (
                     <div className="sl-product-suggestions">
-                      {productSuggestions.map((p, idx) => (
-                        <div
-                          key={p._id}
-                          className={`sl-suggestion-item ${idx === selectedProductSuggestionIdx ? 'selected' : ''}`}
-                          onClick={() => {
-                            const pk = p.packingInfo?.[0];
-                            pickProduct({
-                              ...p,
-                              _pi: 0,
-                              _meas: pk?.measurement || "",
-                              _rate: pk?.saleRate || 0,
-                              _pack: pk?.packing || 1,
-                              _stock: pk?.openingQty || 0,
-                              _name: [p.category, p.description, p.company].filter(Boolean).join(" "),
-                            });
-                            setShowProductSuggestions(false);
-                            setTimeout(() => packingRef.current?.focus(), 50);
-                          }}
-                        >
-                          <span className="sl-suggestion-code">{p.code}</span>
-                          <span className="sl-suggestion-name">{p.description}</span>
-                        </div>
-                      ))}
+                      {productSuggestions.map((p, idx) => {
+                        const stock = p.packingInfo?.[0]?.openingQty || 0;
+                        return (
+                          <div
+                            key={p._id}
+                            className={`sl-suggestion-item ${idx === selectedProductSuggestionIdx ? 'selected' : ''}`}
+                            onClick={() => {
+                              const pk = p.packingInfo?.[0];
+                              if (stock === 0 && !window.confirm(`⚠️ "${p.description}" is OUT OF STOCK! Still want to add?`)) {
+                                return;
+                              }
+                              pickProduct({
+                                ...p,
+                                _pi: 0,
+                                _meas: pk?.measurement || "",
+                                _rate: pk?.saleRate || 0,
+                                _pack: pk?.packing || 1,
+                                _stock: stock,
+                                _name: [p.category, p.description, p.company].filter(Boolean).join(" "),
+                              });
+                              setShowProductSuggestions(false);
+                              setTimeout(() => packingRef.current?.focus(), 50);
+                            }}
+                          >
+                            <span className="sl-suggestion-code">{p.code}</span>
+                            <span className="sl-suggestion-name">{p.description}</span>
+                            <span className="sl-suggestion-stock" style={{ 
+                              fontSize: '10px', 
+                              color: stock === 0 ? '#dc2626' : stock < 10 ? '#f59e0b' : '#059669',
+                              marginLeft: '8px',
+                              fontWeight: 'bold'
+                            }}>
+                              Stock: {stock}
+                            </span>
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
                 </div>
@@ -2794,8 +2877,7 @@ export default function SalePage() {
                 <label>Rate</label>
                 <input
                   ref={rateRef}
-                  type="text"
-                  className="sl-num-input"
+                  type="text"                  className="sl-num-input"
                   style={{ width: 75, background: "#fffde7" }}
                   value={curRow.rate}
                   min={0}
