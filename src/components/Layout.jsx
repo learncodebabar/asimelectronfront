@@ -1,4 +1,4 @@
-// components/Layout.jsx
+// components/Layout.jsx - with working Window Controls
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useNavigate, useLocation, Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
@@ -87,6 +87,10 @@ function MenuBar() {
   const ref = useRef(null);
   const { hasPermission, logout, user, isAdmin } = useAuth();
   
+  // Window control states
+  const [isMinimized, setIsMinimized] = useState(false);
+  const [isMaximized, setIsMaximized] = useState(false);
+  
   // Get dynamic menu configuration based on user permissions
   const menuConfig = useMemo(() => {
     return getMenuConfig(hasPermission);
@@ -135,168 +139,283 @@ function MenuBar() {
     }
   };
 
+  // Handle fullscreen
+  const handleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen();
+      setIsMaximized(true);
+    } else {
+      document.exitFullscreen();
+      setIsMaximized(false);
+    }
+  };
+
+  // Handle minimize (hide app bar)
+  const handleMinimize = () => {
+    setIsMinimized(true);
+  };
+
+  const handleRestore = () => {
+    setIsMinimized(false);
+  };
+
+  // Listen for fullscreen change events
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsMaximized(!!document.fullscreenElement);
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
+
+  // Minimized bar shown at bottom
+  if (isMinimized) {
+    return (
+      <div 
+        onClick={handleRestore}
+        style={{
+          position: 'fixed',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          background: 'linear-gradient(180deg, #2563eb 0%, #1d4ed8 100%)',
+          color: 'white',
+          padding: '8px 16px',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          cursor: 'pointer',
+          zIndex: 10000,
+          borderTop: '2px solid #3b82f6',
+          boxShadow: '0 -2px 10px rgba(0,0,0,0.2)',
+          fontFamily: 'Tahoma, sans-serif',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+            <path d="M0 4a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2zm2-1a1 1 0 0 0-1 1v1h14V4a1 1 0 0 0-1-1zm13 4H1v5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1z" />
+          </svg>
+          <span style={{ fontSize: '12px', fontWeight: 500 }}>Asim Electric Store - Minimized</span>
+        </div>
+        <button
+          onClick={(e) => { e.stopPropagation(); handleRestore(); }}
+          style={{
+            background: 'rgba(255,255,255,0.2)',
+            border: 'none',
+            color: 'white',
+            padding: '4px 12px',
+            borderRadius: '4px',
+            cursor: 'pointer',
+            fontSize: '11px',
+            fontFamily: 'inherit',
+          }}
+          onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.3)'}
+          onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.2)'}
+        >
+          Restore
+        </button>
+      </div>
+    );
+  }
+
   return (
-    <div
-      ref={ref}
-      style={{
-        display: "flex",
-        justifyContent: "space-between",
-        background: "linear-gradient(180deg,#f0ede4 0%,#dedad0 100%)",
-        borderBottom: "1px solid #aca899",
-        boxShadow: "inset 0 -1px 0 #fff",
-        padding: "1px 2px",
-        fontSize: 12,
-        fontFamily: "Tahoma, sans-serif",
-        userSelect: "none",
-        position: "relative",
-        zIndex: 1000,
-        flexShrink: 0,
-      }}
-    >
-      <div style={{ display: "flex", flexWrap: "wrap" }}>
-        {menuConfig.map((menu, idx) => (
-          <div key={menu.label} style={{ position: "relative" }}>
-            <a
-              href="#"
-              onClick={(e) => {
-                e.preventDefault();
-                setOpenIdx(openIdx === idx ? null : idx);
-              }}
-              onMouseEnter={() => openIdx !== null && setOpenIdx(idx)}
-              style={{
-                display: "inline-block",
-                background: openIdx === idx ? "#316ac5" : "transparent",
-                color: openIdx === idx ? "#fff" : "#000",
-                border: "1px solid transparent",
-                padding: "2px 8px",
-                fontSize: 12,
-                fontFamily: "inherit",
-                cursor: "pointer",
-                height: 22,
-                borderRadius: 2,
-                textDecoration: "none",
-                lineHeight: "16px",
-              }}
-            >
-              {menu.label}
-            </a>
-            
-            {openIdx === idx && (
-              <div
+    <>
+      <div
+        ref={ref}
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          background: "linear-gradient(180deg,#f0ede4 0%,#dedad0 100%)",
+          borderBottom: "1px solid #aca899",
+          boxShadow: "inset 0 -1px 0 #fff",
+          padding: "1px 2px",
+          fontSize: 12,
+          fontFamily: "Tahoma, sans-serif",
+          userSelect: "none",
+          position: "relative",
+          zIndex: 1000,
+          flexShrink: 0,
+        }}
+      >
+        <div style={{ display: "flex", flexWrap: "wrap" }}>
+          {menuConfig.map((menu, idx) => (
+            <div key={menu.label} style={{ position: "relative" }}>
+              <a
+                href="#"
+                onClick={(e) => {
+                  e.preventDefault();
+                  setOpenIdx(openIdx === idx ? null : idx);
+                }}
+                onMouseEnter={() => openIdx !== null && setOpenIdx(idx)}
                 style={{
-                  position: "absolute",
-                  top: "100%",
-                  left: 0,
-                  background: "#f5f5f0",
-                  border: "1px solid #aca899",
-                  boxShadow: "2px 2px 6px rgba(0,0,0,0.3)",
-                  minWidth: 220,
-                  zIndex: 2000,
-                  padding: "2px 0",
+                  display: "inline-block",
+                  background: openIdx === idx ? "#316ac5" : "transparent",
+                  color: openIdx === idx ? "#fff" : "#000",
+                  border: "1px solid transparent",
+                  padding: "2px 8px",
+                  fontSize: 12,
+                  fontFamily: "inherit",
+                  cursor: "pointer",
+                  height: 22,
+                  borderRadius: 2,
+                  textDecoration: "none",
+                  lineHeight: "16px",
                 }}
               >
-                {menu.items.map((item, i) => {
-                  if (item.label === "───")
+                {menu.label}
+              </a>
+              
+              {openIdx === idx && (
+                <div
+                  style={{
+                    position: "absolute",
+                    top: "100%",
+                    left: 0,
+                    background: "#f5f5f0",
+                    border: "1px solid #aca899",
+                    boxShadow: "2px 2px 6px rgba(0,0,0,0.3)",
+                    minWidth: 220,
+                    zIndex: 2000,
+                    padding: "2px 0",
+                  }}
+                >
+                  {menu.items.map((item, i) => {
+                    if (item.label === "───")
+                      return (
+                        <div
+                          key={i}
+                          style={{
+                            height: 1,
+                            background: "#ccc",
+                            margin: "2px 4px",
+                          }}
+                        />
+                      );
+                    
+                    const isActive = item.route && location.pathname === item.route;
+                    
                     return (
                       <div
                         key={i}
+                        onClick={(e) => handleMenuClick(item, e)}
                         style={{
-                          height: 1,
-                          background: "#ccc",
-                          margin: "2px 4px",
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          padding: "3px 20px 3px 24px",
+                          cursor: item.disabled ? "not-allowed" : "pointer",
+                          fontSize: 12,
+                          background: isActive && !item.disabled ? "#316ac5" : "transparent",
+                          color: item.disabled ? "#999" : (isActive ? "#fff" : "#000"),
+                          whiteSpace: "nowrap",
+                          textDecoration: "none",
+                          opacity: item.disabled ? 0.6 : 1,
+                          minHeight: 24,
                         }}
-                      />
-                    );
-                  
-                  const isActive = item.route && location.pathname === item.route;
-                  
-                  return (
-                    <div
-                      key={i}
-                      onClick={(e) => handleMenuClick(item, e)}
-                      style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                        padding: "3px 20px 3px 24px",
-                        cursor: item.disabled ? "not-allowed" : "pointer",
-                        fontSize: 12,
-                        background: isActive && !item.disabled ? "#316ac5" : "transparent",
-                        color: item.disabled ? "#999" : (isActive ? "#fff" : "#000"),
-                        whiteSpace: "nowrap",
-                        textDecoration: "none",
-                        opacity: item.disabled ? 0.6 : 1,
-                        minHeight: 24,
-                      }}
-                      onMouseEnter={(e) => {
-                        if (!isActive && !item.disabled) {
-                          e.currentTarget.style.background = "#316ac5";
-                          e.currentTarget.style.color = "#fff";
-                        } else if (item.disabled) {
-                          e.currentTarget.style.background = "transparent";
-                        }
-                      }}
-                      onMouseLeave={(e) => {
-                        if (!isActive && !item.disabled) {
-                          e.currentTarget.style.background = "transparent";
-                          e.currentTarget.style.color = "#000";
-                        }
-                      }}
-                    >
-                      <span style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                        {item.disabled && <span style={{ fontSize: "11px" }}>🔒</span>}
-                        <span>{item.label}</span>
-                      </span>
-                      {item.shortcut && (
-                        <span
-                          style={{ 
-                            marginLeft: 30, 
-                            color: item.disabled ? "#ccc" : "#888", 
-                            fontSize: 10,
-                            fontFamily: "monospace"
-                          }}
-                        >
-                          {item.shortcut}
+                        onMouseEnter={(e) => {
+                          if (!isActive && !item.disabled) {
+                            e.currentTarget.style.background = "#316ac5";
+                            e.currentTarget.style.color = "#fff";
+                          } else if (item.disabled) {
+                            e.currentTarget.style.background = "transparent";
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          if (!isActive && !item.disabled) {
+                            e.currentTarget.style.background = "transparent";
+                            e.currentTarget.style.color = "#000";
+                          }
+                        }}
+                      >
+                        <span style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                          {item.disabled && <span style={{ fontSize: "11px" }}>🔒</span>}
+                          <span>{item.label}</span>
                         </span>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
+                        {item.shortcut && (
+                          <span
+                            style={{ 
+                              marginLeft: 30, 
+                              color: item.disabled ? "#ccc" : "#888", 
+                              fontSize: 10,
+                              fontFamily: "monospace"
+                            }}
+                          >
+                            {item.shortcut}
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+        
+        {/* User info, logout, and window controls on the right */}
+        <div style={{ display: "flex", alignItems: "center", gap: 12, paddingRight: 8 }}>
+          <span style={{ fontSize: 11, display: "flex", alignItems: "center", gap: 6 }}>
+            <span>👤</span>
+            <span>{user?.name || user?.username}</span>
+            {isAdmin && <span style={{ color: "#0a246a", fontSize: 10, background: "#e8e4d8", padding: "2px 6px", borderRadius: 3 }}>Admin</span>}
+          </span>
+          <button
+            onClick={handleLogout}
+            style={{
+              background: "transparent",
+              border: "1px solid #aca899",
+              padding: "2px 8px",
+              cursor: "pointer",
+              fontSize: 11,
+              borderRadius: 2,
+              fontFamily: "inherit",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = "#e8e4d8";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = "transparent";
+            }}
+          >
+            Logout
+          </button>
+          
+          {/* Window Control Buttons - Same as PurchasePage */}
+          <div className="xp-tb-actions" style={{ display: "flex", gap: "2px", marginLeft: "4px" }}>
+            <button 
+              className="xp-cap-btn" 
+              onClick={handleMinimize}
+              style={{ 
+                background: "transparent", 
+                border: "none", 
+                cursor: "pointer", 
+                padding: "2px 8px",
+                fontSize: "14px",
+                fontWeight: "bold"
+              }}
+              title="Minimize"
+            >
+              ─
+            </button>
+            <button 
+              className="xp-cap-btn" 
+              onClick={handleFullscreen}
+              style={{ 
+                background: "transparent", 
+                border: "none", 
+                cursor: "pointer", 
+                padding: "2px 8px",
+                fontSize: "14px",
+                fontWeight: "bold"
+              }}
+              title={isMaximized ? "Restore" : "Maximize"}
+            >
+              {isMaximized ? "❒" : "□"}
+            </button>
           </div>
-        ))}
+        </div>
       </div>
-      
-      {/* User info and logout on the right */}
-      <div style={{ display: "flex", alignItems: "center", gap: 12, paddingRight: 8 }}>
-        <span style={{ fontSize: 11, display: "flex", alignItems: "center", gap: 6 }}>
-          <span>👤</span>
-          <span>{user?.name || user?.username}</span>
-          {isAdmin && <span style={{ color: "#0a246a", fontSize: 10, background: "#e8e4d8", padding: "2px 6px", borderRadius: 3 }}>Admin</span>}
-        </span>
-        <button
-          onClick={handleLogout}
-          style={{
-            background: "transparent",
-            border: "1px solid #aca899",
-            padding: "2px 8px",
-            cursor: "pointer",
-            fontSize: 11,
-            borderRadius: 2,
-            fontFamily: "inherit",
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = "#e8e4d8";
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = "transparent";
-          }}
-        >
-          Logout
-        </button>
-      </div>
-    </div>
+    </>
   );
 }
 

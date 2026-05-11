@@ -8,6 +8,7 @@ export const PERMISSIONS = {
   SUPPLIERS_VIEW: 'suppliers_view',
   SUPPLIERS_EDIT: 'suppliers_edit',
   CHART_OF_PRODUCTS_VIEW: 'chart_of_products_view',
+  BARCODE_PRINT: 'barcode_print',  // ← ADD THIS
   
   // Vouchers
   CASH_SALE: 'cash_sale',
@@ -91,6 +92,7 @@ export const PERMISSION_GROUPS = [
       PERMISSIONS.CUSTOMERS_VIEW,
       PERMISSIONS.SUPPLIERS_VIEW,
       PERMISSIONS.CHART_OF_PRODUCTS_VIEW,
+      PERMISSIONS.BARCODE_PRINT,  // ← ADD THIS
     ],
   },
   {

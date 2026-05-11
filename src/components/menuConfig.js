@@ -8,6 +8,8 @@ export const getMenuConfig = (hasPermission) => {
     { label: "Customers", route: "/customers", permission: PERMISSIONS.CUSTOMERS_VIEW },
     { label: "Suppliers", route: "/suppliers", permission: PERMISSIONS.SUPPLIERS_VIEW },
     { label: "Chart of Products", route: "/chart-of-products", permission: PERMISSIONS.CHART_OF_PRODUCTS_VIEW },
+    { label: "───" },
+    { label: "Barcode Print", route: "/barcode-print", permission: PERMISSIONS.BARCODE_PRINT },  // ← ADD THIS
   ];
 
   const voucherItems = [

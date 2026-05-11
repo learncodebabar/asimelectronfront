@@ -1505,7 +1505,7 @@ function CustomerDropdown({
     : null;
 
   return (
-    <div style={{ position: "relative", flex: 1 }}>
+    <div style={{ position: "relative", flex: 1  ,border:"1px solid "}}>
       <div
         style={{
           display: "flex",
@@ -2502,43 +2502,7 @@ export default function SalePage() {
           />
         )}
         {/* TITLEBAR */}
-        <div className="xp-titlebar">
-          <svg
-            width="15"
-            height="15"
-            viewBox="0 0 16 16"
-            fill="rgba(255,255,255,0.85)"
-          >
-            <path d="M0 4a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2zm2-1a1 1 0 0 0-1 1v1h14V4a1 1 0 0 0-1-1zm13 4H1v5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1zM2 10h2a1 1 0 0 1 0 2H2a1 1 0 0 1 0-2m4 0h6a1 1 0 0 1 0 2H6a1 1 0 0 1 0-2" />
-          </svg>
-          <span className="xp-tb-title">
-            Sale Invoice — Asim Electric &amp; Electronic Store
-          </span>
-          <div className="xp-tb-actions">
-            {editId && <div className="sl-edit-badge">✏ Editing Sale</div>}
-            <div className="xp-tb-divider" />
-            <div className="sl-shortcut-hints">
-              <span>F2 Product</span>
-              <span>F4 Hold</span>
-              <span>* Save</span>
-            </div>
-            <div className="xp-tb-divider" />
-            <button className="xp-cap-btn">─</button>
-            <button
-              className="xp-cap-btn"
-              onClick={() => {
-                if (!document.fullscreenElement) {
-                  document.documentElement.requestFullscreen();
-                } else {
-                  document.exitFullscreen();
-                }
-              }}
-            >
-              □
-            </button>
-            <button className="xp-cap-btn xp-cap-close">✕</button>
-          </div>
-        </div>
+    
 
         {msg.text && (
           <div
@@ -2552,32 +2516,7 @@ export default function SalePage() {
         <div className="sl-body">
           <div className="sl-left">
             {/* Counter Selector */}
-            <div className="sl-top-bar" style={{ marginBottom: "8px", display: "flex", justifyContent: "space-between" }}>
-              <div className="sl-inv-field-grp">
-                <label>Counter</label>
-                <select 
-                  className="xp-input xp-input-sm"
-                  value={counterId}
-                  onChange={(e) => {
-                    const selected = availableCounters.find(c => c.counterId === e.target.value);
-                    setCounterId(e.target.value);
-                    setCounterName(selected?.counterName || e.target.value);
-                    localStorage.setItem('selectedCounterId', e.target.value);
-                    localStorage.setItem('selectedCounterName', selected?.counterName || e.target.value);
-                  }}
-                  style={{ width: '130px' }}
-                >
-                  {availableCounters.map(counter => (
-                    <option key={counter.counterId} value={counter.counterId}>
-                      {counter.counterName}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="sl-inv-field-grp">
-                <span style={{ fontSize: "11px", color: "#555" }}>👤 {user?.username || 'User'}</span>
-              </div>
-            </div>
+            
 
             {/* Invoice info with integrated nav buttons */}
             <div className="sl-top-bar">
@@ -3151,7 +3090,7 @@ export default function SalePage() {
                 />
               </div>
 
-              <div className="sl-cust-cell sl-cust-buyer">
+              <div className="sl-cust-cell sl-cust-buyer" >
                 <label>Buyer Name</label>
                 <CustomerDropdown
                   allCustomers={allCustomers}
@@ -3161,7 +3100,7 @@ export default function SalePage() {
                   onSelect={handleCustomerSelect}
                   onClear={handleCustomerClear}
                   allowedTypes={["credit"]}
-                />
+                 />
               </div>
 
               <div className="sl-cust-cell">
@@ -3534,7 +3473,7 @@ export default function SalePage() {
           
           <div className="xp-toolbar-divider" />
           <div className="sl-print-types">
-            {["Thermal", "A4", "A5", "Gatepass"].map((pt) => (
+            {["Thermal", "A4", "A5"].map((pt) => (
               <label key={pt} className="sl-check-label">
                 <input
                   type="radio"

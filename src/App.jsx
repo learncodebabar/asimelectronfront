@@ -77,6 +77,9 @@ import { GlobalFontProvider } from "./components/GlobalFontProvider.jsx";
 import ProductHistoryPage from "./pages/ProductHistoryPage.jsx";
 import RawPurchaseReportPage from "./pages/Reports/RawPurchaseReportPage.jsx";
 
+// Import the new Barcode Print Page
+import BarcodePrintPage from "./pages/BarcodePrintPage.jsx";
+
 // Wrapper component for protected routes
 function AppRoutes() {
   const { user } = useAuth();
@@ -243,6 +246,16 @@ function AppRoutes() {
         element={
           <ProtectedRoute permission={PERMISSIONS.PRODUCT_HISTORY}>
             <ProductHistoryPage />
+          </ProtectedRoute>
+        } 
+      />
+      
+      {/* BARCODE PRINT - New Route */}
+      <Route 
+        path="/barcode-print" 
+        element={
+          <ProtectedRoute permission={PERMISSIONS.PRODUCTS_VIEW}>
+            <BarcodePrintPage />
           </ProtectedRoute>
         } 
       />
