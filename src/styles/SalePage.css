@@ -1775,7 +1775,7 @@ table.sl-hold-table tbody td.r {
   background: #ffffff;
   border-top: 1px solid #e2e8f0;
   flex-shrink: 0;
-  flex-wrap: wrap;
+
 }
 
 .sl-cmd-checks {
@@ -2069,7 +2069,7 @@ table.sl-hold-table tbody td.r {
   }
   
   .sl-right {
-    min-width: 160px;
+    min-width: 110px;
   }
   
   table.sl-items-table th:nth-child(2),
@@ -2331,7 +2331,7 @@ table.sl-hold-table tbody td.r {
 
 /* Right Panel - Fixed width on desktop, adjusts on mobile */
 .sl-right {
-  width: 260px;
+  width: 200px;
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
@@ -2893,7 +2893,7 @@ table.sl-hold-table tbody td {
   background: #ffffff;
   border-top: 1px solid #e2e8f0;
   flex-shrink: 0;
-  flex-wrap: wrap;
+ 
 }
 
 .sl-cmd-bar .xp-btn {

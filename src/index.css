@@ -1,1 +1,93 @@
- 
+ /* Font Settings CSS Variables - Applied to specific elements */
+:root {
+  --font-family: Arial, sans-serif;
+  --font-size-base: 13px;
+  --font-weight-base: 400;
+  --font-size-label: 11px;
+  --font-weight-label: 600;
+  --font-size-table: 11px;
+  --font-size-heading: 16px;
+  --font-size-span: 12px;
+  --font-size-input: 12px;
+}
+
+/* Apply to specific element types - NOT to everything */
+body {
+  font-family: var(--font-family);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-base);
+}
+
+/* Labels - all label elements */
+label, 
+.xp-label, 
+.sl-cust-cell label, 
+.sl-sum-cell label, 
+.sl-inv-field-grp label,
+.sl-hold-title,
+.scm-box-label {
+  font-size: var(--font-size-label) !important;
+  font-weight: var(--font-weight-label) !important;
+}
+
+/* Tables */
+table, 
+.sl-items-table, 
+.sl-hold-table, 
+.xp-table,
+table td,
+table th,
+.sl-items-table td,
+.sl-items-table th,
+.sl-hold-table td,
+.sl-hold-table th,
+.xp-table td,
+.xp-table th {
+  font-size: var(--font-size-table) !important;
+}
+
+/* Headings */
+h1, h2, h3, h4, h5, 
+.xp-modal-title, 
+.scm-tb-title,
+.sl-sale-title-box,
+.sl-credit-title {
+  font-size: var(--font-size-heading) !important;
+  font-weight: bold;
+}
+
+/* Spans and text */
+span, 
+.sl-inv-info, 
+.text-muted, 
+.xp-empty,
+.sl-inv-info span,
+.sl-cust-cell span,
+.muted {
+  font-size: var(--font-size-span) !important;
+}
+
+/* Inputs */
+input, 
+.xp-input, 
+.sl-product-input, 
+.sl-num-input, 
+.sl-sum-input, 
+.sl-cust-input, 
+.sl-sum-val,
+select,
+textarea,
+.sl-credit-statement-input {
+  font-size: var(--font-size-input) !important;
+}
+
+/* Keep Urdu fonts for Urdu text */
+.urdu, 
+[class*="urdu"], 
+[dir="rtl"],
+.shop-urdu,
+.shop-addr,
+.banner,
+.terms-box {
+  font-family: var(--font-family), 'Noto Nastaliq Urdu', 'Mehr Nastaliq', 'Jameel Noori Nastaleeq', 'Urdu Typesetting', serif !important;
+}
