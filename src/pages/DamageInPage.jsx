@@ -1338,7 +1338,7 @@ export default function DamageInPage() {
                   className="sl-num-input"
                   style={{ width: 100, background: "#fffde7", borderColor: "#b71c1c" }}
                   value={curRow.reason}
-                  placeholder="Damage reason..."
+                  placeholder="..."
                   onChange={(e) => setCurRow((p) => ({ ...p, reason: e.target.value }))}
                   onKeyDown={(e) => e.key === "Enter" && addRef.current?.click()}
                 />
@@ -1408,7 +1408,7 @@ export default function DamageInPage() {
                     <th style={{ width: 90 }} className="r">
                       AMOUNT
                     </th>
-                    <th style={{ width: 120 }}>DAMAGE REASON</th>
+                    <th style={{ width: 120 }}> REASON</th>
                     <th style={{ width: 50 }}>RACK</th>
                   </tr>
                 </thead>

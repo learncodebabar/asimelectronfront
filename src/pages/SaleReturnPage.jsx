@@ -364,17 +364,23 @@ function SearchModal({ allProducts, onSelect, onClose }) {
                     </tr>
                   )}
                   {rows.map((r, i) => (
-                    <tr key={`${r._id}-${r._pi}`} style={{ background: i === hiIdx ? "#e5f0ff" : "white", cursor: "pointer" }} onClick={() => setHiIdx(i)} onDoubleClick={() => onSelect(r)}>
-                      <td style={{ padding: "4px 4px", textAlign: "center", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>{i + 1}</td>
-                      <td style={{ padding: "4px 4px", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>{r.code}</td>
-                      <td style={{ padding: "4px 4px", border: "1px solid #000000", fontSize: "13px", fontWeight: "bold", color: "#000000" }}>
-                        <button className="xp-link-btn" style={{ color: "#000000", textDecoration: "none", fontWeight: "bold", fontSize: "13px", background: "none", border: "none", cursor: "pointer", width: "100%", textAlign: "left", padding: "0" }}>{r._name}</button>
+                    <tr key={`${r._id}-${r._pi}`} 
+                    style={{ 
+                      background: i === hiIdx ? "#c0392b" : "white", 
+                      color: i === hiIdx ? "#fff" : "#111", 
+                      cursor: "pointer" }}
+                     onClick={() => setHiIdx(i)} onDoubleClick={() => onSelect(r)}>
+                      <td style={{ padding: "4px 4px", textAlign: "center", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold"}}>{i + 1}</td>
+                      <td style={{ padding: "4px 4px", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold"}}>{r.code}</td>
+                      <td style={{ padding: "4px 4px", border: "1px solid #000000", fontSize: "13px", fontWeight: "bold" }}>
+                        <button className="xp-link-btn" style={{ textDecoration: "none", fontWeight: "bold", fontSize: "13px",
+                           background: "none", border: "none", cursor: "pointer", width: "100%", textAlign: "left", padding: "0" }}>{r._name}</button>
                       </td>
-                      <td style={{ padding: "4px 4px", textAlign: "center", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>{r._meas}</td>
-                      <td style={{ padding: "4px 4px", textAlign: "right", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>{Number(r._rate).toLocaleString("en-PK")}</td>
-                      <td style={{ padding: "4px 4px", textAlign: "right", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>{r._stock}</td>
-                      <td style={{ padding: "4px 4px", textAlign: "right", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>{r._pack}</td>
-                      <td style={{ padding: "4px 4px", textAlign: "center", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>{r.rackNo || "—"}</td>
+                      <td style={{ padding: "4px 4px", textAlign: "center", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold" }}>{r._meas}</td>
+                      <td style={{ padding: "4px 4px", textAlign: "right", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold" }}>{Number(r._rate).toLocaleString("en-PK")}</td>
+                      <td style={{ padding: "4px 4px", textAlign: "right", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold"}}>{r._stock}</td>
+                      <td style={{ padding: "4px 4px", textAlign: "right", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold" }}>{r._pack}</td>
+                      <td style={{ padding: "4px 4px", textAlign: "center", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold" }}>{r.rackNo || "—"}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -1438,15 +1444,15 @@ export default function SaleReturnPage() {
           <div className="sl-items-wrap">
             <table className="sl-items-table">
               <thead>
-                <tr>
-                  <th style={{ width: 32 }}>Sr.#</th>
-                  <th style={{ width: 72 }}>Code</th>
-                  <th>Name</th>
-                  <th style={{ width: 65 }}>UOM</th>
-                  <th style={{ width: 55 }} className="r">Pcs</th>
-                  <th style={{ width: 80 }} className="r">Rate</th>
-                  <th style={{ width: 90 }} className="r">Amount</th>
-                  <th style={{ width: 50 }}>Rack</th>
+                <tr >
+                  <th style={{ width: 32 , color:"#111" }}>Sr.#</th>
+                  <th style={{ width: 72 , color:"#111"  }}>Code</th>
+                  <th style={{ color:"#111"  }}>Name</th>
+                  <th style={{ width: 65 , color:"#111"  }}>UOM</th>
+                  <th style={{ width: 55 , color:"#111"  }} className="r">Pcs</th>
+                  <th style={{ width: 80 , color:"#111"  }} className="r">Rate</th>
+                  <th style={{ width: 90 , color:"#111"  }} className="r">Amount</th>
+                  <th style={{ width: 50, color:"#111" }}>Rack</th>
                 </tr>
               </thead>
               <tbody>
@@ -1471,34 +1477,169 @@ export default function SaleReturnPage() {
             </table>
           </div>
 
-          {/* Summary bar */}
-          <div className="sl-summary-bar">
-            <div className="sl-sum-cell"><label>Total Qty</label><input className="sl-sum-val" value={totalQty.toLocaleString("en-PK")} readOnly /></div>
-            <div className="sl-sum-cell"><label>Net Amount</label><input className="sl-sum-val" value={Number(subTotal).toLocaleString("en-PK")} readOnly /></div>
-            <div className="sl-sum-cell"><label>Bill Amount</label><input className="sl-sum-val" value={Number(subTotal).toLocaleString("en-PK")} readOnly /></div>
-            <div className="sl-sum-cell"><label>Refunded</label><input ref={paidRef} type="number" className="sl-sum-input" style={{ background: "#fffde7", color: "#059669", fontWeight: 700 }} value={paid} min={0} onChange={(e) => setPaid(e.target.value)} onKeyDown={handlePaidKeyDown} onFocus={(e) => e.target.select()} /></div>
-            <div className="sl-sum-cell"><label>Balance</label><input className={`sl-sum-val sl-bal${balance > 0 ? " danger" : balance < 0 ? " success" : ""}`} value={Number(balance).toLocaleString("en-PK")} readOnly /></div>
-          </div>
+        
 
           {/* Customer bar */}
-          <div className="sl-customer-bar">
-            <div className="sl-cust-cell">
-              <label>Code</label>
-              <input className="sl-cust-input" style={{ width: 65, background: "#fffde7" }} value={buyerCode} onChange={(e) => setBuyerCode(e.target.value)} />
-            </div>
-            <div className="sl-cust-cell sl-cust-buyer">
-              <label>Buyer Name</label>
-              <CustomerDropdown allCustomers={allCustomers} value={customerId} displayName={buyerName} customerType={customerType} onSelect={handleCustomerSelect} onClear={handleCustomerClear} />
-            </div>
-            <div className="sl-cust-cell">
-              <label>Prev Balance</label>
-              <input type="number" className="sl-cust-input" style={{ width: 85, background: "#fffde7" }} value={prevBalance} onChange={(e) => setPrevBalance(e.target.value)} onFocus={(e) => e.target.select()} />
-            </div>
-            <div className="sl-cust-cell">
-              <label>Net Receivable</label>
-              <input className="sl-cust-input sl-net-recv" style={{ color: balance > 0 ? "#dc2626" : "#059669", fontWeight: 700, width: 85 }} value={Number(balance).toLocaleString("en-PK")} readOnly />
-            </div>
-          </div>
+          {/* COMPACT SUMMARY BAR - Combined Customer + Summary fields */}
+<div className="sl-summary-bar" style={{ 
+  display: "flex", 
+  alignItems: "center", 
+  gap: "6px", 
+  padding: "4px 8px", 
+  flexShrink: 0, 
+  background: "#f8fafc", 
+  borderTop: "1px solid #000", 
+  borderBottom: "1px solid #000",
+  flexWrap: "wrap",
+  minHeight: "44px"
+}}>
+  
+  {/* Customer Code Field */}
+  <div className="sl-cust-cell" style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+    <label style={{ fontSize: "9px", fontWeight: "600", color: "#64748b" }}>Code</label>
+    <input
+      className="sl-cust-input"
+      style={{ width: "60px", height: "26px", padding: "0 4px", fontSize: "10px", background: "#fffde7", border: "1px solid #000", borderRadius: "4px" }}
+      value={buyerCode}
+      onChange={(e) => setBuyerCode(e.target.value)}
+      autoComplete="off"
+    />
+  </div>
+  
+  {/* Customer Name Dropdown */}
+  <div className="sl-cust-cell sl-cust-buyer" style={{ display: "flex", flexDirection: "column", gap: "2px", flex: "2", minWidth: "130px" }}>
+    <label style={{ fontSize: "9px", fontWeight: "600", color: "#64748b" }}>Customer</label>
+    <CustomerDropdown 
+      allCustomers={allCustomers} 
+      value={customerId} 
+      displayName={buyerName} 
+      customerType={customerType} 
+      onSelect={handleCustomerSelect} 
+      onClear={handleCustomerClear} 
+    />
+  </div>
+  
+  {/* Previous Balance */}
+  <div className="sl-cust-cell" style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+    <label style={{ fontSize: "9px", fontWeight: "600", color: "#64748b" }}>Prev Bal</label>
+    <input
+      type="text"
+      className="sl-cust-input"
+      style={{ width: "65px", height: "26px", padding: "0 4px", fontSize: "10px", background: "#fffde7", border: "1px solid #000", borderRadius: "4px" }}
+      value={prevBalance}
+      onChange={(e) => setPrevBalance(e.target.value)}
+      onFocus={(e) => e.target.select()}
+    />
+  </div>
+  
+  {/* Net Receivable */}
+  <div className="sl-cust-cell" style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+    <label style={{ fontSize: "9px", fontWeight: "600", color: "#64748b" }}>Net Recv</label>
+    <input
+      className="sl-cust-input sl-net-recv"
+      style={{
+        color: balance > 0 ? "#dc2626" : "#10b981",
+        fontWeight: 700,
+        width: "65px",
+        height: "26px",
+        padding: "0 4px",
+        fontSize: "10px",
+        background: "#f1f5f9",
+        border: "1px solid #000",
+        borderRadius: "4px"
+      }}
+      value={Number(balance).toLocaleString("en-PK")}
+      readOnly
+    />
+  </div>
+
+  {/* Total Quantity */}
+  <div className="sl-sum-cell" style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+    <label style={{ fontSize: "9px", fontWeight: "600", color: "#64748b", textTransform: "uppercase" }}>Qty</label>
+    <input
+      className="sl-sum-val"
+      style={{ fontSize: "11px", fontWeight: "700", textAlign: "right", width: "50px", height: "26px", padding: "0 4px", background: "#f1f5f9", border: "1px solid #000", borderRadius: "4px" }}
+      value={totalQty.toLocaleString("en-PK")}
+      readOnly
+    />
+  </div>
+
+  {/* Net Amount */}
+  <div className="sl-sum-cell" style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+    <label style={{ fontSize: "9px", fontWeight: "600", color: "#64748b", textTransform: "uppercase" }}>Net</label>
+    <input
+      className="sl-sum-val"
+      style={{ fontSize: "11px", fontWeight: "700", textAlign: "right", width: "70px", height: "26px", padding: "0 4px", background: "#f1f5f9", border: "1px solid #000", borderRadius: "4px" }}
+      value={Number(subTotal).toLocaleString("en-PK")}
+      readOnly
+    />
+  </div>
+  
+  {/* Refunded Amount */}
+  <div className="sl-sum-cell" style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+    <label style={{ fontSize: "9px", fontWeight: "600", color: "#64748b", textTransform: "uppercase" }}>Refund</label>
+    <input
+      ref={paidRef}
+      type="text"
+      className="sl-sum-input"
+      style={{ fontSize: "11px", fontWeight: "700", textAlign: "right", width: "75px", height: "26px", padding: "0 4px", background: "#fffde7", border: "1px solid #000", borderRadius: "4px", color: "#059669" }}
+      value={paid}
+      onChange={(e) => setPaid(e.target.value)}
+      onKeyDown={handlePaidKeyDown}
+      onFocus={(e) => e.target.select()}
+    />
+  </div>
+  
+  {/* Balance Due */}
+  <div className="sl-sum-cell" style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+    <label style={{ fontSize: "9px", fontWeight: "600", color: "#64748b", textTransform: "uppercase" }}>Bal</label>
+    <input
+      className={`sl-sum-val sl-bal${balance > 0 ? " danger" : balance < 0 ? " success" : ""}`}
+      style={{ fontSize: "11px", fontWeight: "700", textAlign: "right", width: "70px", height: "26px", padding: "0 4px", background: "#f1f5f9", border: "1px solid #000", borderRadius: "4px" }}
+      value={Number(balance).toLocaleString("en-PK")}
+      readOnly
+    />
+  </div>
+</div>
+
+{/* Remarks input for credit customer - appears below summary bar when needed */}
+{showRemarksInput && (
+  <div className="sl-credit-warning-bar" style={{ 
+    background: "#fef3c7", 
+    padding: "4px 6px", 
+    marginTop: "2px",
+    display: "flex",
+    alignItems: "center",
+    gap: "8px"
+  }}>
+    <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+      <span style={{ fontSize: "12px" }}>📝</span>
+      <div>
+        <div className="sl-credit-title" style={{ color: "#92400e", fontSize: "11px", fontWeight: "bold" }}>CREDIT RETURN</div>
+        <div className="sl-credit-sub" style={{ color: "#92400e", fontSize: "9px" }}>Enter reason below</div>
+      </div>
+    </div>
+    <input 
+      ref={remarksRef} 
+      type="text" 
+      className="sl-credit-statement-input" 
+      style={{ 
+        fontSize: "10px", 
+        height: "28px", 
+        padding: "2px 6px", 
+        flex: 1,
+        background: "#fffde7",
+        border: "1px solid #f59e0b",
+        borderRadius: "4px"
+      }} 
+      placeholder="Enter remarks / reason for credit return..." 
+      value={remarks} 
+      onChange={(e) => setRemarks(e.target.value)} 
+      onKeyDown={handleRemarksKeyDown} 
+    />
+  </div>
+)}
+         
 
           {/* Remarks input for credit customer */}
           {showRemarksInput && (

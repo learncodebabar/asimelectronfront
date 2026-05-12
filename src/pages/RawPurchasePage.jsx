@@ -1874,22 +1874,66 @@ export default function RawPurchasePage() {
               </table>
             </div>
 
-            <div className="sl-summary-bar" style={{ display: "flex", gap: "8px", padding: "6px 10px", background: "#f8fafc", borderTop: "1px solid #000000", borderBottom: "1px solid #000000" }}>
-              <div className="sl-sum-cell"><label style={{ fontSize: "9px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>Total Qty</label><input className="sl-sum-val" value={totalQty.toLocaleString("en-PK")} readOnly style={{ width: "75px", height: "30px", border: "1px solid #000000", borderRadius: "4px", textAlign: "right", fontWeight: "bold", background: "#f5f5f5" }} /></div>
-              <div className="sl-sum-cell"><label style={{ fontSize: "9px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>Sub Total</label><input className="sl-sum-val" value={Number(subTotal).toLocaleString("en-PK")} readOnly style={{ width: "85px", height: "30px", border: "1px solid #000000", borderRadius: "4px", textAlign: "right", fontWeight: "bold", background: "#f5f5f5" }} /></div>
-              <div className="sl-sum-cell"><label style={{ fontSize: "9px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>Bill Amount</label><input className="sl-sum-val" value={Number(billAmount).toLocaleString("en-PK")} readOnly style={{ width: "85px", height: "30px", border: "1px solid #000000", borderRadius: "4px", textAlign: "right", fontWeight: "bold", background: "#f5f5f5" }} /></div>
-              <div className="sl-sum-cell"><label style={{ fontSize: "9px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>Extra Discount</label><input ref={discRef} type="text" className="sl-sum-input" value={extraDiscount} min={0} onChange={(e) => setExtraDiscount(e.target.value)} onKeyDown={(e) => e.key === "Enter" && deductRef.current?.focus()} onFocus={(e) => e.target.select()} style={{ width: "85px", height: "30px", border: "1px solid #000000", borderRadius: "4px", textAlign: "right", fontWeight: "bold", background: "#fffde7" }} /></div>
-              <div className="sl-sum-cell"><label style={{ fontSize: "9px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>Amount to Deduct</label><input ref={deductRef} type="text" className="sl-sum-input" style={{ width: "95px", height: "30px", border: "1px solid #000000", borderRadius: "4px", textAlign: "right", fontWeight: "bold", background: "#fffde7", color: "#059669" }} value={deductAmount} min={0} onChange={(e) => setDeductAmount(e.target.value)} onKeyDown={(e) => e.key === "Enter" && saveRef.current?.focus()} onFocus={(e) => e.target.select()} /></div>
-              <div className="sl-sum-cell"><label style={{ fontSize: "9px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>Remaining Balance</label><input className={`sl-sum-val sl-bal${balance > 0 ? " danger" : balance < 0 ? " success" : ""}`} value={Number(balance).toLocaleString("en-PK")} readOnly style={{ width: "95px", height: "30px", border: "1px solid #000000", borderRadius: "4px", textAlign: "right", fontWeight: "bold", color: balance > 0 ? "#dc2626" : "#059669", background: "#f5f5f5" }} /></div>
-            </div>
+          
 
-            <div className="sl-customer-bar" style={{ display: "flex", gap: "8px", padding: "6px 10px", background: "#f8fafc", borderTop: "1px solid #000000" }}>
+          <div className="sl-customer-bar" style={{ display: "flex", gap: "8px", padding: "6px 10px", background: "#f8fafc", borderTop: "1px solid #000000" }}>
               <div className="sl-cust-cell"><label style={{ fontSize: "9px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>Code</label><input style={{ width: "80px", height: "30px", border: "1px solid #000000", borderRadius: "4px", background: "#fffde7" }} value={customerId ? allCustomers.find((c) => c._id === customerId)?.code || codeSearch : codeSearch} onChange={(e) => setCodeSearch(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); const q = codeSearch.trim(); if (!q) return; const found = allCustomers.find((c) => String(c.code).toLowerCase() === q.toLowerCase()); if (found) { handleCustomerSelect(found); setCodeSearch(""); } else { showMsg(`Code "${q}" — customer nahi mila`, "error"); } } }} placeholder="Code…" autoComplete="off" /></div>
               <div className="sl-cust-cell sl-cust-buyer" style={{ flex: 2 }}><label style={{ fontSize: "9px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>Customer Name</label><div style={{ border: "1px solid #000000", borderRadius: "4px", background: "#ffffff", minHeight: "30px" }}><CustomerDropdown allCustomers={allCustomers} value={customerId} displayName={customerName} customerType={customerType} onSelect={handleCustomerSelect} onClear={handleCustomerClear} onAddNew={handleAddNewCustomer} allowedTypes={["credit", "walkin", "wholesale"]} /></div></div>
-              <div className="sl-cust-cell"><label style={{ fontSize: "9px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>Prev Balance</label><input type="text" className="sl-cust-input" style={{ width: "100px", height: "30px", border: "1px solid #000000", borderRadius: "4px", background: "#fffde7", textAlign: "right" }} value={prevBalance} onChange={(e) => setPrevBalance(e.target.value)} onFocus={(e) => e.target.select()} /></div>
-              <div className="sl-cust-cell"><label style={{ fontSize: "9px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>Net Receivable</label><input className="sl-cust-input sl-net-recv" style={{ width: "100px", height: "30px", border: "1px solid #000000", borderRadius: "4px", textAlign: "right", fontWeight: "bold", color: balance > 0 ? "#dc2626" : "#059669", background: "#f5f5f5" }} value={Number(balance).toLocaleString("en-PK")} readOnly /></div>
-              <div className="sl-pay-btns">{["Cash", "Credit"].map((m) => (<button key={m} className={`sl-pay-btn${paymentMode === m ? " active-" + m.toLowerCase() : ""}`} onClick={() => handlePaymentMode(m)} style={{ border: "1px solid #000000", borderRadius: "4px", fontWeight: "bold" }}>{m}</button>))}</div>
+              <div className="sl-cust-cell"><label style={{ fontSize: "9px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>Prev </label><input type="text" className="sl-cust-input" style={{ width: "100px", height: "30px", border: "1px solid #000000", borderRadius: "4px", background: "#fffde7", textAlign: "right" }} value={prevBalance} onChange={(e) => setPrevBalance(e.target.value)} onFocus={(e) => e.target.select()} /></div>
+              <div className="sl-cust-cell"><label style={{ fontSize: "9px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>Net </label><input className="sl-cust-input sl-net-recv" style={{ width: "100px", height: "30px", border: "1px solid #000000", borderRadius: "4px", textAlign: "right", fontWeight: "bold", color: balance > 0 ? "#dc2626" : "#059669", background: "#f5f5f5" }} value={Number(balance).toLocaleString("en-PK")} readOnly /></div>
+             
+            <div className="sl-cust-cell" style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+  <label style={{ fontSize: "9px", fontWeight: "600", color: "#64748b" }}>Pay</label>
+  <select
+    className="sl-pay-select"
+    value={paymentMode}
+    onChange={(e) => handlePaymentMode(e.target.value)}
+    style={{
+      height: "26px",
+      padding: "0 6px",
+      fontSize: "10px",
+      fontWeight: "600",
+      border: "1px solid #000",
+      borderRadius: "4px",
+      background: paymentMode === "Cash" ? "#10b981" : "#ef4444",
+      color: "white",
+      cursor: "pointer"
+    }}
+  >
+    <option value="Cash" style={{ background: "#10b981", color: "white" }}>💰 Cash</option>
+    <option value="Credit" style={{ background: "#ef4444", color: "white" }}>📝 Credit</option>
+  </select>
+</div>
+              
+              <div className="sl-summary-bar" style={{ display: "flex", gap: "8px", padding: "0x 10px", background: "#f8fafc" }}>
+              <div className="sl-sum-cell">
+                <label style={{ fontSize: "9px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>Qty</label>
+                <input className="sl-sum-val" value={totalQty.toLocaleString("en-PK")} readOnly style={{ width: "75px", height: "25px", border: "1px solid #000000", borderRadius: "4px", textAlign: "right", fontWeight: "bold", background: "#f5f5f5" }} />
+                </div>
+              {/* <div className="sl-sum-cell">
+                <label style={{ fontSize: "9px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}> Total</label>
+                <input className="sl-sum-val" value={Number(subTotal).toLocaleString("en-PK")} readOnly style={{ width: "85px", height: "30px", border: "1px solid #000000", borderRadius: "4px", textAlign: "right", fontWeight: "bold", background: "#f5f5f5" }} />
+                </div> */}
+              <div className="sl-sum-cell">
+                <label style={{ fontSize: "9px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>Bill</label>
+                <input className="sl-sum-val" value={Number(billAmount).toLocaleString("en-PK")} readOnly 
+                style={{ width: "85px", height: "25px", 
+                border: "1px solid #000000", borderRadius: "4px", textAlign: "right", fontWeight: "bold", background: "#f5f5f5" }} /></div>
+              {/* <div className="sl-sum-cell">
+                <label style={{ fontSize: "9px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}> Discount</label>
+                <input ref={discRef} type="text" className="sl-sum-input" value={extraDiscount} min={0} onChange={(e) => setExtraDiscount(e.target.value)} onKeyDown={(e) => e.key === "Enter" && deductRef.current?.focus()} onFocus={(e) => e.target.select()} style={{ width: "85px", height: "30px", border: "1px solid #000000", borderRadius: "4px", textAlign: "right", fontWeight: "bold", background: "#fffde7" }} />
+                </div> */}
+              {/* <div className="sl-sum-cell">
+                <label style={{ fontSize: "9px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>Amount to Deduct</label>
+                <input ref={deductRef} type="text" className="sl-sum-input" style={{ width: "95px", height: "30px", border: "1px solid #000000", borderRadius: "4px", textAlign: "right", fontWeight: "bold", background: "#fffde7", color: "#059669" }} value={deductAmount} min={0} onChange={(e) => setDeductAmount(e.target.value)} onKeyDown={(e) => e.key === "Enter" && saveRef.current?.focus()} onFocus={(e) => e.target.select()} />
+                </div> */}
+              <div className="sl-sum-cell">
+                <label style={{ fontSize: "9px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}> Balance</label>
+                <input className={`sl-sum-val sl-bal${balance > 0 ? " danger" : balance < 0 ? " success" : ""}`}
+                 value={Number(balance).toLocaleString("en-PK")} readOnly style={{ width: "95px", height: "25px", border: "1px solid #000000", borderRadius: "4px", textAlign: "right", fontWeight: "bold", color: balance > 0 ? "#dc2626" : "#059669", background: "#f5f5f5" }} />
+                </div>
             </div>
+          </div>
 
             {showCustomerPanel && customerId && (
               <div className={`sl-credit-warning-bar${creditWarning ? "" : " sl-credit-normal"}`}>

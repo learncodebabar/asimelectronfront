@@ -1159,19 +1159,21 @@ function SearchModal({ allProducts, onSelect, onClose }) {
                     <tr
                       key={`${r._id}-${r._pi}`}
                       style={{
-                        background: i === hiIdx ? "#e5f0ff" : "white",
+                        background: i === hiIdx ? "#0a4aa4" : "white",
+                        color: i === hiIdx ? "white" : "black",
                         cursor: "pointer"
                       }}
                       onClick={() => setHiIdx(i)}
                       onDoubleClick={() => onSelect(r)}
                     >
-                      <td style={{ padding: "4px 4px", textAlign: "center", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>{i + 1}</td>
-                      <td style={{ padding: "4px 4px", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>
+                      <td style={{ padding: "4px 4px", textAlign: "center", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", 
+                         }}>{i + 1}</td>
+                      <td style={{ padding: "4px 4px", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold" }}>
                         {r.code}
                       </td>
-                      <td style={{ padding: "4px 4px", border: "1px solid #000000", fontSize: "13px", fontWeight: "bold", color: "#000000" }}>
+                      <td style={{ padding: "4px 4px", border: "1px solid #000000", fontSize: "13px", fontWeight: "bold", }}>
                         <button className="xp-link-btn" style={{ 
-                          color: "#000000", 
+                        
                           textDecoration: "none", 
                           fontWeight: "bold", 
                           fontSize: "13px",
@@ -1183,15 +1185,20 @@ function SearchModal({ allProducts, onSelect, onClose }) {
                           padding: "0"
                         }}>{r._name}</button>
                       </td>
-                      <td style={{ padding: "4px 4px", textAlign: "center", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>{r._meas}</td>
-                      <td style={{ padding: "4px 4px", textAlign: "right", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>
+                      <td style={{ padding: "4px 4px", textAlign: "center", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", 
+                         }}>{r._meas}</td>
+                      <td style={{ padding: "4px 4px", textAlign: "right", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", 
+                        }}>
                         {Number(r._rate).toLocaleString("en-PK")}
                       </td>
-                      <td style={{ padding: "4px 4px", textAlign: "right", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: r._stock === 0 ? "#dc2626" : r._stock < 10 ? "#f59e0b" : "#059669" }}>
+                      <td style={{ padding: "4px 4px", textAlign: "right", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold",
+                         color: r._stock === 0 ? "#dc2626" : r._stock < 10 ? "#f59e0b" : "#059669" }}>
                         {r._stock}
                       </td>
-                      <td style={{ padding: "4px 4px", textAlign: "right", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>{r._pack}</td>
-                      <td style={{ padding: "4px 4px", textAlign: "center", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>{r.rackNo || "—"}</td>
+                      <td style={{ padding: "4px 4px", textAlign: "right", border: "1px solid #000000", 
+                        fontSize: "11px", fontWeight: "bold"}}>{r._pack}</td>
+                      <td style={{ padding: "4px 4px", textAlign: "center", border: "1px solid #000000",
+                         fontSize: "11px", fontWeight: "bold" }}>{r.rackNo || "—"}</td>
                     </tr>
                   ))}
                 </tbody>

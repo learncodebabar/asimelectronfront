@@ -1913,48 +1913,267 @@ export default function RawSalePage() {
                 </tbody>
               </table>
             </div>
+{/* Summary bar - Combined with Customer bar in one row - COMPACT */}
+<div className="sl-summary-bar" style={{ 
+  display: "flex", 
+  alignItems: "center", 
+  gap: "6px", 
+  padding: "4px 8px", 
+  flexShrink: 0, 
+  background: "#f8fafc", 
+  borderTop: "1px solid #000", 
+  borderBottom: "1px solid #000",
+  flexWrap: "wrap",
+  minHeight: "44px"
+}}>
+  
+  {/* Code Field - For searching by customer code */}
+  <div className="sl-cust-cell" style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+    <label style={{ fontSize: "9px", fontWeight: "600", color: "#64748b" }}>Code</label>
+    <input
+      className="sl-cust-input"
+      style={{ width: "60px", height: "26px", padding: "0 4px", fontSize: "10px", background: "#fffde7", border: "1px solid #000", borderRadius: "4px" }}
+      value={codeSearch}
+      onChange={(e) => setCodeSearch(e.target.value)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          const q = codeSearch.trim();
+          if (!q) return;
+          // Search in all customers with raw-sale, supplier, credit types
+          const found = allCustomers.find(
+            (c) =>
+              String(c.code).toLowerCase() === q.toLowerCase() &&
+              (c.customerType || c.type || "").toLowerCase().match(/raw-sale|supplier|credit/)
+          );
+          if (found) {
+            handleCustomerSelect(found);
+            setCodeSearch("");
+          } else {
+            showMsg(`Code "${q}" — customer nahi mila`, "error");
+          }
+        }
+      }}
+      autoComplete="off"
+    />
+  </div>
+  
+  {/* Customer Name Dropdown */}
+  <div className="sl-cust-cell sl-cust-buyer" style={{ display: "flex", flexDirection: "column", gap: "2px", flex: "2", minWidth: "130px" }}>
+    <label style={{ fontSize: "9px", fontWeight: "600", color: "#64748b" }}>Customer</label>
+    <CustomerDropdown
+      allCustomers={allCustomers}
+      value={customerId}
+      displayName={buyerName}
+      customerType={customerType}
+      onSelect={handleCustomerSelect}
+      onClear={handleCustomerClear}
+      onAddNew={handleAddNewCustomer}
+      allowedTypes={["raw-sale", "supplier", "credit"]}
+    />
+  </div>
+  
+  {/* Previous Balance */}
+  <div className="sl-cust-cell" style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+    <label style={{ fontSize: "9px", fontWeight: "600", color: "#64748b" }}>Prev Bal</label>
+    <input
+      type="text"
+      className="sl-cust-input"
+      style={{ width: "65px", height: "26px", padding: "0 4px", fontSize: "10px", background: "#fffde7", border: "1px solid #000", borderRadius: "4px" }}
+      value={prevBalance}
+      onChange={(e) => setPrevBalance(e.target.value)}
+      onFocus={(e) => e.target.select()}
+    />
+  </div>
+  
+  {/* Net Receivable */}
+  <div className="sl-cust-cell" style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+    <label style={{ fontSize: "9px", fontWeight: "600", color: "#64748b" }}>Net Recv</label>
+    <input
+      className="sl-cust-input sl-net-recv"
+      style={{
+        color: balance > 0 ? "#dc2626" : "#10b981",
+        fontWeight: 700,
+        width: "65px",
+        height: "26px",
+        padding: "0 4px",
+        fontSize: "10px",
+        background: "#f1f5f9",
+        border: "1px solid #000",
+        borderRadius: "4px"
+      }}
+      value={Number(balance).toLocaleString("en-PK")}
+      readOnly
+    />
+  </div>
+  
+  {/* Payment Mode Dropdown */}
+  <div className="sl-cust-cell" style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+    <label style={{ fontSize: "9px", fontWeight: "600", color: "#64748b" }}>Payment</label>
+    <select
+      className="sl-pay-select"
+      value={paymentMode}
+      onChange={(e) => handlePaymentMode(e.target.value)}
+      style={{
+        height: "26px",
+        padding: "0 6px",
+        fontSize: "10px",
+        fontWeight: "600",
+        border: "1px solid #000",
+        borderRadius: "4px",
+        background: paymentMode === "Cash" ? "#10b981" : paymentMode === "Credit" ? "#ef4444" : paymentMode === "Bank" ? "#3b82f6" : "#f59e0b",
+        color: "white",
+        cursor: "pointer"
+      }}
+    >
+      <option value="Cash" style={{ background: "#10b981", color: "white" }}>💰 Cash</option>
+      <option value="Credit" style={{ background: "#ef4444", color: "white" }}>📝 Credit</option>
+      <option value="Bank" style={{ background: "#3b82f6", color: "white" }}>🏦 Bank</option>
+      <option value="Cheque" style={{ background: "#f59e0b", color: "white" }}>📄 Cheque</option>
+    </select>
+  </div>
 
-            <div className="sl-summary-bar">
-              <div className="sl-sum-cell"><label>Total Qty</label><input className="sl-sum-val" value={totalQty.toLocaleString("en-PK")} readOnly /></div>
-              <div className="sl-sum-cell"><label>Net Amount</label><input className="sl-sum-val" value={Number(subTotal).toLocaleString("en-PK")} readOnly /></div>
-              <div className="sl-sum-cell"><label>Bill Amount</label><input className="sl-sum-val" value={Number(billAmount).toLocaleString("en-PK")} readOnly /></div>
-              <div className="sl-sum-cell"><label>Extra Discount</label><input ref={discRef} type="text" className="sl-sum-input" style={{ background: "#fffde7" }} value={extraDiscount} min={0} onChange={(e) => setExtraDiscount(e.target.value)} onKeyDown={(e) => e.key === "Enter" && receivedRef.current?.focus()} onFocus={(e) => e.target.select()} /></div>
-              <div className="sl-sum-cell"><label>Received</label><input ref={receivedRef} type="text" className="sl-sum-input" style={{ color: "var(--xp-green)", fontWeight: 700, background: "#fffde7" }} value={received} min={0} onChange={(e) => setReceived(e.target.value)} onKeyDown={(e) => e.key === "Enter" && saveRef.current?.focus()} onFocus={(e) => e.target.select()} /></div>
-              <div className="sl-sum-cell"><label>Balance</label><input className={`sl-sum-val sl-bal${balance > 0 ? " danger" : balance < 0 ? " success" : ""}`} value={Number(balance).toLocaleString("en-PK")} readOnly /></div>
-            </div>
+  {/* Total Quantity */}
+  <div className="sl-sum-cell" style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+    <label style={{ fontSize: "9px", fontWeight: "600", color: "#64748b", textTransform: "uppercase" }}>Qty</label>
+    <input
+      className="sl-sum-val"
+      style={{ fontSize: "11px", fontWeight: "700", textAlign: "right", width: "50px", height: "26px", padding: "0 4px", background: "#f1f5f9", border: "1px solid #000", borderRadius: "4px" }}
+      value={totalQty.toLocaleString("en-PK")}
+      readOnly
+    />
+  </div>
 
-            <div className="sl-customer-bar">
-              <div className="sl-cust-cell"><label>Code</label><input className="sl-cust-input" style={{ width: 65, background: "#fffde7" }} value={codeSearch} onChange={(e) => setCodeSearch(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); const q = codeSearch.trim(); if (!q) return; const found = allCustomers.find((c) => String(c.code).toLowerCase() === q.toLowerCase() && (c.customerType || c.type || "").toLowerCase() === "raw-sale"); if (found) { handleCustomerSelect(found); setCodeSearch(""); } else { showMsg(`Code "${q}" — customer nahi mila`, "error"); } } }} autoComplete="off" /></div>
-              <div className="sl-cust-cell sl-cust-buyer"><label>Customer Name</label><CustomerDropdown allCustomers={allCustomers} value={customerId} displayName={buyerName} customerType={customerType} onSelect={handleCustomerSelect} onClear={handleCustomerClear} onAddNew={handleAddNewCustomer} allowedTypes={["raw-sale", "supplier", "credit"]} /></div>
-              <div className="sl-cust-cell"><label>Prev Balance</label><input type="text" className="sl-cust-input" style={{ width: 85, background: "#fffde7" }} value={prevBalance} onChange={(e) => setPrevBalance(e.target.value)} onFocus={(e) => e.target.select()} /></div>
-              <div className="sl-cust-cell"><label>Net Recv.</label><input className="sl-cust-input sl-net-recv" style={{ color: balance > 0 ? "var(--xp-red)" : "var(--xp-green)", fontWeight: 700, width: 85 }} value={Number(balance).toLocaleString("en-PK")} readOnly /></div>
-              <div className="sl-pay-btns">{["Cash", "Credit", "Bank", "Cheque"].map((m) => (<button key={m} className={`sl-pay-btn${paymentMode === m ? " active-" + m.toLowerCase() : ""}`} onClick={() => handlePaymentMode(m)}>{m}</button>))}</div>
-            </div>
+  {/* Bill Amount */}
+  <div className="sl-sum-cell" style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+    <label style={{ fontSize: "9px", fontWeight: "600", color: "#64748b", textTransform: "uppercase" }}>Bill</label>
+    <input
+      className="sl-sum-val"
+      style={{ fontSize: "11px", fontWeight: "700", textAlign: "right", width: "75px", height: "26px", padding: "0 4px", background: "#f1f5f9", border: "1px solid #000", borderRadius: "4px" }}
+      value={Number(billAmount).toLocaleString("en-PK")}
+      readOnly
+    />
+  </div>
+  
+  {/* Received Amount */}
+  <div className="sl-sum-cell" style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+    <label style={{ fontSize: "9px", fontWeight: "600", color: "#64748b", textTransform: "uppercase" }}>Recv</label>
+    <input
+      ref={receivedRef}
+      type="text"
+      className="sl-sum-input"
+      style={{ fontSize: "11px", fontWeight: "700", textAlign: "right", width: "75px", height: "26px", padding: "0 4px", background: "#fffde7", border: "1px solid #000", borderRadius: "4px" }}
+      value={received}
+      onChange={(e) => setReceived(e.target.value)}
+      onKeyDown={(e) => e.key === "Enter" && saveRef.current?.focus()}
+      onFocus={(e) => e.target.select()}
+    />
+  </div>
+  
+  {/* Balance */}
+  <div className="sl-sum-cell" style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+    <label style={{ fontSize: "9px", fontWeight: "600", color: "#64748b", textTransform: "uppercase" }}>Bal</label>
+    <input
+      className={`sl-sum-val sl-bal${balance > 0 ? " danger" : balance < 0 ? " success" : ""}`}
+      style={{ fontSize: "11px", fontWeight: "700", textAlign: "right", width: "75px", height: "26px", padding: "0 4px", background: "#f1f5f9", border: "1px solid #000", borderRadius: "4px" }}
+      value={Number(balance).toLocaleString("en-PK")}
+      readOnly
+    />
+  </div>
+  
+  {/* Extra Discount */}
+  <div className="sl-sum-cell" style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+    <label style={{ fontSize: "9px", fontWeight: "600", color: "#64748b", textTransform: "uppercase" }}>Disc</label>
+    <input
+      ref={discRef}
+      type="text"
+      className="sl-sum-input"
+      style={{ fontSize: "11px", textAlign: "right", width: "60px", height: "26px", padding: "0 4px", background: "#fffde7", border: "1px solid #000", borderRadius: "4px" }}
+      value={extraDiscount}
+      onChange={(e) => setExtraDiscount(e.target.value)}
+      onKeyDown={(e) => e.key === "Enter" && receivedRef.current?.focus()}
+      onFocus={(e) => e.target.select()}
+    />
+  </div>
+</div>
 
-            {showCustomerPanel && customerId && (
-              <div className={`sl-credit-warning-bar${creditWarning ? "" : " sl-credit-normal"}`}>
-                <div className="sl-credit-warning-left">
-                  {(() => { const cust = allCustomers.find((c) => c._id === customerId); return cust?.imageFront ? (<img src={cust.imageFront} alt={cust.name} style={{ width: 48, height: 48, borderRadius: 4, objectFit: "cover", border: "2px solid #fff", flexShrink: 0 }} />) : (<div style={{ width: 48, height: 48, borderRadius: 4, background: "rgba(255,255,255,0.3)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, flexShrink: 0 }}>👤</div>); })()}
-                  <div>{creditWarning ? (<><div className="sl-credit-title">⚠ CREDIT LIMIT EXCEEDED</div><div className="sl-credit-sub">Balance: <b>{fmt(prevBalance)}</b> — Enter authorization statement to proceed</div></>) : (<div className="sl-credit-sub" style={{ color: "#fff" }}>Balance: <b>{fmt(prevBalance)}</b></div>)}</div>
-                </div>
-                <input 
-                  ref={statementRef} 
-                  type="text" 
-                  className="sl-credit-statement-input" 
-                  style={{ background: "#fffde7" }} 
-                  placeholder={creditWarning ? "Enter reason / authorization statement to allow sale…" : "Notes (optional)…"} 
-                  value={creditStatement} 
-                  onChange={(e) => setCreditStatement(e.target.value)} 
-                  onKeyDown={(e) => { 
-                    if (e.key === "Enter") { 
-                      e.preventDefault(); 
-                      e.stopPropagation(); 
-                      openSaleConfirm(); 
-                    } 
-                  }} 
-                />
-              </div>
-            )}
+{/* Credit Warning Bar - Shows when credit/raw-sale/supplier customer is selected */}
+{showCustomerPanel && customerId && (
+  <div
+    className={`sl-credit-warning-bar${creditWarning ? "" : " sl-credit-normal"}`}
+    style={{ padding: "4px 6px", marginTop: "2px" }}
+  >
+    <div className="sl-credit-warning-left">
+      {(() => {
+        const cust = allCustomers.find((c) => c._id === customerId);
+        return cust?.imageFront ? (
+          <img
+            src={cust.imageFront}
+            alt={cust.name}
+            style={{
+              width: 32,
+              height: 32,
+              borderRadius: 4,
+              objectFit: "cover",
+              border: "2px solid #fff",
+              flexShrink: 0,
+            }}
+          />
+        ) : (
+          <div
+            style={{
+              width: 32,
+              height: 32,
+              borderRadius: 4,
+              background: "rgba(255,255,255,0.3)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: 16,
+              flexShrink: 0,
+            }}
+          >
+            👤
+          </div>
+        );
+      })()}
+      <div>
+        {creditWarning ? (
+          <>
+            <div className="sl-credit-title">⚠ CREDIT LIMIT EXCEEDED</div>
+            <div className="sl-credit-sub">Balance: <b>{fmt(prevBalance)}</b> — Enter authorization to proceed</div>
+          </>
+        ) : (
+          <div className="sl-credit-sub" style={{ color: "#fff" }}>
+            Balance: <b>{fmt(prevBalance)}</b>
+          </div>
+        )}
+      </div>
+    </div>
+    <input
+      ref={statementRef}
+      type="text"
+      className="sl-credit-statement-input"
+      style={{ fontSize: "10px", height: "28px", padding: "2px 6px", flex: 1 }}
+      placeholder={
+        creditWarning
+          ? "Enter reason / authorization statement to allow sale…"
+          : "Notes (optional)…"
+      }
+      value={creditStatement}
+      onChange={(e) => setCreditStatement(e.target.value)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          e.stopPropagation();
+          openSaleConfirm();
+        }
+      }}
+    />
+  </div>
+)}
+
+
           </div>
 
           <div className="sl-right">

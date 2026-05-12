@@ -1044,19 +1044,21 @@ function SearchModal({ allProducts, onSelect, onClose }) {
                     <tr
                       key={`${r._id}-${r._pi}`}
                       style={{
-                        background: i === hiIdx ? "#d1fae5" : "white",
+                        background: i === hiIdx ? "#51bb85" : "white",
+                        color: i === hiIdx ? "#fff" : "black",
                         cursor: "pointer"
                       }}
                       onClick={() => setHiIdx(i)}
                       onDoubleClick={() => onSelect(r)}
                     >
-                      <td style={{ padding: "6px 6px", textAlign: "center", border: "1px solid #000000", fontSize: "11px", fontWeight: "normal", color: "#000000" }}>{i + 1}</td>
-                      <td style={{ padding: "6px 6px", border: "1px solid #000000", fontSize: "11px", fontWeight: "normal", color: "#000000" }}>
+                      <td style={{ padding: "6px 6px", textAlign: "center", border: "1px solid #000000", fontSize: "11px", fontWeight: "normal", 
+                        }}>{i + 1}</td>
+                      <td style={{ padding: "6px 6px", border: "1px solid #000000", fontSize: "11px", fontWeight: "normal",  color:"black" }}>
                         <span className="xp-code">{r.code}</span>
                       </td>
-                      <td style={{ padding: "6px 6px", border: "1px solid #000000", fontSize: "15px", fontWeight: "bold", color: "#000000" }}>
+                      <td style={{ padding: "6px 6px", border: "1px solid #000000", fontSize: "15px", fontWeight: "bold" }}>
                         <button className="xp-link-btn" style={{ 
-                          color: "#000000", 
+                     
                           textDecoration: "none", 
                           fontWeight: "bold", 
                           fontSize: "15px",
@@ -1068,11 +1070,14 @@ function SearchModal({ allProducts, onSelect, onClose }) {
                           padding: "0"
                         }}>{r._name}</button>
                       </td>
-                      <td style={{ padding: "6px 6px", textAlign: "center", border: "1px solid #000000", fontSize: "15px", fontWeight: "bold", color: "#000000" }}>{r._meas || "—"}</td>
-                      <td style={{ padding: "6px 6px", textAlign: "right", border: "1px solid #000000", fontSize: "15px", fontWeight: "bold", color: "#000000" }}>
+                      <td style={{ padding: "6px 6px", textAlign: "center", border: "1px solid #000000", fontSize: "15px",
+                         fontWeight: "bold" }}>{r._meas || "—"}</td>
+                      <td style={{ padding: "6px 6px", textAlign: "right", border: "1px solid #000000", fontSize: "15px",
+                         fontWeight: "bold", }}>
                         {Number(r._rate).toLocaleString("en-PK")}
                       </td>
-                      <td style={{ padding: "6px 6px", textAlign: "center", border: "1px solid #000000", fontSize: "15px", fontWeight: "bold", color: "#000000" }}>{r.rackNo || "—"}</td>
+                      <td style={{ padding: "6px 6px", textAlign: "center", border: "1px solid #000000",
+                         fontSize: "15px", fontWeight: "bold",  }}>{r.rackNo || "—"}</td>
                     </tr>
                   ))}
                 </tbody>

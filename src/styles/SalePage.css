@@ -2331,7 +2331,7 @@ table.sl-hold-table tbody td.r {
 
 /* Right Panel - Fixed width on desktop, adjusts on mobile */
 .sl-right {
-  width: 200px;
+  width: 250px;
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
