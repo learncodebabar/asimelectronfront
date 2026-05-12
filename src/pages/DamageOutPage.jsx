@@ -1204,7 +1204,7 @@ export default function DamageOutPage() {
                 className="sl-num-input" 
                 style={{ width: 100, background: "#fffde7", borderColor: "#e65100" }} 
                 value={curRow.reason} 
-                placeholder="Damage reason..." 
+                placeholder="" 
                 onChange={(e) => setCurRow(p => ({ ...p, reason: e.target.value }))} 
                 onKeyDown={(e) => e.key === "Enter" && addRef.current?.click()}
               />
