@@ -447,18 +447,7 @@ export default function PurchaseOrderListPage() {
   return (
     <div className="sl-page purchaseorder-list-page">
       {/* Title Bar */}
-      <div className="xp-titlebar" style={{ background: "#1e3a5f" }}>
-        <svg width="15" height="15" viewBox="0 0 16 16" fill="rgba(255,255,255,0.85)">
-          <path d="M0 4a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2zm2-1a1 1 0 0 0-1 1v1h14V4a1 1 0 0 0-1-1zm13 4H1v5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1zM2 10h2a1 1 0 0 1 0 2H2a1 1 0 0 1 0-2m4 0h6a1 1 0 0 1 0 2H6a1 1 0 0 1 0-2" />
-        </svg>
-        <span className="xp-tb-title">Purchase Orders List — Asim Electric &amp; Electronic Store</span>
-        <div className="xp-tb-actions">
-          <div className="xp-tb-divider" />
-          <button className="xp-cap-btn">─</button>
-          <button className="xp-cap-btn">□</button>
-          <button className="xp-cap-btn xp-cap-close">✕</button>
-        </div>
-      </div>
+    
 
       {/* Message Alert */}
       {msg.text && (

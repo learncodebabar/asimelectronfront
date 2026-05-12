@@ -38,9 +38,7 @@ export default function PurchaseReturnListPage() {
 
   return (
     <div className="sl-page">
-      <div className="xp-titlebar" style={{ background: "#dc2626" }}>
-        <span className="xp-tb-title">Purchase Return List</span>
-      </div>
+     
       
       <div style={{ padding: "16px" }}>
         <div style={{ marginBottom: "16px", display: "flex", gap: "12px", alignItems: "center" }}>

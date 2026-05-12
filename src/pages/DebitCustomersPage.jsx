@@ -668,64 +668,7 @@ export default function DebitCustomersPage() {
         />
       )}
 
-      {/* ── Titlebar ── */}
-      <div className="xp-titlebar">
-        <button
-          className="xp-cap-btn"
-          onClick={() => navigate("/debit-sale")}
-          title="Debit Sale"
-          style={{ marginRight: 2 }}
-        >
-          <svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor">
-            <path
-              fillRule="evenodd"
-              d="M15 8a.5.5 0 0 0-.5-.5H2.707l3.147-3.146a.5.5 0 1 0-.708-.708l-4 4a.5.5 0 0 0 0 .708l4 4a.5.5 0 0 0 .708-.708L2.707 8.5H14.5A.5.5 0 0 0 15 8"
-            />
-          </svg>
-        </button>
-        <svg
-          width="15"
-          height="15"
-          viewBox="0 0 16 16"
-          fill="rgba(255,255,255,0.85)"
-        >
-          <path d="M15 14s1 0 1-1-1-4-5-4-5 3-5 4 1 1 1 1zm-7.978-1A.261.261 0 0 1 7 12.996c.001-.264.167-1.03.76-1.72C8.312 10.629 9.282 10 11 10c1.717 0 2.687.63 3.24 1.276.593.69.758 1.457.76 1.72l-.008.002A.274.274 0 0 1 15 13zM11 7a2 2 0 1 0 0-4 2 2 0 0 0 0 4m3-2a3 3 0 1 1-6 0 3 3 0 0 1 6 0M6.936 9.28a6 6 0 0 0-1.23-.247A7 7 0 0 0 5 9c-4 0-5 3-5 4q0 1 1 1h4.216A2.24 2.24 0 0 1 5 13c0-1.01.377-2.042 1.09-2.904.243-.294.526-.569.846-.816M4.92 10A5.5 5.5 0 0 0 4 13H1c0-.26.164-1.03.76-1.724.545-.636 1.492-1.256 3.16-1.275ZM1.5 5.5a3 3 0 1 1 6 0 3 3 0 0 1-6 0m3-2a2 2 0 1 0 0 4 2 2 0 0 0 0-4" />
-        </svg>
-        <span className="xp-tb-title">
-          Debit Customers — Asim Electric &amp; Electronic Store
-        </span>
-        <div className="xp-tb-actions">
-          <button
-            className="xp-btn xp-btn-wa xp-btn-sm"
-            onClick={sendBulkReminder}
-          >
-            <svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor">
-              <path d="M13.601 2.326A7.85 7.85 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c0 1.399.366 2.76 1.057 3.965L0 16l4.204-1.102a7.9 7.9 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.9 7.9 0 0 0 13.6 2.326z" />
-            </svg>
-            Bulk Reminder
-          </button>
-          <button
-            className="xp-btn xp-btn-primary xp-btn-sm"
-            onClick={() => navigate("/customers")}
-          >
-            <svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor">
-              <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16" />
-              <path d="M8 4a.5.5 0 0 1 .5.5v3h3a.5.5 0 0 1 0 1h-3v3a.5.5 0 0 1-1 0v-3h-3a.5.5 0 0 1 0-1h3v-3A.5.5 0 0 1 8 4" />
-            </svg>
-            Add Customer
-          </button>
-          <div className="xp-tb-divider" />
-          <button className="xp-cap-btn" title="Minimize">
-            ─
-          </button>
-          <button className="xp-cap-btn" title="Maximize">
-            □
-          </button>
-          <button className="xp-cap-btn xp-cap-close" title="Close">
-            ✕
-          </button>
-        </div>
-      </div>
+   
 
       {/* ── Alert ── */}
       {msg.text && (

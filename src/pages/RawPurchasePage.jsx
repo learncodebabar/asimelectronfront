@@ -1620,21 +1620,7 @@ export default function RawPurchasePage() {
         {showSaveModal && pendingPayload && <SaveConfirmModal salePayload={pendingPayload} printType={printType} onConfirm={confirmSave} onClose={() => { setShowSaveModal(false); setPendingPayload(null); }} />}
         {showPrintModal && pendingPrintSale && <PrintOptionsModal sale={pendingPrintSale} allCustomers={allCustomers} defaultPrintType={printType} hideCustomerFields={pendingPrintSale.paymentMode === "Credit"} newCustomerType="credit" onPrint={(type, overrides) => { doPrint(pendingPrintSale, type, overrides); setShowPrintModal(false); setPendingPrintSale(null); }} onClose={() => { setShowPrintModal(false); setPendingPrintSale(null); }} />}
         
-        <div className="xp-titlebar">
-          <svg width="15" height="15" viewBox="0 0 16 16" fill="rgba(255,255,255,0.85)">
-            <path d="M0 4a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2zm2-1a1 1 0 0 0-1 1v1h14V4a1 1 0 0 0-1-1zm13 4H1v5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1zM2 10h2a1 1 0 0 1 0 2H2a1 1 0 0 1 0-2m4 0h6a1 1 0 0 1 0 2H6a1 1 0 0 1 0-2" />
-          </svg>
-          <span className="xp-tb-title">Raw Purchase Invoice — Asim Electric &amp; Electronic Store</span>
-          <div className="xp-tb-actions">
-            {editId && <div className="sl-edit-badge">✏ Editing Raw Purchase</div>}
-            <div className="xp-tb-divider" />
-            <div className="sl-shortcut-hints"><span>F2 Product</span><span>F4 Hold</span><span>* Save</span></div>
-            <div className="xp-tb-divider" />
-            <button className="xp-cap-btn">─</button>
-            <button className="xp-cap-btn" onClick={() => { if (!document.fullscreenElement) document.documentElement.requestFullscreen(); else document.exitFullscreen(); }}>□</button>
-            <button className="xp-cap-btn xp-cap-close">✕</button>
-          </div>
-        </div>
+      
 
         {msg.text && <div className={`xp-alert ${msg.type === "success" ? "xp-alert-success" : "xp-alert-error"}`} style={{ margin: "4px 10px 0", flexShrink: 0 }}>{msg.text}</div>}
 

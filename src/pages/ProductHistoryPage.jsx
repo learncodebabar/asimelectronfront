@@ -850,23 +850,7 @@ export default function ProductHistoryPage() {
   return (
     <div className="sl-page" style={{ background: "#fff", minHeight: "100vh" }}>
       {/* Titlebar */}
-      <div className="xp-titlebar" style={{ background: "#1a1a1a", borderBottom: "2px solid #000" }}>
-        <svg width="15" height="15" viewBox="0 0 16 16" fill="rgba(255,255,255,0.85)">
-          <path d="M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6m2-3a2 2 0 1 1-4 0 2 2 0 0 1 4 0m4 8c0 1-1 1-1 1H3s-1 0-1-1 1-4 6-4 6 3 6 4m-1-.004c-.001-.246-.154-.986-.832-1.664C11.516 10.68 10.289 10 8 10s-3.516.68-4.168 1.332c-.678.678-.83 1.418-.832 1.664z" />
-        </svg>
-        <span className="xp-tb-title" style={{ color: "white", fontWeight: "bold" }}>Product Transaction History — Complete Audit Trail</span>
-        <div className="xp-tb-actions">
-          <div className="sl-shortcut-hints" style={{ color: "white" }}>
-            <span>↑↓ Navigate</span>
-            <span>→ Accept</span>
-            <span>Enter/F2 Browse</span>
-            <span>Esc Clear</span>
-          </div>
-          <button className="xp-cap-btn" style={{ color: "white", background: "transparent", border: "1px solid #fff" }}>─</button>
-          <button className="xp-cap-btn" style={{ color: "white", background: "transparent", border: "1px solid #fff" }}>□</button>
-          <button className="xp-cap-btn xp-cap-close" style={{ color: "white", background: "transparent", border: "1px solid #fff" }}>✕</button>
-        </div>
-      </div>
+      
 
       {msg.text && (
         <div className={`xp-alert ${msg.type === "success" ? "xp-alert-success" : msg.type === "info" ? "xp-alert-info" : "xp-alert-error"}`} style={{ margin: "6px 10px", border: "1px solid #000" }}>

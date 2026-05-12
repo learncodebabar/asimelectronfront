@@ -509,12 +509,7 @@ export default function ManualSalePage() {
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100vh", background: "#ffffff" }}>
       {/* Titlebar */}
-      <div className="xp-titlebar" style={{ background: "#1e40af", padding: "8px 16px", flexShrink: 0 }}>
-        <span className="xp-tb-title" style={{ color: "white", fontSize: "14px", fontWeight: "bold" }}>Manual Cash Sale Bill — {SHOP}</span>
-        <div className="xp-tb-actions">
-          <button className="xp-btn xp-btn-sm" onClick={resetForm} style={{ fontSize: "11px", padding: "4px 10px", fontWeight: "bold" }}>🔄 New Entry</button>
-        </div>
-      </div>
+     
 
       {msg.text && (
         <div className={`xp-alert ${msg.type === "success" ? "xp-alert-success" : "xp-alert-error"}`} style={{ margin: "4px 12px", fontSize: "11px", padding: "4px 12px", fontWeight: "500", flexShrink: 0 }}>

@@ -341,13 +341,7 @@ export default function QuotationListPage() {
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100vh", background: "#ffffff" }}>
       {/* Titlebar */}
-      <div className="xp-titlebar" style={{ background: "#2c5f2d", padding: "8px 16px", flexShrink: 0 }}>
-        <button className="xp-cap-btn" onClick={() => navigate("/")} style={{ color: "white", fontSize: "16px", background: "none", border: "none", cursor: "pointer" }}>←</button>
-        <span className="xp-tb-title" style={{ color: "white", fontSize: "16px", fontWeight: "bold" }}>Quotation List — Asim Electric Store</span>
-        <div className="xp-tb-actions">
-          <button className="xp-btn xp-btn-primary xp-btn-sm" onClick={() => navigate("/quotation-page")} style={{ background: "#ffffff", color: "#2c5f2d", border: "1px solid #2c5f2d", fontWeight: "bold", padding: "6px 12px" }}>+ New Quotation</button>
-        </div>
-      </div>
+
       
       {/* 3 Search Inputs in One Row */}
       <div style={{ 

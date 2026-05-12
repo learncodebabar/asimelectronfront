@@ -664,18 +664,7 @@ export default function GeneralLedgerPage() {
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%", background: "#ffffff" }}>
       {/* Title Bar */}
-      <div className="xp-titlebar" style={{ background: "#1e40af", padding: "8px 16px" }}>
-        <button className="xp-cap-btn" onClick={() => navigate("/")} style={{ color: "white", fontSize: "16px" }}>←</button>
-        <span className="xp-tb-title" style={{ color: "white", fontSize: "16px", fontWeight: "bold" }}>General Ledger — Asim Electric Store</span>
-        <div className="xp-tb-actions">
-          <button className="xp-btn xp-btn-sm" onClick={refreshData} style={{ fontSize: "12px", padding: "6px 12px", fontWeight: "bold" }}>
-            ⟳ Refresh
-          </button>
-          <button className="xp-btn xp-btn-sm" onClick={handlePrint} disabled={transactions.length === 0} style={{ fontSize: "12px", padding: "6px 12px", fontWeight: "bold", marginLeft: "8px" }}>
-            🖨 Print
-          </button>
-        </div>
-      </div>
+     
       
       {/* Print Modal */}
       {showPrintModal && (
@@ -858,10 +847,7 @@ export default function GeneralLedgerPage() {
                 <div style={{ width: "100px", height: "100px", background: "#e2e8f0", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "50px", border: "3px solid #000000", boxShadow: "0 4px 8px rgba(0,0,0,0.2)", borderRadius: "8px" }}>
                   {activeTab === "customer" ? "👤" : "🏢"}
                 </div>
-                {/* Display balance right below the image */}
-                {/* <div style={{ marginTop: "6px", fontSize: "11px", fontWeight: "bold", textAlign: "center", color: getCurrentBalance() > 0 ? "#dc2626" : "#059669", background: "#f8fafc", padding: "2px 6px", borderRadius: "4px", border: "1px solid #000000", width: "100%" }}>
-                  Balance: PKR {fmt(Math.abs(getCurrentBalance()))} {getCurrentBalance() > 0 ? "(Receivable)" : "(Payable)"}
-                </div> */}
+              
               </div>
             ) : (
               <div style={{ textAlign: "center", color: "#94a3b8" }}>

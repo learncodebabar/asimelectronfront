@@ -73,7 +73,7 @@ const buildPrintHtml = (purchase, type, overrides = {}) => {
         (it) => `
         <tr>
           <td style="font-size:9px;vertical-align:top">${it.sr}</td>
-          <td style="font-size:9.5px;vertical-align:top;word-break:break-word;max-width:100px">${it.name}</td>
+          <td style="font-size:9.5px;vertical-align:top;word-break:break-word;max-width:100px">${it.name}<td>
           <td style="font-size:9px;vertical-align:top;text-align:right">${it.pcs} ${it.uom || ""}</td>
           <td style="font-size:9px;vertical-align:top;text-align:right">${Number(it.rate).toLocaleString()}</td>
           <td style="font-size:9px;vertical-align:top;text-align:right"><b>${Number(it.amount).toLocaleString()}</b></td>
@@ -170,7 +170,7 @@ const buildPrintHtml = (purchase, type, overrides = {}) => {
           <td style="text-align:right">${it.pcs}</td>
           <td style="text-align:right">${Number(it.rate).toLocaleString()}</td>
           <td style="text-align:right"><b>${Number(it.amount).toLocaleString()}</b></td>
-        </tr>`
+        </table>`
       )
       .join("");
 
@@ -1244,7 +1244,6 @@ export default function PurchasePage() {
     setTimeout(() => searchRef.current?.focus(), 100);
   };
 
-  // MODIFIED: pickProduct - Keep focus on search input after product selection
   const pickProduct = (product) => {
     if (!product._id) {
       showMsg("Product ID missing", "error");
@@ -1263,7 +1262,6 @@ export default function PurchasePage() {
     });
     setSearchText(product.code || "");
     setShowProductModal(false);
-    // Focus remains on search input after product selection
     setTimeout(() => searchRef.current?.focus(), 30);
   };
 
@@ -1408,7 +1406,7 @@ export default function PurchasePage() {
       setHoldBills((prev) => prev.filter((b) => b.id !== holdId));
   };
 
-  // Main function to save and optionally print
+  // FIXED: Main function to save and optionally print - Added username and userId
   const savePurchase = async (shouldPrint) => {
     if (isProcessing) return;
     if (items.length === 0) {
@@ -1433,7 +1431,10 @@ export default function PurchasePage() {
     };
     
     try {
-      // Prepare payload for saving
+      // Get current user from localStorage
+      const currentUser = JSON.parse(localStorage.getItem("user") || "{}");
+      
+      // Prepare payload with username and userId
       const payload = {
         invoiceNo: cleanInvoiceNo(invoiceNo),
         invoiceDate,
@@ -1442,6 +1443,8 @@ export default function PurchasePage() {
         supplierCode: supplierCode,
         supplierPhone: "",
         remarks: remarks,
+        username: currentUser.username || currentUser.name || "admin",
+        userId: currentUser._id || currentUser.id || "admin",
         items: items.map((r, idx) => ({
           productId: r.productId || undefined,
           code: r.code,
@@ -1525,7 +1528,6 @@ export default function PurchasePage() {
     }
   };
 
-  // Open confirmation modal when pressing *
   const openConfirmModal = () => {
     if (items.length === 0) {
       showMsg("No items to save", "error");
@@ -1580,12 +1582,10 @@ export default function PurchasePage() {
     }
   };
 
-  // Handle star key press (*) - open confirmation modal
   useEffect(() => {
     const handler = (e) => {
       if (showProductModal || showHoldPreview || showConfirmModal) return;
       
-      // Star key (*) - opens confirmation modal
       if (e.key === "*") {
         e.preventDefault();
         if (items.length > 0) {
@@ -1594,14 +1594,12 @@ export default function PurchasePage() {
         return;
       }
       
-      // F4 key - hold purchase
       if (e.key === "F4") {
         e.preventDefault();
         holdPurchase();
         return;
       }
       
-      // Enter key on remarks input - opens confirmation modal
       if (e.key === "Enter" && document.activeElement === remarksRef.current) {
         e.preventDefault();
         if (items.length > 0) {
@@ -1636,19 +1634,7 @@ export default function PurchasePage() {
           />
         )}
 
-        <div className="xp-titlebar" style={{ background: "#10b981" }}>
-          <svg width="15" height="15" viewBox="0 0 16 16" fill="rgba(255,255,255,0.85)">
-            <path d="M0 4a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2zm2-1a1 1 0 0 0-1 1v1h14V4a1 1 0 0 0-1-1zm13 4H1v5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1zM2 10h2a1 1 0 0 1 0 2H2a1 1 0 0 1 0-2m4 0h6a1 1 0 0 1 0 2H6a1 1 0 0 1 0-2" />
-          </svg>
-          <span className="xp-tb-title">Purchase Invoice — * Print & Save | F4 Hold</span>
-          <div className="xp-tb-actions">
-            <div className="sl-shortcut-hints"><span>F2 Product</span><span>F4 Hold</span><span>* Save</span></div>
-            <div className="xp-tb-divider" />
-            <button className="xp-cap-btn">─</button>
-            <button className="xp-cap-btn" onClick={() => { if (!document.fullscreenElement) document.documentElement.requestFullscreen(); else document.exitFullscreen(); }}>□</button>
-            <button className="xp-cap-btn xp-cap-close">✕</button>
-          </div>
-        </div>
+   
 
         {msg.text && <div className={`xp-alert ${msg.type === "success" ? "xp-alert-success" : "xp-alert-error"}`} style={{ margin: "4px 10px 0", flexShrink: 0 }}>{msg.text}</div>}
 
@@ -1750,7 +1736,6 @@ export default function PurchasePage() {
               </div>
             </div>
 
-            {/* MODIFIED: Entry strip with Packing field added before Qty */}
             <div className="sl-entry-strip">
               <div className="sl-entry-cell sl-entry-product">
                 <label>Select Product <kbd>F2</kbd></label>
@@ -1784,7 +1769,6 @@ export default function PurchasePage() {
                           _stock: pk?.openingQty || 0, 
                           _name: [found.category, found.description, found.company].filter(Boolean).join(" ") 
                         });
-                        // AFTER product is selected on Enter, focus on packing field
                         setTimeout(() => packingRef.current?.focus(), 50);
                       } else { 
                         alert(`"${searchText}" — Product not found`); 
@@ -1803,7 +1787,6 @@ export default function PurchasePage() {
                 />
               </div>
               
-              {/* NEW: Packing field added before Qty */}
               <div className="sl-entry-cell" style={{ position: "relative" }}>
                 <label>Packing</label>
                 <input
@@ -1824,7 +1807,6 @@ export default function PurchasePage() {
                   onKeyDown={(e) => {
                     if (e.key === "Enter") {
                       e.preventDefault();
-                      // After packing Enter, focus goes to Qty field
                       pcsRef.current?.focus();
                       return;
                     }
@@ -2008,7 +1990,6 @@ export default function PurchasePage() {
               </div>
             </div>
 
-            {/* Remarks Input Section */}
             {showRemarksInput && (
               <div className="sl-remarks-section" style={{
                 marginTop: "10px",
@@ -2050,7 +2031,6 @@ export default function PurchasePage() {
             )}
           </div>
 
-          {/* Right panel - Hold Bills */}
           <div className="sl-right">
             <div className="sl-hold-panel">
               <div className="sl-hold-title" style={{ background: "#10b981" }}>

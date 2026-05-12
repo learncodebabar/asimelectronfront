@@ -558,46 +558,7 @@ export default function ProductPage() {
   
   return (
     <div className="pp-page">
-      {/* Titlebar */}
-      <div className="xp-titlebar">
-        <svg
-          width="15"
-          height="15"
-          viewBox="0 0 16 16"
-          fill="rgba(255,255,255,0.85)"
-        >
-          <path d="M0 1.5A.5.5 0 0 1 .5 1H2a.5.5 0 0 1 .485.379L2.89 3H14.5a.5.5 0 0 1 .491.592l-1.5 8A.5.5 0 0 1 13 12H4a.5.5 0 0 1-.491-.408L2.01 3.607 1.61 2H.5a.5.5 0 0 1-.5-.5M5 12a2 2 0 1 0 0 4 2 2 0 0 0 0-4m7 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4" />
-        </svg>
-        <span className="xp-tb-title">
-          Product Management — Asim Electric &amp; Electronic Store
-        </span>
-        <div className="xp-tb-actions">
-          {editId && (
-            <div className="pp-edit-badge">Edit: {form.productId}</div>
-          )}
-          <div className="xp-tb-divider" />
-          <button className="xp-cap-btn">─</button>
-          <button
-            onClick={() => {
-              if (!document.fullscreenElement) {
-                document.documentElement.requestFullscreen();
-              } else {
-                document.exitFullscreen();
-              }
-            }}
-            className="xp-cap-btn"
-          >
-            □
-          </button>
-          <button
-            title="Close"
-            onClick={() => navigate("/")}
-            className="xp-cap-btn xp-cap-close"
-          >
-            ✕
-          </button>
-        </div>
-      </div>
+   
 
       {msg.text && (
         <div

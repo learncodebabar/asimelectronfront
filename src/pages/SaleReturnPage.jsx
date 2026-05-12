@@ -1275,20 +1275,7 @@ export default function SaleReturnPage() {
       {showSaleSearchModal && <SearchSaleModal onSelect={(sale) => loadSaleByInv(sale)} onClose={() => setShowSaleSearchModal(false)} />}
 
       {/* TITLEBAR */}
-      <div className="xp-titlebar" style={{ background: "#c0392b" }}>
-        <svg width="15" height="15" viewBox="0 0 16 16" fill="rgba(255,255,255,0.85)"><path d="M2.146 2.854a.5.5 0 1 1 .708-.708L8 7.293l5.146-5.147a.5.5 0 0 1 .708.708L8.707 8l5.147 5.146a.5.5 0 0 1-.708.708L8 8.707l-5.146 5.147a.5.5 0 0 1-.708-.708z"/></svg>
-        <span className="xp-tb-title" style={{ color: "#ffffff", fontSize: "16px", fontWeight: "bold" }}>Sale Return — Asim Electric &amp; Electronic Store</span>
-        <div className="xp-tb-actions">
-          {editId && <div className="sr-edit-badge">✏ Editing Return</div>}
-          <div className="xp-tb-divider" />
-          <div className="sl-shortcut-hints"><span>F2 Product</span><span>F4 Hold</span><span>* Save</span></div>
-          <div className="xp-tb-divider" />
-          <button className="xp-cap-btn">─</button>
-          <button className="xp-cap-btn">□</button>
-          <button className="xp-cap-btn xp-cap-close">✕</button>
-        </div>
-      </div>
-
+    
       {msg.text && <div className={`xp-alert ${msg.type === "success" ? "xp-alert-success" : "xp-alert-error"}`} style={{ margin: "4px 10px 0", flexShrink: 0, fontSize: "13px", fontWeight: "500" }}>{msg.text}</div>}
 
       <div className="sl-body">

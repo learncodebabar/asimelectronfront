@@ -545,19 +545,7 @@ export default function StockReportPage() {
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100vh", background: "#ffffff" }}>
       {/* Titlebar */}
-      <div className="xp-titlebar" style={{ background: "#1e40af", padding: "8px 16px", flexShrink: 0 }}>
-        <button className="xp-cap-btn" onClick={() => navigate("/")} style={{ color: "white", fontSize: "16px", background: "none", border: "none", cursor: "pointer" }}>←</button>
-        <span className="xp-tb-title" style={{ color: "white", fontSize: "16px", fontWeight: "bold" }}>Stock Report — Asim Electric Store</span>
-        <div className="xp-tb-actions">
-          <button className="xp-btn xp-btn-primary xp-btn-sm" onClick={fetchProducts} style={{ background: "#ffffff", color: "#1e40af", border: "1px solid #1e40af", fontWeight: "bold", padding: "6px 12px" }}>⟳ Refresh</button>
-          <button className="xp-btn xp-btn-sm" onClick={() => {
-            const printWindow = window.open("", "_blank");
-            printWindow.document.write(buildPrintHtml(filteredProducts, totalStock, totalStockValue));
-            printWindow.document.close();
-            setTimeout(() => printWindow.print(), 500);
-          }} style={{ border: "1px solid #1e40af", fontWeight: "bold", padding: "6px 12px", marginLeft: "8px" }}>🖨️ Print</button>
-        </div>
-      </div>
+   
       
       {/* Search Inputs Row */}
       <div style={{ 

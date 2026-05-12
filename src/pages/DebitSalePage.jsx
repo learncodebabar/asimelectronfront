@@ -1631,41 +1631,7 @@ export default function DebitSalePage() {
         />
       )}
 
-      {/* ── Titlebar ── */}
-      <div className="xp-titlebar">
-        <svg
-          width="15"
-          height="15"
-          viewBox="0 0 16 16"
-          fill="rgba(255,255,255,0.85)"
-        >
-          <path d="M12.136.326A1.5 1.5 0 0 1 14 1.78V3h.5A1.5 1.5 0 0 1 16 4.5v9a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 0 13.5v-9A1.5 1.5 0 0 1 1.432 3.001L12.136.326z" />
-        </svg>
-        <span className="xp-tb-title">Debit Sale — {SHOP_NAME}</span>
-        <div className="xp-tb-actions">
-          <button
-            className="xp-btn xp-btn-sm xp-btn-primary"
-            onClick={() => navigate("/debit-customers")}
-            style={{ fontSize: "var(--xp-fs-xs)" }}
-          >
-            <svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor">
-              <path d="M15 14s1 0 1-1-1-4-5-4-5 3-5 4 1 1 1 1z" />
-              <path d="M11 7a2 2 0 1 0 0-4 2 2 0 0 0 0 4" />
-            </svg>
-            Manage Customers
-          </button>
-          <div className="xp-tb-divider" />
-          <button className="xp-cap-btn" title="Minimize">
-            ─
-          </button>
-          <button className="xp-cap-btn" title="Maximize">
-            □
-          </button>
-          <button className="xp-cap-btn xp-cap-close" title="Close">
-            ✕
-          </button>
-        </div>
-      </div>
+   
 
       {/* ── Hint bar ── */}
       <div className="cs-hint-bar">
