@@ -27,8 +27,7 @@ const EMPTY_ROW = {
   amount: 0,
 };
 
-import { SHOP_INFO, URDU_FONT, GOOGLE_FONT_LINK, getShopHeaderHTML, getShopBannerHTML, getShopTermsHTML, getShopFooterHTML } from "../constants/shopInfo.js";
-
+import { SHOP_INFO, URDU_FONT, GOOGLE_FONT_LINK } from "../constants/shopInfo.js";
 
 /* ── localStorage helpers for Hold ── */
 const loadPurchaseHolds = () => {
@@ -55,6 +54,41 @@ const cleanInvoiceNo = (invNo) => {
 };
 
 /* ══════════════════════════════════════════════════════════
+   STOCK UPDATE HELPER FOR PURCHASE (ADD STOCK)
+══════════════════════════════════════════════════════════ */
+const updateProductStockForPurchase = async (productId, uom, qtyPurchased, allProducts, setAllProducts) => {
+  try {
+    const productRes = await api.get(EP.PRODUCTS.GET_ONE(productId));
+    if (productRes.data.success && productRes.data.data) {
+      const product = productRes.data.data;
+      
+      if (product.packingInfo && product.packingInfo.length > 0) {
+        const packingIndex = product.packingInfo.findIndex(pk => pk.measurement === uom);
+        if (packingIndex !== -1) {
+          const currentStock = product.packingInfo[packingIndex].openingQty || 0;
+          const newStock = currentStock + qtyPurchased; // ADD to stock for purchase
+          
+          product.packingInfo[packingIndex].openingQty = newStock;
+          await api.put(EP.PRODUCTS.UPDATE(productId), {
+            packingInfo: product.packingInfo
+          });
+          
+          setAllProducts(prev => prev.map(p => 
+            p._id === productId ? { ...p, packingInfo: product.packingInfo } : p
+          ));
+          
+          console.log(`✅ Stock increased: ${product.code} - ${uom}: ${currentStock} -> ${newStock} (+${qtyPurchased})`);
+          return newStock;
+        }
+      }
+    }
+  } catch (error) {
+    console.error("Failed to update stock for purchase:", error);
+  }
+  return null;
+};
+
+/* ══════════════════════════════════════════════════════════
    PRINT HTML BUILDER — Purchase Invoice
 ══════════════════════════════════════════════════════════ */
 const buildPrintHtml = (purchase, type, overrides = {}) => {
@@ -73,7 +107,7 @@ const buildPrintHtml = (purchase, type, overrides = {}) => {
         (it) => `
         <tr>
           <td style="font-size:9px;vertical-align:top">${it.sr}</td>
-          <td style="font-size:9.5px;vertical-align:top;word-break:break-word;max-width:100px">${it.name}<td>
+          <td style="font-size:9.5px;vertical-align:top;word-break:break-word;max-width:100px">${it.name}</td>
           <td style="font-size:9px;vertical-align:top;text-align:right">${it.pcs} ${it.uom || ""}</td>
           <td style="font-size:9px;vertical-align:top;text-align:right">${Number(it.rate).toLocaleString()}</td>
           <td style="font-size:9px;vertical-align:top;text-align:right"><b>${Number(it.amount).toLocaleString()}</b></td>
@@ -170,7 +204,7 @@ const buildPrintHtml = (purchase, type, overrides = {}) => {
           <td style="text-align:right">${it.pcs}</td>
           <td style="text-align:right">${Number(it.rate).toLocaleString()}</td>
           <td style="text-align:right"><b>${Number(it.amount).toLocaleString()}</b></td>
-        </table>`
+        </tr>`
       )
       .join("");
 
@@ -264,7 +298,7 @@ const buildPrintHtml = (purchase, type, overrides = {}) => {
   </style></head><body>${allPagesHtml}</body></html>`;
 };
 
-// FIXED: Improved print function with better error handling
+// Print function with better error handling
 const doPrint = (purchase, type, overrides = {}) => {
   try {
     const printWindow = window.open("", "_blank", type === "Thermal" ? "width=420,height=640" : "width=900,height=700");
@@ -304,10 +338,10 @@ function ConfirmModal({ invoiceNo, supplierName, totalAmount, totalQty, itemsCou
     const handleKeyDown = (e) => {
       if (e.key === "Enter") {
         e.preventDefault();
-        onConfirm(true); // Print and Save
+        onConfirm(true);
       } else if (e.key === " " || e.key === "Space") {
         e.preventDefault();
-        onConfirm(false); // Save only
+        onConfirm(false);
       } else if (e.key === "Escape") {
         e.preventDefault();
         onClose();
@@ -392,7 +426,7 @@ function ConfirmModal({ invoiceNo, supplierName, totalAmount, totalQty, itemsCou
               marginBottom: "12px"
             }}>
               <div style={{ fontSize: "13px", fontWeight: "bold", color: "#065f46", marginBottom: "8px" }}>
-                ✅ This will SAVE the invoice to database
+                ✅ This will SAVE the invoice to database and UPDATE STOCK
               </div>
             </div>
             
@@ -531,7 +565,8 @@ function HoldPreviewModal({ bill, onResume, onClose }) {
             <div className="xp-table-scroll" style={{ maxHeight: 300 }}>
               <table className="xp-table">
                 <thead>
-                  <tr>                    <th>#</th>
+                  <tr>
+                    <th>#</th>
                     <th>Code</th>
                     <th>Name</th>
                     <th>UOM</th>
@@ -1051,14 +1086,12 @@ function SearchModal({ allProducts, onSelect, onClose }) {
                       onClick={() => setHiIdx(i)}
                       onDoubleClick={() => onSelect(r)}
                     >
-                      <td style={{ padding: "6px 6px", textAlign: "center", border: "1px solid #000000", fontSize: "11px", fontWeight: "normal", 
-                        }}>{i + 1}</td>
-                      <td style={{ padding: "6px 6px", border: "1px solid #000000", fontSize: "11px", fontWeight: "normal",  color:"black" }}>
+                      <td style={{ padding: "6px 6px", textAlign: "center", border: "1px solid #000000", fontSize: "11px", fontWeight: "normal" }}>{i + 1}</td>
+                      <td style={{ padding: "6px 6px", border: "1px solid #000000", fontSize: "11px", fontWeight: "normal", color:"black" }}>
                         <span className="xp-code">{r.code}</span>
                       </td>
                       <td style={{ padding: "6px 6px", border: "1px solid #000000", fontSize: "15px", fontWeight: "bold" }}>
                         <button className="xp-link-btn" style={{ 
-                     
                           textDecoration: "none", 
                           fontWeight: "bold", 
                           fontSize: "15px",
@@ -1070,14 +1103,11 @@ function SearchModal({ allProducts, onSelect, onClose }) {
                           padding: "0"
                         }}>{r._name}</button>
                       </td>
-                      <td style={{ padding: "6px 6px", textAlign: "center", border: "1px solid #000000", fontSize: "15px",
-                         fontWeight: "bold" }}>{r._meas || "—"}</td>
-                      <td style={{ padding: "6px 6px", textAlign: "right", border: "1px solid #000000", fontSize: "15px",
-                         fontWeight: "bold", }}>
+                      <td style={{ padding: "6px 6px", textAlign: "center", border: "1px solid #000000", fontSize: "15px", fontWeight: "bold" }}>{r._meas || "—"}</td>
+                      <td style={{ padding: "6px 6px", textAlign: "right", border: "1px solid #000000", fontSize: "15px", fontWeight: "bold" }}>
                         {Number(r._rate).toLocaleString("en-PK")}
                       </td>
-                      <td style={{ padding: "6px 6px", textAlign: "center", border: "1px solid #000000",
-                         fontSize: "15px", fontWeight: "bold",  }}>{r.rackNo || "—"}</td>
+                      <td style={{ padding: "6px 6px", textAlign: "center", border: "1px solid #000000", fontSize: "15px", fontWeight: "bold" }}>{r.rackNo || "—"}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -1254,6 +1284,9 @@ export default function PurchasePage() {
       showMsg("Product ID missing", "error");
       return;
     }
+    
+    const currentStock = product._stock || product.packingInfo?.[0]?.openingQty || 0;
+    
     setPackingOptions(product.packingInfo?.map((pk) => pk.measurement) || []);
     setCurRow({
       productId: product._id,
@@ -1267,6 +1300,10 @@ export default function PurchasePage() {
     });
     setSearchText(product.code || "");
     setShowProductModal(false);
+    
+    // Show stock info for purchase
+    showMsg(`✓ ${product.description || product.name} - Current Stock: ${currentStock} ${product._meas || ''} | Purchase Rate: ${product._rate}`, "success");
+    
     setTimeout(() => searchRef.current?.focus(), 30);
   };
 
@@ -1411,7 +1448,7 @@ export default function PurchasePage() {
       setHoldBills((prev) => prev.filter((b) => b.id !== holdId));
   };
 
-  // FIXED: Main function to save and optionally print - Added username and userId
+  // UPDATED: Main function to save and update stock
   const savePurchase = async (shouldPrint) => {
     if (isProcessing) return;
     if (items.length === 0) {
@@ -1490,17 +1527,30 @@ export default function PurchasePage() {
         return;
       }
       
-      // STEP 2: Show success message
-      showMsg(editId ? `✓ Invoice ${invoiceNo} updated successfully` : `✓ Invoice ${invoiceNo} saved successfully`);
+      // STEP 2: UPDATE STOCK - ADD quantities for each product
+      for (const item of items) {
+        if (item.productId && item.uom && item.pcs > 0) {
+          await updateProductStockForPurchase(item.productId, item.uom, parseFloat(item.pcs), allProducts, setAllProducts);
+        }
+      }
       
-      // STEP 3: PRINT if requested
+      // Refresh products to update local state
+      const productsRes = await api.get(EP.PRODUCTS.GET_ALL);
+      if (productsRes.data.success) {
+        setAllProducts(productsRes.data.data);
+      }
+      
+      // STEP 3: Show success message
+      showMsg(editId ? `✓ Invoice ${invoiceNo} updated successfully + Stock updated` : `✓ Invoice ${invoiceNo} saved successfully + Stock increased`);
+      
+      // STEP 4: PRINT if requested
       if (shouldPrint) {
         setTimeout(() => {
           try {
             const printWindow = window.open("", "_blank", printType === "Thermal" ? "width=420,height=640" : "width=900,height=700");
             
             if (!printWindow) {
-              alert("Popup blocked! Please allow popups for this website to print invoices.\nThe invoice has been saved.");
+              alert("Popup blocked! Please allow popups for this website to print invoices.\nThe invoice has been saved and stock updated.");
               return;
             }
             
@@ -1515,12 +1565,12 @@ export default function PurchasePage() {
             };
           } catch (printError) {
             console.error("Print failed:", printError);
-            showMsg("Save successful but print failed - you can print later from records", "error");
+            showMsg("Save & stock update successful but print failed", "error");
           }
         }, 300);
       }
       
-      // STEP 4: Reset for next invoice
+      // STEP 5: Reset for next invoice
       if (!editId) await refreshInvoiceNo();
       await resetToNewInvoice();
       
@@ -1639,12 +1689,10 @@ export default function PurchasePage() {
           />
         )}
 
-   
-
         {msg.text && <div className={`xp-alert ${msg.type === "success" ? "xp-alert-success" : "xp-alert-error"}`} style={{ margin: "4px 10px 0", flexShrink: 0 }}>{msg.text}</div>}
 
         <div className="sl-body">
-          <div className="sl-left" >
+          <div className="sl-left">
             <div className="sl-top-bar">
               <div className="sl-sale-title-box" style={{ background: "green", border: "1px solid green" }}>Purchase</div>
               
