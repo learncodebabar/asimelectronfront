@@ -5,6 +5,7 @@ import api from "../api/api.js";
 import EP from "../api/apiEndpoints.js";
 import "../styles/theme.css";
 
+
 const fmt = (n) => Number(n || 0).toLocaleString("en-PK");
 
 export default function RawSaleListPage() {

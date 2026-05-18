@@ -1,5 +1,6 @@
-// pages/DamageOutPage.jsx - With larger bold product font and sequential numbers
+// pages/DamageOutPage.jsx - With Monthly Reset Invoice Number (YYMMXXXX)
 import { useState, useEffect, useRef } from "react";
+import { useAuth } from "../context/AuthContext";
 import api from "../api/api.js";
 import EP from "../api/apiEndpoints.js";
 import "../styles/theme.css";
@@ -31,25 +32,139 @@ const EMPTY_ROW = {
   damageInItemIndex: 0,
   maxQty: 1,
 };
-import { SHOP_INFO, URDU_FONT, GOOGLE_FONT_LINK, getShopHeaderHTML, getShopBannerHTML, getShopTermsHTML, getShopFooterHTML } from "../constants/shopInfo.js";
 
+import { SHOP_INFO, URDU_FONT, GOOGLE_FONT_LINK } from "../constants/shopInfo.js";
 
-// Helper function to extract just the number from Damage ID
+/* ══════════════════════════════════════════════════════════
+   INVOICE NUMBER GENERATOR - Monthly Reset for Damage Out
+   Format: YYMMXXXX (e.g., 26050001 for May 2026)
+══════════════════════════════════════════════════════════ */
+
+// Get current year and month without dashes (e.g., 2605 for May 2026)
+const getCurrentYearMonthCode = () => {
+  const now = new Date();
+  const year = now.getFullYear().toString().slice(-2); // Last 2 digits (2026 -> 26)
+  const month = (now.getMonth() + 1).toString().padStart(2, '0'); // 05 for May
+  return `${year}${month}`; // e.g., "2605"
+};
+
+// Generate damage out number with monthly reset (Format: YYMMXXXX)
+const generateDamageOutNumber = async (apiInstance, endpoints, setDamageOutNo, currentDate = null) => {
+  try {
+    const date = currentDate ? new Date(currentDate) : new Date();
+    const currentYear = date.getFullYear().toString().slice(-2);
+    const currentMonth = (date.getMonth() + 1).toString().padStart(2, '0');
+    const currentYearMonth = `${currentYear}${currentMonth}`; // "2605"
+    
+    let maxSeqForMonth = 0;
+    
+    try {
+      // Fetch all damage out records
+      const damageRes = await apiInstance.get(endpoints.DAMAGE.GET_ALL);
+      
+      console.log('📊 Fetched damage out records for number generation:', damageRes.data.data?.length || 0, 'records');
+      
+      if (damageRes.data.success && damageRes.data.data && damageRes.data.data.length > 0) {
+        // Filter damage out records for current year-month and find max sequence number
+        damageRes.data.data.forEach(record => {
+          // Only process "out" type damage records
+          if (record.type !== "out") return;
+          
+          const damageNo = record.damageNo;
+          if (damageNo && typeof damageNo === 'string') {
+            let seqNum = null;
+            
+            // Check for format without dash: "26050001"
+            if (damageNo.startsWith(currentYearMonth)) {
+              seqNum = parseInt(damageNo.slice(-4), 10);
+              console.log(`Found NEW format damage out: ${damageNo} -> sequence: ${seqNum}`);
+            }
+            // Check for format with dash: "26-05-0001"
+            else if (damageNo.startsWith(`${currentYear}-${currentMonth}`)) {
+              const parts = damageNo.split('-');
+              if (parts.length === 3) {
+                seqNum = parseInt(parts[2], 10);
+                console.log(`Found dash format damage out: ${damageNo} -> sequence: ${seqNum}`);
+              }
+            }
+            // Check for OLD format: "OUT-1", "OUT-2" etc.
+            else if (damageNo.startsWith('OUT-')) {
+              const parts = damageNo.split('-');
+              if (parts.length === 2) {
+                seqNum = parseInt(parts[1], 10);
+                console.log(`Found OLD format damage out: ${damageNo} -> sequence: ${seqNum}`);
+              }
+            }
+            
+            if (seqNum && !isNaN(seqNum) && seqNum > maxSeqForMonth) {
+              maxSeqForMonth = seqNum;
+              console.log(`Current max sequence: ${maxSeqForMonth}`);
+            }
+          }
+        });
+      }
+    } catch (salesError) {
+      console.error("Failed to fetch damage out records for number generation:", salesError);
+    }
+    
+    // Calculate next sequence number
+    const nextSeq = maxSeqForMonth + 1;
+    const formattedSeq = nextSeq.toString().padStart(4, '0'); // 0001, 0002, etc.
+    const newDamageNo = `${currentYearMonth}${formattedSeq}`; // e.g., "26050001"
+    
+    console.log(`📄 Generated damage out number: ${newDamageNo} (Previous max: ${maxSeqForMonth}, Next: ${nextSeq})`);
+    
+    setDamageOutNo(newDamageNo);
+    localStorage.setItem('lastDamageOutNumber', newDamageNo);
+    localStorage.setItem('lastDamageOutYearMonth', currentYearMonth);
+    
+    return newDamageNo;
+    
+  } catch (error) {
+    console.error("Failed to generate damage out number:", error);
+    // Fallback: generate based on localStorage
+    const currentYear = new Date().getFullYear().toString().slice(-2);
+    const currentMonth = (new Date().getMonth() + 1).toString().padStart(2, '0');
+    const currentYearMonth = `${currentYear}${currentMonth}`;
+    const lastSaved = localStorage.getItem('lastDamageOutNumber');
+    const lastYearMonth = localStorage.getItem('lastDamageOutYearMonth');
+    
+    let nextSeq = 1;
+    if (lastSaved && lastYearMonth === currentYearMonth) {
+      const lastSeq = parseInt(lastSaved.slice(-4), 10);
+      if (!isNaN(lastSeq)) {
+        nextSeq = lastSeq + 1;
+      }
+    }
+    
+    const formattedSeq = nextSeq.toString().padStart(4, '0');
+    const newDamageNo = `${currentYearMonth}${formattedSeq}`;
+    setDamageOutNo(newDamageNo);
+    return newDamageNo;
+  }
+};
+
+// Extract just the number part for display (returns full number for new format)
 const extractDamageNumber = (damageNo) => {
   if (!damageNo) return "";
+  // If it's in YYMMXXXX format (8 digits), return the full number
+  if (damageNo.length === 8 && !isNaN(parseInt(damageNo, 10))) {
+    return damageNo;
+  }
+  // Handle old format
   if (damageNo.includes('-')) {
     return damageNo.split('-')[1];
   }
   return damageNo;
 };
 
-// Helper function to build full Damage ID from number
+// Helper function to build full Damage ID from number (for old format compatibility)
 const buildFullDamageId = (number) => {
-  if (!number || number === "") return "OUT-1";
-  return `OUT-${number}`;
+  if (!number || number === "") return "1";
+  return `${number}`;
 };
 
-// Function to get next available damage out number from records
+// Function to get next available damage out number from records (for old format fallback)
 const getNextAvailableNumber = (records) => {
   if (!records || records.length === 0) return 1;
   
@@ -455,9 +570,10 @@ function DamageOutHoldPreviewModal({ record, onResume, onClose }) {
 }
 
 /* ══════════════════════════════════════════════════════════
-   MAIN PAGE — DAMAGE OUT
+   MAIN PAGE — DAMAGE OUT with Monthly Reset Numbers
 ══════════════════════════════════════════════════════════ */
 export default function DamageOutPage() {
+  const { user } = useAuth();
   const [time, setTime] = useState(timeNow());
   const [allDamageInProducts, setAllDamageInProducts] = useState([]);
   const [allRecords, setAllRecords] = useState([]);
@@ -487,6 +603,21 @@ export default function DamageOutPage() {
   const addRef = useRef(null);
   const saveRef = useRef(null);
 
+  // Check if month has changed
+  const checkMonthChange = () => {
+    const currentYearMonth = getCurrentYearMonthCode();
+    const lastYearMonth = localStorage.getItem('lastDamageOutYearMonth');
+    
+    if (lastYearMonth && lastYearMonth !== currentYearMonth) {
+      console.log(`📅 Month changed from ${lastYearMonth} to ${currentYearMonth}. Resetting sequence.`);
+      localStorage.removeItem('lastDamageOutNumber');
+      localStorage.setItem('lastDamageOutYearMonth', currentYearMonth);
+      generateDamageOutNumber(api, EP, setDamageOutNo);
+      return true;
+    }
+    return false;
+  };
+
   useEffect(() => {
     const t = setInterval(() => setTime(timeNow()), 1000);
     return () => clearInterval(t);
@@ -495,6 +626,16 @@ export default function DamageOutPage() {
   useEffect(() => {
     loadDamageInProducts();
     fetchDamageOutRecords();
+  }, []);
+  
+  // Check month change on mount and periodically
+  useEffect(() => {
+    checkMonthChange();
+    const interval = setInterval(() => {
+      checkMonthChange();
+    }, 60000); // Check every minute
+    
+    return () => clearInterval(interval);
   }, []);
   
   useEffect(() => {
@@ -557,19 +698,19 @@ export default function DamageOutPage() {
         const damageOutRecords = response.data.data.filter(r => r.type === "out");
         setAllRecords(damageOutRecords);
         
-        if (!editId && (!damageOutNo || damageOutNo === "" || damageOutNo === "OUT-1")) {
-          const nextNumber = getNextAvailableNumber(damageOutRecords);
-          setDamageOutNo(buildFullDamageId(nextNumber));
+        // Generate new damage out number with monthly reset
+        if (!editId && (!damageOutNo || damageOutNo === "")) {
+          await generateDamageOutNumber(api, EP, setDamageOutNo);
         }
       } else {
         if (!editId && (!damageOutNo || damageOutNo === "")) {
-          setDamageOutNo("OUT-1");
+          await generateDamageOutNumber(api, EP, setDamageOutNo);
         }
       }
     } catch (error) {
       console.error("Failed to fetch damage out records:", error);
       if (!editId && (!damageOutNo || damageOutNo === "")) {
-        setDamageOutNo("OUT-1");
+        await generateDamageOutNumber(api, EP, setDamageOutNo);
       }
     }
     setLoading(false);
@@ -580,7 +721,6 @@ export default function DamageOutPage() {
     setTimeout(() => setMsg({ text: "", type: "" }), 3500);
   };
   
-  // FIXED: pickProduct - Focus stays on search input after product selection
   const pickProduct = (product) => {
     if (!product.productId) {
       showMsg("Product ID missing", "error");
@@ -604,7 +744,6 @@ export default function DamageOutPage() {
     setSearchText(product.code || "");
     setShowProductModal(false);
     setShowProductSuggestions(false);
-    // FIXED: Focus stays on search input after product selection
     setTimeout(() => searchRef.current?.focus(), 30);
   };
 
@@ -726,8 +865,8 @@ export default function DamageOutPage() {
     setEditId(null);
     setDamageOutDate(isoDate());
     
-    const nextNumber = getNextAvailableNumber(allRecords);
-    setDamageOutNo(buildFullDamageId(nextNumber));
+    // Generate new damage out number with monthly reset
+    generateDamageOutNumber(api, EP, setDamageOutNo);
     
     setTimeout(() => searchRef.current?.focus(), 50);
   };
@@ -811,6 +950,8 @@ export default function DamageOutPage() {
     totalQty,
     totalAmount: subTotal,
     type: "out",
+    userId: user?.id || user?._id || "admin",
+    username: user?.username || user?.name || "admin",
   });
   
   const saveDamageOutRecord = async () => {
@@ -828,12 +969,12 @@ export default function DamageOutPage() {
       
       const existingRecord = allRecords.find(r => r.damageNo === damageOutNo);
       if (existingRecord && !editId) {
-        const nextNumber = getNextAvailableNumber(allRecords);
-        const newDamageOutNo = buildFullDamageId(nextNumber);
+        await generateDamageOutNumber(api, EP, setDamageOutNo);
+        const newDamageOutNo = damageOutNo;
         setDamageOutNo(newDamageOutNo);
         payload.damageNo = newDamageOutNo;
         payload.invoiceNo = newDamageOutNo;
-        showMsg(`Number ${extractDamageNumber(damageOutNo)} already exists, using ${nextNumber} instead`, "info");
+        showMsg(`Number already exists, using ${newDamageOutNo} instead`, "info");
       }
       
       let response;
@@ -858,10 +999,8 @@ export default function DamageOutPage() {
     } catch (error) {
       console.error("Save error:", error);
       if (error.response?.data?.message?.includes("duplicate") || error.response?.data?.message?.includes("already exists")) {
-        const nextNumber = getNextAvailableNumber(allRecords);
-        const newDamageOutNo = buildFullDamageId(nextNumber);
-        setDamageOutNo(newDamageOutNo);
-        showMsg(`Number already exists, please save again with number ${nextNumber}`, "error");
+        await generateDamageOutNumber(api, EP, setDamageOutNo);
+        showMsg(`Number already exists, please save again with new number`, "error");
       } else {
         showMsg(error.response?.data?.message || "Save failed. Could not update Damage In quantities.", "error");
       }
@@ -905,6 +1044,11 @@ export default function DamageOutPage() {
     const sortedRecords = [...allRecords].sort((a, b) => {
       const getNum = (str) => {
         let numStr = str.toString();
+        // Handle new YYMMXXXX format (8 digits)
+        if (numStr.length === 8 && !isNaN(parseInt(numStr, 10))) {
+          return parseInt(numStr, 10);
+        }
+        // Handle old format
         if (numStr.includes('-')) {
           numStr = numStr.split('-')[1];
         }
@@ -948,7 +1092,6 @@ export default function DamageOutPage() {
     setLoading(false);
   };
 
-  // FIXED: handleProductSearchKeyDown - Proper focus flow
   const handleProductSearchKeyDown = (e) => {
     if (e.key === "ArrowDown") {
       e.preventDefault();
@@ -965,12 +1108,10 @@ export default function DamageOutPage() {
       setSelectedProductSuggestionIdx(prev => prev > 0 ? prev - 1 : -1);
     } else if (e.key === "Enter") {
       e.preventDefault();
-      // If a product is already selected (curRow has name and productId), move to pcs
       if (curRow.name && curRow.productId) {
         setTimeout(() => pcsRef.current?.focus(), 50);
         return;
       }
-      // Otherwise, try to select from suggestions or search
       if (selectedProductSuggestionIdx >= 0 && productSuggestions[selectedProductSuggestionIdx]) {
         pickProduct(productSuggestions[selectedProductSuggestionIdx]);
         setProductSuggestions([]);
@@ -1049,8 +1190,6 @@ export default function DamageOutPage() {
         />
       )}
       
-     
-
       {msg.text && (
         <div className={`xp-alert ${msg.type === "success" ? "xp-alert-success" : "xp-alert-error"}`} style={{ margin: "4px 10px 0" }}>
           {msg.text}
@@ -1069,15 +1208,8 @@ export default function DamageOutPage() {
                 <input 
                   className="xp-input sl-inv-input-large" 
                   style={{ borderColor: "#e65100" }} 
-                  value={extractDamageNumber(damageOutNo)} 
-                  onChange={(e) => {
-                    const newNumber = e.target.value;
-                    if (newNumber === "") {
-                      setDamageOutNo("OUT-1");
-                    } else {
-                      setDamageOutNo(buildFullDamageId(newNumber));
-                    }
-                  }}
+                  value={damageOutNo} 
+                  onChange={(e) => setDamageOutNo(e.target.value)}
                   onKeyDown={(e) => {
                     if (e.key === "Enter") {
                       e.preventDefault();
@@ -1087,7 +1219,7 @@ export default function DamageOutPage() {
                       if (found) {
                         loadRecordForEdit(found);
                       } else {
-                        showMsg(`Damage out record "${extractDamageNumber(val)}" not found`, "error");
+                        showMsg(`Damage out record "${val}" not found`, "error");
                       }
                     }
                     if (e.key === "ArrowUp" || e.key === "ArrowDown") {
@@ -1096,9 +1228,13 @@ export default function DamageOutPage() {
                     }
                   }}
                   onFocus={(e) => e.target.select()}
+                  placeholder="e.g., 26050001"
                 />
                 <button className="sl-inv-nav-btn sl-inv-nav-next" onClick={() => navRecord("next")}>▶</button>
               </div>
+              <span style={{ fontSize: "9px", color: "#666", marginLeft: "4px" }}>
+                Format: YYMMXXXX (Resets monthly, e.g., 26050001)
+              </span>
             </div>
             
             <div className="sl-inv-field-grp">
@@ -1111,7 +1247,6 @@ export default function DamageOutPage() {
             </div>
           </div>
 
-          {/* FIXED: Entry strip with proper focus flow */}
           <div className="sl-entry-strip">
             <div className="sl-entry-cell sl-entry-product">
               <label>SELECT DAMAGED PRODUCT <kbd>F2</kbd></label>
@@ -1309,12 +1444,12 @@ export default function DamageOutPage() {
         <button className="xp-btn xp-btn-sm" onClick={fullReset}>🆕 NEW RECORD</button>
         <button ref={saveRef} className="xp-btn xp-btn-primary" style={{ background: "#e65100" }} onClick={saveDamageOutRecord} disabled={loading || items.length === 0}>{loading ? "SAVING…" : "💾 SAVE DAMAGE OUT *"}</button>
         <button className="xp-btn xp-btn-danger xp-btn-sm" onClick={deleteRecord} disabled={!editId || loading}>🗑 DELETE RECORD</button>
-        <span className="sl-inv-info">⚠ {extractDamageNumber(damageOutNo)} | ITEMS: {items.length} | TOTAL: PKR {fmt(subTotal)}</span>
+        <span className="sl-inv-info">⚠ {damageOutNo} | ITEMS: {items.length} | TOTAL: PKR {fmt(subTotal)}</span>
         <button className="xp-btn xp-btn-sm" onClick={fullReset}>CLOSE</button>
       </div>
 
       <div className="xp-statusbar">
-        <div className="xp-status-pane">⚠ {extractDamageNumber(damageOutNo)}</div>
+        <div className="xp-status-pane">⚠ {damageOutNo}</div>
         <div className="xp-status-pane">ITEMS: {items.length}</div>
         <div className="xp-status-pane">QTY: {totalQty}</div>
         <div className="xp-status-pane">VALUE: PKR {fmt(subTotal)}</div>

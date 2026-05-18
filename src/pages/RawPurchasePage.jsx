@@ -1,5 +1,6 @@
 // pages/RawPurchasePage.jsx
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useAuth } from "../context/AuthContext";
 import api from "../api/api.js";
 import EP from "../api/apiEndpoints.js";
 import "../styles/theme.css";
@@ -27,8 +28,7 @@ const EMPTY_ROW = {
   amount: 0,
 };
 
-import { SHOP_INFO, URDU_FONT, GOOGLE_FONT_LINK, getShopHeaderHTML, getShopBannerHTML, getShopTermsHTML, getShopFooterHTML } from "../constants/shopInfo.js";
-
+import { SHOP_INFO, URDU_FONT, GOOGLE_FONT_LINK } from "../constants/shopInfo.js";
 
 const TYPE_COLORS = {
   credit: { bg: "#fca5a5", color: "#7f1d1d", border: "#ef4444" },
@@ -40,27 +40,142 @@ const TYPE_COLORS = {
 };
 
 const typeToPayment = (t) => {
-  if (
-    t === "credit" ||
-    t === "raw-sale" ||
-    t === "raw-purchase" ||
-    t === "supplier"
-  )
+  if (t === "credit" || t === "raw-sale" || t === "raw-purchase" || t === "supplier")
     return "Credit";
   if (t === "debit") return "Bank";
   return "Cash";
 };
 const typeToSource = (t) => (!t ? "cash" : t);
 
-// Clean invoice number function - removes RAW-P- prefix and leading zeros
+/* ══════════════════════════════════════════════════════════
+   INVOICE NUMBER GENERATOR - Monthly Reset for Raw Purchase
+   Format: YYMMXXXX (e.g., 26050001 for May 2026)
+══════════════════════════════════════════════════════════ */
+
+// Get current year and month without dashes (e.g., 2605 for May 2026)
+const getCurrentYearMonthCode = () => {
+  const now = new Date();
+  const year = now.getFullYear().toString().slice(-2); // Last 2 digits (2026 -> 26)
+  const month = (now.getMonth() + 1).toString().padStart(2, '0'); // 05 for May
+  return `${year}${month}`; // e.g., "2605"
+};
+
+// Generate invoice number with monthly reset (Format: YYMMXXXX)
+const generateInvoiceNumber = async (apiInstance, endpoints, setInvoiceNo, currentDate = null) => {
+  try {
+    const date = currentDate ? new Date(currentDate) : new Date();
+    const currentYear = date.getFullYear().toString().slice(-2);
+    const currentMonth = (date.getMonth() + 1).toString().padStart(2, '0');
+    const currentYearMonth = `${currentYear}${currentMonth}`; // "2605"
+    
+    let maxSeqForMonth = 0;
+    
+    try {
+      // Fetch all raw purchases
+      const purchasesRes = await apiInstance.get(endpoints.RAW_PURCHASES.GET_ALL);
+      
+      console.log('📊 Fetched raw purchases for invoice generation:', purchasesRes.data.data?.length || 0, 'records');
+      
+      if (purchasesRes.data.success && purchasesRes.data.data && purchasesRes.data.data.length > 0) {
+        // Filter purchases for current year-month and find max sequence number
+        purchasesRes.data.data.forEach(purchase => {
+          const purchaseInvoiceNo = purchase.invoiceNo;
+          if (purchaseInvoiceNo && typeof purchaseInvoiceNo === 'string') {
+            let seqNum = null;
+            
+            // Check for OLD format: "RAW-P-00001" - extract the number
+            if (purchaseInvoiceNo.startsWith('RAW-P-')) {
+              const parts = purchaseInvoiceNo.split('-');
+              if (parts.length === 3) {
+                seqNum = parseInt(parts[2], 10);
+                console.log(`Found OLD format invoice: ${purchaseInvoiceNo} -> sequence: ${seqNum}`);
+              }
+            }
+            // Check for NEW format without dash: "26050001"
+            else if (purchaseInvoiceNo.startsWith(currentYearMonth)) {
+              seqNum = parseInt(purchaseInvoiceNo.slice(-4), 10);
+              console.log(`Found NEW format invoice: ${purchaseInvoiceNo} -> sequence: ${seqNum}`);
+            }
+            // Check for format with dash: "26-05-0001"
+            else if (purchaseInvoiceNo.startsWith(`${currentYear}-${currentMonth}`)) {
+              const parts = purchaseInvoiceNo.split('-');
+              if (parts.length === 3) {
+                seqNum = parseInt(parts[2], 10);
+                console.log(`Found dash format invoice: ${purchaseInvoiceNo} -> sequence: ${seqNum}`);
+              }
+            }
+            
+            if (seqNum && !isNaN(seqNum) && seqNum > maxSeqForMonth) {
+              maxSeqForMonth = seqNum;
+              console.log(`Current max sequence: ${maxSeqForMonth}`);
+            }
+          }
+        });
+      }
+    } catch (salesError) {
+      console.error("Failed to fetch raw purchases for invoice generation:", salesError);
+    }
+    
+    // Calculate next sequence number
+    const nextSeq = maxSeqForMonth + 1;
+    const formattedSeq = nextSeq.toString().padStart(4, '0'); // 0001, 0002, etc.
+    const newInvoiceNo = `${currentYearMonth}${formattedSeq}`; // e.g., "26050001"
+    
+    console.log(`📄 Generated raw purchase invoice number: ${newInvoiceNo} (Previous max: ${maxSeqForMonth}, Next: ${nextSeq})`);
+    
+    setInvoiceNo(newInvoiceNo);
+    localStorage.setItem('lastRawPurchaseInvoiceNumber', newInvoiceNo);
+    localStorage.setItem('lastRawPurchaseInvoiceYearMonth', currentYearMonth);
+    
+    return newInvoiceNo;
+    
+  } catch (error) {
+    console.error("Failed to generate invoice number:", error);
+    // Fallback: generate based on localStorage
+    const currentYear = new Date().getFullYear().toString().slice(-2);
+    const currentMonth = (new Date().getMonth() + 1).toString().padStart(2, '0');
+    const currentYearMonth = `${currentYear}${currentMonth}`;
+    const lastSaved = localStorage.getItem('lastRawPurchaseInvoiceNumber');
+    const lastYearMonth = localStorage.getItem('lastRawPurchaseInvoiceYearMonth');
+    
+    let nextSeq = 1;
+    if (lastSaved && lastYearMonth === currentYearMonth) {
+      const lastSeq = parseInt(lastSaved.slice(-4), 10);
+      if (!isNaN(lastSeq)) {
+        nextSeq = lastSeq + 1;
+      }
+    }
+    
+    const formattedSeq = nextSeq.toString().padStart(4, '0');
+    const newInvoiceNo = `${currentYearMonth}${formattedSeq}`;
+    setInvoiceNo(newInvoiceNo);
+    return newInvoiceNo;
+  }
+};
+
+// Parse invoice number to get components (Format: YYMMXXXX)
+const parseInvoiceNumber = (invoiceNo) => {
+  if (!invoiceNo || invoiceNo.length !== 8) return null;
+  const yearMonth = invoiceNo.slice(0, 4); // First 4 digits (2605)
+  const sequence = invoiceNo.slice(-4); // Last 4 digits (0001)
+  const year = parseInt(yearMonth.slice(0, 2), 10);
+  const month = parseInt(yearMonth.slice(2, 4), 10);
+  return { yearMonth, sequence, year, month, seqNum: parseInt(sequence, 10) };
+};
+
+// Clean invoice number function - removes any prefix
 const cleanInvoiceNo = (invNo) => {
   if (!invNo) return "1";
   let cleaned = String(invNo);
+  // If it's in YYMMXXXX format (8 digits), keep as is
+  if (cleaned.length === 8 && !isNaN(parseInt(cleaned, 10))) {
+    return cleaned;
+  }
   cleaned = cleaned.replace(/^RAW-P-/i, '');
   cleaned = cleaned.replace(/^0+/, '');
-  cleaned = parseInt(cleaned, 10);
-  if (isNaN(cleaned)) return "1";
-  return String(cleaned);
+  const num = parseInt(cleaned, 10);
+  if (isNaN(num)) return "1";
+  return String(num);
 };
 
 /* ── localStorage helpers ── */
@@ -150,7 +265,7 @@ const buildPrintHtml = (sale, type, overrides = {}) => {
       ${customerPhone ? `<div style="font-size:9px;color:#555">${customerPhone}</div>` : ""}
       <div class="meta-row"><span style="font-size:9px;color:#555">Items: ${rows.length}</span></div>
       <hr class="divider-solid">
-      <table>
+      </table>
         <thead>
           <tr>
             <th style="width:20px">#</th>
@@ -997,6 +1112,7 @@ const updateCustomerBalanceDirect = async (customerId, amount, operation) => {
    MAIN PAGE — Raw Purchase
 ══════════════════════════════════════════════════════════ */
 export default function RawPurchasePage() {
+  const { user } = useAuth();
   const [time, setTime] = useState(timeNow());
   const [allProducts, setAllProducts] = useState([]);
   const [allCustomers, setAllCustomers] = useState([]);
@@ -1006,7 +1122,7 @@ export default function RawPurchasePage() {
   const [curRow, setCurRow] = useState({ ...EMPTY_ROW });
   const [items, setItems] = useState([]);
   const [invoiceDate, setInvoiceDate] = useState(isoDate());
-  const [invoiceNo, setInvoiceNo] = useState("1");
+  const [invoiceNo, setInvoiceNo] = useState("");
   const amountRef = useRef(null);
 
   const [customerId, setCustomerId] = useState("");
@@ -1048,6 +1164,21 @@ export default function RawPurchasePage() {
   const saveRef = useRef(null);
   const statementRef = useRef(null);
 
+  // Check if month has changed
+  const checkMonthChange = () => {
+    const currentYearMonth = getCurrentYearMonthCode();
+    const lastYearMonth = localStorage.getItem('lastRawPurchaseInvoiceYearMonth');
+    
+    if (lastYearMonth && lastYearMonth !== currentYearMonth) {
+      console.log(`📅 Month changed from ${lastYearMonth} to ${currentYearMonth}. Resetting sequence.`);
+      localStorage.removeItem('lastRawPurchaseInvoiceNumber');
+      localStorage.setItem('lastRawPurchaseInvoiceYearMonth', currentYearMonth);
+      generateInvoiceNumber(api, EP, setInvoiceNo);
+      return true;
+    }
+    return false;
+  };
+
   useEffect(() => {
     const t = setInterval(() => setTime(timeNow()), 1000);
     return () => clearInterval(t);
@@ -1055,6 +1186,16 @@ export default function RawPurchasePage() {
   
   useEffect(() => {
     fetchData();
+  }, []);
+  
+  // Check month change on mount and periodically
+  useEffect(() => {
+    checkMonthChange();
+    const interval = setInterval(() => {
+      checkMonthChange();
+    }, 60000); // Check every minute
+    
+    return () => clearInterval(interval);
   }, []);
   
   useEffect(() => {
@@ -1089,28 +1230,17 @@ export default function RawPurchasePage() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [pRes, cRes, salesRes] = await Promise.all([
+      const [pRes, cRes] = await Promise.all([
         api.get(EP.PRODUCTS.GET_ALL),
         api.get(EP.CUSTOMERS.GET_ALL),
-        api.get(EP.RAW_PURCHASES.GET_ALL),
       ]);
+      
       if (pRes.data.success) setAllProducts(pRes.data.data);
       if (cRes.data.success) setAllCustomers(cRes.data.data);
       
-      // Calculate next invoice number from existing raw purchases
-      let maxNum = 0;
-      if (salesRes.data.success && salesRes.data.data && salesRes.data.data.length > 0) {
-        salesRes.data.data.forEach(purchase => {
-          let num = cleanInvoiceNo(purchase.invoiceNo);
-          num = parseInt(num, 10);
-          if (!isNaN(num) && num > maxNum) {
-            maxNum = num;
-          }
-        });
-        setInvoiceNo(String(maxNum + 1));
-      } else {
-        setInvoiceNo("1");
-      }
+      // Generate invoice number with monthly reset
+      await generateInvoiceNumber(api, EP, setInvoiceNo);
+      
     } catch (error) {
       console.error("Fetch data error:", error);
       showMsg("Failed to load data", "error");
@@ -1119,26 +1249,7 @@ export default function RawPurchasePage() {
   };
 
   const refreshInvoiceNo = async () => {
-    try {
-      const salesRes = await api.get(EP.RAW_PURCHASES.GET_ALL);
-      let maxNum = 0;
-      if (salesRes.data.success && salesRes.data.data && salesRes.data.data.length > 0) {
-        salesRes.data.data.forEach(purchase => {
-          let num = cleanInvoiceNo(purchase.invoiceNo);
-          num = parseInt(num, 10);
-          if (!isNaN(num) && num > maxNum) {
-            maxNum = num;
-          }
-        });
-        setInvoiceNo(String(maxNum + 1));
-      } else {
-        setInvoiceNo("1");
-      }
-    } catch (error) {
-      console.error("Failed to refresh invoice number:", error);
-      const current = parseInt(invoiceNo, 10) || 0;
-      setInvoiceNo(String(current + 1));
-    }
+    await generateInvoiceNumber(api, EP, setInvoiceNo);
   };
 
   const showMsg = (text, type = "success") => {
@@ -1225,7 +1336,6 @@ export default function RawPurchasePage() {
     setTimeout(() => searchRef.current?.focus(), 30);
   };
   
-  // FIXED: pickProduct - Focus stays on search input after product selection
   const pickProduct = (product) => {
     if (!product._id) {
       showMsg("Product ID missing", "error");
@@ -1244,7 +1354,6 @@ export default function RawPurchasePage() {
     });
     setSearchText(product.code || "");
     setShowProductModal(false);
-    // FIXED: Focus stays on search input after product selection
     setTimeout(() => searchRef.current?.focus(), 30);
   };
 
@@ -1375,12 +1484,13 @@ export default function RawPurchasePage() {
     setCreditWarning(false);
     setCreditStatement("");
     setShowCustomerPanel(false);
+    generateInvoiceNumber(api, EP, setInvoiceNo);
     setTimeout(() => searchRef.current?.focus(), 50);
   };
   
   const loadPurchaseForEdit = (purchase) => {
     setEditId(purchase._id);
-    let invNo = cleanInvoiceNo(purchase.invoiceNo);
+    let invNo = purchase.invoiceNo;
     setInvoiceNo(invNo);
     setInvoiceDate(purchase.invoiceDate || isoDate());
 
@@ -1425,9 +1535,9 @@ export default function RawPurchasePage() {
       const { data } = await api.get(EP.RAW_PURCHASES.GET_ALL);
       if (!data.success || !data.data?.length) return;
       const allPurchases = data.data;
-      const currentCleanNo = cleanInvoiceNo(invoiceNo);
+      const currentCleanNo = invoiceNo;
       const curIdx = allPurchases.findIndex((s) => {
-        return cleanInvoiceNo(s.invoiceNo) === currentCleanNo;
+        return s.invoiceNo === currentCleanNo;
       });
       let nextIdx = dir === "prev" ? curIdx - 1 : curIdx + 1;
       nextIdx = Math.max(0, Math.min(nextIdx, allPurchases.length - 1));
@@ -1439,7 +1549,7 @@ export default function RawPurchasePage() {
   };
 
   const buildPayload = () => ({
-    invoiceNo: cleanInvoiceNo(invoiceNo),
+    invoiceNo: invoiceNo,
     invoiceDate,
     customerId: customerId || undefined,
     customerName: customerName || "COUNTER SALE",
@@ -1471,6 +1581,8 @@ export default function RawPurchasePage() {
     printType,
     remarks: creditStatement || "",
     saleType: "raw-purchase",
+    userId: user?.id || user?._id || "admin",
+    username: user?.username || user?.name || "admin",
   });
   
   const openSaleConfirm = () => {
@@ -1508,6 +1620,20 @@ export default function RawPurchasePage() {
   const confirmSaveWithPayload = async (payload, overrides) => {
     if (!payload) return;
     setLoading(true);
+    
+    // Get user from props if available
+    let currentUser = user;
+    if (!currentUser || !currentUser.id) {
+      try {
+        const storedUser = localStorage.getItem('user');
+        if (storedUser) {
+          currentUser = JSON.parse(storedUser);
+        }
+      } catch (e) {
+        console.error("Failed to parse user from localStorage", e);
+      }
+    }
+    
     try {
       const finalPayload = {
         ...payload,
@@ -1516,6 +1642,8 @@ export default function RawPurchasePage() {
         paidAmount: overrides.paidAmount,
         balance: overrides.balance,
         printType: overrides.printType,
+        userId: currentUser?.id || currentUser?._id || payload.userId || "admin",
+        username: currentUser?.username || currentUser?.name || payload.username || "admin",
       };
       
       const { data } = editId
@@ -1573,7 +1701,6 @@ export default function RawPurchasePage() {
         setShowSaveModal(false);
         setPendingPayload(null);
         fullReset();
-        await refreshInvoiceNo();
         
         const pRes = await api.get(EP.PRODUCTS.GET_ALL);
         if (pRes.data.success) {
@@ -1620,8 +1747,6 @@ export default function RawPurchasePage() {
         {showSaveModal && pendingPayload && <SaveConfirmModal salePayload={pendingPayload} printType={printType} onConfirm={confirmSave} onClose={() => { setShowSaveModal(false); setPendingPayload(null); }} />}
         {showPrintModal && pendingPrintSale && <PrintOptionsModal sale={pendingPrintSale} allCustomers={allCustomers} defaultPrintType={printType} hideCustomerFields={pendingPrintSale.paymentMode === "Credit"} newCustomerType="credit" onPrint={(type, overrides) => { doPrint(pendingPrintSale, type, overrides); setShowPrintModal(false); setPendingPrintSale(null); }} onClose={() => { setShowPrintModal(false); setPendingPrintSale(null); }} />}
         
-      
-
         {msg.text && <div className={`xp-alert ${msg.type === "success" ? "xp-alert-success" : "xp-alert-error"}`} style={{ margin: "4px 10px 0", flexShrink: 0 }}>{msg.text}</div>}
 
         <div className="sl-body">
@@ -1636,26 +1761,26 @@ export default function RawPurchasePage() {
                   <input 
                     className="xp-input xp-input-sm sl-inv-input" 
                     value={invoiceNo} 
-                    onChange={(e) => setInvoiceNo(cleanInvoiceNo(e.target.value))}
+                    onChange={(e) => setInvoiceNo(e.target.value)}
                     onKeyDown={async (e) => {
                       if (e.key === "Enter") {
                         e.preventDefault();
-                        const val = cleanInvoiceNo(invoiceNo);
+                        const val = invoiceNo;
                         if (!val) return;
                         try {
                           const { data } = await api.get(EP.RAW_PURCHASES.GET_ALL);
                           const purchases = data.data;
                           if (!purchases || purchases.length === 0) { 
                             showMsg(`Invoice "${val}" not found`, "error"); 
-                            await refreshInvoiceNo(); 
+                            await generateInvoiceNumber(api, EP, setInvoiceNo); 
                             return; 
                           }
                           const exact = purchases.find((s) => {
-                            return cleanInvoiceNo(s.invoiceNo) === val;
+                            return s.invoiceNo === val;
                           });
                           if (!exact) { 
                             showMsg(`Invoice "${val}" not found`, "error"); 
-                            await refreshInvoiceNo(); 
+                            await generateInvoiceNumber(api, EP, setInvoiceNo); 
                             return; 
                           }
                           setItems([]); 
@@ -1671,7 +1796,7 @@ export default function RawPurchasePage() {
                       }
                     }}
                     onFocus={(e) => e.target.select()}
-                    placeholder="Invoice # ya ↑↓"
+                    placeholder="e.g., 26050001"
                     style={{ 
                       background: editId ? "#fffbe6" : "#ffffff",
                       fontSize: "14px",
@@ -1687,6 +1812,9 @@ export default function RawPurchasePage() {
                   />
                   <button className="sl-inv-nav-btn sl-inv-nav-next" onClick={() => navInvoice("next")} title="Next Invoice (↓)" type="button">▶</button>
                 </div>
+                <span style={{ fontSize: "9px", color: "#666", marginLeft: "4px" }}>
+                  Format: YYMMXXXX (Resets monthly, e.g., 26050001)
+                </span>
               </div>
               
               <div className="sl-inv-field-grp">
@@ -1713,7 +1841,7 @@ export default function RawPurchasePage() {
               </div>
             </div>
 
-            {/* FIXED: Entry strip with proper focus flow */}
+            {/* Entry strip with proper focus flow */}
             <div className="sl-entry-strip">
               <div className="sl-entry-cell sl-entry-product">
                 <label style={{ fontSize: "10px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>Select Product <kbd>F2</kbd></label>
@@ -1756,8 +1884,6 @@ export default function RawPurchasePage() {
                           _stock: pk?.openingQty || 0, 
                           _name: [found.category, found.description, found.company].filter(Boolean).join(" ") 
                         });
-                        // AFTER product is selected, focus stays on search input
-                        // User will press Enter again to go to packing
                       } else { 
                         alert(`"${searchText}" — Product not found`); 
                         searchRef.current?.select(); 
@@ -1869,71 +1995,58 @@ export default function RawPurchasePage() {
                     </tr>
                   ))}
                   {Array.from({ length: EMPTY_ROWS }).map((_, i) =>
-                     <tr key={`e${i}`} className="sl-empty-row"><td colSpan={8} style={{ height: "30px", border: "1px solid #000000" }} /></tr>)}
+                     <tr key={`e${i}`} className="sl-empty-row"><td colSpan={8} 
+                     style={{ height: "30px", border: "1px solid #000000" }} /></tr>)}
                 </tbody>
               </table>
             </div>
 
-          
-
-          <div className="sl-customer-bar" style={{ display: "flex", gap: "8px", padding: "6px 10px", background: "#f8fafc", borderTop: "1px solid #000000" }}>
-              <div className="sl-cust-cell"><label style={{ fontSize: "9px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>Code</label><input style={{ width: "80px", height: "30px", border: "1px solid #000000", borderRadius: "4px", background: "#fffde7" }} value={customerId ? allCustomers.find((c) => c._id === customerId)?.code || codeSearch : codeSearch} onChange={(e) => setCodeSearch(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); const q = codeSearch.trim(); if (!q) return; const found = allCustomers.find((c) => String(c.code).toLowerCase() === q.toLowerCase()); if (found) { handleCustomerSelect(found); setCodeSearch(""); } else { showMsg(`Code "${q}" — customer nahi mila`, "error"); } } }} placeholder="Code…" autoComplete="off" /></div>
+            <div className="sl-customer-bar" style={{ display: "flex", gap: "8px", padding: "6px 10px", background: "#f8fafc", borderTop: "1px solid #000000" }}>
+              <div className="sl-cust-cell"><label style={{ fontSize: "9px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>Code</label><input style={{ width: "80px", height: "30px", border: "1px solid #000000", borderRadius: "4px", background: "#fffde7" }} value={customerId ? allCustomers.find((c) => c._id === customerId)?.code || codeSearch : codeSearch} onChange={(e) => setCodeSearch(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); const q = codeSearch.trim(); if (!q) return;
+               const found = allCustomers.find((c) => String(c.code).toLowerCase() === q.toLowerCase()); if (found) { handleCustomerSelect(found); setCodeSearch(""); } else { showMsg(`Code "${q}" — customer nahi mila`, "error"); } } }} placeholder="Code…" autoComplete="off" /></div>
               <div className="sl-cust-cell sl-cust-buyer" style={{ flex: 2 }}><label style={{ fontSize: "9px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>Customer Name</label><div style={{ border: "1px solid #000000", borderRadius: "4px", background: "#ffffff", minHeight: "30px" }}><CustomerDropdown allCustomers={allCustomers} value={customerId} displayName={customerName} customerType={customerType} onSelect={handleCustomerSelect} onClear={handleCustomerClear} onAddNew={handleAddNewCustomer} allowedTypes={["credit", "walkin", "wholesale"]} /></div></div>
               <div className="sl-cust-cell"><label style={{ fontSize: "9px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>Prev </label><input type="text" className="sl-cust-input" style={{ width: "100px", height: "30px", border: "1px solid #000000", borderRadius: "4px", background: "#fffde7", textAlign: "right" }} value={prevBalance} onChange={(e) => setPrevBalance(e.target.value)} onFocus={(e) => e.target.select()} /></div>
               <div className="sl-cust-cell"><label style={{ fontSize: "9px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>Net </label><input className="sl-cust-input sl-net-recv" style={{ width: "100px", height: "30px", border: "1px solid #000000", borderRadius: "4px", textAlign: "right", fontWeight: "bold", color: balance > 0 ? "#dc2626" : "#059669", background: "#f5f5f5" }} value={Number(balance).toLocaleString("en-PK")} readOnly /></div>
              
-            <div className="sl-cust-cell" style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-  <label style={{ fontSize: "9px", fontWeight: "600", color: "#64748b" }}>Pay</label>
-  <select
-    className="sl-pay-select"
-    value={paymentMode}
-    onChange={(e) => handlePaymentMode(e.target.value)}
-    style={{
-      height: "26px",
-      padding: "0 6px",
-      fontSize: "10px",
-      fontWeight: "600",
-      border: "1px solid #000",
-      borderRadius: "4px",
-      background: paymentMode === "Cash" ? "#10b981" : "#ef4444",
-      color: "white",
-      cursor: "pointer"
-    }}
-  >
-    <option value="Cash" style={{ background: "#10b981", color: "white" }}>💰 Cash</option>
-    <option value="Credit" style={{ background: "#ef4444", color: "white" }}>📝 Credit</option>
-  </select>
-</div>
+              <div className="sl-cust-cell" style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                <label style={{ fontSize: "9px", fontWeight: "600", color: "#64748b" }}>Pay</label>
+                <select
+                  className="sl-pay-select"
+                  value={paymentMode}
+                  onChange={(e) => handlePaymentMode(e.target.value)}
+                  style={{
+                    height: "26px",
+                    padding: "0 6px",
+                    fontSize: "10px",
+                    fontWeight: "600",
+                    border: "1px solid #000",
+                    borderRadius: "4px",
+                    background: paymentMode === "Cash" ? "#10b981" : "#ef4444",
+                    color: "white",
+                    cursor: "pointer"
+                  }}
+                >
+                  <option value="Cash" style={{ background: "#10b981", color: "white" }}>💰 Cash</option>
+                  <option value="Credit" style={{ background: "#ef4444", color: "white" }}>📝 Credit</option>
+                </select>
+              </div>
               
               <div className="sl-summary-bar" style={{ display: "flex", gap: "8px", padding: "0x 10px", background: "#f8fafc" }}>
-              <div className="sl-sum-cell">
-                <label style={{ fontSize: "9px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>Qty</label>
-                <input className="sl-sum-val" value={totalQty.toLocaleString("en-PK")} readOnly style={{ width: "75px", height: "25px", border: "1px solid #000000", borderRadius: "4px", textAlign: "right", fontWeight: "bold", background: "#f5f5f5" }} />
+                <div className="sl-sum-cell">
+                  <label style={{ fontSize: "9px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>Qty</label>
+                  <input className="sl-sum-val" value={totalQty.toLocaleString("en-PK")} readOnly style={{ width: "75px", height: "25px", border: "1px solid #000000", borderRadius: "4px", textAlign: "right", fontWeight: "bold", background: "#f5f5f5" }} />
                 </div>
-              {/* <div className="sl-sum-cell">
-                <label style={{ fontSize: "9px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}> Total</label>
-                <input className="sl-sum-val" value={Number(subTotal).toLocaleString("en-PK")} readOnly style={{ width: "85px", height: "30px", border: "1px solid #000000", borderRadius: "4px", textAlign: "right", fontWeight: "bold", background: "#f5f5f5" }} />
-                </div> */}
-              <div className="sl-sum-cell">
-                <label style={{ fontSize: "9px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>Bill</label>
-                <input className="sl-sum-val" value={Number(billAmount).toLocaleString("en-PK")} readOnly 
-                style={{ width: "85px", height: "25px", 
-                border: "1px solid #000000", borderRadius: "4px", textAlign: "right", fontWeight: "bold", background: "#f5f5f5" }} /></div>
-              {/* <div className="sl-sum-cell">
-                <label style={{ fontSize: "9px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}> Discount</label>
-                <input ref={discRef} type="text" className="sl-sum-input" value={extraDiscount} min={0} onChange={(e) => setExtraDiscount(e.target.value)} onKeyDown={(e) => e.key === "Enter" && deductRef.current?.focus()} onFocus={(e) => e.target.select()} style={{ width: "85px", height: "30px", border: "1px solid #000000", borderRadius: "4px", textAlign: "right", fontWeight: "bold", background: "#fffde7" }} />
-                </div> */}
-              {/* <div className="sl-sum-cell">
-                <label style={{ fontSize: "9px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>Amount to Deduct</label>
-                <input ref={deductRef} type="text" className="sl-sum-input" style={{ width: "95px", height: "30px", border: "1px solid #000000", borderRadius: "4px", textAlign: "right", fontWeight: "bold", background: "#fffde7", color: "#059669" }} value={deductAmount} min={0} onChange={(e) => setDeductAmount(e.target.value)} onKeyDown={(e) => e.key === "Enter" && saveRef.current?.focus()} onFocus={(e) => e.target.select()} />
-                </div> */}
-              <div className="sl-sum-cell">
-                <label style={{ fontSize: "9px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}> Balance</label>
-                <input className={`sl-sum-val sl-bal${balance > 0 ? " danger" : balance < 0 ? " success" : ""}`}
-                 value={Number(balance).toLocaleString("en-PK")} readOnly style={{ width: "95px", height: "25px", border: "1px solid #000000", borderRadius: "4px", textAlign: "right", fontWeight: "bold", color: balance > 0 ? "#dc2626" : "#059669", background: "#f5f5f5" }} />
+                <div className="sl-sum-cell">
+                  <label style={{ fontSize: "9px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>Bill</label>
+                  <input className="sl-sum-val" value={Number(billAmount).toLocaleString("en-PK")} readOnly 
+                  style={{ width: "85px", height: "25px", border: "1px solid #000000", borderRadius: "4px", textAlign: "right", fontWeight: "bold", background: "#f5f5f5" }} /></div>
+                <div className="sl-sum-cell">
+                  <label style={{ fontSize: "9px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}> Balance</label>
+                  <input className={`sl-sum-val sl-bal${balance > 0 ? " danger" : balance < 0 ? " success" : ""}`}
+                   value={Number(balance).toLocaleString("en-PK")} readOnly style={{ width: "95px", height: "25px", border: "1px solid #000000", borderRadius: "4px", textAlign: "right", fontWeight: "bold", color: balance > 0 ? "#dc2626" : "#059669", background: "#f5f5f5" }} />
                 </div>
+              </div>
             </div>
-          </div>
 
             {showCustomerPanel && customerId && (
               <div className={`sl-credit-warning-bar${creditWarning ? "" : " sl-credit-normal"}`}>
@@ -1979,7 +2092,8 @@ export default function RawPurchasePage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {holdBills.length === 0 ? Array.from({ length: 6 }).map((_, i) => (<tr key={i}><td colSpan={5} style={{ height: "30px", border: "1px solid #000000" }} /></tr>)) : holdBills.map((b, i) => (<tr key={b.id} onClick={() => setShowHoldPreview(b)} onDoubleClick={() => resumeHold(b.id)} style={{ cursor: "pointer" }}><td style={{ padding: "4px 4px", textAlign: "center", border: "1px solid #000000", fontSize: "10px", fontWeight: "bold", color: "#000000" }}>{i + 1}</td><td style={{ padding: "4px 4px", border: "1px solid #000000", fontSize: "10px", fontWeight: "bold", color: "#000000" }}>{b.invoiceNo}</td><td style={{ padding: "4px 4px", textAlign: "right", border: "1px solid #000000", fontSize: "10px", fontWeight: "bold", color: "#dc2626" }}>{Number(b.amount).toLocaleString("en-PK")}</td><td style={{ padding: "4px 4px", border: "1px solid #000000", fontSize: "10px", fontWeight: "bold", color: "#000000" }}>{b.buyerName}</td><td style={{ padding: "4px 4px", textAlign: "center", border: "1px solid #000000" }}><button onClick={(e) => deleteHold(b.id, e)} style={{ background: "#ef4444", color: "white", border: "1px solid #000000", borderRadius: "3px", width: "18px", height: "18px", fontSize: "10px", cursor: "pointer" }}>✕</button></td></tr>))}
+                    {holdBills.length === 0 ? Array.from({ length: 6 }).map((_, i) => (<tr key={i}>
+                    <td colSpan={5} style={{ height: "30px", border: "1px solid #000000" }} /></tr>)) : holdBills.map((b, i) => (<tr key={b.id} onClick={() => setShowHoldPreview(b)} onDoubleClick={() => resumeHold(b.id)} style={{ cursor: "pointer" }}><td style={{ padding: "4px 4px", textAlign: "center", border: "1px solid #000000", fontSize: "10px", fontWeight: "bold", color: "#000000" }}>{i + 1}</td><td style={{ padding: "4px 4px", border: "1px solid #000000", fontSize: "10px", fontWeight: "bold", color: "#000000" }}>{b.invoiceNo}</td><td style={{ padding: "4px 4px", textAlign: "right", border: "1px solid #000000", fontSize: "10px", fontWeight: "bold", color: "#dc2626" }}>{Number(b.amount).toLocaleString("en-PK")}</td><td style={{ padding: "4px 4px", border: "1px solid #000000", fontSize: "10px", fontWeight: "bold", color: "#000000" }}>{b.buyerName}</td><td style={{ padding: "4px 4px", textAlign: "center", border: "1px solid #000000" }}><button onClick={(e) => deleteHold(b.id, e)} style={{ background: "#ef4444", color: "white", border: "1px solid #000000", borderRadius: "3px", width: "18px", height: "18px", fontSize: "10px", cursor: "pointer" }}>✕</button></td></tr>))}
                   </tbody>
                 </table>
               </div>

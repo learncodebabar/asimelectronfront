@@ -37,20 +37,132 @@ const loadPurchaseHolds = () => {
     return [];
   }
 };
+
 const savePurchaseHolds = (holds) => {
   try {
     localStorage.setItem(PURCHASE_HOLD_KEY, JSON.stringify(holds));
   } catch {}
 };
 
-// Clean invoice number function - removes PUR- prefix and leading zeros
+/* ══════════════════════════════════════════════════════════
+   INVOICE NUMBER GENERATOR - Monthly Reset for Purchase
+   Format: YYMMXXXX (e.g., 26050001 for May 2026)
+══════════════════════════════════════════════════════════ */
+
+// Get current year and month without dashes (e.g., 2605 for May 2026)
+const getCurrentYearMonthCode = () => {
+  const now = new Date();
+  const year = now.getFullYear().toString().slice(-2); // Last 2 digits (2026 -> 26)
+  const month = (now.getMonth() + 1).toString().padStart(2, '0'); // 05 for May
+  return `${year}${month}`; // e.g., "2605"
+};
+
+// Generate invoice number with monthly reset (Format: YYMMXXXX)
+const generateInvoiceNumber = async (apiInstance, endpoints, setInvoiceNo, currentDate = null) => {
+  try {
+    const date = currentDate ? new Date(currentDate) : new Date();
+    const currentYear = date.getFullYear().toString().slice(-2);
+    const currentMonth = (date.getMonth() + 1).toString().padStart(2, '0');
+    const currentYearMonth = `${currentYear}${currentMonth}`; // "2605"
+    
+    let maxSeqForMonth = 0;
+    
+    try {
+      // Fetch all purchases
+      const purchasesRes = await apiInstance.get(endpoints.PURCHASES.GET_ALL);
+      
+      console.log('📊 Fetched purchases for invoice generation:', purchasesRes.data.data?.length || 0, 'records');
+      
+      if (purchasesRes.data.success && purchasesRes.data.data && purchasesRes.data.data.length > 0) {
+        // Filter purchases for current year-month and find max sequence number
+        purchasesRes.data.data.forEach(purchase => {
+          const purchaseInvoiceNo = purchase.invoiceNo;
+          if (purchaseInvoiceNo && typeof purchaseInvoiceNo === 'string') {
+            let seqNum = null;
+            
+            // Check for OLD format: "PUR-00001" - extract the number
+            if (purchaseInvoiceNo.startsWith('PUR-')) {
+              const parts = purchaseInvoiceNo.split('-');
+              if (parts.length === 2) {
+                seqNum = parseInt(parts[1], 10);
+                console.log(`Found OLD format invoice: ${purchaseInvoiceNo} -> sequence: ${seqNum}`);
+              }
+            }
+            // Check for NEW format without dash: "26050001"
+            else if (purchaseInvoiceNo.startsWith(currentYearMonth)) {
+              seqNum = parseInt(purchaseInvoiceNo.slice(-4), 10);
+              console.log(`Found NEW format invoice: ${purchaseInvoiceNo} -> sequence: ${seqNum}`);
+            }
+            // Check for format with dash: "26-05-0001"
+            else if (purchaseInvoiceNo.startsWith(`${currentYear}-${currentMonth}`)) {
+              const parts = purchaseInvoiceNo.split('-');
+              if (parts.length === 3) {
+                seqNum = parseInt(parts[2], 10);
+                console.log(`Found dash format invoice: ${purchaseInvoiceNo} -> sequence: ${seqNum}`);
+              }
+            }
+            
+            if (seqNum && !isNaN(seqNum) && seqNum > maxSeqForMonth) {
+              maxSeqForMonth = seqNum;
+              console.log(`Current max sequence: ${maxSeqForMonth}`);
+            }
+          }
+        });
+      }
+    } catch (salesError) {
+      console.error("Failed to fetch purchases for invoice generation:", salesError);
+    }
+    
+    // Calculate next sequence number
+    const nextSeq = maxSeqForMonth + 1;
+    const formattedSeq = nextSeq.toString().padStart(4, '0'); // 0001, 0002, etc.
+    const newInvoiceNo = `${currentYearMonth}${formattedSeq}`; // e.g., "26050001"
+    
+    console.log(`📄 Generated purchase invoice number: ${newInvoiceNo} (Previous max: ${maxSeqForMonth}, Next: ${nextSeq})`);
+    
+    setInvoiceNo(newInvoiceNo);
+    localStorage.setItem('lastPurchaseInvoiceNumber', newInvoiceNo);
+    localStorage.setItem('lastPurchaseInvoiceYearMonth', currentYearMonth);
+    
+    return newInvoiceNo;
+    
+  } catch (error) {
+    console.error("Failed to generate invoice number:", error);
+    // Fallback: generate based on localStorage
+    const currentYear = new Date().getFullYear().toString().slice(-2);
+    const currentMonth = (new Date().getMonth() + 1).toString().padStart(2, '0');
+    const currentYearMonth = `${currentYear}${currentMonth}`;
+    const lastSaved = localStorage.getItem('lastPurchaseInvoiceNumber');
+    const lastYearMonth = localStorage.getItem('lastPurchaseInvoiceYearMonth');
+    
+    let nextSeq = 1;
+    if (lastSaved && lastYearMonth === currentYearMonth) {
+      const lastSeq = parseInt(lastSaved.slice(-4), 10);
+      if (!isNaN(lastSeq)) {
+        nextSeq = lastSeq + 1;
+      }
+    }
+    
+    const formattedSeq = nextSeq.toString().padStart(4, '0');
+    const newInvoiceNo = `${currentYearMonth}${formattedSeq}`;
+    setInvoiceNo(newInvoiceNo);
+    return newInvoiceNo;
+  }
+};
+
+// Clean invoice number function - removes PUR- prefix
 const cleanInvoiceNo = (invNo) => {
-  let cleaned = String(invNo || "0");
+  if (!invNo) return "1";
+  let cleaned = String(invNo);
+  // If it's in YYMMXXXX format (8 digits), keep as is
+  if (cleaned.length === 8 && !isNaN(parseInt(cleaned, 10))) {
+    return cleaned;
+  }
   cleaned = cleaned.replace(/^PUR-/i, '');
   cleaned = cleaned.replace(/^0+/, '');
-  cleaned = parseInt(cleaned, 10);
-  if (isNaN(cleaned)) return "1";
-  return String(cleaned);
+  const num = parseInt(cleaned, 10);
+  if (isNaN(num)) return "1";
+  return String(num);
 };
 
 /* ══════════════════════════════════════════════════════════
@@ -161,7 +273,7 @@ const buildPrintHtml = (purchase, type, overrides = {}) => {
       ${buyerPhone ? `<div style="font-size:9px;color:#555">${buyerPhone}</div>` : ""}
       ${remarks ? `<div class="remarks-box"><b>Remarks:</b> ${remarks}</div>` : ""}
       <hr class="divider-solid">
-      <table>
+      </table>
         <thead><tr><th style="width:20px">#</th><th>Product</th><th class="r">Qty.</th><th class="r">Rate</th><th class="r">Amount</th></tr></thead>
         <tbody>${itemRows}</tbody>
       </table>
@@ -1144,7 +1256,7 @@ export default function PurchasePage() {
   const [curRow, setCurRow] = useState({ ...EMPTY_ROW });
   const [items, setItems] = useState([]);
   const [invoiceDate, setInvoiceDate] = useState(isoDate());
-  const [invoiceNo, setInvoiceNo] = useState("1");
+  const [invoiceNo, setInvoiceNo] = useState("");
   const amountRef = useRef(null);
 
   const [supplierName, setSupplierName] = useState("Cash Purchase");
@@ -1171,6 +1283,21 @@ export default function PurchasePage() {
   const codeSearchRef = useRef(null);
   const remarksRef = useRef(null);
 
+  // Check if month has changed
+  const checkMonthChange = () => {
+    const currentYearMonth = getCurrentYearMonthCode();
+    const lastYearMonth = localStorage.getItem('lastPurchaseInvoiceYearMonth');
+    
+    if (lastYearMonth && lastYearMonth !== currentYearMonth) {
+      console.log(`📅 Month changed from ${lastYearMonth} to ${currentYearMonth}. Resetting sequence.`);
+      localStorage.removeItem('lastPurchaseInvoiceNumber');
+      localStorage.setItem('lastPurchaseInvoiceYearMonth', currentYearMonth);
+      generateInvoiceNumber(api, EP, setInvoiceNo);
+      return true;
+    }
+    return false;
+  };
+
   useEffect(() => {
     const t = setInterval(() => setTime(timeNow()), 1000);
     return () => clearInterval(t);
@@ -1178,6 +1305,16 @@ export default function PurchasePage() {
 
   useEffect(() => {
     fetchData();
+  }, []);
+
+  // Check month change on mount and periodically
+  useEffect(() => {
+    checkMonthChange();
+    const interval = setInterval(() => {
+      checkMonthChange();
+    }, 60000); // Check every minute
+    
+    return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {
@@ -1190,26 +1327,14 @@ export default function PurchasePage() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [pRes, salesRes] = await Promise.all([
+      const [pRes] = await Promise.all([
         api.get(EP.PRODUCTS.GET_ALL),
-        api.get(EP.PURCHASES.GET_ALL),
       ]);
       
       if (pRes.data.success) setAllProducts(pRes.data.data);
       
-      if (salesRes.data.success && salesRes.data.data.length > 0) {
-        let maxNum = 0;
-        salesRes.data.data.forEach(purchase => {
-          let num = cleanInvoiceNo(purchase.invoiceNo);
-          num = parseInt(num, 10);
-          if (!isNaN(num) && num > maxNum) {
-            maxNum = num;
-          }
-        });
-        setInvoiceNo(String(maxNum + 1));
-      } else {
-        setInvoiceNo("1");
-      }
+      // Generate invoice number with monthly reset
+      await generateInvoiceNumber(api, EP, setInvoiceNo);
       
       try {
         const sRes = await api.get("/customers/suppliers/all");
@@ -1236,26 +1361,7 @@ export default function PurchasePage() {
   };
 
   const refreshInvoiceNo = async () => {
-    try {
-      const salesRes = await api.get(EP.PURCHASES.GET_ALL);
-      if (salesRes.data.success && salesRes.data.data.length > 0) {
-        let maxNum = 0;
-        salesRes.data.data.forEach(purchase => {
-          let num = cleanInvoiceNo(purchase.invoiceNo);
-          num = parseInt(num, 10);
-          if (!isNaN(num) && num > maxNum) {
-            maxNum = num;
-          }
-        });
-        setInvoiceNo(String(maxNum + 1));
-      } else {
-        setInvoiceNo("1");
-      }
-    } catch (error) {
-      console.error("Failed to refresh invoice number:", error);
-      const current = parseInt(invoiceNo) || 0;
-      setInvoiceNo(String(current + 1));
-    }
+    await generateInvoiceNumber(api, EP, setInvoiceNo);
   };
 
   const showMsg = (text, type = "success") => {
@@ -1275,7 +1381,7 @@ export default function PurchasePage() {
     setEditId(null);
     setMsg({ text: "", type: "" });
     if (codeSearchRef.current) codeSearchRef.current.value = "";
-    await refreshInvoiceNo();
+    await generateInvoiceNumber(api, EP, setInvoiceNo);
     setTimeout(() => searchRef.current?.focus(), 100);
   };
 
@@ -1448,7 +1554,7 @@ export default function PurchasePage() {
       setHoldBills((prev) => prev.filter((b) => b.id !== holdId));
   };
 
-  // UPDATED: Main function to save and update stock
+  // Main function to save and update stock
   const savePurchase = async (shouldPrint) => {
     if (isProcessing) return;
     if (items.length === 0) {
@@ -1459,7 +1565,7 @@ export default function PurchasePage() {
     setIsProcessing(true);
     
     const purchaseObj = {
-      invoiceNo: cleanInvoiceNo(invoiceNo),
+      invoiceNo: invoiceNo,
       invoiceDate,
       supplierName: supplierName,
       items: items,
@@ -1478,7 +1584,7 @@ export default function PurchasePage() {
       
       // Prepare payload with username and userId
       const payload = {
-        invoiceNo: cleanInvoiceNo(invoiceNo),
+        invoiceNo: invoiceNo,
         invoiceDate,
         supplierId: supplierId || null,
         supplierName: supplierName,
@@ -1571,7 +1677,7 @@ export default function PurchasePage() {
       }
       
       // STEP 5: Reset for next invoice
-      if (!editId) await refreshInvoiceNo();
+      if (!editId) await generateInvoiceNumber(api, EP, setInvoiceNo);
       await resetToNewInvoice();
       
     } catch (error) {
@@ -1593,7 +1699,7 @@ export default function PurchasePage() {
 
   const loadPurchaseForEdit = (purchase) => {
     setEditId(purchase._id);
-    let invNo = cleanInvoiceNo(purchase.invoiceNo);
+    let invNo = purchase.invoiceNo;
     setInvoiceNo(invNo);
     setInvoiceDate(purchase.invoiceDate || isoDate());
     setSupplierName(purchase.supplierName || "Cash Purchase");
@@ -1624,9 +1730,9 @@ export default function PurchasePage() {
       const { data } = await api.get(EP.PURCHASES.GET_ALL);
       if (!data.success || !data.data?.length) return;
       const allPurchases = data.data;
-      const currentCleanNo = cleanInvoiceNo(invoiceNo);
+      const currentCleanNo = invoiceNo;
       const curIdx = allPurchases.findIndex((s) => {
-        return cleanInvoiceNo(s.invoiceNo) === currentCleanNo;
+        return s.invoiceNo === currentCleanNo || s.invoiceNo === `PUR-${currentCleanNo}`;
       });
       let nextIdx = dir === "prev" ? curIdx - 1 : curIdx + 1;
       nextIdx = Math.max(0, Math.min(nextIdx, allPurchases.length - 1));
@@ -1711,26 +1817,26 @@ export default function PurchasePage() {
                   <input 
                     className="xp-input xp-input-sm sl-inv-input-large" 
                     value={invoiceNo} 
-                    onChange={(e) => setInvoiceNo(cleanInvoiceNo(e.target.value))}
+                    onChange={(e) => setInvoiceNo(e.target.value)}
                     onKeyDown={async (e) => {
                       if (e.key === "Enter") {
                         e.preventDefault();
-                        const val = cleanInvoiceNo(invoiceNo);
+                        const val = invoiceNo;
                         if (!val) return;
                         try {
                           const { data } = await api.get(EP.PURCHASES.GET_ALL);
                           const purchases = data.data;
                           if (!purchases || purchases.length === 0) {
                             showMsg(`Invoice "${val}" not found`, "error");
-                            await refreshInvoiceNo();
+                            await generateInvoiceNumber(api, EP, setInvoiceNo);
                             return;
                           }
                           const exact = purchases.find((s) => {
-                            return cleanInvoiceNo(s.invoiceNo) === val;
+                            return s.invoiceNo === val || s.invoiceNo === `PUR-${val}`;
                           });
                           if (!exact) {
                             showMsg(`Invoice "${val}" not found`, "error");
-                            await refreshInvoiceNo();
+                            await generateInvoiceNumber(api, EP, setInvoiceNo);
                             return;
                           }
                           setItems([]);
@@ -1755,6 +1861,7 @@ export default function PurchasePage() {
                       paddingLeft: "32px",
                       paddingRight: "32px"
                     }}
+                    placeholder="e.g., 26050001"
                   />
                   
                   <button
@@ -1766,6 +1873,9 @@ export default function PurchasePage() {
                     ▶
                   </button>
                 </div>
+                {/* <span style={{ fontSize: "9px", color: "#666", marginLeft: "4px" }}>
+                  Format: YYMMXXXX (Resets monthly, e.g., 26050001)
+                </span> */}
               </div>
               
               <div className="sl-inv-field-grp">
@@ -2153,41 +2263,7 @@ export default function PurchasePage() {
           </div>
         </div>
 
-        <div className="sl-cmd-bar">
-          <button 
-            className="xp-btn xp-btn-success xp-btn-sm" 
-            onClick={resetToNewInvoice}
-            disabled={loading}
-            style={{ background: "#10b981", borderColor: "#059669" }}
-          >
-            🔄 Refresh / New Invoice
-          </button>
-          <button className="xp-btn xp-btn-sm" onClick={fetchData} disabled={loading}>Reload Data</button>
-          <button 
-            className="xp-btn xp-btn-danger xp-btn-sm" 
-            disabled={!editId} 
-            onClick={async () => {
-              if (!editId || !window.confirm("Delete this purchase invoice?")) return;
-              try {
-                await api.delete(EP.PURCHASES.DELETE(editId));
-                showMsg("Purchase invoice deleted");
-                await resetToNewInvoice();
-              } catch {
-                showMsg("Delete failed", "error");
-              }
-            }}
-          >
-            Delete Record
-          </button>
-          <div className="xp-toolbar-divider" />
-          <div className="sl-print-types">
-            {["Thermal", "A4", "A5"].map((pt) => (<label key={pt} className="sl-check-label"><input type="radio" name="pt" checked={printType === pt} onChange={() => setPrintType(pt)} /> {pt}</label>))}
-          </div>
-          <div className="xp-toolbar-divider" />
-          <span className="sl-inv-info">
-            {editId ? "✏ Editing purchase record" : `${invoiceNo} | Items: ${items.length} | Total Qty: ${totalQty} | Amount: ${Number(subTotal).toLocaleString("en-PK")}`}
-          </span>
-        </div>
+      
       </div>
 
       <style>{`

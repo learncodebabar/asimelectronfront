@@ -1,5 +1,6 @@
-// pages/PurchaseOrderPage.jsx - Complete Purchase Order Management with Navigation
+// pages/PurchaseOrderPage.jsx - Complete Purchase Order Management with Monthly Reset Numbers
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useAuth } from "../context/AuthContext";
 import api from "../api/api.js";
 import EP from "../api/apiEndpoints.js";
 import "../styles/theme.css";
@@ -28,33 +29,136 @@ const EMPTY_ROW = {
   amount: 0,
 };
 
-const SHOP_INFO = {
-  name: "عاصم الیکٹرک اینڈ الیکٹرونکس سٹور",
-  nameEn: "Asim Electric & Electronic Store",
-  address: "مین بازار نہاری ٹاؤن نزد بجلی گھر سٹاپ گوجرانوالہ روڈ فیصل آباد",
-  phone1: "Faqir Hussain 0300 7262129",
-  phone2: "PTCL 041 8711575",
-  phone3: "Shop 0315 7262129",
+/* ══════════════════════════════════════════════════════════
+   INVOICE NUMBER GENERATOR - Monthly Reset for Purchase Order
+   Format: YYMMXXXX (e.g., 26050001 for May 2026)
+══════════════════════════════════════════════════════════ */
+
+// Get current year and month without dashes (e.g., 2605 for May 2026)
+const getCurrentYearMonthCode = () => {
+  const now = new Date();
+  const year = now.getFullYear().toString().slice(-2); // Last 2 digits (2026 -> 26)
+  const month = (now.getMonth() + 1).toString().padStart(2, '0'); // 05 for May
+  return `${year}${month}`; // e.g., "2605"
 };
 
-// Helper function to extract just the number from Purchase Order ID
+// Generate purchase order number with monthly reset (Format: YYMMXXXX)
+const generatePONumber = async (setPoNo, currentDate = null) => {
+  try {
+    const date = currentDate ? new Date(currentDate) : new Date();
+    const currentYear = date.getFullYear().toString().slice(-2);
+    const currentMonth = (date.getMonth() + 1).toString().padStart(2, '0');
+    const currentYearMonth = `${currentYear}${currentMonth}`; // "2605"
+    
+    let maxSeqForMonth = 0;
+    
+    try {
+      // Load all purchase orders from localStorage
+      const savedOrders = loadSavedPurchaseOrders();
+      
+      if (savedOrders && savedOrders.length > 0) {
+        // Filter purchase orders for current year-month and find max sequence number
+        savedOrders.forEach(order => {
+          const poNo = order.poNo;
+          if (poNo && typeof poNo === 'string') {
+            let seqNum = null;
+            
+            // Check for format without dash: "26050001"
+            if (poNo.startsWith(currentYearMonth)) {
+              seqNum = parseInt(poNo.slice(-4), 10);
+              console.log(`Found NEW format PO: ${poNo} -> sequence: ${seqNum}`);
+            }
+            // Check for format with dash: "26-05-0001"
+            else if (poNo.startsWith(`${currentYear}-${currentMonth}`)) {
+              const parts = poNo.split('-');
+              if (parts.length === 3) {
+                seqNum = parseInt(parts[2], 10);
+                console.log(`Found dash format PO: ${poNo} -> sequence: ${seqNum}`);
+              }
+            }
+            // Check for OLD format: "PO-1", "PO-2" etc.
+            else if (poNo.startsWith('PO-')) {
+              const parts = poNo.split('-');
+              if (parts.length === 2) {
+                seqNum = parseInt(parts[1], 10);
+                console.log(`Found OLD format PO: ${poNo} -> sequence: ${seqNum}`);
+              }
+            }
+            
+            if (seqNum && !isNaN(seqNum) && seqNum > maxSeqForMonth) {
+              maxSeqForMonth = seqNum;
+              console.log(`Current max sequence: ${maxSeqForMonth}`);
+            }
+          }
+        });
+      }
+    } catch (error) {
+      console.error("Failed to load purchase orders for number generation:", error);
+    }
+    
+    // Calculate next sequence number
+    const nextSeq = maxSeqForMonth + 1;
+    const formattedSeq = nextSeq.toString().padStart(4, '0'); // 0001, 0002, etc.
+    const newPoNo = `${currentYearMonth}${formattedSeq}`; // e.g., "26050001"
+    
+    console.log(`📄 Generated purchase order number: ${newPoNo} (Previous max: ${maxSeqForMonth}, Next: ${nextSeq})`);
+    
+    setPoNo(newPoNo);
+    localStorage.setItem('lastPONumber', newPoNo);
+    localStorage.setItem('lastPOYearMonth', currentYearMonth);
+    
+    return newPoNo;
+    
+  } catch (error) {
+    console.error("Failed to generate purchase order number:", error);
+    // Fallback: generate based on localStorage
+    const currentYear = new Date().getFullYear().toString().slice(-2);
+    const currentMonth = (new Date().getMonth() + 1).toString().padStart(2, '0');
+    const currentYearMonth = `${currentYear}${currentMonth}`;
+    const lastSaved = localStorage.getItem('lastPONumber');
+    const lastYearMonth = localStorage.getItem('lastPOYearMonth');
+    
+    let nextSeq = 1;
+    if (lastSaved && lastYearMonth === currentYearMonth) {
+      const lastSeq = parseInt(lastSaved.slice(-4), 10);
+      if (!isNaN(lastSeq)) {
+        nextSeq = lastSeq + 1;
+      }
+    }
+    
+    const formattedSeq = nextSeq.toString().padStart(4, '0');
+    const newPoNo = `${currentYearMonth}${formattedSeq}`;
+    setPoNo(newPoNo);
+    return newPoNo;
+  }
+};
+
+// Extract purchase order number for display
 const extractPONumber = (poNo) => {
   if (!poNo) return "";
+  // If it's in YYMMXXXX format (8 digits), return the full number
+  if (poNo.length === 8 && !isNaN(parseInt(poNo, 10))) {
+    return poNo;
+  }
+  // Handle old format
   if (poNo.includes('PO-')) {
     return poNo.split('PO-')[1];
   }
+  if (poNo.includes('-')) {
+    return poNo.split('-')[1];
+  }
+  // Remove leading zeros
   const num = parseInt(poNo);
   return isNaN(num) ? poNo : String(num);
 };
 
-// Helper function to build full Purchase Order ID from number
+// Helper function to build full Purchase Order ID from number (for old format compatibility)
 const buildFullPOId = (number) => {
-  if (!number || number === "") return "PO-1";
-  const cleanNumber = String(parseInt(number));
-  return `PO-${cleanNumber}`;
+  if (!number || number === "") return "1";
+  return `${number}`;
 };
 
-// Function to get next available purchase order number from records
+// Function to get next available purchase order number from records (for old format fallback)
 const getNextAvailablePONumber = (records) => {
   if (!records || records.length === 0) return 1;
   
@@ -76,6 +180,15 @@ const getNextAvailablePONumber = (records) => {
   }
   
   return nextNum;
+};
+
+const SHOP_INFO = {
+  name: "عاصم الیکٹرک اینڈ الیکٹرونکس سٹور",
+  nameEn: "Asim Electric & Electronic Store",
+  address: "مین بازار نہاری ٹاؤن نزد بجلی گھر سٹاپ گوجرانوالہ روڈ فیصل آباد",
+  phone1: "Faqir Hussain 0300 7262129",
+  phone2: "PTCL 041 8711575",
+  phone3: "Shop 0315 7262129",
 };
 
 /* ── localStorage helpers for saved purchase orders ── */
@@ -248,7 +361,7 @@ const buildPurchaseOrderPrintHtml = (purchaseOrder, overrides = {}) => {
     
     <div class="divider"></div>
 
-    <table>
+    </table>
       <thead>
         <tr>
           <th style="width:25px;text-align:center">#</th>
@@ -807,10 +920,10 @@ function PurchaseOrderHoldPreviewModal({ order, onResume, onClose }) {
 }
 
 /* ══════════════════════════════════════════════════════════
-   MAIN PURCHASE ORDER PAGE with Navigation
+   MAIN PURCHASE ORDER PAGE with Navigation and Monthly Reset
 ══════════════════════════════════════════════════════════ */
 export default function PurchaseOrderPage() {
-
+  const { user } = useAuth();
   const [time, setTime] = useState(timeNow());
   const [allProducts, setAllProducts] = useState([]);
   const [allPurchaseOrders, setAllPurchaseOrders] = useState([]);
@@ -820,7 +933,7 @@ export default function PurchaseOrderPage() {
   const [curRow, setCurRow] = useState({ ...EMPTY_ROW });
   const [items, setItems] = useState([]);
   const [poDate, setPoDate] = useState(isoDate());
-  const [poNo, setPoNo] = useState("PO-1");
+  const [poNo, setPoNo] = useState("");
   const amountRef = useRef(null);
 
   const [holdOrders, setHoldOrders] = useState(() => loadPurchaseOrderHolds());
@@ -842,6 +955,21 @@ export default function PurchaseOrderPage() {
   const addRef = useRef(null);
   const saveRef = useRef(null);
 
+  // Check if month has changed
+  const checkMonthChange = () => {
+    const currentYearMonth = getCurrentYearMonthCode();
+    const lastYearMonth = localStorage.getItem('lastPOYearMonth');
+    
+    if (lastYearMonth && lastYearMonth !== currentYearMonth) {
+      console.log(`📅 Month changed from ${lastYearMonth} to ${currentYearMonth}. Resetting sequence.`);
+      localStorage.removeItem('lastPONumber');
+      localStorage.setItem('lastPOYearMonth', currentYearMonth);
+      generatePONumber(setPoNo);
+      return true;
+    }
+    return false;
+  };
+
   useEffect(() => {
     const t = setInterval(() => setTime(timeNow()), 1000);
     return () => clearInterval(t);
@@ -850,6 +978,16 @@ export default function PurchaseOrderPage() {
   useEffect(() => {
     fetchData();
     loadAllPurchaseOrders();
+  }, []);
+  
+  // Check month change on mount and periodically
+  useEffect(() => {
+    checkMonthChange();
+    const interval = setInterval(() => {
+      checkMonthChange();
+    }, 60000); // Check every minute
+    
+    return () => clearInterval(interval);
   }, []);
   
   useEffect(() => {
@@ -887,11 +1025,8 @@ export default function PurchaseOrderPage() {
       ]);
       if (pRes.data.success) setAllProducts(pRes.data.data);
       
-      const savedOrders = loadSavedPurchaseOrders();
-      setAllPurchaseOrders(savedOrders);
-      
-      const nextNumber = getNextAvailablePONumber(savedOrders);
-      setPoNo(buildFullPOId(nextNumber));
+      // Generate purchase order number with monthly reset
+      await generatePONumber(setPoNo);
     } catch {
       showMsg("Failed to load data", "error");
     }
@@ -904,9 +1039,7 @@ export default function PurchaseOrderPage() {
   };
 
   const refreshPONo = async () => {
-    const savedOrders = loadSavedPurchaseOrders();
-    const nextNumber = getNextAvailablePONumber(savedOrders);
-    setPoNo(buildFullPOId(nextNumber));
+    await generatePONumber(setPoNo);
   };
 
   const showMsg = (text, type = "success") => {
@@ -1049,8 +1182,8 @@ export default function PurchaseOrderPage() {
     setMsg({ text: "", type: "" });
     setShowProductSuggestions(false);
     setEditId(null);
-    refreshPONo();
     setPoDate(isoDate());
+    generatePONumber(setPoNo);
     setTimeout(() => searchRef.current?.focus(), 50);
   };
   
@@ -1073,6 +1206,8 @@ export default function PurchaseOrderPage() {
     })),
     subTotal,
     netTotal: subTotal,
+    userId: user?.id || user?._id || "admin",
+    username: user?.username || user?.name || "admin",
   });
   
   const openSavePurchaseOrder = () => {
@@ -1153,6 +1288,11 @@ export default function PurchaseOrderPage() {
     const sortedOrders = [...allPurchaseOrders].sort((a, b) => {
       const getNum = (str) => {
         let numStr = str.toString();
+        // Handle new YYMMXXXX format (8 digits)
+        if (numStr.length === 8 && !isNaN(parseInt(numStr, 10))) {
+          return parseInt(numStr, 10);
+        }
+        // Handle old format
         if (numStr.includes('PO-')) {
           return parseInt(numStr.split('PO-')[1]) || 0;
         }
@@ -1233,8 +1373,6 @@ export default function PurchaseOrderPage() {
           />
         )}
         
-      
-
         {msg.text && (
           <div
             className={`xp-alert ${msg.type === "success" ? "xp-alert-success" : "xp-alert-error"}`}
@@ -1265,15 +1403,8 @@ export default function PurchaseOrderPage() {
                   <input
                     className="xp-input xp-input-sm sl-inv-input-large"
                     style={{ borderColor: "#1e3a5f" }}
-                    value={extractPONumber(poNo)}
-                    onChange={(e) => {
-                      const newNumber = e.target.value;
-                      if (newNumber === "") {
-                        setPoNo("PO-1");
-                      } else {
-                        setPoNo(buildFullPOId(newNumber));
-                      }
-                    }}
+                    value={poNo}
+                    onChange={(e) => setPoNo(e.target.value)}
                     onKeyDown={async (e) => {
                       if (e.key === "Enter") {
                         e.preventDefault();
@@ -1283,7 +1414,7 @@ export default function PurchaseOrderPage() {
                         if (found) {
                           loadPurchaseOrderForEdit(found);
                         } else {
-                          showMsg(`Purchase Order "${extractPONumber(val)}" not found`, "error");
+                          showMsg(`Purchase Order "${val}" not found`, "error");
                         }
                       }
                       if (e.key === "ArrowUp" || e.key === "ArrowDown") {
@@ -1292,6 +1423,7 @@ export default function PurchaseOrderPage() {
                       }
                     }}
                     onFocus={(e) => e.target.select()}
+                    placeholder="e.g., 26050001"
                   />
                   
                   <button
@@ -1303,6 +1435,9 @@ export default function PurchaseOrderPage() {
                     ▶
                   </button>
                 </div>
+                <span style={{ fontSize: "9px", color: "#666", marginLeft: "4px" }}>
+                  Format: YYMMXXXX (Resets monthly, e.g., 26050001)
+                </span>
               </div>
               
               <div className="sl-inv-field-grp">
@@ -1616,7 +1751,7 @@ export default function PurchaseOrderPage() {
                     </tr>
                   ))}
                 </tbody>
-               </table>
+              </table>
             </div>
 
             {/* Summary bar */}
@@ -1749,7 +1884,7 @@ export default function PurchaseOrderPage() {
           </button>
           <div className="xp-toolbar-divider" />
           <span className={`sl-inv-info`}>
-            📄 {extractPONumber(poNo)} | Items: {items.length} | Total: PKR {Number(subTotal).toLocaleString("en-PK")}
+            📄 {poNo} | Items: {items.length} | Total: PKR {Number(subTotal).toLocaleString("en-PK")}
           </span>
           <button
             className="xp-btn xp-btn-sm"

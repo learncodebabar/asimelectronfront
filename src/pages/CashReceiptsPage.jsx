@@ -1,4 +1,4 @@
-// pages/CashReceiptPage.jsx - Complete with form reset and print
+// pages/CashReceiptPage.jsx - Fixed transaction history for customer search
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../api/api.js";
@@ -16,98 +16,7 @@ const generateReceiptNo = () => {
   return `CR-${year}${month}${day}-${random}`;
 };
 
-// Print Receipt Component
-const PrintReceipt = React.forwardRef(({ receiptData, customerData, remainingBalance }, ref) => {
-  const totalAmount = receiptData.amount || 0;
-  const balAfterReceipt = remainingBalance !== undefined ? remainingBalance : (customerData?.currentBalance || 0);
-  
-  const inWords = (amount) => {
-    const words = ['Zero', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
-    const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
-    
-    const convertToWords = (num) => {
-      if (num === 0) return '';
-      if (num < 20) return words[num];
-      if (num < 100) return tens[Math.floor(num / 10)] + (num % 10 !== 0 ? ' ' + words[num % 10] : '');
-      if (num < 1000) return words[Math.floor(num / 100)] + ' Hundred' + (num % 100 !== 0 ? ' ' + convertToWords(num % 100) : '');
-      if (num < 100000) return convertToWords(Math.floor(num / 1000)) + ' Thousand' + (num % 1000 !== 0 ? ' ' + convertToWords(num % 1000) : '');
-      if (num < 10000000) return convertToWords(Math.floor(num / 100000)) + ' Lakh' + (num % 100000 !== 0 ? ' ' + convertToWords(num % 100000) : '');
-      return convertToWords(Math.floor(num / 10000000)) + ' Crore' + (num % 10000000 !== 0 ? ' ' + convertToWords(num % 10000000) : '');
-    };
-    
-    return convertToWords(Math.floor(amount)) + ' Rupees Only';
-  };
-  
-  return (
-    <div ref={ref} style={{ 
-      width: '280px', 
-      padding: '12px', 
-      fontFamily: "'Courier New', monospace", 
-      fontSize: '11px',
-      background: 'white',
-      color: 'black'
-    }}>
-      <div style={{ textAlign: 'center', borderBottom: '1px dashed #000', paddingBottom: '6px', marginBottom: '8px' }}>
-        <h3 style={{ margin: 0, fontSize: '14px' }}>CASH RECEIPT</h3>
-        <p style={{ margin: '2px 0', fontSize: '9px' }}>Tax Invoice / Cash Memo</p>
-      </div>
-      
-      <div style={{ marginBottom: '8px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '3px' }}>
-          <span>Receipt No:</span>
-          <span style={{ fontWeight: 'bold' }}>{receiptData.receiptNo}</span>
-        </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '3px' }}>
-          <span>Date:</span>
-          <span>{receiptData.receiptDate}</span>
-        </div>
-      </div>
-      
-      <div style={{ marginBottom: '8px', borderTop: '1px dotted #ccc', borderBottom: '1px dotted #ccc', padding: '6px 0' }}>
-        <div><strong>Received From:</strong></div>
-        <div style={{ fontWeight: 'bold', marginTop: '2px' }}>{customerData?.name || receiptData.customerName}</div>
-        {customerData?.code && <div style={{ fontSize: '9px' }}>Code: {customerData.code}</div>}
-        {customerData?.phone && <div style={{ fontSize: '9px' }}>Phone: {customerData.phone}</div>}
-      </div>
-      
-      <div style={{ marginBottom: '8px' }}>
-        <div><strong>Amount Received:</strong></div>
-        <div style={{ fontSize: '18px', fontWeight: 'bold', textAlign: 'center', margin: '4px 0' }}>
-          PKR {fmt(totalAmount)}
-        </div>
-        <div style={{ fontSize: '9px', fontStyle: 'italic', textAlign: 'center' }}>
-          {inWords(totalAmount)}
-        </div>
-      </div>
-      
-      <div style={{ marginBottom: '8px', background: '#f0f0f0', padding: '6px', borderRadius: '4px' }}>
-        <div><strong>Remaining Balance:</strong></div>
-        <div style={{ fontSize: '14px', fontWeight: 'bold', textAlign: 'center', color: balAfterReceipt > 0 ? '#dc2626' : '#059669' }}>
-          PKR {fmt(Math.abs(balAfterReceipt))} {balAfterReceipt > 0 ? '(Receivable)' : '(Credit)'}
-        </div>
-      </div>
-      
-      {receiptData.remarks && (
-        <div style={{ marginBottom: '8px', borderTop: '1px dotted #ccc', paddingTop: '4px' }}>
-          <div><strong>Remarks:</strong></div>
-          <div style={{ fontSize: '9px' }}>{receiptData.remarks}</div>
-        </div>
-      )}
-      
-      <div style={{ marginTop: '10px', borderTop: '1px dashed #000', paddingTop: '6px', textAlign: 'center' }}>
-        <div style={{ fontSize: '9px' }}>Authorized Signature</div>
-        <div style={{ marginTop: '15px' }}>
-          <div style={{ borderTop: '1px dotted #999', width: '120px', margin: '0 auto' }}></div>
-        </div>
-        <div style={{ fontSize: '8px', marginTop: '6px', color: '#666' }}>
-          Thank you for your business!
-        </div>
-      </div>
-    </div>
-  );
-});
-
-// Customer Dropdown Component
+// Customer Dropdown Component (same as before, keep as is)
 function CustomerDropdown({
   allCustomers,
   value,
@@ -132,9 +41,7 @@ function CustomerDropdown({
   const creditCustomers = allCustomers.filter((c) => {
     const t = (c.customerType || c.type || "").toLowerCase();
     const allowed = allowedTypes || ["credit"];
-    return (
-      allowed.includes(t) && c.name?.toUpperCase().trim() !== "COUNTER SALE"
-    );
+    return allowed.includes(t) && c.name?.toUpperCase().trim() !== "COUNTER SALE";
   });
 
   const getSuggestions = (searchTerm) => {
@@ -465,36 +372,24 @@ export default function CashReceiptPage() {
     codeInputRef.current?.focus();
   }, []);
   
+  // ✅ FIXED: Update filtered receipts when receipts, searchReceiptResult, or selectedCustomer changes
   useEffect(() => {
     if (searchReceiptResult) {
+      // Show only the searched receipt
       setFilteredReceipts([searchReceiptResult]);
     } else if (selectedCustomer) {
-      const customerReceipts = receipts.filter(r => r.customerId === selectedCustomer._id || r.customerName === selectedCustomer.name);
+      // Show receipts for selected customer (by ID AND by name)
+      const customerReceipts = receipts.filter(r => 
+        r.customerId === selectedCustomer._id || 
+        r.customerName === selectedCustomer.name
+      );
+      console.log(`Found ${customerReceipts.length} receipts for customer: ${selectedCustomer.name}`);
       setFilteredReceipts(customerReceipts);
     } else {
+      // Show all receipts
       setFilteredReceipts(receipts);
     }
   }, [receipts, searchReceiptResult, selectedCustomer]);
-  
-  useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (showPrintDialog && e.key === "Enter") {
-        e.preventDefault();
-        handlePrint();
-      }
-      if (showPrintDialog && e.key === "Escape") {
-        e.preventDefault();
-        setShowPrintDialog(false);
-        setWaitingForPrint(false);
-        setReceiptToPrint(null);
-        // Focus back to code input
-        setTimeout(() => codeInputRef.current?.focus(), 100);
-      }
-    };
-    
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [showPrintDialog]);
   
   const loadCustomers = async () => {
     try {
@@ -515,6 +410,7 @@ export default function CashReceiptPage() {
         const receiptsData = response.data.data || [];
         setReceipts(receiptsData);
         setFilteredReceipts(receiptsData);
+        console.log(`Loaded ${receiptsData.length} receipts`);
       }
     } catch (err) {
       console.error("Failed to load receipts:", err);
@@ -634,13 +530,11 @@ export default function CashReceiptPage() {
     setShowPrintDialog(false);
     setWaitingForPrint(false);
     setReceiptToPrint(null);
-    // Focus back to code input after printing
     setTimeout(() => codeInputRef.current?.focus(), 100);
   };
   
   const handlePrintPrevious = (receipt) => {
     setReceiptToPrint(receipt);
-    // Find customer for this receipt
     const customer = allCustomers.find(c => c._id === receipt.customerId);
     setLastCustomerData(customer);
     setLastRemainingBalance(receipt.newBalance || customer?.currentBalance || 0);
@@ -676,8 +570,8 @@ export default function CashReceiptPage() {
     setSearchReceiptResult(null);
     setSearchReceiptNo("");
     
-    const customerReceipts = receipts.filter(r => r.customerId === customer._id || r.customerName === customer.name);
-    setFilteredReceipts(customerReceipts);
+    // The filtered receipts will update via useEffect
+    showMsg(`Selected: ${customer.name} - Balance: PKR ${fmt(customer.currentBalance || 0)}`, "success");
     
     setTimeout(() => remarksRef.current?.focus(), 100);
   };
@@ -688,7 +582,7 @@ export default function CashReceiptPage() {
     setBuyerName("");
     setCustomerType("");
     setSelectedCustomer(null);
-    setFilteredReceipts(receipts);
+    setFilteredReceipts(receipts); // Show all receipts
     setAmountReceived("");
     setConfirmAmount("");
     setErrors({ customer: "", amountReceived: "", confirmAmount: "" });
@@ -799,53 +693,51 @@ export default function CashReceiptPage() {
     setEditingReceiptId(null);
     setEditingReceiptData(null);
     setErrors({ customer: "", amountReceived: "", confirmAmount: "" });
+    setFilteredReceipts(receipts); // Reset to show all receipts
   };
   
-
   const editReceipt = async (receipt) => {
-  setEditingReceiptData(receipt);
-  setEditingReceiptId(receipt._id);
-  setIsEditing(true);
-  
-  setReceiptId(receipt.receiptNo || generateReceiptNo());
-  setReceiptDate(receipt.receiptDate || isoD());
-  setAmountReceived(String(receipt.amount));
-  setConfirmAmount(String(receipt.amount));
-  setRemarks(receipt.remarks || "");
-  
-  // Find the latest customer data
-  let customer = allCustomers.find(c => c._id === receipt.customerId);
-  if (!customer && receipt.customerName) {
-    // Try to fetch fresh customer data
-    try {
-      const response = await api.get(EP.CUSTOMERS.GET_ONE(receipt.customerId));
-      if (response.data.success && response.data.data) {
-        customer = response.data.data;
-        // Update the customers list
-        setAllCustomers(prev => prev.map(c => 
-          c._id === customer._id ? customer : c
-        ));
+    setEditingReceiptData(receipt);
+    setEditingReceiptId(receipt._id);
+    setIsEditing(true);
+    
+    setReceiptId(receipt.receiptNo || generateReceiptNo());
+    setReceiptDate(receipt.receiptDate || isoD());
+    setAmountReceived(String(receipt.amount));
+    setConfirmAmount(String(receipt.amount));
+    setRemarks(receipt.remarks || "");
+    
+    // Find the latest customer data
+    let customer = allCustomers.find(c => c._id === receipt.customerId);
+    if (!customer && receipt.customerName) {
+      try {
+        const response = await api.get(EP.CUSTOMERS.GET_ONE(receipt.customerId));
+        if (response.data.success && response.data.data) {
+          customer = response.data.data;
+          setAllCustomers(prev => prev.map(c => 
+            c._id === customer._id ? customer : c
+          ));
+        }
+      } catch (err) {
+        console.error("Failed to fetch customer:", err);
       }
-    } catch (err) {
-      console.error("Failed to fetch customer:", err);
     }
-  }
+    
+    if (customer) {
+      setCustomerId(customer._id);
+      setCustomerCode(customer.code || "");
+      setBuyerName(customer.name);
+      setCustomerType(customer.customerType || customer.type || "");
+      setSelectedCustomer(customer);
+    } else if (receipt.customerName) {
+      setBuyerName(receipt.customerName);
+      setSelectedCustomer({ name: receipt.customerName, _id: receipt.customerId, currentBalance: receipt.newBalance });
+    }
+    
+    showMsg(`Editing receipt: ${receipt.receiptNo}`, "success");
+    setTimeout(() => amountReceivedRef.current?.focus(), 100);
+  };
   
-  if (customer) {
-    setCustomerId(customer._id);
-    setCustomerCode(customer.code || "");
-    setBuyerName(customer.name);
-    setCustomerType(customer.customerType || customer.type || "");
-    setSelectedCustomer(customer);
-  } else if (receipt.customerName) {
-    setBuyerName(receipt.customerName);
-    setSelectedCustomer({ name: receipt.customerName, _id: receipt.customerId, currentBalance: receipt.newBalance });
-  }
-  
-  showMsg(`Editing receipt: ${receipt.receiptNo}`, "success");
-  setTimeout(() => amountReceivedRef.current?.focus(), 100);
-};
-
   const searchReceipt = () => {
     const receiptNo = searchReceiptNo.trim();
     if (!receiptNo) {
@@ -866,7 +758,9 @@ export default function CashReceiptPage() {
       showMsg(`Receipt "${receiptNo}" not found`, "error");
       setSearchReceiptResult(null);
       if (selectedCustomer) {
-        const customerReceipts = receipts.filter(r => r.customerId === selectedCustomer._id);
+        const customerReceipts = receipts.filter(r => 
+          r.customerId === selectedCustomer._id || r.customerName === selectedCustomer.name
+        );
         setFilteredReceipts(customerReceipts);
       } else {
         setFilteredReceipts(receipts);
@@ -877,7 +771,9 @@ export default function CashReceiptPage() {
   const clearSearch = () => {
     setSearchReceiptResult(null);
     if (selectedCustomer) {
-      const customerReceipts = receipts.filter(r => r.customerId === selectedCustomer._id);
+      const customerReceipts = receipts.filter(r => 
+        r.customerId === selectedCustomer._id || r.customerName === selectedCustomer.name
+      );
       setFilteredReceipts(customerReceipts);
     } else {
       setFilteredReceipts(receipts);
@@ -902,7 +798,7 @@ export default function CashReceiptPage() {
     try {
       await api.delete(EP.CASH_RECEIPTS.DELETE(id));
       showMsg(`Receipt "${receiptNo}" deleted!`, "success");
-      await loadReceipts();
+      await loadReceipts(); // Reload all receipts
       if (editingReceiptId === id) {
         resetForm();
       }
@@ -912,102 +808,102 @@ export default function CashReceiptPage() {
     }
   };
   
-// In CashReceiptPage.jsx - Update the handleSubmit function
-
-const handleSubmit = async (e) => {
-  e.preventDefault();
-  
-  if (isEditing) {
-    showMsg("Edit functionality coming soon", "info");
-    return;
-  }
-  
-  if (!selectedCustomer) {
-    setErrors(prev => ({ ...prev, customer: "Select customer" }));
-    showMsg("Please select a customer", "error");
-    return;
-  }
-  
-  if (!amountReceived) {
-    setErrors(prev => ({ ...prev, amountReceived: "Amount required" }));
-    amountReceivedRef.current?.focus();
-    return;
-  }
-  
-  if (!doAmountsMatch()) {
-    setErrors(prev => ({ ...prev, confirmAmount: " not match!" }));
-    confirmAmountRef.current?.focus();
-    return;
-  }
-  
-  const receivedAmount = Number(amountReceived);
-  const currentBalance = selectedCustomer.currentBalance || 0;
-  const newBalance = currentBalance - receivedAmount;
-  
-  setSubmitting(true);
-  try {
-    // Save receipt - backend will handle balance update
-    const receiptData = {
-      customerId: selectedCustomer._id,
-      customerCode: selectedCustomer.code || "",
-      customerName: selectedCustomer.name,
-      amount: receivedAmount,
-      remarks: remarks || "",
-      receiptDate: receiptDate,
-      previousBalance: currentBalance,
-      newBalance: newBalance,
-    };
+  const handleSubmit = async (e) => {
+    e.preventDefault();
     
-    console.log("Saving receipt:", receiptData);
-    
-    const receiptResponse = await api.post(EP.CASH_RECEIPTS.CREATE, receiptData);
-    
-    if (receiptResponse.data.success) {
-      const newBalanceFromResponse = receiptResponse.data.balanceUpdate?.newBalance || newBalance;
-      
-      // ✅ INSTANT UPDATE - Update the selected customer's balance immediately
-      setSelectedCustomer(prev => ({ ...prev, currentBalance: newBalanceFromResponse }));
-      
-      // ✅ INSTANT UPDATE - Update the customer in the allCustomers array
-      setAllCustomers(prev => prev.map(c => 
-        c._id === selectedCustomer._id 
-          ? { ...c, currentBalance: newBalanceFromResponse } 
-          : c
-      ));
-      
-      // ✅ INSTANT UPDATE - Update filtered receipts list with new receipt
-      const newReceipt = receiptResponse.data.data;
-      setReceipts(prev => [newReceipt, ...prev]);
-      setFilteredReceipts(prev => [newReceipt, ...prev]);
-      
-      // Store for printing
-      setLastReceipt(newReceipt);
-      setLastCustomerData({ ...selectedCustomer, currentBalance: newBalanceFromResponse });
-      setLastRemainingBalance(newBalanceFromResponse);
-      
-      showMsg(`✓ Receipt ${newReceipt.receiptNo} recorded! Amount: PKR ${fmt(receivedAmount)}`, "success");
-      showMsg(`✓ Remaining balance: PKR ${fmt(Math.abs(newBalanceFromResponse))}`, "success");
-      
-      // RESET FORM - Clear all fields
-      resetForm();
-      
-      // Focus back to code input for next entry
-      setTimeout(() => codeInputRef.current?.focus(), 100);
-      
-      // Show print dialog
-      setReceiptToPrint(newReceipt);
-      setShowPrintDialog(true);
-      setWaitingForPrint(true);
-    } else {
-      showMsg(receiptResponse.data.message || "Failed to save receipt", "error");
+    if (isEditing) {
+      showMsg("Edit functionality coming soon", "info");
+      return;
     }
-  } catch (err) {
-    console.error("Save error:", err);
-    const errorMsg = err.response?.data?.message || err.message || "Failed to save receipt";
-    showMsg(errorMsg, "error");
-  }
-  setSubmitting(false);
-};
+    
+    if (!selectedCustomer) {
+      setErrors(prev => ({ ...prev, customer: "Select customer" }));
+      showMsg("Please select a customer", "error");
+      return;
+    }
+    
+    if (!amountReceived) {
+      setErrors(prev => ({ ...prev, amountReceived: "Amount required" }));
+      amountReceivedRef.current?.focus();
+      return;
+    }
+    
+    if (!doAmountsMatch()) {
+      setErrors(prev => ({ ...prev, confirmAmount: " not match!" }));
+      confirmAmountRef.current?.focus();
+      return;
+    }
+    
+    const receivedAmount = Number(amountReceived);
+    const currentBalance = selectedCustomer.currentBalance || 0;
+    const newBalance = currentBalance - receivedAmount;
+    
+    setSubmitting(true);
+    try {
+      const receiptData = {
+        customerId: selectedCustomer._id,
+        customerCode: selectedCustomer.code || "",
+        customerName: selectedCustomer.name,
+        amount: receivedAmount,
+        remarks: remarks || "",
+        receiptDate: receiptDate,
+        previousBalance: currentBalance,
+        newBalance: newBalance,
+      };
+      
+      console.log("Saving receipt:", receiptData);
+      
+      const receiptResponse = await api.post(EP.CASH_RECEIPTS.CREATE, receiptData);
+      
+      if (receiptResponse.data.success) {
+        const newBalanceFromResponse = receiptResponse.data.balanceUpdate?.newBalance || newBalance;
+        
+        // Update the selected customer's balance
+        setSelectedCustomer(prev => ({ ...prev, currentBalance: newBalanceFromResponse }));
+        
+        // Update the customer in the allCustomers array
+        setAllCustomers(prev => prev.map(c => 
+          c._id === selectedCustomer._id 
+            ? { ...c, currentBalance: newBalanceFromResponse } 
+            : c
+        ));
+        
+        // Update receipts list with new receipt
+        const newReceipt = receiptResponse.data.data;
+        const updatedReceipts = [newReceipt, ...receipts];
+        setReceipts(updatedReceipts);
+        
+        // Update filtered receipts to include the new one for this customer
+        setFilteredReceipts(prev => [newReceipt, ...prev]);
+        
+        // Store for printing
+        setLastReceipt(newReceipt);
+        setLastCustomerData({ ...selectedCustomer, currentBalance: newBalanceFromResponse });
+        setLastRemainingBalance(newBalanceFromResponse);
+        
+        showMsg(`✓ Receipt ${newReceipt.receiptNo} recorded! Amount: PKR ${fmt(receivedAmount)}`, "success");
+        showMsg(`✓ Remaining balance: PKR ${fmt(Math.abs(newBalanceFromResponse))}`, "success");
+        
+        // RESET FORM - Clear all fields
+        resetForm();
+        
+        // Focus back to code input for next entry
+        setTimeout(() => codeInputRef.current?.focus(), 100);
+        
+        // Show print dialog
+        setReceiptToPrint(newReceipt);
+        setShowPrintDialog(true);
+        setWaitingForPrint(true);
+      } else {
+        showMsg(receiptResponse.data.message || "Failed to save receipt", "error");
+      }
+    } catch (err) {
+      console.error("Save error:", err);
+      const errorMsg = err.response?.data?.message || err.message || "Failed to save receipt";
+      showMsg(errorMsg, "error");
+    }
+    setSubmitting(false);
+  };
   
   const isSaveEnabled = () => {
     if (submitting) return false;
@@ -1418,6 +1314,7 @@ const handleSubmit = async (e) => {
             <h3 style={{ margin: 0, fontSize: "12px", fontWeight: "bold", color: "#000000", textTransform: "uppercase" }}>
               📋 Cash Receipts {filteredReceipts.length > 0 && `(${filteredReceipts.length})`}
               {searchReceiptResult && <span style={{ fontSize: "10px", color: "#f59e0b", marginLeft: "8px" }}> - Search Result</span>}
+              {selectedCustomer && !searchReceiptResult && <span style={{ fontSize: "10px", color: "#10b981", marginLeft: "8px" }}> - {selectedCustomer.name}</span>}
             </h3>
             <div style={{ display: "flex", gap: "8px" }}>
               {searchReceiptResult && (
@@ -1431,7 +1328,13 @@ const handleSubmit = async (e) => {
             <div style={{ padding: "30px", textAlign: "center", fontSize: "12px", color: "#64748b" }}>Loading receipts...</div>
           )}
           
-          {!loading && filteredReceipts.length === 0 && (
+          {!loading && filteredReceipts.length === 0 && selectedCustomer && (
+            <div style={{ padding: "30px", textAlign: "center", fontSize: "12px", color: "#94a3b8" }}>
+              📭 No receipt history found for {selectedCustomer.name}
+            </div>
+          )}
+          
+          {!loading && filteredReceipts.length === 0 && !selectedCustomer && (
             <div style={{ padding: "30px", textAlign: "center", fontSize: "12px", color: "#94a3b8" }}>
               📭 No receipts found
             </div>
@@ -1522,15 +1425,15 @@ const handleSubmit = async (e) => {
                             🗑 Del
                           </button>
                         </div>
-                       </td>
-                     </tr>
+                      </td>
+                    </tr>
                   ))}
                 </tbody>
                 <tfoot style={{ background: "#f1f5f9" }}>
                   <tr>
                     <td colSpan="5" style={{ padding: "4px 4px", textAlign: "right", fontWeight: "bold", border: "1px solid #000000", fontSize: "9px" }}>TOTAL:</td>
                     <td style={{ padding: "4px 4px", textAlign: "right", fontWeight: "bold", color: "#059669", border: "1px solid #000000", fontSize: "9px" }}>PKR {fmt(filteredReceipts.reduce((sum, r) => sum + (r.amount || 0), 0))}</td>
-                    <td style={{ padding: "4px 4px", border: "1px solid #000000" }}> </td>
+                    <td style={{ padding: "4px 4px", border: "1px solid #000000" }}></td>
                   </tr>
                 </tfoot>
               </table>

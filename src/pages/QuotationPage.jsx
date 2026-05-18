@@ -1,5 +1,6 @@
-// pages/QuotationPage.jsx - Updated with Next/Prev navigation and sequential numbers
+// pages/QuotationPage.jsx - With Monthly Reset Quotation Number (YYMMXXXX)
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useAuth } from "../context/AuthContext";
 import api from "../api/api.js";
 import EP from "../api/apiEndpoints.js";
 import "../styles/theme.css";
@@ -28,42 +29,136 @@ const EMPTY_ROW = {
   amount: 0,
 };
 
-const SHOP_INFO = {
-  name: "عاصم الیکٹرک اینڈ الیکٹرونکس سٹور",
-  nameEn: "Asim Electric & Electronic Store",
-  address: "مین بازار نہاری ٹاؤن نزد بجلی گھر سٹاپ گوجرانوالہ روڈ فیصل آباد",
-  phone1: "Faqir Hussain 0300 7262129",
-  phone2: "PTCL 041 8711575",
-  phone3: "Shop 0315 7262129",
-  urduBanner:
-    "یہاں پر چانک فراڈ کی وارپس، جانچ فلک، وارنگ سیلز اور ریکارڈ کے تمام اخیری ہول سیل ریٹ پر دستیاب ہے۔",
-  urduTerms:
-    "یہ کوٹیشن 7 دن کے لیے موثر ہے۔\nقیمتوں میں تبدیلی ہو سکتی ہے۔\nآرڈر کی تصدیق کے لیے پیشگی ادائیگی درکار ہوگی۔",
-  devBy:
-    "Software developed by: Creative Babar / 03098325271 or visit website www.digitalglobalschool.com",
+/* ══════════════════════════════════════════════════════════
+   INVOICE NUMBER GENERATOR - Monthly Reset for Quotation
+   Format: YYMMXXXX (e.g., 26050001 for May 2026)
+══════════════════════════════════════════════════════════ */
+
+// Get current year and month without dashes (e.g., 2605 for May 2026)
+const getCurrentYearMonthCode = () => {
+  const now = new Date();
+  const year = now.getFullYear().toString().slice(-2); // Last 2 digits (2026 -> 26)
+  const month = (now.getMonth() + 1).toString().padStart(2, '0'); // 05 for May
+  return `${year}${month}`; // e.g., "2605"
 };
 
-// Helper function to extract just the number from Quotation ID
+// Generate quotation number with monthly reset (Format: YYMMXXXX)
+const generateQuotationNumber = async (setQuoteNo, currentDate = null) => {
+  try {
+    const date = currentDate ? new Date(currentDate) : new Date();
+    const currentYear = date.getFullYear().toString().slice(-2);
+    const currentMonth = (date.getMonth() + 1).toString().padStart(2, '0');
+    const currentYearMonth = `${currentYear}${currentMonth}`; // "2605"
+    
+    let maxSeqForMonth = 0;
+    
+    try {
+      // Load all quotations from localStorage
+      const savedQuotes = loadSavedQuotations();
+      
+      if (savedQuotes && savedQuotes.length > 0) {
+        // Filter quotations for current year-month and find max sequence number
+        savedQuotes.forEach(quotation => {
+          const quoteNo = quotation.quoteNo;
+          if (quoteNo && typeof quoteNo === 'string') {
+            let seqNum = null;
+            
+            // Check for format without dash: "26050001"
+            if (quoteNo.startsWith(currentYearMonth)) {
+              seqNum = parseInt(quoteNo.slice(-4), 10);
+              console.log(`Found NEW format quotation: ${quoteNo} -> sequence: ${seqNum}`);
+            }
+            // Check for format with dash: "26-05-0001"
+            else if (quoteNo.startsWith(`${currentYear}-${currentMonth}`)) {
+              const parts = quoteNo.split('-');
+              if (parts.length === 3) {
+                seqNum = parseInt(parts[2], 10);
+                console.log(`Found dash format quotation: ${quoteNo} -> sequence: ${seqNum}`);
+              }
+            }
+            // Check for OLD format: "QTN-1", "QTN-2" etc.
+            else if (quoteNo.startsWith('QTN-')) {
+              const parts = quoteNo.split('-');
+              if (parts.length === 2) {
+                seqNum = parseInt(parts[1], 10);
+                console.log(`Found OLD format quotation: ${quoteNo} -> sequence: ${seqNum}`);
+              }
+            }
+            
+            if (seqNum && !isNaN(seqNum) && seqNum > maxSeqForMonth) {
+              maxSeqForMonth = seqNum;
+              console.log(`Current max sequence: ${maxSeqForMonth}`);
+            }
+          }
+        });
+      }
+    } catch (error) {
+      console.error("Failed to load quotations for number generation:", error);
+    }
+    
+    // Calculate next sequence number
+    const nextSeq = maxSeqForMonth + 1;
+    const formattedSeq = nextSeq.toString().padStart(4, '0'); // 0001, 0002, etc.
+    const newQuoteNo = `${currentYearMonth}${formattedSeq}`; // e.g., "26050001"
+    
+    console.log(`📄 Generated quotation number: ${newQuoteNo} (Previous max: ${maxSeqForMonth}, Next: ${nextSeq})`);
+    
+    setQuoteNo(newQuoteNo);
+    localStorage.setItem('lastQuotationNumber', newQuoteNo);
+    localStorage.setItem('lastQuotationYearMonth', currentYearMonth);
+    
+    return newQuoteNo;
+    
+  } catch (error) {
+    console.error("Failed to generate quotation number:", error);
+    // Fallback: generate based on localStorage
+    const currentYear = new Date().getFullYear().toString().slice(-2);
+    const currentMonth = (new Date().getMonth() + 1).toString().padStart(2, '0');
+    const currentYearMonth = `${currentYear}${currentMonth}`;
+    const lastSaved = localStorage.getItem('lastQuotationNumber');
+    const lastYearMonth = localStorage.getItem('lastQuotationYearMonth');
+    
+    let nextSeq = 1;
+    if (lastSaved && lastYearMonth === currentYearMonth) {
+      const lastSeq = parseInt(lastSaved.slice(-4), 10);
+      if (!isNaN(lastSeq)) {
+        nextSeq = lastSeq + 1;
+      }
+    }
+    
+    const formattedSeq = nextSeq.toString().padStart(4, '0');
+    const newQuoteNo = `${currentYearMonth}${formattedSeq}`;
+    setQuoteNo(newQuoteNo);
+    return newQuoteNo;
+  }
+};
+
+// Extract quotation number for display (returns full number for new format)
 const extractQuoteNumber = (quoteNo) => {
   if (!quoteNo) return "";
-  // Remove "QTN-" prefix if present
+  // If it's in YYMMXXXX format (8 digits), return the full number
+  if (quoteNo.length === 8 && !isNaN(parseInt(quoteNo, 10))) {
+    return quoteNo;
+  }
+  // Handle old format
   if (quoteNo.includes('QTN-')) {
     return quoteNo.split('QTN-')[1];
+  }
+  if (quoteNo.includes('-')) {
+    return quoteNo.split('-')[1];
   }
   // Remove leading zeros
   const num = parseInt(quoteNo);
   return isNaN(num) ? quoteNo : String(num);
 };
 
-// Helper function to build full Quotation ID from number (without leading zeros)
+// Helper function to build full Quotation ID from number (for old format compatibility)
 const buildFullQuoteId = (number) => {
-  if (!number || number === "") return "QTN-1";
-  // Remove any leading zeros from the number
-  const cleanNumber = String(parseInt(number));
-  return `QTN-${cleanNumber}`;
+  if (!number || number === "") return "1";
+  return `${number}`;
 };
 
-// Function to get next available quotation number from records
+// Function to get next available quotation number from records (for old format fallback)
 const getNextAvailableNumber = (records) => {
   if (!records || records.length === 0) return 1;
   
@@ -80,12 +175,26 @@ const getNextAvailableNumber = (records) => {
   const maxNum = Math.max(...numbers);
   let nextNum = maxNum + 1;
   
-  // Ensure we don't reuse any existing number
   while (numbers.includes(nextNum)) {
     nextNum++;
   }
   
   return nextNum;
+};
+
+const SHOP_INFO = {
+  name: "عاصم الیکٹرک اینڈ الیکٹرونکس سٹور",
+  nameEn: "Asim Electric & Electronic Store",
+  address: "مین بازار نہاری ٹاؤن نزد بجلی گھر سٹاپ گوجرانوالہ روڈ فیصل آباد",
+  phone1: "Faqir Hussain 0300 7262129",
+  phone2: "PTCL 041 8711575",
+  phone3: "Shop 0315 7262129",
+  urduBanner:
+    "یہاں پر چانک فراڈ کی وارپس، جانچ فلک، وارنگ سیلز اور ریکارڈ کے تمام اخیری ہول سیل ریٹ پر دستیاب ہے۔",
+  urduTerms:
+    "یہ کوٹیشن 7 دن کے لیے موثر ہے۔\nقیمتوں میں تبدیلی ہو سکتی ہے۔\nآرڈر کی تصدیق کے لیے پیشگی ادائیگی درکار ہوگی۔",
+  devBy:
+    "Software developed by: Creative Babar / 03098325271 or visit website www.digitalglobalschool.com",
 };
 
 /* ── localStorage helpers for saved quotations ── */
@@ -256,7 +365,7 @@ const buildQuotationPrintHtml = (quotation, overrides = {}) => {
     
     <div class="divider"></div>
 
-    </table>
+    <table>
       <thead>
         <tr>
           <th style="width:25px;text-align:center">#</th>
@@ -841,10 +950,10 @@ function QuotationHoldPreviewModal({ quote, onResume, onClose }) {
 }
 
 /* ══════════════════════════════════════════════════════════
-   MAIN QUOTATION PAGE with Navigation
+   MAIN QUOTATION PAGE with Navigation and Monthly Reset Numbers
 ══════════════════════════════════════════════════════════ */
 export default function QuotationPage() {
-
+  const { user } = useAuth();
   const [time, setTime] = useState(timeNow());
   const [allProducts, setAllProducts] = useState([]);
   const [allQuotations, setAllQuotations] = useState([]);
@@ -854,7 +963,7 @@ export default function QuotationPage() {
   const [curRow, setCurRow] = useState({ ...EMPTY_ROW });
   const [items, setItems] = useState([]);
   const [quoteDate, setQuoteDate] = useState(isoDate());
-  const [quoteNo, setQuoteNo] = useState("QTN-1");
+  const [quoteNo, setQuoteNo] = useState("");
   const amountRef = useRef(null);
 
   const [holdQuotes, setHoldQuotes] = useState(() => loadQuotationHolds());
@@ -865,7 +974,7 @@ export default function QuotationPage() {
   const [showCustomerModal, setShowCustomerModal] = useState(false);
   const [pendingSaveData, setPendingSaveData] = useState(null);
   const [editId, setEditId] = useState(null);
-  const [packingRef, setPackingRef] = useState(useRef(null));
+  const packingRef = useRef(null);
 
   const [productSuggestions, setProductSuggestions] = useState([]);
   const [showProductSuggestions, setShowProductSuggestions] = useState(false);
@@ -877,6 +986,21 @@ export default function QuotationPage() {
   const addRef = useRef(null);
   const saveRef = useRef(null);
 
+  // Check if month has changed
+  const checkMonthChange = () => {
+    const currentYearMonth = getCurrentYearMonthCode();
+    const lastYearMonth = localStorage.getItem('lastQuotationYearMonth');
+    
+    if (lastYearMonth && lastYearMonth !== currentYearMonth) {
+      console.log(`📅 Month changed from ${lastYearMonth} to ${currentYearMonth}. Resetting sequence.`);
+      localStorage.removeItem('lastQuotationNumber');
+      localStorage.setItem('lastQuotationYearMonth', currentYearMonth);
+      generateQuotationNumber(setQuoteNo);
+      return true;
+    }
+    return false;
+  };
+
   useEffect(() => {
     const t = setInterval(() => setTime(timeNow()), 1000);
     return () => clearInterval(t);
@@ -885,6 +1009,16 @@ export default function QuotationPage() {
   useEffect(() => {
     fetchData();
     loadAllQuotations();
+  }, []);
+  
+  // Check month change on mount and periodically
+  useEffect(() => {
+    checkMonthChange();
+    const interval = setInterval(() => {
+      checkMonthChange();
+    }, 60000); // Check every minute
+    
+    return () => clearInterval(interval);
   }, []);
   
   useEffect(() => {
@@ -922,12 +1056,8 @@ export default function QuotationPage() {
       ]);
       if (pRes.data.success) setAllProducts(pRes.data.data);
       
-      // Load quotations from localStorage and set next number
-      const savedQuotes = loadSavedQuotations();
-      setAllQuotations(savedQuotes);
-      
-      const nextNumber = getNextAvailableNumber(savedQuotes);
-      setQuoteNo(buildFullQuoteId(nextNumber));
+      // Generate quotation number with monthly reset
+      await generateQuotationNumber(setQuoteNo);
     } catch {
       showMsg("Failed to load data", "error");
     }
@@ -940,9 +1070,7 @@ export default function QuotationPage() {
   };
 
   const refreshQuoteNo = async () => {
-    const savedQuotes = loadSavedQuotations();
-    const nextNumber = getNextAvailableNumber(savedQuotes);
-    setQuoteNo(buildFullQuoteId(nextNumber));
+    await generateQuotationNumber(setQuoteNo);
   };
 
   const showMsg = (text, type = "success") => {
@@ -950,7 +1078,6 @@ export default function QuotationPage() {
     setTimeout(() => setMsg({ text: "", type: "" }), 3500);
   };
   
-  // FIXED: pickProduct - Focus stays on search input after product selection
   const pickProduct = (product) => {
     if (!product._id) {
       showMsg("Product ID missing", "error");
@@ -970,7 +1097,6 @@ export default function QuotationPage() {
     setSearchText(product.code || "");
     setShowProductModal(false);
     setShowProductSuggestions(false);
-    // FIXED: Focus stays on search input after product selection
     setTimeout(() => searchRef.current?.focus(), 30);
   };
 
@@ -1087,8 +1213,8 @@ export default function QuotationPage() {
     setMsg({ text: "", type: "" });
     setShowProductSuggestions(false);
     setEditId(null);
-    refreshQuoteNo();
     setQuoteDate(isoDate());
+    generateQuotationNumber(setQuoteNo);
     setTimeout(() => searchRef.current?.focus(), 50);
   };
   
@@ -1111,6 +1237,8 @@ export default function QuotationPage() {
     })),
     subTotal,
     netTotal: subTotal,
+    userId: user?.id || user?._id || "admin",
+    username: user?.username || user?.name || "admin",
   });
   
   const openSaveQuotation = () => {
@@ -1193,6 +1321,11 @@ export default function QuotationPage() {
     const sortedQuotes = [...allQuotations].sort((a, b) => {
       const getNum = (str) => {
         let numStr = str.toString();
+        // Handle new YYMMXXXX format (8 digits)
+        if (numStr.length === 8 && !isNaN(parseInt(numStr, 10))) {
+          return parseInt(numStr, 10);
+        }
+        // Handle old format
         if (numStr.includes('QTN-')) {
           return parseInt(numStr.split('QTN-')[1]) || 0;
         }
@@ -1273,7 +1406,6 @@ export default function QuotationPage() {
           />
         )}
         
-    
         {msg.text && (
           <div
             className={`xp-alert ${msg.type === "success" ? "xp-alert-success" : "xp-alert-error"}`}
@@ -1304,15 +1436,8 @@ export default function QuotationPage() {
                   <input
                     className="xp-input xp-input-sm sl-inv-input-large"
                     style={{ borderColor: "#2c5f2d" }}
-                    value={extractQuoteNumber(quoteNo)}
-                    onChange={(e) => {
-                      const newNumber = e.target.value;
-                      if (newNumber === "") {
-                        setQuoteNo("QTN-1");
-                      } else {
-                        setQuoteNo(buildFullQuoteId(newNumber));
-                      }
-                    }}
+                    value={quoteNo}
+                    onChange={(e) => setQuoteNo(e.target.value)}
                     onKeyDown={async (e) => {
                       if (e.key === "Enter") {
                         e.preventDefault();
@@ -1322,7 +1447,7 @@ export default function QuotationPage() {
                         if (found) {
                           loadQuotationForEdit(found);
                         } else {
-                          showMsg(`Quotation "${extractQuoteNumber(val)}" not found`, "error");
+                          showMsg(`Quotation "${val}" not found`, "error");
                         }
                       }
                       if (e.key === "ArrowUp" || e.key === "ArrowDown") {
@@ -1331,6 +1456,7 @@ export default function QuotationPage() {
                       }
                     }}
                     onFocus={(e) => e.target.select()}
+                    placeholder="e.g., 26050001"
                   />
                   
                   <button
@@ -1342,6 +1468,9 @@ export default function QuotationPage() {
                     ▶
                   </button>
                 </div>
+                {/* <span style={{ fontSize: "9px", color: "#666", marginLeft: "4px" }}>
+                  Format: YYMMXXXX (Resets monthly, e.g., 26050001)
+                </span> */}
               </div>
               
               <div className="sl-inv-field-grp">
@@ -1365,7 +1494,7 @@ export default function QuotationPage() {
               </div>
             </div>
 
-            {/* FIXED: Entry strip with proper focus flow */}
+            {/* Entry strip with proper focus flow */}
             <div className="sl-entry-strip">
               <div className="sl-entry-cell sl-entry-product">
                 <label>
@@ -1397,12 +1526,10 @@ export default function QuotationPage() {
                       }
                       if (e.key === "Enter") {
                         e.preventDefault();
-                        // If a product is already selected (curRow has name and productId), move to pcs
                         if (curRow.name && curRow.productId) {
                           setTimeout(() => pcsRef.current?.focus(), 50);
                           return;
                         }
-                        // Otherwise, try to search for product
                         if (selectedProductSuggestionIdx >= 0 && productSuggestions[selectedProductSuggestionIdx]) {
                           const found = productSuggestions[selectedProductSuggestionIdx];
                           const pk = found.packingInfo?.[0];
@@ -1664,7 +1791,7 @@ export default function QuotationPage() {
                     </tr>
                   ))}
                 </tbody>
-               </table>
+              </table>
             </div>
 
             {/* Summary bar */}
@@ -1797,7 +1924,7 @@ export default function QuotationPage() {
           </button>
           <div className="xp-toolbar-divider" />
           <span className={`sl-inv-info`}>
-            📄 {extractQuoteNumber(quoteNo)} | Items: {items.length} | Total: PKR {Number(subTotal).toLocaleString("en-PK")}
+            📄 {quoteNo} | Items: {items.length} | Total: PKR {Number(subTotal).toLocaleString("en-PK")}
           </span>
           <button
             className="xp-btn xp-btn-sm"

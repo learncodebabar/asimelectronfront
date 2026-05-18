@@ -4,7 +4,7 @@ import api from "../api/api.js";
 import EP from "../api/apiEndpoints.js";
 import "../styles/theme.css";
 import "../styles/SalePage.css";
-
+import { useAuth } from "../context/AuthContext";
 /* ── helpers ── */
 const timeNow = () =>
   new Date().toLocaleTimeString("en-US", {
@@ -27,8 +27,7 @@ const EMPTY_ROW = {
   amount: 0,
 };
 
-import { SHOP_INFO, URDU_FONT, GOOGLE_FONT_LINK, getShopHeaderHTML, getShopBannerHTML, getShopTermsHTML, getShopFooterHTML } from "../constants/shopInfo.js";
-
+import { SHOP_INFO, URDU_FONT, GOOGLE_FONT_LINK } from "../constants/shopInfo.js";
 
 const TYPE_COLORS = {
   credit: { bg: "#fca5a5", color: "#7f1d1d", border: "#ef4444" },
@@ -47,15 +46,136 @@ const typeToPayment = (t) => {
 };
 const typeToSource = (t) => (!t ? "cash" : t);
 
-// Clean invoice number function - removes RAW-S- prefix and leading zeros
+/* ══════════════════════════════════════════════════════════
+   INVOICE NUMBER GENERATOR - Monthly Reset for Raw Sale
+   Format: YYMMXXXX (e.g., 26050001 for May 2026)
+══════════════════════════════════════════════════════════ */
+
+// Get current year and month without dashes (e.g., 2605 for May 2026)
+const getCurrentYearMonthCode = () => {
+  const now = new Date();
+  const year = now.getFullYear().toString().slice(-2); // Last 2 digits (2026 -> 26)
+  const month = (now.getMonth() + 1).toString().padStart(2, '0'); // 05 for May
+  return `${year}${month}`; // e.g., "2605"
+};
+
+// Generate invoice number with monthly reset (Format: YYMMXXXX)
+const generateInvoiceNumber = async (apiInstance, endpoints, setInvoiceNo, currentDate = null) => {
+  try {
+    const date = currentDate ? new Date(currentDate) : new Date();
+    const currentYear = date.getFullYear().toString().slice(-2);
+    const currentMonth = (date.getMonth() + 1).toString().padStart(2, '0');
+    const currentYearMonth = `${currentYear}${currentMonth}`; // "2605"
+    
+    let maxSeqForMonth = 0;
+    
+    try {
+      // Fetch all raw sales
+      const salesRes = await apiInstance.get(endpoints.RAW_SALES.GET_ALL);
+      
+      console.log('📊 Fetched raw sales for invoice generation:', salesRes.data.data?.length || 0, 'records');
+      
+      if (salesRes.data.success && salesRes.data.data && salesRes.data.data.length > 0) {
+        // Filter sales for current year-month and find max sequence number
+        salesRes.data.data.forEach(sale => {
+          const saleInvoiceNo = sale.invoiceNo;
+          if (saleInvoiceNo && typeof saleInvoiceNo === 'string') {
+            let seqNum = null;
+            
+            // Check for OLD format: "RAW-S-00001" - extract the number
+            if (saleInvoiceNo.startsWith('RAW-S-')) {
+              const parts = saleInvoiceNo.split('-');
+              if (parts.length === 3) {
+                seqNum = parseInt(parts[2], 10);
+                console.log(`Found OLD format invoice: ${saleInvoiceNo} -> sequence: ${seqNum}`);
+              }
+            }
+            // Check for NEW format without dash: "26050001"
+            else if (saleInvoiceNo.startsWith(currentYearMonth)) {
+              seqNum = parseInt(saleInvoiceNo.slice(-4), 10);
+              console.log(`Found NEW format invoice: ${saleInvoiceNo} -> sequence: ${seqNum}`);
+            }
+            // Check for format with dash: "26-05-0001"
+            else if (saleInvoiceNo.startsWith(`${currentYear}-${currentMonth}`)) {
+              const parts = saleInvoiceNo.split('-');
+              if (parts.length === 3) {
+                seqNum = parseInt(parts[2], 10);
+                console.log(`Found dash format invoice: ${saleInvoiceNo} -> sequence: ${seqNum}`);
+              }
+            }
+            
+            if (seqNum && !isNaN(seqNum) && seqNum > maxSeqForMonth) {
+              maxSeqForMonth = seqNum;
+              console.log(`Current max sequence: ${maxSeqForMonth}`);
+            }
+          }
+        });
+      }
+    } catch (salesError) {
+      console.error("Failed to fetch raw sales for invoice generation:", salesError);
+    }
+    
+    // Calculate next sequence number
+    const nextSeq = maxSeqForMonth + 1;
+    const formattedSeq = nextSeq.toString().padStart(4, '0'); // 0001, 0002, etc.
+    const newInvoiceNo = `${currentYearMonth}${formattedSeq}`; // e.g., "26050001"
+    
+    console.log(`📄 Generated raw sale invoice number: ${newInvoiceNo} (Previous max: ${maxSeqForMonth}, Next: ${nextSeq})`);
+    
+    setInvoiceNo(newInvoiceNo);
+    localStorage.setItem('lastRawSaleInvoiceNumber', newInvoiceNo);
+    localStorage.setItem('lastRawSaleInvoiceYearMonth', currentYearMonth);
+    
+    return newInvoiceNo;
+    
+  } catch (error) {
+    console.error("Failed to generate invoice number:", error);
+    // Fallback: generate based on localStorage
+    const currentYear = new Date().getFullYear().toString().slice(-2);
+    const currentMonth = (new Date().getMonth() + 1).toString().padStart(2, '0');
+    const currentYearMonth = `${currentYear}${currentMonth}`;
+    const lastSaved = localStorage.getItem('lastRawSaleInvoiceNumber');
+    const lastYearMonth = localStorage.getItem('lastRawSaleInvoiceYearMonth');
+    
+    let nextSeq = 1;
+    if (lastSaved && lastYearMonth === currentYearMonth) {
+      const lastSeq = parseInt(lastSaved.slice(-4), 10);
+      if (!isNaN(lastSeq)) {
+        nextSeq = lastSeq + 1;
+      }
+    }
+    
+    const formattedSeq = nextSeq.toString().padStart(4, '0');
+    const newInvoiceNo = `${currentYearMonth}${formattedSeq}`;
+    setInvoiceNo(newInvoiceNo);
+    return newInvoiceNo;
+  }
+};
+
+// Parse invoice number to get components (Format: YYMMXXXX)
+const parseInvoiceNumber = (invoiceNo) => {
+  if (!invoiceNo || invoiceNo.length !== 8) return null;
+  const yearMonth = invoiceNo.slice(0, 4); // First 4 digits (2605)
+  const sequence = invoiceNo.slice(-4); // Last 4 digits (0001)
+  const year = parseInt(yearMonth.slice(0, 2), 10);
+  const month = parseInt(yearMonth.slice(2, 4), 10);
+  return { yearMonth, sequence, year, month, seqNum: parseInt(sequence, 10) };
+};
+
+// Clean invoice number function - removes any prefix
 const cleanInvoiceNo = (invNo) => {
   if (!invNo) return "1";
   let cleaned = String(invNo);
+  // If it's in YYMMXXXX format (8 digits), keep as is
+  if (cleaned.length === 8 && !isNaN(parseInt(cleaned, 10))) {
+    return cleaned;
+  }
+  // Otherwise, try to extract sequence number
   cleaned = cleaned.replace(/^RAW-S-/i, '');
   cleaned = cleaned.replace(/^0+/, '');
-  cleaned = parseInt(cleaned, 10);
-  if (isNaN(cleaned)) return "1";
-  return String(cleaned);
+  const num = parseInt(cleaned, 10);
+  if (isNaN(num)) return "1";
+  return String(num);
 };
 
 /* ── localStorage helpers ── */
@@ -208,7 +328,7 @@ const buildPrintHtml = (sale, type, overrides = {}) => {
           </tr>
         </thead>
         <tbody>${itemRows}</tbody>
-      <tr>
+      </table>
       <hr class="divider-dash">
       <div class="totals-box">
         <div style="display:flex;justify-content:space-between;font-size:9px;margin-bottom:2px">
@@ -315,7 +435,7 @@ const buildPrintHtml = (sale, type, overrides = {}) => {
             </tr>
           </thead>
           <tbody>${itemRows}</tbody>
-        </tr>
+        </table>
         ${footerHtml}
       </div>`;
   };
@@ -681,11 +801,11 @@ function SearchModal({ allProducts, onSelect, onClose }) {
                 </thead>
                 <tbody ref={tbodyRef} tabIndex={0} onKeyDown={tk}>
                   {rows.length === 0 && (
-                    <td>
+                    <tr>
                       <td colSpan={8} className="xp-empty">
                         ⚠️ No products found with company name "RAW". Please check your product data.
                       </td>
-                    </td>
+                    </tr>
                   )}
                   {rows.map((r, i) => (
                     <tr key={`${r._id}-${r._pi}`} style={{ background: i === hiIdx ? "#c3d9f5" : undefined }} onClick={() => setHiIdx(i)} onDoubleClick={() => onSelect(r)}>
@@ -942,6 +1062,7 @@ function CustomerDropdown({ allCustomers, value, displayName, customerType, onSe
    MAIN PAGE — Raw Sale
 ══════════════════════════════════════════════════════════ */
 export default function RawSalePage() {
+  const { user } = useAuth();
   const [time, setTime] = useState(timeNow());
   const [allProducts, setAllProducts] = useState([]);
   const [allCustomers, setAllCustomers] = useState([]);
@@ -951,7 +1072,7 @@ export default function RawSalePage() {
   const [curRow, setCurRow] = useState({ ...EMPTY_ROW });
   const [items, setItems] = useState([]);
   const [invoiceDate, setInvoiceDate] = useState(isoDate());
-  const [invoiceNo, setInvoiceNo] = useState("1");
+  const [invoiceNo, setInvoiceNo] = useState("");
   const amountRef = useRef(null);
 
   const [customerId, setCustomerId] = useState("");
@@ -997,6 +1118,21 @@ export default function RawSalePage() {
   const [showProductSuggestions, setShowProductSuggestions] = useState(false);
   const [selectedProductSuggestionIdx, setSelectedProductSuggestionIdx] = useState(-1);
 
+  // Check if month has changed
+  const checkMonthChange = () => {
+    const currentYearMonth = getCurrentYearMonthCode();
+    const lastYearMonth = localStorage.getItem('lastRawSaleInvoiceYearMonth');
+    
+    if (lastYearMonth && lastYearMonth !== currentYearMonth) {
+      console.log(`📅 Month changed from ${lastYearMonth} to ${currentYearMonth}. Resetting sequence.`);
+      localStorage.removeItem('lastRawSaleInvoiceNumber');
+      localStorage.setItem('lastRawSaleInvoiceYearMonth', currentYearMonth);
+      generateInvoiceNumber(api, EP, setInvoiceNo);
+      return true;
+    }
+    return false;
+  };
+
   useEffect(() => {
     const t = setInterval(() => setTime(timeNow()), 1000);
     return () => clearInterval(t);
@@ -1004,6 +1140,16 @@ export default function RawSalePage() {
   
   useEffect(() => {
     fetchData();
+  }, []);
+  
+  // Check month change on mount and periodically
+  useEffect(() => {
+    checkMonthChange();
+    const interval = setInterval(() => {
+      checkMonthChange();
+    }, 60000); // Check every minute
+    
+    return () => clearInterval(interval);
   }, []);
   
   useEffect(() => {
@@ -1049,11 +1195,11 @@ export default function RawSalePage() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [pRes, cRes, salesRes] = await Promise.all([
+      const [pRes, cRes] = await Promise.all([
         api.get(EP.PRODUCTS.GET_ALL),
         api.get(EP.CUSTOMERS.GET_ALL),
-        api.get(EP.RAW_SALES.GET_ALL),
       ]);
+      
       if (pRes.data.success) setAllProducts(pRes.data.data);
       if (cRes.data.success) {
         const customers = cRes.data.data.filter((c) => {
@@ -1063,20 +1209,9 @@ export default function RawSalePage() {
         setAllCustomers(customers);
       }
       
-      // Calculate next invoice number from existing raw sales
-      let maxNum = 0;
-      if (salesRes.data.success && salesRes.data.data && salesRes.data.data.length > 0) {
-        salesRes.data.data.forEach(sale => {
-          let num = cleanInvoiceNo(sale.invoiceNo);
-          num = parseInt(num, 10);
-          if (!isNaN(num) && num > maxNum) {
-            maxNum = num;
-          }
-        });
-        setInvoiceNo(String(maxNum + 1));
-      } else {
-        setInvoiceNo("1");
-      }
+      // Generate invoice number with monthly reset
+      await generateInvoiceNumber(api, EP, setInvoiceNo);
+      
     } catch (error) {
       console.error("Fetch data error:", error);
       showMsg("Failed to load data", "error");
@@ -1085,26 +1220,7 @@ export default function RawSalePage() {
   };
 
   const refreshInvoiceNo = async () => {
-    try {
-      const salesRes = await api.get(EP.RAW_SALES.GET_ALL);
-      let maxNum = 0;
-      if (salesRes.data.success && salesRes.data.data && salesRes.data.data.length > 0) {
-        salesRes.data.data.forEach(sale => {
-          let num = cleanInvoiceNo(sale.invoiceNo);
-          num = parseInt(num, 10);
-          if (!isNaN(num) && num > maxNum) {
-            maxNum = num;
-          }
-        });
-        setInvoiceNo(String(maxNum + 1));
-      } else {
-        setInvoiceNo("1");
-      }
-    } catch (error) {
-      console.error("Failed to refresh invoice number:", error);
-      const current = parseInt(invoiceNo, 10) || 0;
-      setInvoiceNo(String(current + 1));
-    }
+    await generateInvoiceNumber(api, EP, setInvoiceNo);
   };
 
   const showMsg = (text, type = "success") => {
@@ -1193,7 +1309,6 @@ export default function RawSalePage() {
     setTimeout(() => searchRef.current?.focus(), 30);
   };
   
-  // FIXED: pickProduct - Focus stays on search input after product selection
   const pickProduct = (product) => {
     if (!product._id) {
       showMsg("Product ID missing", "error");
@@ -1213,7 +1328,6 @@ export default function RawSalePage() {
     setSearchText(product.code || "");
     setShowProductModal(false);
     setShowProductSuggestions(false);
-    // FIXED: Focus stays on search input after product selection
     setTimeout(() => searchRef.current?.focus(), 30);
   };
 
@@ -1344,12 +1458,13 @@ export default function RawSalePage() {
     setCreditStatement("");
     setShowCustomerPanel(false);
     setShowProductSuggestions(false);
+    generateInvoiceNumber(api, EP, setInvoiceNo);
     setTimeout(() => searchRef.current?.focus(), 50);
   };
   
   const loadSaleForEdit = (sale) => {
     setEditId(sale._id);
-    let invNo = cleanInvoiceNo(sale.invoiceNo);
+    let invNo = sale.invoiceNo;
     setInvoiceNo(invNo);
     setInvoiceDate(sale.invoiceDate || isoDate());
 
@@ -1394,9 +1509,9 @@ export default function RawSalePage() {
       const { data } = await api.get(EP.RAW_SALES.GET_ALL);
       if (!data.success || !data.data?.length) return;
       const allSales = data.data;
-      const currentCleanNo = cleanInvoiceNo(invoiceNo);
+      const currentCleanNo = invoiceNo;
       const curIdx = allSales.findIndex((s) => {
-        return cleanInvoiceNo(s.invoiceNo) === currentCleanNo;
+        return s.invoiceNo === currentCleanNo;
       });
       let nextIdx = dir === "prev" ? curIdx - 1 : curIdx + 1;
       nextIdx = Math.max(0, Math.min(nextIdx, allSales.length - 1));
@@ -1408,7 +1523,7 @@ export default function RawSalePage() {
   };
 
   const buildPayload = () => ({
-    invoiceNo: cleanInvoiceNo(invoiceNo),
+    invoiceNo: invoiceNo,
     invoiceDate,
     customerId: customerId || undefined,
     customerName: buyerName || "COUNTER SALE",
@@ -1440,6 +1555,8 @@ export default function RawSalePage() {
     printType,
     remarks: creditStatement || "",
     saleType: "raw-sale",
+    userId: user?.id || user?._id || "admin",
+    username: user?.username || user?.name || "admin",
   });
   
   const openSaleConfirm = () => {
@@ -1477,6 +1594,20 @@ export default function RawSalePage() {
   const confirmSaveWithPayload = async (payload, overrides) => {
     if (!payload) return;
     setLoading(true);
+    
+    // Get user from props if available
+    let currentUser = user;
+    if (!currentUser || !currentUser.id) {
+      try {
+        const storedUser = localStorage.getItem('user');
+        if (storedUser) {
+          currentUser = JSON.parse(storedUser);
+        }
+      } catch (e) {
+        console.error("Failed to parse user from localStorage", e);
+      }
+    }
+    
     try {
       const finalPayload = {
         ...payload,
@@ -1485,6 +1616,8 @@ export default function RawSalePage() {
         paidAmount: overrides.paidAmount,
         balance: overrides.balance,
         printType: overrides.printType,
+        userId: currentUser?.id || currentUser?._id || payload.userId || "admin",
+        username: currentUser?.username || currentUser?.name || payload.username || "admin",
       };
       
       const { data } = editId
@@ -1539,7 +1672,6 @@ export default function RawSalePage() {
         setShowSaveModal(false);
         setPendingPayload(null);
         fullReset();
-        await refreshInvoiceNo();
         
         const pRes = await api.get(EP.PRODUCTS.GET_ALL);
         if (pRes.data.success) {
@@ -1590,8 +1722,6 @@ export default function RawSalePage() {
         {showSaveModal && pendingPayload && <SaveConfirmModal salePayload={pendingPayload} printType={printType} onConfirm={confirmSave} onClose={() => { setShowSaveModal(false); setPendingPayload(null); }} />}
         {showPrintModal && pendingPrintSale && <PrintOptionsModal sale={pendingPrintSale} allCustomers={allCustomers} defaultPrintType={printType} hideCustomerFields={pendingPrintSale.paymentMode === "Credit"} newCustomerType="raw-sale" onPrint={(type, overrides) => { doPrint(pendingPrintSale, type, overrides); setShowPrintModal(false); setPendingPrintSale(null); }} onClose={() => { setShowPrintModal(false); setPendingPrintSale(null); }} />}
         
-       
-
         {msg.text && <div className={`xp-alert ${msg.type === "success" ? "xp-alert-success" : "xp-alert-error"}`} style={{ margin: "4px 10px 0", flexShrink: 0 }}>{msg.text}</div>}
 
         <div className="sl-body">
@@ -1614,26 +1744,26 @@ export default function RawSalePage() {
                   <input
                     className="xp-input xp-input-sm sl-inv-input-large"
                     value={invoiceNo}
-                    onChange={(e) => setInvoiceNo(cleanInvoiceNo(e.target.value))}
+                    onChange={(e) => setInvoiceNo(e.target.value)}
                     onKeyDown={async (e) => {
                       if (e.key === "Enter") {
                         e.preventDefault();
-                        const val = cleanInvoiceNo(invoiceNo);
+                        const val = invoiceNo;
                         if (!val) return;
                         try {
                           const { data } = await api.get(EP.RAW_SALES.GET_ALL);
                           const sales = data.data;
                           if (!sales || sales.length === 0) { 
                             showMsg(`Invoice "${val}" not found`, "error"); 
-                            await refreshInvoiceNo(); 
+                            await generateInvoiceNumber(api, EP, setInvoiceNo); 
                             return; 
                           }
                           const exact = sales.find((s) => {
-                            return cleanInvoiceNo(s.invoiceNo) === val;
+                            return s.invoiceNo === val;
                           });
                           if (!exact) { 
                             showMsg(`Invoice "${val}" not found`, "error"); 
-                            await refreshInvoiceNo(); 
+                            await generateInvoiceNumber(api, EP, setInvoiceNo); 
                             return; 
                           }
                           setItems([]); 
@@ -1649,7 +1779,7 @@ export default function RawSalePage() {
                       }
                     }}
                     onFocus={(e) => e.target.select()}
-                    placeholder="Invoice # ya ↑↓"
+                    placeholder="e.g., 26050001"
                     style={{ 
                       background: editId ? "#fffbe6" : "#fffde7", 
                       fontSize: "16px", 
@@ -1670,6 +1800,9 @@ export default function RawSalePage() {
                     ▶
                   </button>
                 </div>
+                {/* <span style={{ fontSize: "9px", color: "#666", marginLeft: "4px" }}>
+                  Format: YYMMXXXX (Resets monthly, e.g., 26050001)
+                </span> */}
               </div>
               
               <div className="sl-inv-field-grp">
@@ -1693,7 +1826,7 @@ export default function RawSalePage() {
               </div>
             </div>
 
-            {/* FIXED: Entry strip with proper focus flow */}
+            {/* Entry strip with proper focus flow */}
             <div className="sl-entry-strip">
               <div className="sl-entry-cell sl-entry-product">
                 <label>Select Product <kbd>F2</kbd></label>
@@ -1877,7 +2010,7 @@ export default function RawSalePage() {
                 />
               </div>
               <div className="sl-entry-cell"><label>Pcs</label><input ref={pcsRef} type="text" className="sl-num-input" style={{ width: 60, background: "#fffde7" }} value={curRow.pcs} min={1} onChange={(e) => updateCurRow("pcs", e.target.value)} onKeyDown={(e) => e.key === "Enter" && rateRef.current?.focus()} onFocus={(e) => e.target.select()} /></div>
-              <div className="sl-entry-cell"><label>Rate</label><input ref={rateRef} type="text" className="sl-num-input" style={{ width: 75, background: "#fffde7" }} value={curRow.rate} min={0} onChange={(e) => updateCurRow("rate", e.target.value)} onBlur={(e) => { const product = allProducts.find((p) => p._id === curRow.productId); if (product?.packingInfo) { const pk = product.packingInfo.find((p) => p.measurement === curRow.uom); if (pk) { const purchaseRate = pk.purchaseRate || pk.costRate || 0; if (purchaseRate > 0 && parseFloat(e.target.value) < purchaseRate) { showMsg(`Rate cannot be less than purchase rate (${purchaseRate})`, "error"); updateCurRow("rate", purchaseRate); } } } }} onKeyDown={(e) => e.key === "Enter" && amountRef.current?.focus()} onFocus={(e) => e.target.select()} /></div>
+              <div className="sl-entry-cell"><label>Rate</label><input ref={rateRef} type="text" className="sl-num-input" style={{ width: 75, background: "#fffde7" }} value={curRow.rate} min={0} onChange={(e) => updateCurRow("rate", e.target.value)} onKeyDown={(e) => e.key === "Enter" && amountRef.current?.focus()} onFocus={(e) => e.target.select()} /></div>
               <div className="sl-entry-cell"><label>Amount</label><input ref={amountRef} type="text" className="sl-num-input" style={{ width: 80, background: "#fffde7" }} value={curRow.amount || 0} onChange={(e) => setCurRow((p) => ({ ...p, amount: parseFloat(e.target.value) || 0 }))} onFocus={(e) => e.target.select()} onKeyDown={(e) => e.key === "Enter" && addRef.current?.click()} /></div>
               <div className="sl-entry-cell sl-entry-btns-cell">
                 <label>&nbsp;</label>
@@ -1896,7 +2029,7 @@ export default function RawSalePage() {
               <table className="sl-items-table">
                 <thead><tr><th style={{ width: 32 }}>Sr.#</th><th style={{ width: 72 }}>Code</th><th>Name</th><th style={{ width: 65 }}>UOM</th><th style={{ width: 55 }} className="r">Pcs</th><th style={{ width: 80 }} className="r">Rate</th><th style={{ width: 90 }} className="r">Amount</th><th style={{ width: 50 }}>Rack</th></tr></thead>
                 <tbody>
-                  {items.length === 0 && <td><td colSpan={8} className="xp-empty" style={{ padding: 14 }}>Search and add raw products to start the bill</td></td>}
+                  {items.length === 0 && <tr><td colSpan={8} className="xp-empty" style={{ padding: 14 }}>Search and add raw products to start the bill</td></tr>}
                   {items.map((r, i) => (
                     <tr key={i} className={selItemIdx === i ? "sl-sel-row" : ""} onClick={() => setSelItemIdx(i === selItemIdx ? null : i)} onDoubleClick={() => loadRowForEdit(i)}>
                       <td className="muted" style={{ textAlign: "center", fontSize: "var(--xp-fs-xs)" }}>{i + 1}</td>
@@ -1913,267 +2046,266 @@ export default function RawSalePage() {
                 </tbody>
               </table>
             </div>
-{/* Summary bar - Combined with Customer bar in one row - COMPACT */}
-<div className="sl-summary-bar" style={{ 
-  display: "flex", 
-  alignItems: "center", 
-  gap: "6px", 
-  padding: "4px 8px", 
-  flexShrink: 0, 
-  background: "#f8fafc", 
-  borderTop: "1px solid #000", 
-  borderBottom: "1px solid #000",
-  flexWrap: "wrap",
-  minHeight: "44px"
-}}>
-  
-  {/* Code Field - For searching by customer code */}
-  <div className="sl-cust-cell" style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-    <label style={{ fontSize: "9px", fontWeight: "600", color: "#64748b" }}>Code</label>
-    <input
-      className="sl-cust-input"
-      style={{ width: "60px", height: "26px", padding: "0 4px", fontSize: "10px", background: "#fffde7", border: "1px solid #000", borderRadius: "4px" }}
-      value={codeSearch}
-      onChange={(e) => setCodeSearch(e.target.value)}
-      onKeyDown={(e) => {
-        if (e.key === "Enter") {
-          e.preventDefault();
-          const q = codeSearch.trim();
-          if (!q) return;
-          // Search in all customers with raw-sale, supplier, credit types
-          const found = allCustomers.find(
-            (c) =>
-              String(c.code).toLowerCase() === q.toLowerCase() &&
-              (c.customerType || c.type || "").toLowerCase().match(/raw-sale|supplier|credit/)
-          );
-          if (found) {
-            handleCustomerSelect(found);
-            setCodeSearch("");
-          } else {
-            showMsg(`Code "${q}" — customer nahi mila`, "error");
-          }
-        }
-      }}
-      autoComplete="off"
-    />
-  </div>
-  
-  {/* Customer Name Dropdown */}
-  <div className="sl-cust-cell sl-cust-buyer" style={{ display: "flex", flexDirection: "column", gap: "2px", flex: "2", minWidth: "130px" }}>
-    <label style={{ fontSize: "9px", fontWeight: "600", color: "#64748b" }}>Customer</label>
-    <CustomerDropdown
-      allCustomers={allCustomers}
-      value={customerId}
-      displayName={buyerName}
-      customerType={customerType}
-      onSelect={handleCustomerSelect}
-      onClear={handleCustomerClear}
-      onAddNew={handleAddNewCustomer}
-      allowedTypes={["raw-sale", "supplier", "credit"]}
-    />
-  </div>
-  
-  {/* Previous Balance */}
-  <div className="sl-cust-cell" style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-    <label style={{ fontSize: "9px", fontWeight: "600", color: "#64748b" }}>Prev Bal</label>
-    <input
-      type="text"
-      className="sl-cust-input"
-      style={{ width: "65px", height: "26px", padding: "0 4px", fontSize: "10px", background: "#fffde7", border: "1px solid #000", borderRadius: "4px" }}
-      value={prevBalance}
-      onChange={(e) => setPrevBalance(e.target.value)}
-      onFocus={(e) => e.target.select()}
-    />
-  </div>
-  
-  {/* Net Receivable */}
-  <div className="sl-cust-cell" style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-    <label style={{ fontSize: "9px", fontWeight: "600", color: "#64748b" }}>Net Recv</label>
-    <input
-      className="sl-cust-input sl-net-recv"
-      style={{
-        color: balance > 0 ? "#dc2626" : "#10b981",
-        fontWeight: 700,
-        width: "65px",
-        height: "26px",
-        padding: "0 4px",
-        fontSize: "10px",
-        background: "#f1f5f9",
-        border: "1px solid #000",
-        borderRadius: "4px"
-      }}
-      value={Number(balance).toLocaleString("en-PK")}
-      readOnly
-    />
-  </div>
-  
-  {/* Payment Mode Dropdown */}
-  <div className="sl-cust-cell" style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-    <label style={{ fontSize: "9px", fontWeight: "600", color: "#64748b" }}>Payment</label>
-    <select
-      className="sl-pay-select"
-      value={paymentMode}
-      onChange={(e) => handlePaymentMode(e.target.value)}
-      style={{
-        height: "26px",
-        padding: "0 6px",
-        fontSize: "10px",
-        fontWeight: "600",
-        border: "1px solid #000",
-        borderRadius: "4px",
-        background: paymentMode === "Cash" ? "#10b981" : paymentMode === "Credit" ? "#ef4444" : paymentMode === "Bank" ? "#3b82f6" : "#f59e0b",
-        color: "white",
-        cursor: "pointer"
-      }}
-    >
-      <option value="Cash" style={{ background: "#10b981", color: "white" }}>💰 Cash</option>
-      <option value="Credit" style={{ background: "#ef4444", color: "white" }}>📝 Credit</option>
-      <option value="Bank" style={{ background: "#3b82f6", color: "white" }}>🏦 Bank</option>
-      <option value="Cheque" style={{ background: "#f59e0b", color: "white" }}>📄 Cheque</option>
-    </select>
-  </div>
 
-  {/* Total Quantity */}
-  <div className="sl-sum-cell" style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-    <label style={{ fontSize: "9px", fontWeight: "600", color: "#64748b", textTransform: "uppercase" }}>Qty</label>
-    <input
-      className="sl-sum-val"
-      style={{ fontSize: "11px", fontWeight: "700", textAlign: "right", width: "50px", height: "26px", padding: "0 4px", background: "#f1f5f9", border: "1px solid #000", borderRadius: "4px" }}
-      value={totalQty.toLocaleString("en-PK")}
-      readOnly
-    />
-  </div>
+            {/* Summary bar - Combined with Customer bar in one row - COMPACT */}
+            <div className="sl-summary-bar" style={{ 
+              display: "flex", 
+              alignItems: "center", 
+              gap: "6px", 
+              padding: "4px 8px", 
+              flexShrink: 0, 
+              background: "#f8fafc", 
+              borderTop: "1px solid #000", 
+              borderBottom: "1px solid #000",
+              flexWrap: "wrap",
+              minHeight: "44px"
+            }}>
+              
+              {/* Code Field - For searching by customer code */}
+              <div className="sl-cust-cell" style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                <label style={{ fontSize: "9px", fontWeight: "600", color: "#64748b" }}>Code</label>
+                <input
+                  className="sl-cust-input"
+                  style={{ width: "60px", height: "26px", padding: "0 4px", fontSize: "10px", background: "#fffde7", border: "1px solid #000", borderRadius: "4px" }}
+                  value={codeSearch}
+                  onChange={(e) => setCodeSearch(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      const q = codeSearch.trim();
+                      if (!q) return;
+                      // Search in all customers with raw-sale, supplier, credit types
+                      const found = allCustomers.find(
+                        (c) =>
+                          String(c.code).toLowerCase() === q.toLowerCase() &&
+                          (c.customerType || c.type || "").toLowerCase().match(/raw-sale|supplier|credit/)
+                      );
+                      if (found) {
+                        handleCustomerSelect(found);
+                        setCodeSearch("");
+                      } else {
+                        showMsg(`Code "${q}" — customer nahi mila`, "error");
+                      }
+                    }
+                  }}
+                  autoComplete="off"
+                />
+              </div>
+              
+              {/* Customer Name Dropdown */}
+              <div className="sl-cust-cell sl-cust-buyer" style={{ display: "flex", flexDirection: "column", gap: "2px", flex: "2", minWidth: "130px" }}>
+                <label style={{ fontSize: "9px", fontWeight: "600", color: "#64748b" }}>Customer</label>
+                <CustomerDropdown
+                  allCustomers={allCustomers}
+                  value={customerId}
+                  displayName={buyerName}
+                  customerType={customerType}
+                  onSelect={handleCustomerSelect}
+                  onClear={handleCustomerClear}
+                  onAddNew={handleAddNewCustomer}
+                  allowedTypes={["raw-sale", "supplier", "credit"]}
+                />
+              </div>
+              
+              {/* Previous Balance */}
+              <div className="sl-cust-cell" style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                <label style={{ fontSize: "9px", fontWeight: "600", color: "#64748b" }}>Prev Bal</label>
+                <input
+                  type="text"
+                  className="sl-cust-input"
+                  style={{ width: "65px", height: "26px", padding: "0 4px", fontSize: "10px", background: "#fffde7", border: "1px solid #000", borderRadius: "4px" }}
+                  value={prevBalance}
+                  onChange={(e) => setPrevBalance(e.target.value)}
+                  onFocus={(e) => e.target.select()}
+                />
+              </div>
+              
+              {/* Net Receivable */}
+              <div className="sl-cust-cell" style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                <label style={{ fontSize: "9px", fontWeight: "600", color: "#64748b" }}>Net Recv</label>
+                <input
+                  className="sl-cust-input sl-net-recv"
+                  style={{
+                    color: balance > 0 ? "#dc2626" : "#10b981",
+                    fontWeight: 700,
+                    width: "65px",
+                    height: "26px",
+                    padding: "0 4px",
+                    fontSize: "10px",
+                    background: "#f1f5f9",
+                    border: "1px solid #000",
+                    borderRadius: "4px"
+                  }}
+                  value={Number(balance).toLocaleString("en-PK")}
+                  readOnly
+                />
+              </div>
+              
+              {/* Payment Mode Dropdown */}
+              <div className="sl-cust-cell" style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                <label style={{ fontSize: "9px", fontWeight: "600", color: "#64748b" }}>Payment</label>
+                <select
+                  className="sl-pay-select"
+                  value={paymentMode}
+                  onChange={(e) => handlePaymentMode(e.target.value)}
+                  style={{
+                    height: "26px",
+                    padding: "0 6px",
+                    fontSize: "10px",
+                    fontWeight: "600",
+                    border: "1px solid #000",
+                    borderRadius: "4px",
+                    background: paymentMode === "Cash" ? "#10b981" : paymentMode === "Credit" ? "#ef4444" : paymentMode === "Bank" ? "#3b82f6" : "#f59e0b",
+                    color: "white",
+                    cursor: "pointer"
+                  }}
+                >
+                  <option value="Cash" style={{ background: "#10b981", color: "white" }}>💰 Cash</option>
+                  <option value="Credit" style={{ background: "#ef4444", color: "white" }}>📝 Credit</option>
+                  <option value="Bank" style={{ background: "#3b82f6", color: "white" }}>🏦 Bank</option>
+                  <option value="Cheque" style={{ background: "#f59e0b", color: "white" }}>📄 Cheque</option>
+                </select>
+              </div>
 
-  {/* Bill Amount */}
-  <div className="sl-sum-cell" style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-    <label style={{ fontSize: "9px", fontWeight: "600", color: "#64748b", textTransform: "uppercase" }}>Bill</label>
-    <input
-      className="sl-sum-val"
-      style={{ fontSize: "11px", fontWeight: "700", textAlign: "right", width: "75px", height: "26px", padding: "0 4px", background: "#f1f5f9", border: "1px solid #000", borderRadius: "4px" }}
-      value={Number(billAmount).toLocaleString("en-PK")}
-      readOnly
-    />
-  </div>
-  
-  {/* Received Amount */}
-  <div className="sl-sum-cell" style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-    <label style={{ fontSize: "9px", fontWeight: "600", color: "#64748b", textTransform: "uppercase" }}>Recv</label>
-    <input
-      ref={receivedRef}
-      type="text"
-      className="sl-sum-input"
-      style={{ fontSize: "11px", fontWeight: "700", textAlign: "right", width: "75px", height: "26px", padding: "0 4px", background: "#fffde7", border: "1px solid #000", borderRadius: "4px" }}
-      value={received}
-      onChange={(e) => setReceived(e.target.value)}
-      onKeyDown={(e) => e.key === "Enter" && saveRef.current?.focus()}
-      onFocus={(e) => e.target.select()}
-    />
-  </div>
-  
-  {/* Balance */}
-  <div className="sl-sum-cell" style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-    <label style={{ fontSize: "9px", fontWeight: "600", color: "#64748b", textTransform: "uppercase" }}>Bal</label>
-    <input
-      className={`sl-sum-val sl-bal${balance > 0 ? " danger" : balance < 0 ? " success" : ""}`}
-      style={{ fontSize: "11px", fontWeight: "700", textAlign: "right", width: "75px", height: "26px", padding: "0 4px", background: "#f1f5f9", border: "1px solid #000", borderRadius: "4px" }}
-      value={Number(balance).toLocaleString("en-PK")}
-      readOnly
-    />
-  </div>
-  
-  {/* Extra Discount */}
-  <div className="sl-sum-cell" style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-    <label style={{ fontSize: "9px", fontWeight: "600", color: "#64748b", textTransform: "uppercase" }}>Disc</label>
-    <input
-      ref={discRef}
-      type="text"
-      className="sl-sum-input"
-      style={{ fontSize: "11px", textAlign: "right", width: "60px", height: "26px", padding: "0 4px", background: "#fffde7", border: "1px solid #000", borderRadius: "4px" }}
-      value={extraDiscount}
-      onChange={(e) => setExtraDiscount(e.target.value)}
-      onKeyDown={(e) => e.key === "Enter" && receivedRef.current?.focus()}
-      onFocus={(e) => e.target.select()}
-    />
-  </div>
-</div>
+              {/* Total Quantity */}
+              <div className="sl-sum-cell" style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                <label style={{ fontSize: "9px", fontWeight: "600", color: "#64748b", textTransform: "uppercase" }}>Qty</label>
+                <input
+                  className="sl-sum-val"
+                  style={{ fontSize: "11px", fontWeight: "700", textAlign: "right", width: "50px", height: "26px", padding: "0 4px", background: "#f1f5f9", border: "1px solid #000", borderRadius: "4px" }}
+                  value={totalQty.toLocaleString("en-PK")}
+                  readOnly
+                />
+              </div>
 
-{/* Credit Warning Bar - Shows when credit/raw-sale/supplier customer is selected */}
-{showCustomerPanel && customerId && (
-  <div
-    className={`sl-credit-warning-bar${creditWarning ? "" : " sl-credit-normal"}`}
-    style={{ padding: "4px 6px", marginTop: "2px" }}
-  >
-    <div className="sl-credit-warning-left">
-      {(() => {
-        const cust = allCustomers.find((c) => c._id === customerId);
-        return cust?.imageFront ? (
-          <img
-            src={cust.imageFront}
-            alt={cust.name}
-            style={{
-              width: 32,
-              height: 32,
-              borderRadius: 4,
-              objectFit: "cover",
-              border: "2px solid #fff",
-              flexShrink: 0,
-            }}
-          />
-        ) : (
-          <div
-            style={{
-              width: 32,
-              height: 32,
-              borderRadius: 4,
-              background: "rgba(255,255,255,0.3)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: 16,
-              flexShrink: 0,
-            }}
-          >
-            👤
-          </div>
-        );
-      })()}
-      <div>
-        {creditWarning ? (
-          <>
-            <div className="sl-credit-title">⚠ CREDIT LIMIT EXCEEDED</div>
-            <div className="sl-credit-sub">Balance: <b>{fmt(prevBalance)}</b> — Enter authorization to proceed</div>
-          </>
-        ) : (
-          <div className="sl-credit-sub" style={{ color: "#fff" }}>
-            Balance: <b>{fmt(prevBalance)}</b>
-          </div>
-        )}
-      </div>
-    </div>
-    <input
-      ref={statementRef}
-      type="text"
-      className="sl-credit-statement-input"
-      style={{ fontSize: "10px", height: "28px", padding: "2px 6px", flex: 1 }}
-      placeholder={
-        creditWarning
-          ? "Enter reason / authorization statement to allow sale…"
-          : "Notes (optional)…"
-      }
-      value={creditStatement}
-      onChange={(e) => setCreditStatement(e.target.value)}
-      onKeyDown={(e) => {
-        if (e.key === "Enter") {
-          e.preventDefault();
-          e.stopPropagation();
-          openSaleConfirm();
-        }
-      }}
-    />
-  </div>
-)}
+              {/* Bill Amount */}
+              <div className="sl-sum-cell" style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                <label style={{ fontSize: "9px", fontWeight: "600", color: "#64748b", textTransform: "uppercase" }}>Bill</label>
+                <input
+                  className="sl-sum-val"
+                  style={{ fontSize: "11px", fontWeight: "700", textAlign: "right", width: "75px", height: "26px", padding: "0 4px", background: "#f1f5f9", border: "1px solid #000", borderRadius: "4px" }}
+                  value={Number(billAmount).toLocaleString("en-PK")}
+                  readOnly
+                />
+              </div>
+              
+              {/* Received Amount */}
+              <div className="sl-sum-cell" style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                <label style={{ fontSize: "9px", fontWeight: "600", color: "#64748b", textTransform: "uppercase" }}>Recv</label>
+                <input
+                  ref={receivedRef}
+                  type="text"
+                  className="sl-sum-input"
+                  style={{ fontSize: "11px", fontWeight: "700", textAlign: "right", width: "75px", height: "26px", padding: "0 4px", background: "#fffde7", border: "1px solid #000", borderRadius: "4px" }}
+                  value={received}
+                  onChange={(e) => setReceived(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && saveRef.current?.focus()}
+                  onFocus={(e) => e.target.select()}
+                />
+              </div>
+              
+              {/* Balance */}
+              <div className="sl-sum-cell" style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                <label style={{ fontSize: "9px", fontWeight: "600", color: "#64748b", textTransform: "uppercase" }}>Bal</label>
+                <input
+                  className={`sl-sum-val sl-bal${balance > 0 ? " danger" : balance < 0 ? " success" : ""}`}
+                  style={{ fontSize: "11px", fontWeight: "700", textAlign: "right", width: "75px", height: "26px", padding: "0 4px", background: "#f1f5f9", border: "1px solid #000", borderRadius: "4px" }}
+                  value={Number(balance).toLocaleString("en-PK")}
+                  readOnly
+                />
+              </div>
+              
+              {/* Extra Discount */}
+              <div className="sl-sum-cell" style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                <label style={{ fontSize: "9px", fontWeight: "600", color: "#64748b", textTransform: "uppercase" }}>Disc</label>
+                <input
+                  ref={discRef}
+                  type="text"
+                  className="sl-sum-input"
+                  style={{ fontSize: "11px", textAlign: "right", width: "60px", height: "26px", padding: "0 4px", background: "#fffde7", border: "1px solid #000", borderRadius: "4px" }}
+                  value={extraDiscount}
+                  onChange={(e) => setExtraDiscount(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && receivedRef.current?.focus()}
+                  onFocus={(e) => e.target.select()}
+                />
+              </div>
+            </div>
 
-
+            {/* Credit Warning Bar - Shows when credit/raw-sale/supplier customer is selected */}
+            {showCustomerPanel && customerId && (
+              <div
+                className={`sl-credit-warning-bar${creditWarning ? "" : " sl-credit-normal"}`}
+                style={{ padding: "4px 6px", marginTop: "2px" }}
+              >
+                <div className="sl-credit-warning-left">
+                  {(() => {
+                    const cust = allCustomers.find((c) => c._id === customerId);
+                    return cust?.imageFront ? (
+                      <img
+                        src={cust.imageFront}
+                        alt={cust.name}
+                        style={{
+                          width: 32,
+                          height: 32,
+                          borderRadius: 4,
+                          objectFit: "cover",
+                          border: "2px solid #fff",
+                          flexShrink: 0,
+                        }}
+                      />
+                    ) : (
+                      <div
+                        style={{
+                          width: 32,
+                          height: 32,
+                          borderRadius: 4,
+                          background: "rgba(255,255,255,0.3)",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          fontSize: 16,
+                          flexShrink: 0,
+                        }}
+                      >
+                        👤
+                      </div>
+                    );
+                  })()}
+                  <div>
+                    {creditWarning ? (
+                      <>
+                        <div className="sl-credit-title">⚠ CREDIT LIMIT EXCEEDED</div>
+                        <div className="sl-credit-sub">Balance: <b>{fmt(prevBalance)}</b> — Enter authorization to proceed</div>
+                      </>
+                    ) : (
+                      <div className="sl-credit-sub" style={{ color: "#fff" }}>
+                        Balance: <b>{fmt(prevBalance)}</b>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <input
+                  ref={statementRef}
+                  type="text"
+                  className="sl-credit-statement-input"
+                  style={{ fontSize: "10px", height: "28px", padding: "2px 6px", flex: 1 }}
+                  placeholder={
+                    creditWarning
+                      ? "Enter reason / authorization statement to allow sale…"
+                      : "Notes (optional)…"
+                  }
+                  value={creditStatement}
+                  onChange={(e) => setCreditStatement(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      openSaleConfirm();
+                    }
+                  }}
+                />
+              </div>
+            )}
           </div>
 
           <div className="sl-right">
@@ -2183,7 +2315,20 @@ export default function RawSalePage() {
                 <table className="sl-hold-table">
                   <thead><tr><th style={{ width: 24 }}>#</th><th>Bill #</th><th className="r">Amount</th><th>Customer</th><th style={{ width: 22 }}></th></tr></thead>
                   <tbody>
-                    {holdBills.length === 0 ? Array.from({ length: 8 }).map((_, i) => (<tr key={i}><td colSpan={5} style={{ height: 22 }} /></tr>)) : holdBills.map((b, i) => (<tr key={b.id} onClick={() => setShowHoldPreview(b)} onDoubleClick={() => resumeHold(b.id)} title="Click = preview · Double-click = resume"><td className="muted" style={{ textAlign: "center", fontSize: "var(--xp-fs-xs)" }}>{i + 1}</td><td style={{ fontFamily: "var(--xp-mono)", fontSize: "var(--xp-fs-xs)" }}>{b.invoiceNo}</td><td className="r" style={{ color: "var(--xp-blue-dark)" }}>{Number(b.amount).toLocaleString("en-PK")}</td><td className="muted" style={{ fontSize: "var(--xp-fs-xs)" }}>{b.buyerName}</td><td style={{ textAlign: "center" }}><button className="xp-btn xp-btn-sm xp-btn-ico" style={{ width: 18, height: 18, fontSize: 9, color: "var(--xp-red)" }} onClick={(e) => deleteHold(b.id, e)}>✕</button></td></tr>))}
+                    {holdBills.length === 0 ? 
+                    Array.from({ length: 8 }).map((_, i) => (<tr key={i}>
+                    <td colSpan={5} style={{ height: 22 }} /></tr>)) : holdBills.map((b, i) => (<tr key={b.id}
+                     onClick={() => setShowHoldPreview(b)} 
+                     onDoubleClick={() => resumeHold(b.id)} 
+                     title="Click = preview · Double-click = resume">
+                     <td className="muted" style={{ textAlign: "center", fontSize: "var(--xp-fs-xs)" }}>{i + 1}</td>
+                     <td style={{ fontFamily: "var(--xp-mono)", fontSize: "var(--xp-fs-xs)" }}>{b.invoiceNo}</td>
+                     <td className="r" style={{ color: "var(--xp-blue-dark)" }}>{Number(b.amount).toLocaleString("en-PK")}</td>
+                     <td className="muted" style={{ fontSize: "var(--xp-fs-xs)" }}>{b.buyerName}</td>
+                     <td style={{ textAlign: "center" }}>
+                     <button className="xp-btn xp-btn-sm xp-btn-ico" 
+                     style={{ width: 18, height: 18, fontSize: 9, color: "var(--xp-red)" }} 
+                     onClick={(e) => deleteHold(b.id, e)}>✕</button></td></tr>))}
                   </tbody>
                 </table>
               </div>

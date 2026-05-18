@@ -12,7 +12,9 @@ const normalizeUser = (user) => {
   return {
     ...user,
     id: user._id || user.id,  // Ensure id field exists
-    _id: user._id || user.id  // Keep _id for MongoDB compatibility
+    _id: user._id || user.id, // Keep _id for MongoDB compatibility
+    username: user.username || user.name || 'unknown', // ✅ Preserve username
+    name: user.name || user.username || 'unknown' // Ensure name exists
   };
 };
 
@@ -33,7 +35,10 @@ export function AuthProvider({ children }) {
       try {
         // Verify token with backend
         const response = await api.get('/auth/me');
+        console.log('✅ Auth/me response:', response.data);
         const normalizedUser = normalizeUser(response.data);
+        console.log('✅ Normalized user:', normalizedUser);
+        console.log('✅ Username:', normalizedUser.username);
         setUser(normalizedUser);
         localStorage.setItem('user', JSON.stringify(normalizedUser));
         
@@ -42,7 +47,7 @@ export function AuthProvider({ children }) {
           await fetchUsers();
         }
       } catch (error) {
-        console.error('Session validation failed:', error);
+        console.error('❌ Session validation failed:', error);
         localStorage.removeItem('token');
         localStorage.removeItem('user');
       }
@@ -52,11 +57,14 @@ export function AuthProvider({ children }) {
 
   const login = async (username, password) => {
     try {
-      console.log('Login attempt:', username);
+      console.log('🔐 Login attempt:', username);
       const response = await api.post('/auth/login', { username, password });
+      console.log('📥 Login response:', response.data);
       const { token, user: userData } = response.data;
       
       const normalizedUser = normalizeUser(userData);
+      console.log('✅ Normalized user after login:', normalizedUser);
+      console.log('✅ Username after login:', normalizedUser.username);
       
       localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify(normalizedUser));
@@ -67,10 +75,9 @@ export function AuthProvider({ children }) {
         await fetchUsers();
       }
       
-      console.log('Login successful:', normalizedUser.username);
       return { success: true, user: normalizedUser };
     } catch (error) {
-      console.error('Login error:', error);
+      console.error('❌ Login error:', error);
       const errorMessage = error.response?.data?.message || 'Login failed. Please try again.';
       return { 
         success: false, 
@@ -134,7 +141,6 @@ export function AuthProvider({ children }) {
 
   const updateUser = async (userId, updates) => {
     try {
-      // Validate userId
       if (!userId) {
         console.error('Update user called with invalid userId:', userId);
         return { 
@@ -171,7 +177,6 @@ export function AuthProvider({ children }) {
 
   const deleteUser = async (userId) => {
     try {
-      // Validate userId
       if (!userId) {
         console.error('Delete user called with invalid userId:', userId);
         return { 
