@@ -80,6 +80,9 @@ import RawPurchaseReportPage from "./pages/Reports/RawPurchaseReportPage.jsx";
 // Import the new Barcode Print Page
 import BarcodePrintPage from "./pages/BarcodePrintPage.jsx";
 
+
+
+
 // Wrapper component for protected routes
 function AppRoutes() {
   const { user } = useAuth();

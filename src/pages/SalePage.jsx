@@ -1,4 +1,3 @@
-
 // pages/SalePage.jsx - COMPLETE FILE with Stock Display After Product Selection
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useAuth } from "../context/AuthContext";
@@ -6,7 +5,7 @@ import api from "../api/api.js";
 import EP from "../api/apiEndpoints.js";
 import "../styles/theme.css";
 import "../styles/SalePage.css";
-import { SHOP_INFO, URDU_FONT, GOOGLE_FONT_LINK } from "../constants/shopInfo.js";
+import { SHOP_INFO } from "../constants/shopInfo.js";
 
 /* ── helpers ── */
 const timeNow = () =>
@@ -90,8 +89,11 @@ const generateInvoiceNumber = async (apiInstance, endpoints, setInvoiceNo, curre
           if (saleInvoiceNo && typeof saleInvoiceNo === 'string') {
             let seqNum = null;
             
-            if (saleInvoiceNo.startsWith(currentYearMonth)) {
-              seqNum = parseInt(saleInvoiceNo.slice(-4), 10);
+            if (saleInvoiceNo.length === 8 && /^\d+$/.test(saleInvoiceNo)) {
+              const yearMonth = saleInvoiceNo.substring(0, 4);
+              if (yearMonth === currentYearMonth) {
+                seqNum = parseInt(saleInvoiceNo.slice(-4), 10);
+              }
             }
             else if (saleInvoiceNo.startsWith(`${currentYear}-${currentMonth}`)) {
               const parts = saleInvoiceNo.split('-');
@@ -199,144 +201,142 @@ const buildPrintHtml = (sale, type, overrides = {}) => {
   const username = overrides.username || sale.username || 'ADMIN';
   const rows = sale.items.map((it, i) => ({ ...it, sr: i + 1 }));
   const totalQty = rows.reduce((s, r) => s + (r.pcs || 0), 0);
-  const printTime = new Date().toLocaleString();
-  const urduFont = `'Noto Nastaliq Urdu','Mehr Nastaliq','Jameel Noori Nastaleeq','Urdu Typesetting',serif`;
-  const googleFontLink = `<link href="https://fonts.googleapis.com/css2?family=Noto+Nastaliq+Urdu:wght@400;700&display=swap" rel="stylesheet">`;
+  const printTime = new Date().toLocaleString('en-PK', { hour12: true });
+  const printDate = new Date().toLocaleDateString('en-PK');
+  
+  const urduFont = `'Jameel Noori Nastaleeq', 'Noto Nastaliq Urdu', 'Alvi Nastaleeq', 'Mehr Nastaliq', 'Gulzar', serif`;
+  const englishFont = `'Courier New', 'Segoe UI', monospace`;
+  
+  const fontLinks = `
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Nastaliq+Urdu:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Gulzar:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      @font-face {
+        font-family: 'Jameel Noori Nastaleeq';
+        src: local('Jameel Noori Nastaleeq'), local('Jameel Noori Nastaleeq Regular');
+      }
+      .urdu { font-family: ${urduFont}; font-weight: 500; line-height: 1.4; letter-spacing: 0.3px; }
+      .urdu-bold { font-family: ${urduFont}; font-weight: 700; line-height: 1.4; letter-spacing: 0.3px; }
+      body { font-family: ${englishFont}; font-size: 10px; width: 72mm; margin: 0 auto; padding: 2mm 2mm 3mm 2mm; background: #fff; color: #000; }
+      .header-text { font-family: ${urduFont}; font-size: 18px; font-weight: 700; text-align: center; direction: rtl; margin-bottom: 3px; }
+      .sub-header { font-family: ${urduFont}; font-size: 11px; text-align: center; direction: rtl; margin-bottom: 2px; }
+      .contact-line { font-size: 9px; text-align: center; font-weight: bold; margin-bottom: 4px; }
+      .banner-text { font-family: ${urduFont}; font-size: 10px; text-align: center; direction: rtl; margin: 4px 0; padding: 3px; border-top: 1px solid #000; border-bottom: 1px solid #000; }
+      .inv-header { display: flex; justify-content: space-between; font-size: 9px; margin: 3px 0; font-weight: bold; }
+      .inv-header span { font-weight: normal; }
+      .cust-row { font-size: 9px; margin: 2px 0; }
+      .divider-dash { border: none; border-top: 1px dashed #000; margin: 3px 0; }
+      .divider-solid { border: none; border-top: 1px solid #000; margin: 3px 0; }
+      table { width: 100%; border-collapse: collapse; margin: 4px 0; }
+      thead tr { border-bottom: 1px solid #000; }
+      th { font-size: 9px; font-weight: bold; padding: 3px 1px; text-align: left; }
+      th.r { text-align: right; }
+      td { padding: 2px 1px; font-size: 9px; border-bottom: 0.5px solid #ccc; }
+      td.r { text-align: right; }
+      .summary-row { display: flex; justify-content: space-between; font-size: 9px; margin: 2px 0; }
+      .summary-row.bold { font-weight: bold; margin-top: 3px; padding-top: 2px; border-top: 1px dashed #000; }
+      .terms { font-family: ${urduFont}; font-size: 9px; text-align: right; direction: rtl; margin-top: 5px; padding-top: 3px; border-top: 1px solid #000; line-height: 1.4; }
+      .devby { text-align: center; font-size: 7px; margin-top: 5px; padding-top: 2px; border-top: 0.5px dotted #999; }
+      .duplicate-badge { text-align: center; font-size: 10px; font-weight: bold; letter-spacing: 2px; margin: 2px 0; }
+      .shop-name-line { font-family: ${urduFont}; font-size: 16px; font-weight: 700; text-align: center; direction: rtl; margin-bottom: 2px; }
+      @media print { @page { size: 72mm auto; margin: 0; } body { margin: 0; padding: 2mm; } }
+    </style>
+  `;
 
   if (type === "Gatepass") {
     const itemRows = rows.map((it) => `
-      <tr>
-        <td style="font-size:10px;vertical-align:top;padding:6px 4px">${it.sr}</td>
-        <td style="font-size:10px;vertical-align:top;padding:6px 4px;word-break:break-word">${it.code}</td>
-        <td style="font-size:10px;vertical-align:top;padding:6px 4px;word-break:break-word">${it.name}</td>
-        <td style="font-size:10px;vertical-align:top;padding:6px 4px;text-align:center">${it.pcs} ${it.uom || ""}</td>
-      </tr>
+      <tr><td style="padding:2px">${it.sr}</td><td style="padding:2px">${it.code}</td><td class="urdu" style="padding:2px;font-size:10px">${it.name}</td><td style="padding:2px;text-align:center">${it.pcs}</td></tr>
     `).join("");
-    return `<!DOCTYPE html><html><head><meta charset="utf-8">${googleFontLink}<style>
-      *{box-sizing:border-box;margin:0;padding:0}
-      body{font-family:Arial,Helvetica,sans-serif;font-size:10px;width:80mm;margin:0 auto;padding:3mm;color:#000}
-      .shop-urdu{font-size:16px;font-weight:bold;text-align:center;margin-bottom:3px;font-family:${urduFont};direction:rtl}
-      .shop-addr{font-size:8.5px;text-align:center;margin-bottom:2px;font-family:${urduFont};direction:rtl}
-      .shop-phones{font-size:8px;text-align:center;font-weight:bold;margin-bottom:4px}
-      .banner{background:#555;color:#fff;font-size:7.5px;text-align:center;padding:3px;margin:3px 0;font-family:${urduFont};direction:rtl}
-      .header{text-align:center;border-bottom:2px solid #000;padding-bottom:5px;margin-bottom:8px}
-      .gatepass-title{font-size:18px;font-weight:bold;margin:5px 0;letter-spacing:2px}
-      .meta-row{display:flex;justify-content:space-between;margin:4px 0;font-size:9px}
-      .divider-dash{border:none;border-top:1px dashed #666;margin:4px 0}
-      table{width:100%;border-collapse:collapse}
-      thead tr{border-bottom:1px solid #000}
-      th{font-size:9px;font-weight:bold;padding:5px 4px;text-align:left}
-      td{padding:4px;font-size:9.5px;vertical-align:top;border-bottom:1px solid #ddd}
-      .footer{text-align:center;font-size:8px;color:#777;margin-top:10px;border-top:1px dashed #ccc;padding-top:5px}
-      .signature{display:flex;justify-content:space-between;margin-top:12px;padding-top:8px}
-      .sign-line{text-align:center;font-size:8px}
-      .sign-line span{display:inline-block;border-top:1px solid #000;min-width:100px;margin-top:20px;padding-top:3px}
-      @media print{@page{size:80mm auto;margin:2mm}body{width:76mm}}
-    </style></head><body>
-      <div class="header"><div class="shop-urdu">${SHOP_INFO.name}</div><div class="shop-addr">${SHOP_INFO.address}</div><div class="shop-phones">${SHOP_INFO.phone1} | ${SHOP_INFO.phone2}</div><div class="gatepass-title">📋 GATE PASS</div><div class="banner">${SHOP_INFO.urduBanner}</div></div>
-      <div class="meta-row"><span><b>Invoice No:</b> ${sale.invoiceNo}</span><span><b>Date:</b> ${sale.invoiceDate}</span></div>
-      <div class="meta-row"><span><b>Customer:</b> ${customerName}</span>${customerPhone ? `<span><b>Phone:</b> ${customerPhone}</span>` : ""}</div>
-      <div class="meta-row"><span><b>Salesman:</b> ${username}</span><span><b>Time:</b> ${printTime}</span></div>
-      <hr class="divider-dash"><tr><thead><tr><th style="width:30px">#</th><th style="width:80px">Code</th><th>Product</th><th style="width:70px;text-align:center">Qty</th></tr></thead><tbody>${itemRows}</tbody></table>
-      <hr class="divider-solid"><div class="meta-row"><span><b>Total Items:</b> ${rows.length}</span><span><b>Total Qty:</b> ${totalQty}</span></div>
-      <div class="signature"><div class="sign-line">Issued By<span></span></div><div class="sign-line">Received By<span></span></div></div>
-      <div class="footer">${SHOP_INFO.devBy}</div>
+    
+    return `<!DOCTYPE html><html><head><meta charset="utf-8">${fontLinks}</head><body>
+      <div class="shop-name-line">${SHOP_INFO.name}</div>
+      <div class="sub-header">${SHOP_INFO.address}</div>
+      <div class="contact-line">${SHOP_INFO.phone1} | ${SHOP_INFO.phone2}</div>
+      <div class="banner-text urdu">${SHOP_INFO.urduBanner}</div>
+      <div class="inv-header"><span><b>Invoice:</b> ${sale.invoiceNo}</span><span><b>Date:</b> ${sale.invoiceDate}</span></div>
+      <div class="cust-row"><b>Customer:</b> <span class="urdu">${customerName}</span></div>
+      <hr class="divider-dash">
+      <table><thead><tr><th style="width:20px">#</th><th style="width:50px">Code</th><th>Product</th><th style="width:45px;text-align:center">Qty</th></tr></thead><tbody>${itemRows}</tbody></table>
+      <hr class="divider-solid">
+      <div class="summary-row"><span><b>Total Items:</b> ${rows.length}</span><span><b>Total Qty:</b> ${totalQty}</span></div>
+      <div class="terms urdu">${SHOP_INFO.urduTerms.replace(/\n/g, "<br>")}</div>
+      <div class="devby">${SHOP_INFO.devBy}</div>
     </body></html>`;
   }
 
   if (type === "Thermal") {
     const itemRows = rows.map((it) => `
-      <tr>
-        <td style="font-size:9px;vertical-align:top">${it.sr}</td>
-        <td style="font-size:9.5px;vertical-align:top;word-break:break-word;max-width:100px">${it.name}</td>
-        <td style="font-size:9px;vertical-align:top;text-align:right">${it.pcs} ${it.uom || ""}</td>
-        <td style="font-size:9px;vertical-align:top;text-align:right">${Number(it.rate).toLocaleString()}</td>
-        <td style="font-size:9px;vertical-align:top;text-align:right"><b>${Number(it.amount).toLocaleString()}</b></td>
-      </tr>
+      <tr><td style="padding:2px 1px">${it.sr}</td><td class="urdu" style="padding:2px 1px;font-size:10px">${it.name.substring(0, 30)}</td><td class="r" style="padding:2px 1px">${it.pcs}</td><td class="r" style="padding:2px 1px">${Number(it.rate).toLocaleString()}</td><td class="r" style="padding:2px 1px;font-weight:bold">${Number(it.amount).toLocaleString()}</td></tr>
     `).join("");
-    return `<!DOCTYPE html><html><head><meta charset="utf-8">${googleFontLink}<style>
-      *{box-sizing:border-box;margin:0;padding:0}
-      body{font-family:'Courier New',Courier,monospace;font-size:10px;width:80mm;margin:0 auto;padding:2mm 3mm;color:#000}
-      .shop-urdu{font-size:16px;font-weight:bold;text-align:center;margin-bottom:2px;font-family:${urduFont};direction:rtl}
-      .shop-addr{font-size:9px;text-align:center;margin-bottom:1px;font-family:${urduFont};direction:rtl}
-      .shop-phones{font-size:8.5px;text-align:center;font-weight:bold;margin-bottom:3px}
-      .banner{background:#555;color:#fff;font-size:8px;text-align:center;padding:2px 4px;margin:3px 0;font-family:${urduFont};direction:rtl;line-height:1.8}
-      .meta-row{display:flex;justify-content:space-between;font-size:9px;margin:2px 0}
-      .meta-bold{font-weight:bold;font-size:10px}
-      .divider-solid{border:none;border-top:2px solid #000;margin:3px 0}
-      .divider-dash{border:none;border-top:1px dashed #666;margin:3px 0}
-      table{width:100%;border-collapse:collapse}
-      thead tr{border-bottom:1px solid #000}
-      th{font-size:8.5px;font-weight:bold;padding:2px 1px;text-align:left}
-      th.r{text-align:right}
-      td{padding:2px 1px;font-size:9px;vertical-align:top}
-      .sum-row{display:flex;justify-content:space-between;font-size:10px;padding:1.5px 0}
-      .sum-row.bold{font-weight:bold;font-size:11px}
-      .sum-row.sep{border-top:1px dashed #555;margin-top:2px;padding-top:2px}
-      .red{color:#b00}.green{color:#060}
-      .totals-box{margin-top:4px}
-      .terms{font-family:${urduFont};direction:rtl;font-size:9px;color:#333;border:1px dashed #999;padding:4px;margin-top:4px;line-height:2;text-align:right}
-      .devby{text-align:center;font-size:7.5px;color:#777;margin-top:4px;border-top:1px dashed #ccc;padding-top:3px}
-      @media print{@page{size:80mm auto;margin:1mm}body{width:78mm}}
-    </style></head><body>
-      <div class="shop-urdu">${SHOP_INFO.name}</div><div class="shop-addr">${SHOP_INFO.address}</div><div class="shop-phones">${SHOP_INFO.phone1}, ${SHOP_INFO.phone2}, ${SHOP_INFO.phone3}</div>
-      <div class="banner">${SHOP_INFO.urduBanner}</div>
-      <div class="meta-row"><span><b>Sales Invoice</b></span><span><b>${username}</b></span><span>${new Date().toLocaleTimeString()}</span></div>
-      <hr class="divider-dash"><div class="meta-row"><span class="meta-bold">${sale.invoiceNo}</span><span>${sale.invoiceDate}</span></div>
-      <div class="meta-row"><span>Customer:</span></div><div style="font-size:10px;font-weight:bold;margin-bottom:1px">${customerName}</div>
-      ${customerPhone ? `<div style="font-size:9px;color:#555">${customerPhone}</div>` : ""}
-      <div class="meta-row"><span style="font-size:9px;color:#555">Items: ${rows.length}</span></div><div class="meta-row"><span style="font-size:9px;color:#555">Salesman: ${username}</span></div>
+    
+    const isDuplicate = overrides.isDuplicate || false;
+    
+    return `<!DOCTYPE html><html><head><meta charset="utf-8">${fontLinks}</head><body>
+      <div class="shop-name-line">${SHOP_INFO.name}</div>
+      <div class="sub-header">${SHOP_INFO.address}</div>
+      <div class="contact-line"><b>${SHOP_INFO.phone1}</b> | ${SHOP_INFO.phone2} | ${SHOP_INFO.phone3}</div>
+      <div class="banner-text urdu">${SHOP_INFO.urduBanner}</div>
+      <div class="inv-header"><span><b>Sales Invoice</b></span><span><b>${username}</b></span><span>${new Date().toLocaleTimeString()}</span></div>
+      <hr class="divider-dash">
+      <div class="inv-header"><span><b>${sale.invoiceNo}</b></span><span>${sale.invoiceDate}</span></div>
+      ${isDuplicate ? '<div class="duplicate-badge" style="color:#c00;">** Duplicate **</div>' : ''}
+      <div class="cust-row"><b>Customer:</b> <span class="urdu" style="font-size:11px;font-weight:bold">${customerName}</span></div>
+      ${customerPhone ? `<div class="cust-row" style="font-size:8px;color:#555">${customerPhone}</div>` : ""}
       <hr class="divider-solid">
-      <table><thead><tr><th style="width:20px">#</th><th>Product</th><th class="r">Qty</th><th class="r">Rate</th><th class="r">Amount</th></tr></thead><tbody>${itemRows}</tbody></table>
-      <hr class="divider-dash"><div class="totals-box"><div style="display:flex;justify-content:space-between;font-size:9px;margin-bottom:2px"><span>T.Qty: <b>${totalQty}</b></span><span>T.Items: <b>${rows.length}</b></span></div>
-      ${sale.extraDisc > 0 ? `<div class="sum-row red"><span>(−) Discount</span><span>${Number(sale.extraDisc).toLocaleString()}</span></div>` : ""}
-      <div class="sum-row bold sep"><span>Sub Total:</span><span>${Number(sale.netTotal).toLocaleString()}</span></div>
-      ${sale.prevBalance > 0 ? `<div class="sum-row red"><span>(+) Prev. Bal.</span><span>${Number(sale.prevBalance).toLocaleString()}</span></div>` : ""}
-      <div class="sum-row green"><span>Received:</span><span>PKR ${Number(sale.paidAmount).toLocaleString()}</span></div>
-      <div class="sum-row bold sep ${sale.balance > 0 ? "red" : "green"}"><span>Balance:</span><span>PKR ${Number(sale.balance).toLocaleString()}</span></div></div>
-      <div class="terms">${SHOP_INFO.urduTerms.replace(/\n/g, "<br>")}</div><div class="devby">${SHOP_INFO.devBy}</div>
+      <table><thead><tr><th style="width:22px">#</th><th>Product</th><th class="r" style="width:35px">Qty</th><th class="r" style="width:45px">Rate</th><th class="r" style="width:50px">Amount</th></tr></thead><tbody>${itemRows}</tbody></table>
+      <hr class="divider-dash">
+      <div class="summary-row"><span>T.Qty: <b>${totalQty}</b></span><span>T.Items: <b>${rows.length}</b></span></div>
+      ${sale.extraDisc > 0 ? `<div class="summary-row" style="color:#c00"><span>Discount:</span><span>-${Number(sale.extraDisc).toLocaleString()}</span></div>` : ""}
+      <div class="summary-row bold"><span>Sub Total:</span><span>${Number(sale.netTotal).toLocaleString()}</span></div>
+      ${sale.prevBalance > 0 ? `<div class="summary-row" style="color:#c00"><span>Prev. Bal:</span><span>${Number(sale.prevBalance).toLocaleString()}</span></div>` : ""}
+      <div class="summary-row" style="color:#060"><span>Received:</span><span>PKR ${Number(sale.paidAmount).toLocaleString()}</span></div>
+      <div class="summary-row bold ${sale.balance > 0 ? 'red' : 'green'}"><span>Balance:</span><span>PKR ${Number(sale.balance).toLocaleString()}</span></div>
+      <div class="terms urdu">${SHOP_INFO.urduTerms.replace(/\n/g, "<br>")}</div>
+      <div class="devby">${SHOP_INFO.devBy}</div>
     </body></html>`;
   }
 
-  // A4/A5 format
+  // A4/A5 format - Similar to Thermal but wider
   const a5 = type === "A5";
-  const LINES_PER_PAGE = a5 ? 22 : 28;
+  const LINES_PER_PAGE = a5 ? 24 : 30;
   const pages = [];
   for (let i = 0; i < rows.length; i += LINES_PER_PAGE) pages.push(rows.slice(i, i + LINES_PER_PAGE));
   if (pages.length === 0) pages.push([]);
-  const sz = a5 ? { sub: 8.5, meta: 8, th: 8, td: 8, tot: 9, totB: 10.5 } : { sub: 9.5, meta: 9, th: 9, td: 9, tot: 10, totB: 13 };
+  const sz = a5 ? { sub: 10, meta: 10, th: 10, td: 10, tot: 11, totB: 13 } : { sub: 11, meta: 11, th: 11, td: 11, tot: 12, totB: 14 };
 
   const buildPageHtml = (pageRows, pageNum, totalPages, isLastPage) => {
-    const itemRows = pageRows.map((it, i) => `<tr style="background:${i % 2 === 0 ? "#fff" : "#f7faff"}"><td style="text-align:center">${it.sr}</td><td>${it.name}</td><td>${it.uom || "—"}</td><td style="text-align:right">${it.pcs}${!hidePrices ? `<td style="text-align:right">${Number(it.rate).toLocaleString()}</td><td style="text-align:right"><b>${Number(it.amount).toLocaleString()}</b></td>` : '<td colspan="2" style="text-align:center;color:#888">[Price Hidden]</td>'}</td>`).join("");
-    const headerHtml = `<div class="hdr"><div class="hdr-center"><div class="shop-urdu">${SHOP_INFO.name}</div><div class="shop-addr">${SHOP_INFO.address}</div><div class="shop-phones">${SHOP_INFO.phone1}, ${SHOP_INFO.phone2}, ${SHOP_INFO.phone3}</div></div></div><div class="banner">${SHOP_INFO.urduBanner}</div>`;
-    const metaHtml = pageNum === 1 ? `<div class="meta-strip"><div class="meta-left"><div class="meta-row"><span class="meta-lbl">Name:</span> <span class="meta-val">${customerName}</span></div>${customerPhone ? `<div class="meta-row"><span class="meta-val">${customerPhone}</span></div>` : ""}<div class="meta-row"><span class="meta-lbl">Salesman:</span> <span class="meta-val">${username}</span></div></div><div class="meta-mid"><span class="meta-val">${rows.length}</span></div><div class="meta-right"><div class="meta-row"><span class="meta-lbl">Invoice #:</span> <span class="meta-val">${sale.invoiceNo}</span></div><div class="meta-row"><span class="meta-lbl">Date &amp; Time:</span> <span class="meta-val">${sale.invoiceDate} ${new Date().toLocaleTimeString()}</span></div></div></div>` : `<div style="display:flex;justify-content:space-between;font-size:${sz.sub}pt;color:#555;margin-bottom:4px;padding:2px 0;border-bottom:1px solid #ddd"><span>${customerName}</span><span>Page ${pageNum} of ${totalPages}</span><span>Invoice # ${sale.invoiceNo}</span></div>`;
-    const footerHtml = isLastPage && !hidePrices ? `<div class="footer-wrap"><div class="footer-left"><div class="footer-stat">Total No. of Items: <b>${rows.length}</b></div><div class="footer-stat">Salesman: <b>${username}</b></div><div class="terms-box">${SHOP_INFO.urduTerms.replace(/\n/g, "<br>")}</div><div class="sig-line">Signature</div></div><div class="footer-right">${sale.extraDisc > 0 ? `<div class="sum-row red"><span>(−) Discount</span><span>${Number(sale.extraDisc).toLocaleString()}</span></div>` : ""}<div class="sum-row bold"><span>Sub Total:</span><span>${Number(sale.netTotal).toLocaleString()}</span></div>${sale.prevBalance > 0 ? `<div class="sum-row red"><span>(+) Prev. Balance</span><span>PKR ${Number(sale.prevBalance).toLocaleString()}</span></div>` : ""}<div class="sum-row green"><span>Received:</span><span>PKR ${Number(sale.paidAmount).toLocaleString()}</span></div><div class="sum-row bold ${sale.balance > 0 ? "red" : "green"} sep"><span>Balance Due:</span><span>PKR ${Number(sale.balance).toLocaleString()}</span></div></div></div><div class="devby">${SHOP_INFO.devBy}</div>` : isLastPage && hidePrices ? `<div class="footer-wrap"><div class="footer-left"><div class="footer-stat">Total No. of Items: <b>${rows.length}</b></div><div class="footer-stat">Total Quantity: <b>${totalQty}</b></div><div class="footer-stat">Salesman: <b>${username}</b></div><div class="terms-box">${SHOP_INFO.urduTerms.replace(/\n/g, "<br>")}</div><div class="sig-line">Signature</div></div><div class="footer-right" style="text-align:center"><div class="sum-row" style="justify-content:center;color:#888">GATE PASS - Prices Hidden</div></div></div><div class="devby">${SHOP_INFO.devBy}</div>` : `<div style="text-align:right;font-size:${sz.sub}pt;color:#888;margin-top:4px">Page ${pageNum} of ${totalPages} — Continued...</div>`;
-    return `<div class="page"${pageNum > 1 ? ' style="page-break-before:always"' : ""}>${headerHtml}${metaHtml}<td><thead><tr><th style="width:28px;text-align:center">Sr.#</th><th>Product</th><th style="width:50px">Unit</th><th style="width:42px;text-align:right">Qty</th>${!hidePrices ? '<th style="width:70px;text-align:right">Rate</th><th style="width:80px;text-align:right">Amount</th>' : '<th colspan="2" style="text-align:center">Gate Pass Copy</th>'}</tr></thead><tbody>${itemRows}</tbody></table>${footerHtml}</div>`;
+    const itemRows = pageRows.map((it, i) => `
+      <tr><td style="text-align:center;padding:3px">${it.sr}</td><td class="urdu" style="padding:3px;font-size:${sz.td}px">${it.name}</td><td style="text-align:center;padding:3px">${it.uom || "—"}</td><td style="text-align:right;padding:3px">${it.pcs}</td>${!hidePrices ? `<td style="text-align:right;padding:3px">${Number(it.rate).toLocaleString()}</td><td style="text-align:right;padding:3px;font-weight:bold">${Number(it.amount).toLocaleString()}</td>` : '<td colspan="2" style="text-align:center;padding:3px">[HIDDEN]</td>'}</tr>
+    `).join("");
+    
+    const headerHtml = `<div><div class="shop-name-line">${SHOP_INFO.name}</div><div class="sub-header">${SHOP_INFO.address}</div><div class="contact-line">${SHOP_INFO.phone1} | ${SHOP_INFO.phone2} | ${SHOP_INFO.phone3}</div><div class="banner-text urdu-bold">${SHOP_INFO.urduBanner}</div></div>`;
+    
+    const metaHtml = pageNum === 1 ? `<div class="meta-box" style="border:1px solid #000;padding:5px;margin:6px 0"><div><b>Customer:</b> <span class="urdu-bold" style="font-size:${sz.meta}px">${customerName}</span></div>${customerPhone ? `<div><b>Phone:</b> ${customerPhone}</div>` : ""}<div><b>Salesman:</b> ${username}</div><div><b>Invoice:</b> ${sale.invoiceNo}</div><div><b>Date:</b> ${sale.invoiceDate}</div><div><b>Items:</b> ${rows.length}</div></div>` : `<div style="padding:3px;margin:4px 0;border-bottom:1px solid #ccc">${customerName} | Page ${pageNum}/${totalPages} | ${sale.invoiceNo}</div>`;
+    
+    const footerHtml = isLastPage && !hidePrices ? `<div style="display:flex;gap:10px;margin-top:8px"><div style="flex:1.2"><div><b>Total Items:</b> ${rows.length}</div><div class="terms urdu" style="border:1px dashed #999;padding:5px;margin:6px 0">${SHOP_INFO.urduTerms.replace(/\n/g, "<br>")}</div><div style="margin-top:12px;border-top:1px solid #000;display:inline-block;padding-top:3px;min-width:100px">Signature</div></div><div style="flex:0.8;border:1px solid #000;padding:6px">${sale.extraDisc > 0 ? `<div style="display:flex;justify-content:space-between;margin:2px 0"><span>Discount:</span><span>-${Number(sale.extraDisc).toLocaleString()}</span></div>` : ""}<div style="display:flex;justify-content:space-between;margin:2px 0;font-weight:bold"><span>Sub Total:</span><span>${Number(sale.netTotal).toLocaleString()}</span></div>${sale.prevBalance > 0 ? `<div style="display:flex;justify-content:space-between;margin:2px 0;color:#c00"><span>Prev Bal:</span><span>${Number(sale.prevBalance).toLocaleString()}</span></div>` : ""}<div style="display:flex;justify-content:space-between;margin:2px 0;color:#060"><span>Received:</span><span>PKR ${Number(sale.paidAmount).toLocaleString()}</span></div><div style="display:flex;justify-content:space-between;margin:2px 0;font-weight:bold;${sale.balance > 0 ? 'color:#c00' : 'color:#060'}"><span>Balance:</span><span>PKR ${Number(sale.balance).toLocaleString()}</span></div></div></div><div class="devby">${SHOP_INFO.devBy}</div>` : isLastPage && hidePrices ? `<div style="display:flex;gap:10px;margin-top:8px"><div style="flex:1.2"><div><b>Total Items:</b> ${rows.length}</div><div><b>Total Qty:</b> ${totalQty}</div><div class="terms urdu">${SHOP_INFO.urduTerms.replace(/\n/g, "<br>")}</div><div style="margin-top:12px;border-top:1px solid #000;display:inline-block;padding-top:3px">Signature</div></div><div style="flex:0.8;text-align:center;border:1px solid #000;padding:6px">GATE PASS - Prices Hidden</div></div><div class="devby">${SHOP_INFO.devBy}</div>` : `<div style="text-align:right;margin-top:4px">Page ${pageNum}/${totalPages} ...</div>`;
+    
+    return `<div class="page"${pageNum > 1 ? ' style="page-break-before:always"' : ""}>${headerHtml}${metaHtml}<table style="width:100%;border-collapse:collapse;margin:6px 0"><thead><tr style="border-bottom:1px solid #000"><th style="width:25px;padding:4px">#</th><th style="padding:4px">Product</th><th style="width:45px;padding:4px">Unit</th><th style="width:40px;padding:4px">Qty</th>${!hidePrices ? '<th style="width:55px;padding:4px">Rate</th><th style="width:65px;padding:4px">Amount</th>' : '<th colspan="2" style="padding:4px">Gate Pass</th>'}</tr></thead><tbody>${itemRows}</tbody></table>${footerHtml}</div>`;
   };
+  
   const allPagesHtml = pages.map((pageRows, idx) => buildPageHtml(pageRows, idx + 1, pages.length, idx === pages.length - 1)).join("");
-  return `<!DOCTYPE html><html><head><meta charset="utf-8">${googleFontLink}<style>
-    *{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,Helvetica,sans-serif;font-size:${sz.td}pt;color:#111;background:#fff;padding:${a5 ? "5mm" : "8mm"}}
-    .shop-urdu{font-size:${a5 ? "20px" : "26px"};font-weight:900;font-family:${urduFont};direction:rtl;text-align:center;line-height:2}
-    .shop-addr{font-size:${sz.sub}pt;color:#444;text-align:center;font-family:${urduFont};direction:rtl;margin:2px 0;line-height:1.8}
-    .shop-phones{font-size:${sz.sub}pt;font-weight:bold;text-align:center;margin-bottom:2px}
-    .banner{background:#555;color:#fff;font-size:${a5 ? "7.5" : "8.5"}pt;text-align:center;padding:${a5 ? "2px 6px" : "3px 8px"};margin:${a5 ? "3px 0" : "4px 0"};font-family:${urduFont};direction:rtl;line-height:2}
-    .hdr{text-align:center;border-bottom:2px solid #000;padding-bottom:${a5 ? "5px" : "8px"};margin-bottom:4px}
-    .meta-strip{display:flex;justify-content:space-between;align-items:flex-start;border:1px solid #ccc;padding:${a5 ? "4px 8px" : "5px 10px"};margin:${a5 ? "4px 0" : "5px 0"};font-size:${sz.meta}pt}
-    .meta-left{flex:2}.meta-mid{flex:0.5;text-align:center;font-size:${a5 ? "18px" : "22px"};font-weight:900;color:#555}.meta-right{flex:2;text-align:right}
-    .meta-row{margin-bottom:1px}.meta-lbl{color:#555}.meta-val{font-weight:700}
-    table{width:100%;border-collapse:collapse;margin:${a5 ? "4px 0" : "5px 0"}}thead tr{background:#333;color:#fff}
-    th{padding:${a5 ? "3px 5px" : "5px 7px"};font-size:${sz.th}pt;font-weight:600;text-align:left}
-    td{padding:${a5 ? "2px 5px" : "3px 7px"};font-size:${sz.td}pt;border-bottom:1px solid #e0e0e0}
-    .footer-wrap{display:flex;justify-content:space-between;align-items:flex-start;margin-top:${a5 ? "6px" : "10px"};gap:10px}
-    .footer-left{flex:1.5}.footer-right{flex:1;border:1px solid #ccc;padding:${a5 ? "4px 8px" : "5px 10px"}}
-    .footer-stat{font-size:${sz.meta}pt;font-weight:bold;margin-bottom:4px}
-    .terms-box{font-family:${urduFont};direction:rtl;font-size:${a5 ? "8" : "9"}pt;color:#444;border:1px dashed #aaa;padding:${a5 ? "3px 6px" : "5px 8px"};margin:${a5 ? "4px 0" : "5px 0"};line-height:2;text-align:right}
-    .sig-line{font-size:${sz.sub}pt;margin-top:${a5 ? "8px" : "14px"};border-top:1px solid #999;display:inline-block;padding-top:2px;min-width:120px}
-    .sum-row{display:flex;justify-content:space-between;font-size:${sz.tot}pt;padding:${a5 ? "3px 0" : "4px 0"};border-bottom:1px solid #eee}
-    .sum-row.bold{font-weight:700;font-size:${sz.totB}pt;background:#f5f5f5;padding:${a5 ? "3px 4px" : "4px 6px"}}
-    .sum-row.sep{border-top:2px solid #333;margin-top:2px}.red{color:#c00}.green{color:#1a7a1a}
-    .devby{text-align:center;font-size:${a5 ? "7" : "8"}pt;color:#888;margin-top:${a5 ? "6px" : "10px"};border-top:1px solid #ddd;padding-top:${a5 ? "4px" : "6px"}}
-    .page{margin-bottom:0}@media print{@page{size:${a5 ? "A5" : "A4"};margin:${a5 ? "4mm" : "8mm"}}body{padding:0}}
+  
+  return `<!DOCTYPE html><html><head><meta charset="utf-8">${fontLinks}<style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:${englishFont};font-size:${sz.td}px;background:#fff;padding:4mm 3mm 3mm 3mm;color:#000}
+    .shop-name-line{font-family:${urduFont};font-size:${a5 ? "22" : "26"}px;font-weight:700;direction:rtl;text-align:center;margin-bottom:4px}
+    .sub-header{font-family:${urduFont};font-size:${sz.sub}px;font-weight:500;text-align:center;direction:rtl;margin-bottom:2px}
+    .contact-line{font-size:${sz.sub}px;font-weight:bold;text-align:center;margin-bottom:3px}
+    .banner-text{background:#fff;color:#000;font-family:${urduFont};font-size:${a5 ? "11" : "12"}px;font-weight:700;text-align:center;padding:4px;margin:4px 0;border:1px solid #000}
+    .meta-box{border:1px solid #000;padding:5px;margin:6px 0}
+    table{width:100%;border-collapse:collapse;margin:6px 0}
+    thead tr{border-bottom:1px solid #000}
+    th{font-size:${sz.th}px;font-weight:bold;padding:4px 2px;text-align:left}
+    td{padding:3px 2px;font-size:${sz.td}px;border-bottom:0.5px solid #ddd}
+    .terms{font-family:${urduFont};font-size:11px;font-weight:500;border:0.5px dashed #999;padding:4px;margin:6px 0;text-align:right;direction:rtl}
+    .devby{text-align:center;font-size:8px;margin-top:6px;padding-top:3px;border-top:0.5px solid #ccc}
+    .page{margin-bottom:0}
+    @media print{@page{size:${a5 ? "A5" : "A4"};margin:${a5 ? "4mm" : "5mm"}}body{padding:4mm 3mm 3mm 3mm}}
   </style></head><body>${allPagesHtml}</body></html>`;
 };
 
@@ -487,7 +487,7 @@ function SaveConfirmModal({ salePayload, printType: defaultPrintType, onConfirm,
 }
 
 /* ══════════════════════════════════════════════════════════
-   PRODUCT SEARCH MODAL - WITH CENTERED STOCK
+   PRODUCT SEARCH MODAL - WITH CENTERED STOCK (FIXED)
 ══════════════════════════════════════════════════════════ */
 function SearchModal({ allProducts, onSelect, onClose }) {
   const [desc, setDesc] = useState("");
@@ -546,24 +546,91 @@ function SearchModal({ allProducts, onSelect, onClose }) {
   return (
     <div className="xp-overlay" onClick={(e) => e.target === e.currentTarget && onClose()} style={{ zIndex: 2000 }} onKeyDown={(e) => { if (e.key === "Escape") { e.stopPropagation(); onClose(); } if (e.key === "F2") { e.stopPropagation(); onClose(); } }}>
       <div className="xp-modal" style={{ width: "95%", maxWidth: "1400px", height: "85vh", maxHeight: "85vh", display: "flex", flexDirection: "column", borderRadius: "12px", background: "#ffffff", border: "2px solid #000000" }}>
-        <div className="xp-modal-tb" style={{ background: "#1e40af", padding: "10px 16px", borderRadius: "10px 10px 0 0" }}><svg width="14" height="14" viewBox="0 0 16 16" fill="rgba(255,255,255,0.9)"><path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.044.06.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1 1 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0"/></svg><span className="xp-modal-title" style={{ fontSize: "15px", fontWeight: "bold", color: "#ffffff" }}>Search Products (Press F2 or ESC to close)</span><button className="xp-cap-btn xp-cap-close" onClick={onClose} style={{ color: "#ffffff", fontSize: "18px" }}>✕</button></div>
+        <div className="xp-modal-tb" style={{ background: "#1e40af", padding: "10px 16px", borderRadius: "10px 10px 0 0" }}>
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="rgba(255,255,255,0.9)">
+            <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.044.06.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1 1 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0"/>
+          </svg>
+          <span className="xp-modal-title" style={{ fontSize: "15px", fontWeight: "bold", color: "#ffffff" }}>Search Products (Press F2 or ESC to close)</span>
+          <button className="xp-cap-btn xp-cap-close" onClick={onClose} style={{ color: "#ffffff", fontSize: "18px" }}>✕</button>
+        </div>
         <div className="cs-modal-filters" style={{ padding: "8px 12px", gap: "10px", background: "#f8fafc", borderBottom: "1px solid #000000", flexWrap: "wrap" }}>
-          <div className="cs-modal-filter-grp" style={{ flex: 2, minWidth: "200px" }}><label className="xp-label" style={{ fontSize: "11px", fontWeight: "bold", color: "#000000" }}>Description / Code</label><input ref={rDesc} type="text" className="xp-input" value={desc} onChange={(e) => setDesc(e.target.value)} onKeyDown={(e) => fk(e, rCat)} autoComplete="off" style={{ height: "32px", fontSize: "12px", border: "1px solid #000000", borderRadius: "4px", width: "100%", padding: "0 8px" }}/></div>
-          <div className="cs-modal-filter-grp" style={{ flex: 1, minWidth: "140px" }}><label className="xp-label" style={{ fontSize: "11px", fontWeight: "bold", color: "#000000" }}>Category</label><input ref={rCat} type="text" className="xp-input" value={cat} onChange={(e) => setCat(e.target.value)} onKeyDown={(e) => fk(e, rCompany)} autoComplete="off" style={{ height: "32px", fontSize: "12px", border: "1px solid #000000", borderRadius: "4px", width: "100%", padding: "0 8px" }}/></div>
-          <div className="cs-modal-filter-grp" style={{ flex: 1, minWidth: "140px" }}><label className="xp-label" style={{ fontSize: "11px", fontWeight: "bold", color: "#000000" }}>Company</label><input ref={rCompany} type="text" className="xp-input" value={company} onChange={(e) => setCompany(e.target.value)} onKeyDown={(e) => fk(e, null)} autoComplete="off" style={{ height: "32px", fontSize: "12px", border: "1px solid #000000", borderRadius: "4px", width: "100%", padding: "0 8px" }}/></div>
-          <div style={{ display: "flex", alignItems: "flex-end", gap: "6px", paddingBottom: "2px" }}><span style={{ fontSize: "11px", color: "#000000", fontWeight: "bold" }}>{rows.length} result(s)</span><button className="xp-btn xp-btn-sm" onClick={onClose} style={{ fontSize: "11px", padding: "4px 12px", border: "1px solid #000000", borderRadius: "4px", fontWeight: "bold" }}>Close</button></div>
+          <div className="cs-modal-filter-grp" style={{ flex: 2, minWidth: "200px" }}>
+            <label className="xp-label" style={{ fontSize: "11px", fontWeight: "bold", color: "#000000" }}>Description / Code</label>
+            <input ref={rDesc} type="text" className="xp-input" value={desc} onChange={(e) => setDesc(e.target.value)} onKeyDown={(e) => fk(e, rCat)} autoComplete="off" style={{ height: "32px", fontSize: "12px", border: "1px solid #000000", borderRadius: "4px", width: "100%", padding: "0 8px" }}/>
+          </div>
+          <div className="cs-modal-filter-grp" style={{ flex: 1, minWidth: "140px" }}>
+            <label className="xp-label" style={{ fontSize: "11px", fontWeight: "bold", color: "#000000" }}>Category</label>
+            <input ref={rCat} type="text" className="xp-input" value={cat} onChange={(e) => setCat(e.target.value)} onKeyDown={(e) => fk(e, rCompany)} autoComplete="off" style={{ height: "32px", fontSize: "12px", border: "1px solid #000000", borderRadius: "4px", width: "100%", padding: "0 8px" }}/>
+          </div>
+          <div className="cs-modal-filter-grp" style={{ flex: 1, minWidth: "140px" }}>
+            <label className="xp-label" style={{ fontSize: "11px", fontWeight: "bold", color: "#000000" }}>Company</label>
+            <input ref={rCompany} type="text" className="xp-input" value={company} onChange={(e) => setCompany(e.target.value)} onKeyDown={(e) => fk(e, null)} autoComplete="off" style={{ height: "32px", fontSize: "12px", border: "1px solid #000000", borderRadius: "4px", width: "100%", padding: "0 8px" }}/>
+          </div>
+          <div style={{ display: "flex", alignItems: "flex-end", gap: "6px", paddingBottom: "2px" }}>
+            <span style={{ fontSize: "11px", color: "#000000", fontWeight: "bold" }}>{rows.length} result(s)</span>
+            <button className="xp-btn xp-btn-sm" onClick={onClose} style={{ fontSize: "11px", padding: "4px 12px", border: "1px solid #000000", borderRadius: "4px", fontWeight: "bold" }}>Close</button>
+          </div>
         </div>
         <div className="xp-modal-body" style={{ padding: 0, flex: 1, overflow: "hidden" }}>
           <div className="xp-table-panel" style={{ border: "none", height: "100%" }}>
             <div className="xp-table-scroll" style={{ height: "100%", overflow: "auto", maxHeight: "calc(85vh - 110px)" }}>
               <table className="xp-table" style={{ fontSize: "12px", borderCollapse: "collapse", width: "100%", border: "1px solid #000000" }}>
-                <thead><tr style={{ background: "#f1f5f9", position: "sticky", top: 0, zIndex: 10 }}><th style={{ width: 40, padding: "8px 4px", textAlign: "center", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold" }}>#</th><th style={{ width: 90, padding: "8px 4px", textAlign: "left", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold" }}>Code</th><th style={{ padding: "8px 4px", textAlign: "left", border: "1px solid #000000", fontSize: "13px", fontWeight: "bold" }}>Product Name</th><th style={{ width: 60, padding: "8px 4px", textAlign: "center", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold" }}>Unit</th><th style={{ width: 85, padding: "8px 4px", textAlign: "right", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold" }}>Rate</th><th style={{ width: 110, padding: "8px 4px", textAlign: "center", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold" }}>Stock</th><th style={{ width: 55, padding: "8px 4px", textAlign: "right", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold" }}>Pack</th><th style={{ width: 65, padding: "8px 4px", textAlign: "center", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold" }}>Rack</th></tr></thead>
-                <tbody ref={tbodyRef} tabIndex={0} onKeyDown={tk}>{rows.length === 0 && <tr><td colSpan={8} className="xp-empty" style={{ padding: "30px", textAlign: "center", color: "#000000", fontSize: "12px", fontWeight: "bold" }}>No products found</td></tr>}{rows.map((r, i) => { const stockStatus = getStockStatusForModal(r._stock); return (<tr key={`${r._id}-${r._pi}`} style={{ background: i === hiIdx ? "#0a4aa4" : "white", color: i === hiIdx ? "white" : "black", cursor: "pointer" }} onClick={() => setHiIdx(i)} onDoubleClick={() => onSelect(r)}><td style={{ padding: "6px 4px", textAlign: "center", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold" }}>{i + 1}</td><td style={{ padding: "6px 4px", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold" }}>{r.code}</td><td style={{ padding: "6px 4px", border: "1px solid #000000", fontSize: "13px", fontWeight: "bold" }}><button className="xp-link-btn" style={{ textDecoration: "none", fontWeight: "bold", fontSize: "13px", background: "none", border: "none", cursor: "pointer", width: "100%", textAlign: "left", padding: "0", color: i === hiIdx ? "white" : "black" }}>{r._name}</button></td><td style={{ padding: "6px 4px", textAlign: "center", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold" }}>{r._meas}</td><td style={{ padding: "6px 4px", textAlign: "right", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold" }}>{Number(r._rate).toLocaleString("en-PK")}</td><td style={{ padding: "6px 4px", textAlign: "center", border: "1px solid #000000", fontSize: "12px", fontWeight: "bold", backgroundColor: i === hiIdx ? (stockStatus.color + "40") : stockStatus.bg, color: stockStatus.color }}><span style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "6px", whiteSpace: "nowrap" }}><span style={{ fontSize: "14px" }}>{stockStatus.icon}</span><span>{r._stock}</span><span style={{ fontSize: "10px", fontWeight: "normal" }}>{r._meas}</span></span></td><td style={{ padding: "6px 4px", textAlign: "right", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold" }}>{r._pack}</td><td style={{ padding: "6px 4px", textAlign: "center", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold" }}>{r.rackNo || "—"}</td></tr>);})}</tbody>
+                <thead>
+                  <tr style={{ background: "#f1f5f9", position: "sticky", top: 0, zIndex: 10 }}>
+                    <th style={{ width: 40, padding: "8px 4px", textAlign: "center", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold" }}>#</th>
+                    <th style={{ width: 90, padding: "8px 4px", textAlign: "left", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold" }}>Code</th>
+                    <th style={{ padding: "8px 4px", textAlign: "left", border: "1px solid #000000", fontSize: "13px", fontWeight: "bold" }}>Product Name</th>
+                    <th style={{ width: 60, padding: "8px 4px", textAlign: "center", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold" }}>Unit</th>
+                    <th style={{ width: 85, padding: "8px 4px", textAlign: "right", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold" }}>Rate</th>
+                    <th style={{ width: 110, padding: "8px 4px", textAlign: "center", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold" }}>Stock</th>
+                    <th style={{ width: 55, padding: "8px 4px", textAlign: "right", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold" }}>Pack</th>
+                    <th style={{ width: 65, padding: "8px 4px", textAlign: "center", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold" }}>Rack</th>
+                  </tr>
+                </thead>
+                <tbody ref={tbodyRef} tabIndex={0} onKeyDown={tk}>
+                  {rows.length === 0 && (
+                    <tr>
+                      <td colSpan={8} className="xp-empty" style={{ padding: "30px", textAlign: "center", color: "#000000", fontSize: "12px", fontWeight: "bold" }}>No products found</td>
+                    </tr>
+                  )}
+                  {rows.map((r, i) => { 
+                    const stockStatus = getStockStatusForModal(r._stock); 
+                    return (
+                      <tr 
+                        key={`${r._id}-${r._pi}`} 
+                        style={{ background: i === hiIdx ? "#0a4aa4" : "white", color: i === hiIdx ? "white" : "black", cursor: "pointer" }} 
+                        onClick={() => setHiIdx(i)} 
+                        onDoubleClick={() => onSelect(r)}
+                      >
+                        <td style={{ padding: "6px 4px", textAlign: "center", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold" }}>{i + 1}</td>
+                        <td style={{ padding: "6px 4px", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold" }}>{r.code}</td>
+                        <td style={{ padding: "6px 4px", border: "1px solid #000000", fontSize: "13px", fontWeight: "bold" }}>
+                          <button className="xp-link-btn" style={{ textDecoration: "none", fontWeight: "bold", fontSize: "13px", background: "none", border: "none", cursor: "pointer", width: "100%", textAlign: "left", padding: "0", color: i === hiIdx ? "white" : "black" }}>
+                            {r._name}
+                          </button>
+                        </td>
+                        <td style={{ padding: "6px 4px", textAlign: "center", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold" }}>{r._meas}</td>
+                        <td style={{ padding: "6px 4px", textAlign: "right", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold" }}>{Number(r._rate).toLocaleString("en-PK")}</td>
+                        <td style={{ padding: "6px 4px", textAlign: "center", border: "1px solid #000000", fontSize: "12px", fontWeight: "bold", backgroundColor: i === hiIdx ? (stockStatus.color + "40") : stockStatus.bg, color: stockStatus.color }}>
+                          <span style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "6px", whiteSpace: "nowrap" }}>
+                            <span style={{ fontSize: "14px" }}>{stockStatus.icon}</span>
+                            <span>{r._stock}</span>
+                            <span style={{ fontSize: "10px", fontWeight: "normal" }}>{r._meas}</span>
+                          </span>
+                        </td>
+                        <td style={{ padding: "6px 4px", textAlign: "right", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold" }}>{r._pack}</td>
+                        <td style={{ padding: "6px 4px", textAlign: "center", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold" }}>{r.rackNo || "—"}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
               </table>
             </div>
           </div>
         </div>
-        <div className="cs-modal-hint" style={{ padding: "6px 12px", fontSize: "10px", color: "#000000", fontWeight: "bold", borderTop: "1px solid #000000", background: "#f8fafc", borderRadius: "0 0 10px 10px" }}>↑↓ navigate | Enter/Double-click = select | F2/Esc = close | Tab = filters</div>
+        <div className="cs-modal-hint" style={{ padding: "6px 12px", fontSize: "10px", color: "#000000", fontWeight: "bold", borderTop: "1px solid #000000", background: "#f8fafc", borderRadius: "0 0 10px 10px" }}>
+          ↑↓ navigate | Enter/Double-click = select | F2/Esc = close | Tab = filters
+        </div>
       </div>
     </div>
   );
@@ -595,7 +662,7 @@ function CustomerDropdown({ allCustomers, value, displayName, customerType, onSe
 /* ══════════════════════════════════════════════════════════
    STOCK UPDATE HELPER
 ══════════════════════════════════════════════════════════ */
-const updateProductStock = async (productId, uom, qtySold, allProducts, setAllProducts) => {
+const updateProductStock = async (productId, uom, qtySold, allProducts, setAllProducts, isRestore = false) => {
   try {
     const productRes = await api.get(EP.PRODUCTS.GET_ONE(productId));
     if (productRes.data.success && productRes.data.data) {
@@ -604,7 +671,7 @@ const updateProductStock = async (productId, uom, qtySold, allProducts, setAllPr
         const packingIndex = product.packingInfo.findIndex(pk => pk.measurement === uom);
         if (packingIndex !== -1) {
           const currentStock = product.packingInfo[packingIndex].openingQty || 0;
-          const newStock = Math.max(0, currentStock - qtySold);
+          const newStock = isRestore ? currentStock + qtySold : Math.max(0, currentStock - qtySold);
           product.packingInfo[packingIndex].openingQty = newStock;
           await api.put(EP.PRODUCTS.UPDATE(productId), { packingInfo: product.packingInfo });
           setAllProducts(prev => prev.map(p => p._id === productId ? { ...p, packingInfo: product.packingInfo } : p));
@@ -649,8 +716,6 @@ export default function SalePage() {
   const [printType, setPrintType] = useState("Thermal");
   const [sendSms, setSendSms] = useState(false);
   const [packingOptions, setPackingOptions] = useState([]);
-  const [packingOpen, setPackingOpen] = useState(false);
-  const [packingHiIdx, setPackingHiIdx] = useState(0);
   const packingRef = useRef(null);
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [pendingPayload, setPendingPayload] = useState(null);
@@ -666,8 +731,6 @@ export default function SalePage() {
   const pcsRef = useRef(null);
   const rateRef = useRef(null);
   const addRef = useRef(null);
-  const receivedRef = useRef(null);
-  const discRef = useRef(null);
   const saveRef = useRef(null);
   const statementRef = useRef(null);
   const [gatepassPrint, setGatepassPrint] = useState(false);
@@ -753,9 +816,45 @@ export default function SalePage() {
   const resumeHold = (holdId) => { const bill = holdBills.find((b) => b.id === holdId); if (!bill) return; setItems(bill.items); setCustomerId(bill.customerId || ""); setBuyerName(bill.buyerName || "COUNTER SALE"); setCustomerType(bill.customerType || ""); setPrevBalance(bill.prevBalance || 0); setExtraDiscount(bill.extraDiscount || 0); setPaymentMode(bill.paymentMode || "Cash"); setSaleSource(bill.saleSource || "cash"); setHoldBills((p) => p.filter((b) => b.id !== holdId)); setShowHoldPreview(null); resetCurRow(); };
   const deleteHold = (holdId, e) => { e.stopPropagation(); if (window.confirm("Delete this held bill?")) setHoldBills((p) => p.filter((b) => b.id !== holdId)); };
 
-  const loadSaleForEdit = (sale) => { setEditId(sale._id); let invNo = sale.invoiceNo; if (typeof invNo === 'string') { invNo = invNo.replace(/^INV-/i, ''); } setInvoiceNo(invNo); setInvoiceDate(sale.invoiceDate || isoDate()); const cust = allCustomers.find((c) => c._id === sale.customerId); if (cust) { setCustomerId(cust._id); setBuyerName(cust.name); setCustomerType(cust.customerType || cust.type || ""); setPrevBalance(sale.prevBalance || 0); setPaymentMode(sale.paymentMode || "Cash"); setSaleSource(sale.saleSource || "cash"); } else { setCustomerId(""); setBuyerName(sale.customerName || "COUNTER SALE"); setCustomerType(""); setPrevBalance(sale.prevBalance || 0); setPaymentMode(sale.paymentMode || "Cash"); setSaleSource(sale.saleSource || "cash"); } const loadedItems = (sale.items || []).map((it) => ({ productId: it.productId || it.product || "", code: it.code || "", name: it.name || it.description || "", uom: it.uom || it.measurement || "", rack: it.rack || "", pcs: it.pcs || it.qty || 1, rate: it.rate || 0, amount: it.amount || 0 })); setItems(loadedItems); setExtraDiscount(sale.extraDisc || 0); setReceived(sale.paidAmount || 0); resetCurRow(); showMsg(`✏ Editing Invoice ${invNo}`, "success"); setTimeout(() => searchRef.current?.focus(), 50); };
+  const loadSaleForEdit = (sale) => { 
+    setEditId(sale._id); 
+    setInvoiceNo(sale.invoiceNo); 
+    setInvoiceDate(sale.invoiceDate || isoDate()); 
+    const cust = allCustomers.find((c) => c._id === sale.customerId); 
+    if (cust) { 
+      setCustomerId(cust._id); 
+      setBuyerName(cust.name); 
+      setCustomerType(cust.customerType || cust.type || ""); 
+      setPrevBalance(sale.prevBalance || 0); 
+      setPaymentMode(sale.paymentMode || "Cash"); 
+      setSaleSource(sale.saleSource || "cash"); 
+    } else { 
+      setCustomerId(""); 
+      setBuyerName(sale.customerName || "COUNTER SALE"); 
+      setCustomerType(""); 
+      setPrevBalance(sale.prevBalance || 0); 
+      setPaymentMode(sale.paymentMode || "Cash"); 
+      setSaleSource(sale.saleSource || "cash"); 
+    } 
+    const loadedItems = (sale.items || []).map((it) => ({ 
+      productId: it.productId || it.product || "", 
+      code: it.code || "", 
+      name: it.name || it.description || "", 
+      uom: it.uom || it.measurement || "", 
+      rack: it.rack || "", 
+      pcs: it.pcs || it.qty || 1, 
+      rate: it.rate || 0, 
+      amount: it.amount || 0 
+    })); 
+    setItems(loadedItems); 
+    setExtraDiscount(sale.extraDisc || 0); 
+    setReceived(sale.paidAmount || 0); 
+    resetCurRow(); 
+    showMsg(`✏ Editing Invoice ${sale.invoiceNo}`, "success"); 
+    setTimeout(() => searchRef.current?.focus(), 50); 
+  };
 
-  const navInvoice = async (dir) => { try { const { data } = await api.get(EP.SALES.GET_ALL); if (!data.success || !data.data?.length) return; const allSales = data.data; const currentCleanNo = invoiceNo; const curIdx = allSales.findIndex((s) => { let saleNo = String(s.invoiceNo); saleNo = saleNo.replace(/^INV-/i, ''); return saleNo === currentCleanNo || saleNo === `INV-${currentCleanNo}`; }); let nextIdx = dir === "prev" ? curIdx - 1 : curIdx + 1; nextIdx = Math.max(0, Math.min(nextIdx, allSales.length - 1)); if (nextIdx === curIdx) return; loadSaleForEdit(allSales[nextIdx]); } catch { showMsg("Navigation failed", "error"); } };
+  const navInvoice = async (dir) => { try { const { data } = await api.get(EP.SALES.GET_ALL); if (!data.success || !data.data?.length) return; const allSales = data.data; const currentCleanNo = invoiceNo; const curIdx = allSales.findIndex((s) => s.invoiceNo === currentCleanNo); let nextIdx = dir === "prev" ? curIdx - 1 : curIdx + 1; nextIdx = Math.max(0, Math.min(nextIdx, allSales.length - 1)); if (nextIdx === curIdx) return; loadSaleForEdit(allSales[nextIdx]); } catch { showMsg("Navigation failed", "error"); } };
 
   const subTotal = items.reduce((s, r) => s + (parseFloat(r.amount) || 0), 0);
   const billAmount = subTotal - (parseFloat(extraDiscount) || 0);
@@ -766,8 +865,121 @@ export default function SalePage() {
 
   const openSaleConfirm = () => { if (!items.length) { alert("Add at least one item"); return; } if (customerId && customerType === "credit") { if (!creditStatement.trim()) { statementRef.current?.focus(); showMsg("Note likhna zaroori hai credit sale ke liye", "error"); return; } const payload = buildPayload(); setPendingPayload(payload); confirmSaveWithPayload(payload, { extraDisc: payload.extraDisc, netTotal: payload.netTotal, paidAmount: 0, balance: payload.netTotal + (parseFloat(prevBalance) || 0), printType, withPrint: true }); return; } const payload = buildPayload(); setPendingPayload(payload); setShowSaveModal(true); };
 
-  const confirmSaveWithPayload = async (payload, overrides) => { if (!payload) return; setLoading(true); try { const finalPayload = { ...payload, extraDisc: overrides.extraDisc, netTotal: overrides.netTotal, paidAmount: overrides.paidAmount, balance: overrides.balance, printType: overrides.printType }; const { data } = editId ? await api.put(EP.SALES.UPDATE(editId), finalPayload) : await api.post(EP.SALES.CREATE, finalPayload); if (data.success) { for (const item of payload.items) await updateProductStock(item.productId, item.uom, item.pcs, allProducts, setAllProducts); const productsRes = await api.get(EP.PRODUCTS.GET_ALL); if (productsRes.data.success) setAllProducts(productsRes.data.data); showMsg(editId ? "Sale updated!" : `Saved: ${data.data.invoiceNo}`); if (customerId) { try { const customerResponse = await api.get(`${EP.CUSTOMERS.GET_ALL}/${customerId}`); if (customerResponse.data && customerResponse.data.success && customerResponse.data.data) setPrevBalance(customerResponse.data.data.currentBalance || 0); } catch (err) { console.error("Failed to refresh customer balance:", err); } } const saleObj = { invoiceNo: data.data.invoiceNo, invoiceDate: finalPayload.invoiceDate, customerName: finalPayload.customerName, saleSource: finalPayload.saleSource, paymentMode: finalPayload.paymentMode, username: currentUsername, items: payload.items, subTotal: finalPayload.subTotal, extraDisc: overrides.extraDisc, netTotal: overrides.netTotal, prevBalance: finalPayload.prevBalance, paidAmount: overrides.paidAmount, balance: overrides.balance }; if (gatepassPrint) { doPrint(saleObj, "Gatepass", { customerName: finalPayload.customerName, hidePrices: true, username: currentUsername }); setGatepassPrint(false); } if (overrides.withPrint) { setPendingPrintSale(saleObj); setShowPrintModal(true); } setShowSaveModal(false); setPendingPayload(null); fullReset(); generateInvoiceNumber(api, EP, setInvoiceNo); } else { showMsg(data.message, "error"); } } catch (e) { showMsg(e.response?.data?.message || "Save failed", "error"); } setLoading(false); };
+  const confirmSaveWithPayload = async (payload, overrides) => { 
+    if (!payload) return; 
+    setLoading(true); 
+    try { 
+      const finalPayload = { ...payload, extraDisc: overrides.extraDisc, netTotal: overrides.netTotal, paidAmount: overrides.paidAmount, balance: overrides.balance, printType: overrides.printType }; 
+      
+      // For EDIT: Restore original stock first
+      if (editId) {
+        try {
+          const originalSaleRes = await api.get(EP.SALES.GET_ONE(editId));
+          if (originalSaleRes.data.success && originalSaleRes.data.data) {
+            const originalSale = originalSaleRes.data.data;
+            if (originalSale.items && originalSale.items.length > 0) {
+              for (const item of originalSale.items) {
+                await updateProductStock(item.productId, item.uom, item.pcs, allProducts, setAllProducts, true);
+              }
+            }
+          }
+        } catch (restoreErr) {
+          console.error("Failed to restore original stock:", restoreErr);
+          showMsg("Failed to restore original stock", "error");
+          setLoading(false);
+          return;
+        }
+      }
+      
+      const { data } = editId 
+        ? await api.put(EP.SALES.UPDATE(editId), finalPayload) 
+        : await api.post(EP.SALES.CREATE, finalPayload); 
+        
+      if (data.success) { 
+        // Deduct new stock quantities (for both new and edited sales)
+        for (const item of payload.items) { 
+          await updateProductStock(item.productId, item.uom, item.pcs, allProducts, setAllProducts, false); 
+        } 
+        
+        const productsRes = await api.get(EP.PRODUCTS.GET_ALL); 
+        if (productsRes.data.success) setAllProducts(productsRes.data.data); 
+        showMsg(editId ? "Sale updated!" : `Saved: ${data.data.invoiceNo}`); 
+        
+        if (customerId) { 
+          try { 
+            const customerResponse = await api.get(`${EP.CUSTOMERS.GET_ALL}/${customerId}`); 
+            if (customerResponse.data && customerResponse.data.success && customerResponse.data.data) 
+              setPrevBalance(customerResponse.data.data.currentBalance || 0); 
+          } catch (err) { console.error("Failed to refresh customer balance:", err); } 
+        } 
+        
+        const saleObj = { 
+          invoiceNo: data.data.invoiceNo, 
+          invoiceDate: finalPayload.invoiceDate, 
+          customerName: finalPayload.customerName, 
+          saleSource: finalPayload.saleSource, 
+          paymentMode: finalPayload.paymentMode, 
+          username: currentUsername, 
+          items: payload.items, 
+          subTotal: finalPayload.subTotal, 
+          extraDisc: overrides.extraDisc, 
+          netTotal: overrides.netTotal, 
+          prevBalance: finalPayload.prevBalance, 
+          paidAmount: overrides.paidAmount, 
+          balance: overrides.balance 
+        }; 
+        
+        if (gatepassPrint) { 
+          doPrint(saleObj, "Gatepass", { customerName: finalPayload.customerName, hidePrices: true, username: currentUsername }); 
+          setGatepassPrint(false); 
+        } 
+        
+        if (overrides.withPrint) { 
+          setPendingPrintSale(saleObj); 
+          setShowPrintModal(true); 
+        } 
+        
+        setShowSaveModal(false); 
+        setPendingPayload(null); 
+        fullReset(); 
+        generateInvoiceNumber(api, EP, setInvoiceNo); 
+      } else { 
+        showMsg(data.message, "error"); 
+      } 
+    } catch (e) { 
+      console.error("Save failed:", e);
+      showMsg(e.response?.data?.message || "Save failed", "error"); 
+    } 
+    setLoading(false); 
+  };
+  
   const confirmSave = async (overrides) => { confirmSaveWithPayload(pendingPayload, overrides); };
+
+  const handleDeleteSale = async () => { 
+    if (!editId || !window.confirm("Delete this sale? Stock will be restored.")) return; 
+    setLoading(true);
+    try {
+      const saleRes = await api.get(EP.SALES.GET_ONE(editId));
+      if (saleRes.data.success && saleRes.data.data) {
+        const sale = saleRes.data.data;
+        if (sale.items && sale.items.length > 0) {
+          for (const item of sale.items) {
+            await updateProductStock(item.productId, item.uom, item.pcs, allProducts, setAllProducts, true);
+          }
+        }
+        await api.delete(EP.SALES.DELETE(editId));
+        showMsg("Sale deleted and stock restored", "success");
+        fullReset();
+        generateInvoiceNumber(api, EP, setInvoiceNo);
+      } else {
+        showMsg("Failed to fetch sale details", "error");
+      }
+    } catch (error) { 
+      console.error("Delete failed:", error);
+      showMsg("Delete failed", "error"); 
+    }
+    setLoading(false);
+  };
 
   useEffect(() => { if (paymentMode !== "Credit") setReceived(billAmount + (parseFloat(prevBalance) || 0)); }, [billAmount, prevBalance, paymentMode]);
 
@@ -790,7 +1002,6 @@ export default function SalePage() {
     } else { setShowProductModal(true); }
   };
 
-  // Get stock info for current row display
   const currentProductStock = () => {
     if (!curRow.productId) return null;
     const product = allProducts.find(p => p._id === curRow.productId);
@@ -815,7 +1026,7 @@ export default function SalePage() {
           <div className="sl-left">
             <div className="sl-top-bar">
               <div className="sl-sale-title-box">Sale</div>
-              <div className="sl-inv-field-grp"><label>Invoice #</label><div className="sl-inv-nav-container"><button className="sl-inv-nav-btn sl-inv-nav-prev" onClick={() => navInvoice("prev")} title="Previous Invoice (↑)">◀</button><input className="xp-input xp-input-sm sl-inv-input-large" value={invoiceNo} onChange={(e) => setInvoiceNo(e.target.value)} onKeyDown={async (e) => { if (e.key === "Enter") { e.preventDefault(); const val = invoiceNo.trim(); if (!val) return; try { const { data } = await api.get(EP.SALES.GET_ALL); const sales = data.data; if (!sales || sales.length === 0) { showMsg(`Invoice "${val}" not found`, "error"); await generateInvoiceNumber(api, EP, setInvoiceNo); return; } const exact = sales.find((s) => s.invoiceNo === val || s.invoiceNo === `INV-${val}`); if (!exact) { showMsg(`Invoice "${val}" not found`, "error"); await generateInvoiceNumber(api, EP, setInvoiceNo); return; } setItems([]); setEditId(null); loadSaleForEdit(exact); } catch { showMsg("Search failed", "error"); } } if (e.key === "ArrowUp" || e.key === "ArrowDown") { e.preventDefault(); await navInvoice(e.key === "ArrowUp" ? "prev" : "next"); } }} onFocus={(e) => e.target.select()} placeholder="e.g., 26050001" /><button className="sl-inv-nav-btn sl-inv-nav-next" onClick={() => navInvoice("next")} title="Next Invoice (↓)">▶</button></div></div>
+              <div className="sl-inv-field-grp"><label>Invoice #</label><div className="sl-inv-nav-container"><button className="sl-inv-nav-btn sl-inv-nav-prev" onClick={() => navInvoice("prev")} title="Previous Invoice (↑)">◀</button><input className="xp-input xp-input-sm sl-inv-input-large" value={invoiceNo} onChange={(e) => setInvoiceNo(e.target.value)} onKeyDown={async (e) => { if (e.key === "Enter") { e.preventDefault(); const val = invoiceNo.trim(); if (!val) return; try { const { data } = await api.get(EP.SALES.GET_ALL); const sales = data.data; if (!sales || sales.length === 0) { showMsg(`Invoice "${val}" not found`, "error"); await generateInvoiceNumber(api, EP, setInvoiceNo); return; } const exact = sales.find((s) => s.invoiceNo === val); if (!exact) { showMsg(`Invoice "${val}" not found`, "error"); await generateInvoiceNumber(api, EP, setInvoiceNo); return; } setItems([]); setEditId(null); loadSaleForEdit(exact); } catch { showMsg("Search failed", "error"); } } if (e.key === "ArrowUp" || e.key === "ArrowDown") { e.preventDefault(); await navInvoice(e.key === "ArrowUp" ? "prev" : "next"); } }} onFocus={(e) => e.target.select()} placeholder="e.g., 26050001" /><button className="sl-inv-nav-btn sl-inv-nav-next" onClick={() => navInvoice("next")} title="Next Invoice (↓)">▶</button></div></div>
               <div className="sl-inv-field-grp"><label>Date</label><input type="date" className="xp-input xp-input-sm sl-date-input" value={invoiceDate} readOnly style={{ background: "#f5f5f5", cursor: "not-allowed", color: "#888" }} /></div>
               <div className="sl-inv-field-grp"><label>Time</label><div className="sl-time-box">{time}</div></div>
             </div>
@@ -938,8 +1149,7 @@ export default function SalePage() {
             </div>
           </div>
 
-          <input type="hidden" ref={discRef} />
-          <input type="hidden" ref={receivedRef} />
+          <input type="hidden" ref={statementRef} />
           
           {showCustomerPanel && customerId && (
             <div className={`sl-credit-warning-bar${creditWarning ? "" : " sl-credit-normal"}`} style={{ padding: "4px 6px", marginTop: "2px" }}>
@@ -954,7 +1164,7 @@ export default function SalePage() {
                 })()}
                 <div></div>
               </div>
-              <input ref={statementRef} type="text" className="sl-credit-statement-input" style={{ fontSize: "10px", height: "28px", padding: "2px 6px", flex: 1 }} placeholder={creditWarning ? "Enter reason / authorization statement to allow sale…" : "Notes (optional)…"} value={creditStatement} onChange={(e) => setCreditStatement(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); e.stopPropagation(); openSaleConfirm(); } }} />
+              <input type="text" className="sl-credit-statement-input" style={{ fontSize: "10px", height: "28px", padding: "2px 6px", flex: 1 }} placeholder={creditWarning ? "Enter reason / authorization statement to allow sale…" : "Notes (optional)…"} value={creditStatement} onChange={(e) => setCreditStatement(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); e.stopPropagation(); openSaleConfirm(); } }} />
             </div>
           )}
         </div>
@@ -1024,7 +1234,7 @@ export default function SalePage() {
         <button className="xp-btn xp-btn-sm" onClick={fullReset} disabled={loading}>Refresh</button>
         <button ref={saveRef} className="xp-btn xp-btn-primary xp-btn-lg" onClick={openSaleConfirm} disabled={loading}>{loading ? "Saving…" : "Save *"}</button>
         <button className="xp-btn xp-btn-sm" onClick={() => {}}>Edit Record</button>
-        <button className="xp-btn xp-btn-danger xp-btn-sm" disabled={!editId} onClick={async () => { if (!editId || !window.confirm("Delete this sale?")) return; try { await api.delete(EP.SALES.DELETE(editId)); showMsg("Sale deleted"); fullReset(); generateInvoiceNumber(api, EP, setInvoiceNo); } catch { showMsg("Delete failed", "error"); } }}>Delete Record</button>
+        <button className="xp-btn xp-btn-danger xp-btn-sm" disabled={!editId} onClick={handleDeleteSale}>Delete Record</button>
         <div className="xp-toolbar-divider" />
         <div className="sl-cmd-checks">
           <label className="sl-check-label"><input type="checkbox" /> Print P.Bal</label>
@@ -1036,7 +1246,8 @@ export default function SalePage() {
         <div className="xp-toolbar-divider" />
         <button className="xp-btn xp-btn-sm" style={{ marginLeft: "auto" }} onClick={fullReset}>Close</button>
       </div>
-    </div>
+
+      </div>
     </>
   );
 }
