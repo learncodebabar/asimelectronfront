@@ -45,7 +45,7 @@ import SalesReturnReportPage from "./pages/Reports/SalesReturnReportPage.jsx";
 import SaleReturnWithoutValuesPage from "./pages/Reports/SaleReturnWithoutValuesPage.jsx";
 import ExchangePage from "./pages/ExchangePage.jsx";
 import ProfitReportNumberWisePage from "./pages/Reports/ProfitReportNumberWisePage.jsx";
-import CounterSummaryPage from "./pages/Reports/CounterSummaryPage.jsx";
+import CounterSummaryPage from "./pages/CounterSummaryPage.jsx";
 import StockReportPage from "./pages/Reports/StockReportPage.jsx";
 import BankDepositsPage from "./pages/Reports/BankDepositsPage.jsx";
 import BankPaymentsPage from "./pages/Reports/BankPaymentsPage.jsx";

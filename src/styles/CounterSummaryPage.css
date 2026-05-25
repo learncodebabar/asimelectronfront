@@ -1,0 +1,269 @@
+/* Add to CounterSummaryPage.css - Remaining styles */
+
+/* Alert styles */
+.cs-alert {
+  margin: 12px 20px;
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.cs-alert-success {
+  background: #d1fae5;
+  color: #065f46;
+  border-left: 4px solid #10b981;
+}
+
+.cs-alert-error {
+  background: #fee2e2;
+  color: #991b1b;
+  border-left: 4px solid #ef4444;
+}
+
+.cs-alert-warning {
+  background: #fef3c7;
+  color: #92400e;
+  border-left: 4px solid #f59e0b;
+}
+
+.cs-alert-info {
+  background: #dbeafe;
+  color: #1e40af;
+  border-left: 4px solid #3b82f6;
+}
+
+/* Legend card */
+.cs-legend {
+  transition: transform 0.2s ease;
+}
+
+.cs-legend:hover {
+  transform: translateY(-2px);
+}
+
+/* Print button */
+.cs-btn-print {
+  background: #f59e0b;
+  color: white;
+  border: 1px solid #d97706;
+}
+
+.cs-btn-print:hover {
+  background: #d97706;
+  transform: translateY(-1px);
+}
+
+.cs-btn-print:disabled {
+  background: #fcd34d;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Notes panel textarea focus */
+.cs-notes-panel textarea:focus {
+  outline: none;
+  border-color: #d97706;
+  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.2);
+}
+
+/* Quick stats hover effect */
+.cs-quick-stats {
+  transition: transform 0.2s ease;
+}
+
+.cs-quick-stats:hover {
+  transform: translateY(-2px);
+}
+
+/* Responsive adjustments */
+@media screen and (max-width: 1024px) {
+  .cs-summary-cards {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+  
+  .cs-controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .cs-actions {
+    justify-content: center;
+  }
+}
+
+@media screen and (max-width: 768px) {
+  .cs-summary-cards {
+    grid-template-columns: 1fr !important;
+  }
+  
+  .cs-counter-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  
+  .cs-counter-info {
+    width: 100%;
+  }
+  
+  .cs-counter-net {
+    width: 100%;
+    text-align: left;
+  }
+  
+  .cs-summary-grid {
+    grid-template-columns: 1fr !important;
+  }
+  
+  .cs-table th, .cs-table td {
+    font-size: 10px;
+    padding: 4px;
+  }
+  
+  .cs-counter-stats {
+    flex-direction: column;
+    gap: 5px;
+  }
+  
+  .cs-stat-badge {
+    display: inline-block;
+    width: fit-content;
+  }
+}
+
+/* Print styles */
+@media print {
+  .cs-header .cs-controls,
+  .cs-actions,
+  .cs-btn,
+  .cs-notes-panel,
+  .cs-quick-stats,
+  .cs-legend,
+  .cs-footer {
+    display: none !important;
+  }
+  
+  .cs-page {
+    background: white;
+    padding: 0;
+    margin: 0;
+  }
+  
+  .cs-counter-card {
+    break-inside: avoid;
+    page-break-inside: avoid;
+    margin-bottom: 20px;
+  }
+  
+  .cs-counter-body {
+    display: block !important;
+  }
+  
+  .cs-summary-cards {
+    display: none;
+  }
+  
+  .cs-counters-container {
+    padding: 0;
+  }
+  
+  .cs-header {
+    background: white !important;
+    color: black !important;
+    padding: 10px;
+    border-bottom: 2px solid black;
+  }
+  
+  .cs-header div,
+  .cs-header h1 {
+    color: black !important;
+  }
+}
+
+/* Scrollbar styling */
+.cs-table-scroll::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.cs-table-scroll::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 4px;
+}
+
+.cs-table-scroll::-webkit-scrollbar-thumb {
+  background: #94a3b8;
+  border-radius: 4px;
+}
+
+.cs-table-scroll::-webkit-scrollbar-thumb:hover {
+  background: #64748b;
+}
+
+/* Loading spinner animation */
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.cs-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid #e2e8f0;
+  border-top-color: #1e40af;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 12px;
+}
+
+/* Empty state */
+.cs-empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  background: #ffffff;
+  border-radius: 12px;
+  border: 2px dashed #cbd5e1;
+}
+
+.cs-empty-icon {
+  font-size: 64px;
+  margin-bottom: 16px;
+}
+
+.cs-empty-state p {
+  font-size: 14px;
+  color: #64748b;
+  margin: 8px 0;
+}
+
+.cs-empty-sub {
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+/* Section totals */
+.cs-section-total {
+  font-size: 12px;
+  font-weight: bold;
+  background: #f1f5f9;
+  padding: 4px 10px;
+  border-radius: 20px;
+  color: #1e40af;
+}
+
+.cs-section-returns .cs-section-total {
+  color: #dc2626;
+  background: #fee2e2;
+}
+
+.cs-section-purchases .cs-section-total {
+  color: #d97706;
+  background: #fef3c7;
+}
+
+.cs-section-raw .cs-section-total {
+  color: #8b5cf6;
+  background: #ede9fe;
+}

@@ -1812,9 +1812,9 @@ export default function RawPurchasePage() {
                   />
                   <button className="sl-inv-nav-btn sl-inv-nav-next" onClick={() => navInvoice("next")} title="Next Invoice (↓)" type="button">▶</button>
                 </div>
-                <span style={{ fontSize: "9px", color: "#666", marginLeft: "4px" }}>
+                {/* <span style={{ fontSize: "9px", color: "#666", marginLeft: "4px" }}>
                   Format: YYMMXXXX (Resets monthly, e.g., 26050001)
-                </span>
+                </span> */}
               </div>
               
               <div className="sl-inv-field-grp">

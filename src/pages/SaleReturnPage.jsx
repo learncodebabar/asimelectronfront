@@ -1,4 +1,4 @@
-// pages/SaleReturnPage.jsx
+// pages/SaleReturnPage.jsx - COMPLETE FIXED FILE
 import { useState, useEffect, useRef, useCallback } from "react";
 import api from "../api/api.js";
 import EP from "../api/apiEndpoints.js";
@@ -27,8 +27,7 @@ const EMPTY_ROW = {
   amount: 0,
 };
 
-import { SHOP_INFO, URDU_FONT, GOOGLE_FONT_LINK, getShopHeaderHTML, getShopBannerHTML, getShopTermsHTML, getShopFooterHTML } from "../constants/shopInfo.js";
-
+import { SHOP_INFO } from "../constants/shopInfo.js";
 
 const TYPE_COLORS = {
   credit: { bg: "#fca5a5", color: "#7f1d1d", border: "#ef4444" },
@@ -53,6 +52,66 @@ const saveHolds = (b) => {
 };
 
 /* ══════════════════════════════════════════════════════════
+   STOCK UPDATE HELPER FOR RETURN (ADD BACK TO STOCK)
+══════════════════════════════════════════════════════════ */
+const updateProductStockForReturn = async (productId, uom, qtyReturned, allProducts, setAllProducts) => {
+  if (!productId || !uom || !qtyReturned) {
+    console.error("Missing required parameters for stock update:", { productId, uom, qtyReturned });
+    return null;
+  }
+  
+  try {
+    console.log(`Return stock update: ADDING ${qtyReturned} ${uom} back to stock for product ${productId}`);
+    
+    const productRes = await api.get(EP.PRODUCTS.GET_ONE(productId));
+    
+    if (!productRes.data.success || !productRes.data.data) {
+      console.error("Product not found:", productId);
+      return null;
+    }
+    
+    const product = productRes.data.data;
+    
+    if (!product.packingInfo || product.packingInfo.length === 0) {
+      console.error("No packing info for product:", productId);
+      return null;
+    }
+    
+    const packingIndex = product.packingInfo.findIndex(pk => pk.measurement === uom);
+    
+    if (packingIndex === -1) {
+      console.error(`UOM ${uom} not found for product:`, productId);
+      return null;
+    }
+    
+    const currentStock = product.packingInfo[packingIndex].openingQty || 0;
+    const newStock = currentStock + qtyReturned;
+    
+    product.packingInfo[packingIndex].openingQty = newStock;
+    
+    const updateRes = await api.put(EP.PRODUCTS.UPDATE(productId), {
+      packingInfo: product.packingInfo
+    });
+    
+    if (!updateRes.data.success) {
+      console.error("Failed to update product on server:", updateRes.data.message);
+      return null;
+    }
+    
+    setAllProducts(prev => prev.map(p =>
+      p._id === productId ? { ...p, packingInfo: product.packingInfo } : p
+    ));
+    
+    console.log(`Stock updated successfully! New stock: ${newStock} ${uom}`);
+    return newStock;
+    
+  } catch (error) {
+    console.error("Failed to update stock for return:", error);
+    return null;
+  }
+};
+
+/* ══════════════════════════════════════════════════════════
    PRINT BUILDER
 ══════════════════════════════════════════════════════════ */
 const buildPrintHtml = (ret, type) => {
@@ -63,18 +122,16 @@ const buildPrintHtml = (ret, type) => {
   const GOOGLE_FONT_LINK = `<link href="https://fonts.googleapis.com/css2?family=Noto+Nastaliq+Urdu:wght@400;700&display=swap" rel="stylesheet">`;
 
   if (type === "Thermal") {
-    const itemRows = rows
-      .map(
-        (it) =>
-          `<tr>
-            <td style="text-align:center">${it.sr}</td>
-            <td style="max-width:92px;word-break:break-word">${it.name}${it.uom ? ` (${it.uom})` : ""}</td>
-            <td class="r">${it.pcs}</td>
-            <td class="r">${Number(it.rate).toLocaleString()}</td>
-            <td class="r"><b>${Number(it.amount).toLocaleString()}</b></td>
-          </tr>`,
-      )
-      .join("");
+    const itemRows = rows.map((it) => `
+        <tr>
+          <td style="text-align:center">${it.sr}</td>
+          <td style="max-width:92px;word-break:break-word">${it.name}${it.uom ? ` (${it.uom})` : ""}</td>
+          <td class="r">${it.pcs}</td>
+          <td class="r">${Number(it.rate).toLocaleString()}</td>
+          <td class="r"><b>${Number(it.amount).toLocaleString()}</b></td>
+         `
+    ).join("");
+    
     return `<!DOCTYPE html><html><head><meta charset="utf-8">${GOOGLE_FONT_LINK}<style>
       *{box-sizing:border-box}
       body{font-family:'Courier New',Courier,monospace;font-size:10.5px;width:80mm;margin:0 auto;padding:3mm;color:#000}
@@ -115,24 +172,22 @@ const buildPrintHtml = (ret, type) => {
     </body></html>`;
   }
 
+  // A4/A5 format
   const a5 = type === "A5";
   const sz = a5
     ? { title: 14, sub: 8.5, inv: 12, meta: 8, th: 8, td: 8, tot: 9, totB: 10.5 }
     : { title: 17, sub: 9.5, inv: 14, meta: 9, th: 9, td: 9, tot: 10, totB: 13 };
 
-  const itemRows = rows
-    .map(
-      (it, i) =>
-        `<tr style="background:${i % 2 === 0 ? "#fff" : "#fff5f5"}">
-          <td style="text-align:center">${it.sr}</td>
-          <td><strong>${it.name}</strong></td>
-          <td>${it.uom || "—"}</td>
-          <td align="right">${it.pcs}</td>
-          <td align="right">${Number(it.rate).toLocaleString()}</td>
-          <td align="right"><strong>${Number(it.amount).toLocaleString()}</strong></td>
-        </tr>`,
-    )
-    .join("");
+  const itemRows = rows.map((it, i) => `
+    <tr style="background:${i % 2 === 0 ? "#fff" : "#fff5f5"}">
+      <td style="text-align:center">${it.sr}</td>
+      <td><strong>${it.name}</strong></td>
+      <td>${it.uom || "—"}</td>
+      <td align="right">${it.pcs}</td>
+      <td align="right">${Number(it.rate).toLocaleString()}</td>
+      <td align="right"><strong>${Number(it.amount).toLocaleString()}</strong></td>
+     `
+  ).join("");
 
   return `<!DOCTYPE html><html><head><meta charset="utf-8">${GOOGLE_FONT_LINK}<style>
     *{box-sizing:border-box;margin:0;padding:0}
@@ -185,7 +240,7 @@ const buildPrintHtml = (ret, type) => {
       </div>
     </div>
     <table>
-      <thead><tr><th style="width:28px;text-align:center">Sr.#</th><th>Product</th><th style="width:50px">Unit</th><th style="width:42px;text-align:right">Qty</th><th style="width:70px;text-align:right">Rate</th><th style="width:80px;text-align:right">Amount</th></table></thead>
+      <thead><tr><th style="width:28px;text-align:center">Sr.#</th><th>Product</th><th style="width:50px">Unit</th><th style="width:42px;text-align:right">Qty</th><th style="width:70px;text-align:right">Rate</th><th style="width:80px;text-align:right">Amount</th></tr></thead>
       <tbody>${itemRows}</tbody>
     </table>
     <div class="footer-wrap">
@@ -207,9 +262,13 @@ const buildPrintHtml = (ret, type) => {
 
 const doPrint = (ret, type) => {
   const w = window.open("", "_blank", type === "Thermal" ? "width=420,height=640" : "width=900,height=700");
-  w.document.write(buildPrintHtml(ret, type));
-  w.document.close();
-  setTimeout(() => w.print(), 400);
+  if (w) {
+    w.document.write(buildPrintHtml(ret, type));
+    w.document.close();
+    setTimeout(() => w.print(), 400);
+  } else {
+    alert("Popup blocked! Please allow popups for printing.");
+  }
 };
 
 /* ══════════════════════════════════════════════════════════
@@ -232,96 +291,32 @@ function SearchModal({ allProducts, onSelect, onClose }) {
       lc = c.trim().toLowerCase(),
       lo = co.trim().toLowerCase();
     products.forEach((p) => {
-      const ok =
-        (!ld ||
-          p.description?.toLowerCase().includes(ld) ||
-          p.code?.toLowerCase().includes(ld)) &&
-        (!lc || p.category?.toLowerCase().includes(lc)) &&
-        (!lo || p.company?.toLowerCase().includes(lo));
+      const ok = (!ld || p.description?.toLowerCase().includes(ld) || p.code?.toLowerCase().includes(ld)) && (!lc || p.category?.toLowerCase().includes(lc)) && (!lo || p.company?.toLowerCase().includes(lo));
       if (!ok) return;
-      const _name = [p.category, p.description, p.company]
-        .filter(Boolean)
-        .join(" ");
-      if (p.packingInfo?.length > 0)
-        p.packingInfo.forEach((pk, i) =>
-          res.push({
-            ...p,
-            _pi: i,
-            _meas: pk.measurement,
-            _rate: pk.saleRate,
-            _pack: pk.packing,
-            _stock: pk.openingQty || 0,
-            _name,
-          }),
-        );
-      else
-        res.push({
-          ...p,
-          _pi: 0,
-          _meas: "",
-          _rate: 0,
-          _pack: 1,
-          _stock: 0,
-          _name,
-        });
+      const _name = [p.category, p.description, p.company].filter(Boolean).join(" ");
+      if (p.packingInfo?.length > 0) {
+        p.packingInfo.forEach((pk, i) => res.push({ ...p, _pi: i, _meas: pk.measurement, _rate: pk.saleRate, _pack: pk.packing, _stock: pk.openingQty || 0, _name }));
+      } else {
+        res.push({ ...p, _pi: 0, _meas: "", _rate: 0, _pack: 1, _stock: 0, _name });
+      }
     });
     return res;
   }, []);
 
-  useEffect(() => {
-    rDesc.current?.focus();
-    setRows(buildFlat(allProducts, "", "", ""));
-  }, [allProducts, buildFlat]);
-  
-  useEffect(() => {
-    const f = buildFlat(allProducts, desc, cat, company);
-    setRows(f);
-    setHiIdx(f.length > 0 ? 0 : -1);
-  }, [desc, cat, company, allProducts, buildFlat]);
-  
-  useEffect(() => {
-    if (tbodyRef.current && hiIdx >= 0)
-      tbodyRef.current.children[hiIdx]?.scrollIntoView({ block: "nearest" });
-  }, [hiIdx]);
+  useEffect(() => { rDesc.current?.focus(); setRows(buildFlat(allProducts, "", "", "")); }, [allProducts, buildFlat]);
+  useEffect(() => { const f = buildFlat(allProducts, desc, cat, company); setRows(f); setHiIdx(f.length > 0 ? 0 : -1); }, [desc, cat, company, allProducts, buildFlat]);
+  useEffect(() => { if (tbodyRef.current && hiIdx >= 0) tbodyRef.current.children[hiIdx]?.scrollIntoView({ block: "nearest" }); }, [hiIdx]);
 
-  const fk = (e, nr) => {
-    if (e.key === "Escape") {
-      onClose();
-      return;
-    }
-    if (e.key === "Enter" || e.key === "ArrowDown") {
-      e.preventDefault();
-      nr
-        ? nr.current?.focus()
-        : (tbodyRef.current?.focus(), setHiIdx((h) => Math.max(0, h)));
-    }
-  };
-  
-  const tk = (e) => {
-    if (e.key === "ArrowDown") {
-      e.preventDefault();
-      setHiIdx((i) => Math.min(i + 1, rows.length - 1));
-    }
-    if (e.key === "ArrowUp") {
-      e.preventDefault();
-      setHiIdx((i) => Math.max(i - 1, 0));
-    }
-    if (e.key === "Enter") {
-      e.preventDefault();
-      if (hiIdx >= 0 && rows[hiIdx]) onSelect(rows[hiIdx]);
-    }
-    if (e.key === "Escape") onClose();
-    if (e.key === "Tab") {
-      e.preventDefault();
-      rDesc.current?.focus();
-    }
-  };
+  const fk = (e, nr) => { if (e.key === "Escape") { onClose(); return; } if (e.key === "Enter" || e.key === "ArrowDown") { e.preventDefault(); nr ? nr.current?.focus() : (tbodyRef.current?.focus(), setHiIdx((h) => Math.max(0, h))); } };
+  const tk = (e) => { if (e.key === "ArrowDown") { e.preventDefault(); setHiIdx((i) => Math.min(i + 1, rows.length - 1)); } if (e.key === "ArrowUp") { e.preventDefault(); setHiIdx((i) => Math.max(i - 1, 0)); } if (e.key === "Enter") { e.preventDefault(); if (hiIdx >= 0 && rows[hiIdx]) onSelect(rows[hiIdx]); } if (e.key === "Escape") onClose(); if (e.key === "Tab") { e.preventDefault(); rDesc.current?.focus(); } };
 
   return (
     <div className="xp-overlay" onClick={(e) => e.target === e.currentTarget && onClose()} style={{ zIndex: 2000 }}>
       <div className="xp-modal" style={{ width: "95%", maxWidth: "1400px", height: "85vh", maxHeight: "85vh", display: "flex", flexDirection: "column", borderRadius: "12px", background: "#ffffff", border: "2px solid #000000" }}>
         <div className="xp-modal-tb" style={{ background: "#c0392b", padding: "10px 16px", borderRadius: "10px 10px 0 0" }}>
-          <svg width="14" height="14" viewBox="0 0 16 16" fill="rgba(255,255,255,0.9)"><path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.044.06.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1 1 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0"/></svg>
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="rgba(255,255,255,0.9)">
+            <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.044.06.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1 1 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0" />
+          </svg>
           <span className="xp-modal-title" style={{ fontSize: "15px", fontWeight: "bold", color: "#ffffff" }}>Search Products</span>
           <button className="xp-cap-btn xp-cap-close" onClick={onClose} style={{ color: "#ffffff", fontSize: "18px" }}>✕</button>
         </div>
@@ -347,16 +342,18 @@ function SearchModal({ allProducts, onSelect, onClose }) {
           <div className="xp-table-panel" style={{ border: "none", height: "100%" }}>
             <div className="xp-table-scroll" style={{ height: "100%", overflow: "auto", maxHeight: "calc(85vh - 110px)" }}>
               <table className="xp-table" style={{ fontSize: "12px", borderCollapse: "collapse", width: "100%", border: "1px solid #000000" }}>
-                <thead><tr style={{ background: "#f1f5f9", position: "sticky", top: 0, zIndex: 10 }}>
-                  <th style={{ width: 40, padding: "5px 4px", textAlign: "center", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>#</th>
-                  <th style={{ width: 90, padding: "5px 4px", textAlign: "left", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>Barcode</th>
-                  <th style={{ padding: "5px 4px", textAlign: "left", border: "1px solid #000000", fontSize: "13px", fontWeight: "bold", color: "#000000" }}>Product Name</th>
-                  <th style={{ width: 60, padding: "5px 4px", textAlign: "center", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>Meas.</th>
-                  <th style={{ width: 85, padding: "5px 4px", textAlign: "right", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>Rate</th>
-                  <th style={{ width: 65, padding: "5px 4px", textAlign: "right", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>Stock</th>
-                  <th style={{ width: 55, padding: "5px 4px", textAlign: "right", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>Pack</th>
-                  <th style={{ width: 65, padding: "5px 4px", textAlign: "center", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>Rack#</th>
-                </tr></thead>
+                <thead>
+                  <tr style={{ background: "#f1f5f9", position: "sticky", top: 0, zIndex: 10 }}>
+                    <th style={{ width: 40, padding: "5px 4px", textAlign: "center", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>#</th>
+                    <th style={{ width: 90, padding: "5px 4px", textAlign: "left", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>Barcode</th>
+                    <th style={{ padding: "5px 4px", textAlign: "left", border: "1px solid #000000", fontSize: "13px", fontWeight: "bold", color: "#000000" }}>Product Name</th>
+                    <th style={{ width: 60, padding: "5px 4px", textAlign: "center", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>Meas.</th>
+                    <th style={{ width: 85, padding: "5px 4px", textAlign: "right", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>Rate</th>
+                    <th style={{ width: 65, padding: "5px 4px", textAlign: "right", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>Stock</th>
+                    <th style={{ width: 55, padding: "5px 4px", textAlign: "right", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>Pack</th>
+                    <th style={{ width: 65, padding: "5px 4px", textAlign: "center", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>Rack#</th>
+                  </tr>
+                </thead>
                 <tbody ref={tbodyRef} tabIndex={0} onKeyDown={tk}>
                   {rows.length === 0 && (
                     <tr>
@@ -364,21 +361,13 @@ function SearchModal({ allProducts, onSelect, onClose }) {
                     </tr>
                   )}
                   {rows.map((r, i) => (
-                    <tr key={`${r._id}-${r._pi}`} 
-                    style={{ 
-                      background: i === hiIdx ? "#c0392b" : "white", 
-                      color: i === hiIdx ? "#fff" : "#111", 
-                      cursor: "pointer" }}
-                     onClick={() => setHiIdx(i)} onDoubleClick={() => onSelect(r)}>
-                      <td style={{ padding: "4px 4px", textAlign: "center", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold"}}>{i + 1}</td>
-                      <td style={{ padding: "4px 4px", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold"}}>{r.code}</td>
-                      <td style={{ padding: "4px 4px", border: "1px solid #000000", fontSize: "13px", fontWeight: "bold" }}>
-                        <button className="xp-link-btn" style={{ textDecoration: "none", fontWeight: "bold", fontSize: "13px",
-                           background: "none", border: "none", cursor: "pointer", width: "100%", textAlign: "left", padding: "0" }}>{r._name}</button>
-                      </td>
+                    <tr key={`${r._id}-${r._pi}`} style={{ background: i === hiIdx ? "#c0392b" : "white", color: i === hiIdx ? "#fff" : "#111", cursor: "pointer" }} onClick={() => setHiIdx(i)} onDoubleClick={() => onSelect(r)}>
+                      <td style={{ padding: "4px 4px", textAlign: "center", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold" }}>{i + 1}</td>
+                      <td style={{ padding: "4px 4px", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold" }}>{r.code}</td>
+                      <td style={{ padding: "4px 4px", border: "1px solid #000000", fontSize: "13px", fontWeight: "bold" }}>{r._name}</td>
                       <td style={{ padding: "4px 4px", textAlign: "center", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold" }}>{r._meas}</td>
                       <td style={{ padding: "4px 4px", textAlign: "right", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold" }}>{Number(r._rate).toLocaleString("en-PK")}</td>
-                      <td style={{ padding: "4px 4px", textAlign: "right", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold"}}>{r._stock}</td>
+                      <td style={{ padding: "4px 4px", textAlign: "right", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold" }}>{r._stock}</td>
                       <td style={{ padding: "4px 4px", textAlign: "right", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold" }}>{r._pack}</td>
                       <td style={{ padding: "4px 4px", textAlign: "center", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold" }}>{r.rackNo || "—"}</td>
                     </tr>
@@ -397,7 +386,7 @@ function SearchModal({ allProducts, onSelect, onClose }) {
 }
 
 /* ══════════════════════════════════════════════════════════
-   SALE INVOICE SEARCH MODAL
+   SALE INVOICE SEARCH MODAL (FIXED)
 ══════════════════════════════════════════════════════════ */
 function SearchSaleModal({ onSelect, onClose }) {
   const [searchId, setSearchId] = useState("");
@@ -427,8 +416,7 @@ function SearchSaleModal({ onSelect, onClose }) {
             const searchIdLower = searchId.toLowerCase();
             sales = sales.filter(sale => {
               const cleanedNo = cleanInvoiceNo(sale.invoiceNo);
-              return cleanedNo.toLowerCase().includes(searchIdLower) || 
-                     String(sale.invoiceNo || "").toLowerCase().includes(searchIdLower);
+              return cleanedNo.toLowerCase().includes(searchIdLower) || String(sale.invoiceNo || "").toLowerCase().includes(searchIdLower);
             });
           }
           if (searchPhone) {
@@ -460,34 +448,20 @@ function SearchSaleModal({ onSelect, onClose }) {
 
   const handleListKeyDown = (e) => {
     if (e.key === "Escape") { onClose(); return; }
-    if (e.key === "ArrowDown") {
-      e.preventDefault();
-      setHiIdx((prev) => Math.min(prev + 1, invoices.length - 1));
-      return;
-    }
-    if (e.key === "ArrowUp") {
-      e.preventDefault();
-      setHiIdx((prev) => Math.max(prev - 1, 0));
-      return;
-    }
-    if (e.key === "Enter") {
-      e.preventDefault();
-      if (invoices[hiIdx]) { onSelect(invoices[hiIdx]); }
-      return;
-    }
+    if (e.key === "ArrowDown") { e.preventDefault(); setHiIdx((prev) => Math.min(prev + 1, invoices.length - 1)); return; }
+    if (e.key === "ArrowUp") { e.preventDefault(); setHiIdx((prev) => Math.max(prev - 1, 0)); return; }
+    if (e.key === "Enter") { e.preventDefault(); if (invoices[hiIdx]) { onSelect(invoices[hiIdx]); } return; }
   };
 
-  const clearFilters = () => {
-    setSearchId("");
-    setSearchPhone("");
-    setTimeout(() => searchIdRef.current?.focus(), 50);
-  };
+  const clearFilters = () => { setSearchId(""); setSearchPhone(""); setTimeout(() => searchIdRef.current?.focus(), 50); };
 
   return (
     <div className="xp-overlay" onClick={(e) => e.target === e.currentTarget && onClose()} style={{ zIndex: 2000 }}>
       <div className="xp-modal" style={{ width: "95%", maxWidth: "1200px", height: "80vh", maxHeight: "80vh", display: "flex", flexDirection: "column", borderRadius: "12px", background: "#ffffff", border: "2px solid #000000" }}>
         <div className="xp-modal-tb" style={{ background: "#c0392b", padding: "10px 16px", borderRadius: "10px 10px 0 0" }}>
-          <svg width="14" height="14" viewBox="0 0 16 16" fill="rgba(255,255,255,0.9)"><path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.044.06.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1 1 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0"/></svg>
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="rgba(255,255,255,0.9)">
+            <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.044.06.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1 1 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0" />
+          </svg>
           <span className="xp-modal-title" style={{ fontSize: "15px", fontWeight: "bold", color: "#ffffff" }}>Search Sale Invoice</span>
           <button className="xp-cap-btn xp-cap-close" onClick={onClose} style={{ color: "#ffffff", fontSize: "18px" }}>✕</button>
         </div>
@@ -515,15 +489,17 @@ function SearchSaleModal({ onSelect, onClose }) {
           <div className="xp-table-panel" style={{ border: "none", height: "100%" }}>
             <div className="xp-table-scroll" style={{ height: "100%", overflow: "auto" }}>
               <table className="xp-table" style={{ fontSize: "12px", borderCollapse: "collapse", width: "100%", border: "1px solid #000000" }}>
-                <thead><tr style={{ background: "#f1f5f9", position: "sticky", top: 0, zIndex: 10 }}>
-                  <th style={{ width: 40, padding: "8px 4px", textAlign: "center", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>#</th>
-                  <th style={{ padding: "8px 4px", textAlign: "left", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>Invoice #</th>
-                  <th style={{ padding: "8px 4px", textAlign: "left", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>Date</th>
-                  <th style={{ padding: "8px 4px", textAlign: "left", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>Customer Name</th>
-                  <th style={{ padding: "8px 4px", textAlign: "left", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>Phone</th>
-                  <th style={{ width: 100, padding: "8px 4px", textAlign: "right", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>Total Amount</th>
-                  <th style={{ width: 60, padding: "8px 4px", textAlign: "center", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>Items</th>
-                </tr></thead>
+                <thead>
+                  <tr style={{ background: "#f1f5f9", position: "sticky", top: 0, zIndex: 10 }}>
+                    <th style={{ width: 40, padding: "8px 4px", textAlign: "center", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>#</th>
+                    <th style={{ padding: "8px 4px", textAlign: "left", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>Invoice #</th>
+                    <th style={{ padding: "8px 4px", textAlign: "left", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>Date</th>
+                    <th style={{ padding: "8px 4px", textAlign: "left", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>Customer Name</th>
+                    <th style={{ padding: "8px 4px", textAlign: "left", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>Phone</th>
+                    <th style={{ width: 100, padding: "8px 4px", textAlign: "right", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>Total Amount</th>
+                    <th style={{ width: 60, padding: "8px 4px", textAlign: "center", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>Items</th>
+                  </tr>
+                </thead>
                 <tbody ref={listRef} tabIndex={0} onKeyDown={handleListKeyDown}>
                   {loading && (
                     <tr>
@@ -538,9 +514,7 @@ function SearchSaleModal({ onSelect, onClose }) {
                   {invoices.map((inv, i) => (
                     <tr key={inv._id} style={{ background: i === hiIdx ? "#e5f0ff" : "white", cursor: "pointer" }} onClick={() => setHiIdx(i)} onDoubleClick={() => onSelect(inv)}>
                       <td style={{ padding: "6px 4px", textAlign: "center", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>{i + 1}</td>
-                      <td style={{ padding: "6px 4px", border: "1px solid #000000", fontSize: "12px", fontWeight: "bold", color: "#000000", fontFamily: "monospace" }}>
-                        {cleanInvoiceNo(inv.invoiceNo) || "N/A"}
-                      </td>
+                      <td style={{ padding: "6px 4px", border: "1px solid #000000", fontSize: "12px", fontWeight: "bold", color: "#000000", fontFamily: "monospace" }}>{cleanInvoiceNo(inv.invoiceNo) || "N/A"}</td>
                       <td style={{ padding: "6px 4px", border: "1px solid #000000", fontSize: "11px", color: "#000000" }}>{inv.invoiceDate?.split("T")[0] || "-"}</td>
                       <td style={{ padding: "6px 4px", border: "1px solid #000000", fontSize: "12px", fontWeight: "bold", color: "#000000" }}>{inv.customerName || inv.customer?.name || "COUNTER SALE"}</td>
                       <td style={{ padding: "6px 4px", border: "1px solid #000000", fontSize: "11px", color: "#000000" }}>{inv.customerPhone || inv.customer?.phone || "-"}</td>
@@ -582,15 +556,17 @@ function HoldPreviewModal({ bill, onResume, onClose }) {
           <div className="xp-table-panel" style={{ border: "none" }}>
             <div className="xp-table-scroll" style={{ maxHeight: 300 }}>
               <table className="xp-table" style={{ border: "1px solid #000000", width: "100%", borderCollapse: "collapse" }}>
-                <thead><tr style={{ background: "#f1f5f9" }}>
-                  <th style={{ padding: "6px 6px", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>#</th>
-                  <th style={{ padding: "6px 6px", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>Code</th>
-                  <th style={{ padding: "6px 6px", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>Name</th>
-                  <th style={{ padding: "6px 6px", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>UOM</th>
-                  <th style={{ padding: "6px 6px", textAlign: "right", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>Pcs</th>
-                  <th style={{ padding: "6px 6px", textAlign: "right", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>Rate</th>
-                  <th style={{ padding: "6px 6px", textAlign: "right", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>Amount</th>
-                </tr></thead>
+                <thead>
+                  <tr style={{ background: "#f1f5f9" }}>
+                    <th style={{ padding: "6px 6px", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>#</th>
+                    <th style={{ padding: "6px 6px", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>Code</th>
+                    <th style={{ padding: "6px 6px", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>Name</th>
+                    <th style={{ padding: "6px 6px", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>UOM</th>
+                    <th style={{ padding: "6px 6px", textAlign: "right", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>Pcs</th>
+                    <th style={{ padding: "6px 6px", textAlign: "right", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>Rate</th>
+                    <th style={{ padding: "6px 6px", textAlign: "right", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#000000" }}>Amount</th>
+                  </tr>
+                </thead>
                 <tbody>
                   {bill.items.map((r, i) => (
                     <tr key={i}>
@@ -630,7 +606,6 @@ function CustomerDropdown({ allCustomers, value, displayName, customerType, onSe
   const [isNavigating, setIsNavigating] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
   const inputRef = useRef(null);
-  const parentRef = useRef(null);
 
   const creditCustomers = allCustomers.filter((c) => {
     const t = (c.customerType || c.type || "").toLowerCase();
@@ -743,7 +718,7 @@ function CustomerDropdown({ allCustomers, value, displayName, customerType, onSe
     <div style={{ position: "relative", flex: 1 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 4, position: "relative" }}>
         {typeStyle && <span className="cdd-type-badge" style={typeStyle}>{customerType}</span>}
-        <div ref={parentRef} style={{ position: "relative", flex: 1, background: isFocused ? "#fffde7" : "transparent", borderRadius: "4px", transition: "background 0.15s ease" }}>
+        <div style={{ position: "relative", flex: 1, background: isFocused ? "#fffde7" : "transparent", borderRadius: "4px", transition: "background 0.15s ease" }}>
           {ghost && !isNavigating && (
             <div style={{ position: "absolute", left: 0, top: "50%", transform: "translateY(-50%)", pointerEvents: "none", whiteSpace: "nowrap", fontSize: "13px", fontFamily: "inherit", display: "flex", zIndex: 2, color: "#a0aec0", opacity: 1, backgroundColor: "transparent", paddingLeft: "4px" }}>
               <span style={{ visibility: "hidden", opacity: 1 }}>{originalQuery}</span>
@@ -773,7 +748,7 @@ function CustomerDropdown({ allCustomers, value, displayName, customerType, onSe
 }
 
 /* ══════════════════════════════════════════════════════════
-   MAIN PAGE — SALE RETURN (RESPONSIVE)
+   MAIN PAGE — SALE RETURN
 ══════════════════════════════════════════════════════════ */
 export default function SaleReturnPage() {
   const [time, setTime] = useState(timeNow());
@@ -790,6 +765,8 @@ export default function SaleReturnPage() {
   const [saleInvNo, setSaleInvNo] = useState("");
   const [allSaleInvoices, setAllSaleInvoices] = useState([]);
   const [currentInvoiceIndex, setCurrentInvoiceIndex] = useState(-1);
+  const [selItemIdx, setSelItemIdx] = useState(null);
+  const [editId, setEditId] = useState(null);
 
   const [customerId, setCustomerId] = useState("");
   const [buyerName, setBuyerName] = useState("COUNTER SALE");
@@ -799,8 +776,6 @@ export default function SaleReturnPage() {
 
   const [paid, setPaid] = useState(0);
   const [holdBills, setHoldBills] = useState(() => loadHolds());
-  const [editId, setEditId] = useState(null);
-  const [selItemIdx, setSelItemIdx] = useState(null);
   const [msg, setMsg] = useState({ text: "", type: "" });
   const [loading, setLoading] = useState(false);
   const [printType, setPrintType] = useState("A5");
@@ -836,6 +811,7 @@ export default function SaleReturnPage() {
 
   const subTotal = items.reduce((s, r) => s + (parseFloat(r.amount) || 0), 0);
   const balance = subTotal - (parseFloat(paid) || 0);
+  const totalQty = items.reduce((s, r) => s + (parseFloat(r.pcs) || 0), 0);
 
   const fetchData = async () => {
     setLoading(true);
@@ -943,6 +919,9 @@ export default function SaleReturnPage() {
         setCurrentInvoiceIndex(index);
         showMsg(`Loaded ${loadedItems.length} items from ${saleData.invoiceNo}`, "success");
         setShowSaleSearchModal(false);
+        setSelItemIdx(null);
+        setCurRow({ ...EMPTY_ROW });
+        setSearchText("");
         setTimeout(() => searchRef.current?.focus(), 50);
       } catch (error) {
         showMsg("Failed to load sale invoice", "error");
@@ -978,6 +957,9 @@ export default function SaleReturnPage() {
         showMsg(`Loaded ${loadedItems.length} items from ${saleInvNo}`, "success");
         const index = allSaleInvoices.findIndex(inv => String(inv.invoiceNo) === String(saleInvNo.trim()));
         setCurrentInvoiceIndex(index);
+        setSelItemIdx(null);
+        setCurRow({ ...EMPTY_ROW });
+        setSearchText("");
         setTimeout(() => searchRef.current?.focus(), 50);
       } else { showMsg("Invoice not found", "error"); }
     } catch { showMsg("Could not load sale invoice", "error"); }
@@ -1048,7 +1030,6 @@ export default function SaleReturnPage() {
     });
     setSearchText(product.code || product.description || "");
     setShowProductModal(false);
-    // FIXED: Focus stays on search input after product selection
     setTimeout(() => searchRef.current?.focus(), 30);
   };
 
@@ -1061,7 +1042,7 @@ export default function SaleReturnPage() {
   };
 
   const addRow = () => {
-    if (!curRow.name) return;
+    if (!curRow.name) { setShowProductModal(true); return; }
     if (!curRow.productId) { showMsg("Please select a valid product", "error"); return; }
     if (parseFloat(curRow.pcs) <= 0) { showMsg("Qty must be > 0", "error"); return; }
     if (selItemIdx !== null) {
@@ -1096,8 +1077,6 @@ export default function SaleReturnPage() {
     setItems((p) => p.filter((_, i) => i !== selItemIdx));
     resetCurRow();
   };
-
-  const totalQty = items.reduce((s, r) => s + (parseFloat(r.pcs) || 0), 0);
 
   const holdBill = () => {
     if (!items.length) return;
@@ -1135,7 +1114,10 @@ export default function SaleReturnPage() {
     }
     setHoldBills((p) => p.filter((b) => b.id !== holdId));
     setShowHoldPreview(null);
-    resetCurRow();
+    setSelItemIdx(null);
+    setCurRow({ ...EMPTY_ROW });
+    setSearchText("");
+    setTimeout(() => searchRef.current?.focus(), 50);
   };
 
   const deleteHold = (holdId, e) => {
@@ -1209,7 +1191,13 @@ export default function SaleReturnPage() {
         remarks: remarks || "",
         saleType: "return",
       };
+      
+      for (const item of items) {
+        await updateProductStockForReturn(item.productId, item.uom, parseFloat(item.pcs), allProducts, setAllProducts);
+      }
+      
       const { data } = editId ? await api.put(EP.SALES.UPDATE(editId), payload) : await api.post(EP.SALES.CREATE, payload);
+      
       if (data.success) {
         showMsg(editId ? "Return updated!" : `Saved: ${data.data.returnNo || data.data.invoiceNo}`);
         const retObj = {
@@ -1280,8 +1268,6 @@ export default function SaleReturnPage() {
       {showHoldPreview && <HoldPreviewModal bill={showHoldPreview} onResume={resumeHold} onClose={() => setShowHoldPreview(null)} />}
       {showSaleSearchModal && <SearchSaleModal onSelect={(sale) => loadSaleByInv(sale)} onClose={() => setShowSaleSearchModal(false)} />}
 
-      {/* TITLEBAR */}
-    
       {msg.text && <div className={`xp-alert ${msg.type === "success" ? "xp-alert-success" : "xp-alert-error"}`} style={{ margin: "4px 10px 0", flexShrink: 0, fontSize: "13px", fontWeight: "500" }}>{msg.text}</div>}
 
       <div className="sl-body">
@@ -1315,7 +1301,7 @@ export default function SaleReturnPage() {
             </div>
           </div>
 
-          {/* Entry strip - FIXED: Focus stays on search after product selection, Enter moves to packing */}
+          {/* Entry strip with Edit button functionality */}
           <div className="sl-entry-strip">
             <div className="sl-entry-cell sl-entry-product">
               <label>Select Product <kbd>F2</kbd></label>
@@ -1332,12 +1318,10 @@ export default function SaleReturnPage() {
                   }
                   if (e.key === "Enter") { 
                     e.preventDefault(); 
-                    // If a product is already selected (curRow has name and productId), move to packing
                     if (curRow.name && curRow.productId) {
                       setTimeout(() => packingRef.current?.focus(), 50);
                       return;
                     }
-                    // Otherwise, try to search for product
                     if (!searchText.trim()) { 
                       setShowProductModal(true); 
                       return; 
@@ -1359,8 +1343,6 @@ export default function SaleReturnPage() {
                         _stock: pk?.openingQty || 0, 
                         _name: [found.category, found.description, found.company].filter(Boolean).join(" ") 
                       });
-                      // AFTER product is selected, focus stays on search input
-                      // User will press Enter again to go to packing
                     } else { 
                       alert(`"${searchText}" — Product not found`); 
                       searchRef.current?.select(); 
@@ -1437,22 +1419,22 @@ export default function SaleReturnPage() {
           {/* Table header */}
           <div className="sl-table-header-bar">
             <span className="sl-table-lbl">{curRow.name ? <span className="sl-cur-name-inline">{curRow.name}</span> : "Select Product"}</span>
-            <span className="sl-table-qty">{totalQty.toLocaleString("en-PK")}</span>
+            <span className="sl-table-qty">Total Qty: {totalQty.toLocaleString("en-PK")}</span>
           </div>
 
           {/* Items table */}
           <div className="sl-items-wrap">
             <table className="sl-items-table">
               <thead>
-                <tr >
-                  <th style={{ width: 32 , color:"#111" }}>Sr.#</th>
-                  <th style={{ width: 72 , color:"#111"  }}>Code</th>
-                  <th style={{ color:"#111"  }}>Name</th>
-                  <th style={{ width: 65 , color:"#111"  }}>UOM</th>
-                  <th style={{ width: 55 , color:"#111"  }} className="r">Pcs</th>
-                  <th style={{ width: 80 , color:"#111"  }} className="r">Rate</th>
-                  <th style={{ width: 90 , color:"#111"  }} className="r">Amount</th>
-                  <th style={{ width: 50, color:"#111" }}>Rack</th>
+                <tr>
+                  <th style={{ width: 32, color: "#111" }}>Sr.#</th>
+                  <th style={{ width: 72, color: "#111" }}>Code</th>
+                  <th style={{ color: "#111" }}>Name</th>
+                  <th style={{ width: 65, color: "#111" }}>UOM</th>
+                  <th style={{ width: 55, color: "#111" }} className="r">Pcs</th>
+                  <th style={{ width: 80, color: "#111" }} className="r">Rate</th>
+                  <th style={{ width: 90, color: "#111" }} className="r">Amount</th>
+                  <th style={{ width: 50, color: "#111" }}>Rack</th>
                 </tr>
               </thead>
               <tbody>
@@ -1477,180 +1459,71 @@ export default function SaleReturnPage() {
             </table>
           </div>
 
-        
+          {/* Compact Summary Bar */}
+          <div className="sl-summary-bar" style={{ 
+            display: "flex", 
+            alignItems: "center", 
+            gap: "6px", 
+            padding: "4px 8px", 
+            flexShrink: 0, 
+            background: "#f8fafc", 
+            borderTop: "1px solid #000", 
+            borderBottom: "1px solid #000",
+            flexWrap: "wrap",
+            minHeight: "44px"
+          }}>
+            <div className="sl-cust-cell" style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+              <label style={{ fontSize: "9px", fontWeight: "600", color: "#64748b" }}>Code</label>
+              <input className="sl-cust-input" style={{ width: "60px", height: "26px", padding: "0 4px", fontSize: "10px", background: "#fffde7", border: "1px solid #000", borderRadius: "4px" }} value={buyerCode} onChange={(e) => setBuyerCode(e.target.value)} autoComplete="off" />
+            </div>
+            
+            <div className="sl-cust-cell sl-cust-buyer" style={{ display: "flex", flexDirection: "column", gap: "2px", flex: "2", minWidth: "130px" }}>
+              <label style={{ fontSize: "9px", fontWeight: "600", color: "#64748b" }}>Customer</label>
+              <CustomerDropdown allCustomers={allCustomers} value={customerId} displayName={buyerName} customerType={customerType} onSelect={handleCustomerSelect} onClear={handleCustomerClear} />
+            </div>
+            
+            <div className="sl-cust-cell" style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+              <label style={{ fontSize: "9px", fontWeight: "600", color: "#64748b" }}>Prev Bal</label>
+              <input type="text" className="sl-cust-input" style={{ width: "65px", height: "26px", padding: "0 4px", fontSize: "10px", background: "#fffde7", border: "1px solid #000", borderRadius: "4px" }} value={prevBalance} onChange={(e) => setPrevBalance(e.target.value)} onFocus={(e) => e.target.select()} />
+            </div>
+            
+            <div className="sl-cust-cell" style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+              <label style={{ fontSize: "9px", fontWeight: "600", color: "#64748b" }}>Net Recv</label>
+              <input className="sl-cust-input sl-net-recv" style={{ color: balance > 0 ? "#dc2626" : "#10b981", fontWeight: 700, width: "65px", height: "26px", padding: "0 4px", fontSize: "10px", background: "#f1f5f9", border: "1px solid #000", borderRadius: "4px" }} value={Number(balance).toLocaleString("en-PK")} readOnly />
+            </div>
 
-          {/* Customer bar */}
-          {/* COMPACT SUMMARY BAR - Combined Customer + Summary fields */}
-<div className="sl-summary-bar" style={{ 
-  display: "flex", 
-  alignItems: "center", 
-  gap: "6px", 
-  padding: "4px 8px", 
-  flexShrink: 0, 
-  background: "#f8fafc", 
-  borderTop: "1px solid #000", 
-  borderBottom: "1px solid #000",
-  flexWrap: "wrap",
-  minHeight: "44px"
-}}>
-  
-  {/* Customer Code Field */}
-  <div className="sl-cust-cell" style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-    <label style={{ fontSize: "9px", fontWeight: "600", color: "#64748b" }}>Code</label>
-    <input
-      className="sl-cust-input"
-      style={{ width: "60px", height: "26px", padding: "0 4px", fontSize: "10px", background: "#fffde7", border: "1px solid #000", borderRadius: "4px" }}
-      value={buyerCode}
-      onChange={(e) => setBuyerCode(e.target.value)}
-      autoComplete="off"
-    />
-  </div>
-  
-  {/* Customer Name Dropdown */}
-  <div className="sl-cust-cell sl-cust-buyer" style={{ display: "flex", flexDirection: "column", gap: "2px", flex: "2", minWidth: "130px" }}>
-    <label style={{ fontSize: "9px", fontWeight: "600", color: "#64748b" }}>Customer</label>
-    <CustomerDropdown 
-      allCustomers={allCustomers} 
-      value={customerId} 
-      displayName={buyerName} 
-      customerType={customerType} 
-      onSelect={handleCustomerSelect} 
-      onClear={handleCustomerClear} 
-    />
-  </div>
-  
-  {/* Previous Balance */}
-  <div className="sl-cust-cell" style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-    <label style={{ fontSize: "9px", fontWeight: "600", color: "#64748b" }}>Prev Bal</label>
-    <input
-      type="text"
-      className="sl-cust-input"
-      style={{ width: "65px", height: "26px", padding: "0 4px", fontSize: "10px", background: "#fffde7", border: "1px solid #000", borderRadius: "4px" }}
-      value={prevBalance}
-      onChange={(e) => setPrevBalance(e.target.value)}
-      onFocus={(e) => e.target.select()}
-    />
-  </div>
-  
-  {/* Net Receivable */}
-  <div className="sl-cust-cell" style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-    <label style={{ fontSize: "9px", fontWeight: "600", color: "#64748b" }}>Net Recv</label>
-    <input
-      className="sl-cust-input sl-net-recv"
-      style={{
-        color: balance > 0 ? "#dc2626" : "#10b981",
-        fontWeight: 700,
-        width: "65px",
-        height: "26px",
-        padding: "0 4px",
-        fontSize: "10px",
-        background: "#f1f5f9",
-        border: "1px solid #000",
-        borderRadius: "4px"
-      }}
-      value={Number(balance).toLocaleString("en-PK")}
-      readOnly
-    />
-  </div>
+            <div className="sl-sum-cell" style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+              <label style={{ fontSize: "9px", fontWeight: "600", color: "#64748b", textTransform: "uppercase" }}>Qty</label>
+              <input className="sl-sum-val" style={{ fontSize: "11px", fontWeight: "700", textAlign: "right", width: "50px", height: "26px", padding: "0 4px", background: "#f1f5f9", border: "1px solid #000", borderRadius: "4px" }} value={totalQty.toLocaleString("en-PK")} readOnly />
+            </div>
 
-  {/* Total Quantity */}
-  <div className="sl-sum-cell" style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-    <label style={{ fontSize: "9px", fontWeight: "600", color: "#64748b", textTransform: "uppercase" }}>Qty</label>
-    <input
-      className="sl-sum-val"
-      style={{ fontSize: "11px", fontWeight: "700", textAlign: "right", width: "50px", height: "26px", padding: "0 4px", background: "#f1f5f9", border: "1px solid #000", borderRadius: "4px" }}
-      value={totalQty.toLocaleString("en-PK")}
-      readOnly
-    />
-  </div>
-
-  {/* Net Amount */}
-  <div className="sl-sum-cell" style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-    <label style={{ fontSize: "9px", fontWeight: "600", color: "#64748b", textTransform: "uppercase" }}>Net</label>
-    <input
-      className="sl-sum-val"
-      style={{ fontSize: "11px", fontWeight: "700", textAlign: "right", width: "70px", height: "26px", padding: "0 4px", background: "#f1f5f9", border: "1px solid #000", borderRadius: "4px" }}
-      value={Number(subTotal).toLocaleString("en-PK")}
-      readOnly
-    />
-  </div>
-  
-  {/* Refunded Amount */}
-  <div className="sl-sum-cell" style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-    <label style={{ fontSize: "9px", fontWeight: "600", color: "#64748b", textTransform: "uppercase" }}>Refund</label>
-    <input
-      ref={paidRef}
-      type="text"
-      className="sl-sum-input"
-      style={{ fontSize: "11px", fontWeight: "700", textAlign: "right", width: "75px", height: "26px", padding: "0 4px", background: "#fffde7", border: "1px solid #000", borderRadius: "4px", color: "#059669" }}
-      value={paid}
-      onChange={(e) => setPaid(e.target.value)}
-      onKeyDown={handlePaidKeyDown}
-      onFocus={(e) => e.target.select()}
-    />
-  </div>
-  
-  {/* Balance Due */}
-  <div className="sl-sum-cell" style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-    <label style={{ fontSize: "9px", fontWeight: "600", color: "#64748b", textTransform: "uppercase" }}>Bal</label>
-    <input
-      className={`sl-sum-val sl-bal${balance > 0 ? " danger" : balance < 0 ? " success" : ""}`}
-      style={{ fontSize: "11px", fontWeight: "700", textAlign: "right", width: "70px", height: "26px", padding: "0 4px", background: "#f1f5f9", border: "1px solid #000", borderRadius: "4px" }}
-      value={Number(balance).toLocaleString("en-PK")}
-      readOnly
-    />
-  </div>
-</div>
-
-{/* Remarks input for credit customer - appears below summary bar when needed */}
-{showRemarksInput && (
-  <div className="sl-credit-warning-bar" style={{ 
-    background: "#fef3c7", 
-    padding: "4px 6px", 
-    marginTop: "2px",
-    display: "flex",
-    alignItems: "center",
-    gap: "8px"
-  }}>
-    <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-      <span style={{ fontSize: "12px" }}>📝</span>
-      <div>
-        <div className="sl-credit-title" style={{ color: "#92400e", fontSize: "11px", fontWeight: "bold" }}>CREDIT RETURN</div>
-        <div className="sl-credit-sub" style={{ color: "#92400e", fontSize: "9px" }}>Enter reason below</div>
-      </div>
-    </div>
-    <input 
-      ref={remarksRef} 
-      type="text" 
-      className="sl-credit-statement-input" 
-      style={{ 
-        fontSize: "10px", 
-        height: "28px", 
-        padding: "2px 6px", 
-        flex: 1,
-        background: "#fffde7",
-        border: "1px solid #f59e0b",
-        borderRadius: "4px"
-      }} 
-      placeholder="Enter remarks / reason for credit return..." 
-      value={remarks} 
-      onChange={(e) => setRemarks(e.target.value)} 
-      onKeyDown={handleRemarksKeyDown} 
-    />
-  </div>
-)}
-         
+            <div className="sl-sum-cell" style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+              <label style={{ fontSize: "9px", fontWeight: "600", color: "#64748b", textTransform: "uppercase" }}>Net</label>
+              <input className="sl-sum-val" style={{ fontSize: "11px", fontWeight: "700", textAlign: "right", width: "70px", height: "26px", padding: "0 4px", background: "#f1f5f9", border: "1px solid #000", borderRadius: "4px" }} value={Number(subTotal).toLocaleString("en-PK")} readOnly />
+            </div>
+            
+            <div className="sl-sum-cell" style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+              <label style={{ fontSize: "9px", fontWeight: "600", color: "#64748b", textTransform: "uppercase" }}>Refund</label>
+              <input ref={paidRef} type="text" className="sl-sum-input" style={{ fontSize: "11px", fontWeight: "700", textAlign: "right", width: "75px", height: "26px", padding: "0 4px", background: "#fffde7", border: "1px solid #000", borderRadius: "4px", color: "#059669" }} value={paid} onChange={(e) => setPaid(e.target.value)} onKeyDown={handlePaidKeyDown} onFocus={(e) => e.target.select()} />
+            </div>
+            
+            <div className="sl-sum-cell" style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+              <label style={{ fontSize: "9px", fontWeight: "600", color: "#64748b", textTransform: "uppercase" }}>Bal</label>
+              <input className={`sl-sum-val sl-bal${balance > 0 ? " danger" : balance < 0 ? " success" : ""}`} style={{ fontSize: "11px", fontWeight: "700", textAlign: "right", width: "70px", height: "26px", padding: "0 4px", background: "#f1f5f9", border: "1px solid #000", borderRadius: "4px" }} value={Number(balance).toLocaleString("en-PK")} readOnly />
+            </div>
+          </div>
 
           {/* Remarks input for credit customer */}
           {showRemarksInput && (
-            <div className="sl-credit-warning-bar" style={{ background: "#fef3c7", borderLeftColor: "#f59e0b" }}>
-              <div className="sl-credit-warning-left">
+            <div className="sl-credit-warning-bar" style={{ background: "#fef3c7", padding: "4px 6px", marginTop: "2px", display: "flex", alignItems: "center", gap: "8px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                <span style={{ fontSize: "12px" }}>📝</span>
                 <div>
-                  <div className="sl-credit-title" style={{ color: "#92400e" }}>📝 CREDIT RETURN</div>
-                  <div className="sl-credit-sub" style={{ color: "#92400e" }}>Please enter reason for credit return</div>
+                  <div className="sl-credit-title" style={{ color: "#92400e", fontSize: "11px", fontWeight: "bold" }}>CREDIT RETURN</div>
+                  <div className="sl-credit-sub" style={{ color: "#92400e", fontSize: "9px" }}>Enter reason below</div>
                 </div>
               </div>
-              <input ref={remarksRef} type="text" className="sl-credit-statement-input" style={{ background: "#fffde7", borderColor: "#f59e0b" }} placeholder="Enter remarks / reason for credit return..." value={remarks} onChange={(e) => setRemarks(e.target.value)} onKeyDown={handleRemarksKeyDown} />
+              <input ref={remarksRef} type="text" className="sl-credit-statement-input" style={{ fontSize: "10px", height: "28px", padding: "2px 6px", flex: 1, background: "#fffde7", border: "1px solid #f59e0b", borderRadius: "4px" }} placeholder="Enter remarks / reason for credit return..." value={remarks} onChange={(e) => setRemarks(e.target.value)} onKeyDown={handleRemarksKeyDown} />
             </div>
           )}
         </div>
@@ -1788,6 +1661,11 @@ export default function SaleReturnPage() {
           color: #000000;
           position: sticky;
           top: 0;
+        }
+        
+        .sl-sel-row {
+          background-color: #fef3c7 !important;
+          border-left: 3px solid #f59e0b !important;
         }
         
         .xp-alert {

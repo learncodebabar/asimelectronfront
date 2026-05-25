@@ -1,4 +1,4 @@
-// pages/PurchaseListPage.jsx - Complete Purchase Invoice List with From/To Date Filter
+// pages/PurchaseListPage.jsx - Complete Purchase Invoice List with Supplier Names
 import { useState, useEffect } from "react";
 import api from "../../api/api.js";
 import EP from "../../api/apiEndpoints.js";
@@ -20,15 +20,6 @@ const formatCurrency = (amount) => {
   return Number(amount || 0).toLocaleString("en-PK");
 };
 
-// Helper function to format time
-const formatTime = (dateStr) => {
-  if (!dateStr) return "";
-  return new Date(dateStr).toLocaleTimeString("en-PK", {
-    hour: '2-digit',
-    minute: '2-digit'
-  });
-};
-
 const SHOP_INFO = {
   name: "عاصم الیکٹرک اینڈ الیکٹرونکس سٹور",
   nameEn: "Asim Electric & Electronic Store",
@@ -38,7 +29,7 @@ const SHOP_INFO = {
   phone3: "Shop 0315 7262129",
   urduBanner: "یہاں پر چانک فراڈ کی وارپس، جانچ فلک، وارنگ سیلز اور ریکارڈ کے تمام اخیری ہول سیل ریٹ پر دستیاب ہے۔",
   urduTerms: "الیکٹرانک اور چانٹا کے سپیئر پارٹس کی واپسی یا تبدیلی ہر صورت ممکن نہیں ہوگی۔\nبلی ہوئی آئٹم، پکلاہوا اکا ول واپس قابل واپسی نہیں ہے۔\nبارک کے سامان کی واپس کی صورت میں (7) دن کے اند پہلی ہوگی۔\nکل پیلی کلائی کی تمام واپسی قابل قبول نہیں ہوگی۔",
-  devBy: "Software developed by: Creative Babar / 03098325271 or visit website www.digitalglobalschool.com",
+  devBy: "Software developed by: Creative Babar / 03098325271",
 };
 
 /* ══════════════════════════════════════════════════════════
@@ -114,7 +105,7 @@ const buildPrintHtml = (purchase, type, overrides = {}) => {
       ${buyerPhone ? `<div style="font-size:9px;color:#555">${buyerPhone}</div>` : ""}
       ${remarks ? `<div class="remarks-box"><b>Remarks:</b> ${remarks}</div>` : ""}
       <hr class="divider-solid">
-      <table>
+      <tr>
         <thead><tr><th style="width:20px">#</th><th>Product</th><th class="r">Qty.</th><th class="r">Rate</th><th class="r">Amount</th></tr></thead>
         <tbody>${itemRows}</tbody>
       </table>
@@ -133,8 +124,49 @@ const buildPrintHtml = (purchase, type, overrides = {}) => {
     </body></html>`;
   }
 
-  // A4/A5 format - simplified for brevity
-  return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Purchase Invoice ${purchase.invoiceNo}</title></head><body><h1>Purchase Invoice ${purchase.invoiceNo}</h1><p>Supplier: ${buyerName}</p><p>Date: ${purchase.invoiceDate}</p><table border="1"><thead><tr><th>#</th><th>Product</th><th>Qty</th><th>Rate</th><th>Amount</th></tr></thead><tbody>${rows.map((it, i) => `<tr><td>${i+1}</td><td>${it.name}</td><td>${it.pcs}</td><td>${it.rate}</td><td>${it.amount}</td></tr>`).join("")}</tbody><tfoot><tr><td colspan="4"><b>Total</b></td><td><b>${Number(purchase.netTotal).toLocaleString()}</b></td></tr></tfoot></table></body></html>`;
+  // A4 format
+  const itemRows = rows.map((it) => `
+    <tr>
+      <td style="padding:6px;border:1px solid #000">${it.sr}</td>
+      <td style="padding:6px;border:1px solid #000">${it.name}</td>
+      <td style="padding:6px;border:1px solid #000;text-align:center">${it.uom || "—"}</td>
+      <td style="padding:6px;border:1px solid #000;text-align:right">${it.pcs}</td>
+      <td style="padding:6px;border:1px solid #000;text-align:right">${Number(it.rate).toLocaleString()}</td>
+      <td style="padding:6px;border:1px solid #000;text-align:right;font-weight:bold">${Number(it.amount).toLocaleString()}</td>
+    </tr>
+  `).join("");
+
+  return `<!DOCTYPE html><html><head><meta charset="utf-8">${GOOGLE_FONT_LINK}<style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:Arial,sans-serif;font-size:11px;padding:20px}
+    .shop-name-line{font-family:${URDU_FONT};font-size:22px;font-weight:700;text-align:center;direction:rtl;margin-bottom:4px}
+    .sub-header{font-family:${URDU_FONT};font-size:11px;text-align:center;direction:rtl;margin-bottom:2px}
+    .contact-line{font-size:10px;text-align:center;margin-bottom:3px}
+    .title{font-size:16px;font-weight:bold;margin:15px 0;padding:8px;background:#10b981;color:#fff;text-align:center}
+    .meta-box{border:1px solid #000;padding:10px;margin:10px 0}
+    table{width:100%;border-collapse:collapse;margin:10px 0}
+    th{background:#333;color:#fff;padding:8px;border:1px solid #000}
+    td{padding:6px;border:1px solid #000}
+    .total-box{border:2px solid #000;padding:10px;margin-top:10px;text-align:right}
+    .footer{text-align:center;margin-top:20px;font-size:9px;color:#666}
+  </style></head><body>
+    <div class="shop-name-line">${SHOP_INFO.name}</div>
+    <div class="sub-header">${SHOP_INFO.address}</div>
+    <div class="contact-line">${SHOP_INFO.phone1} | ${SHOP_INFO.phone2} | ${SHOP_INFO.phone3}</div>
+    <div class="title">PURCHASE INVOICE</div>
+    <div class="meta-box">
+      <div><strong>Purchase #:</strong> ${purchase.invoiceNo}</div>
+      <div><strong>Date:</strong> ${purchase.invoiceDate}</div>
+      <div><strong>Supplier:</strong> ${buyerName}</div>
+      ${remarks ? `<div><strong>Remarks:</strong> ${remarks}</div>` : ""}
+    </div>
+    <table>
+      <thead><tr><th>#</th><th>Product</th><th>Unit</th><th>Qty</th><th>Rate</th><th>Amount</th></tr></thead>
+      <tbody>${itemRows}</tbody>
+      <tfoot><tr><td colspan="5" style="text-align:right"><strong>Total:</strong></td><td><strong>PKR ${Number(purchase.netTotal).toLocaleString()}</strong></td></tr></tfoot>
+    </table>
+    <div class="footer">${SHOP_INFO.devBy}</div>
+  </body></html>`;
 };
 
 const doPrint = (purchase, type) => {
@@ -183,7 +215,7 @@ function PurchaseDetailModal({ invoice, onClose, onPrint, onDelete, printType })
             <div><div style={{ fontSize: "11px", color: "#6b7280" }}>Invoice Number</div><div style={{ fontSize: "18px", fontWeight: "bold", color: "#065f46" }}>{invoice.invoiceNo}</div></div>
             <div><div style={{ fontSize: "11px", color: "#6b7280" }}>Date</div><div style={{ fontSize: "14px", fontWeight: "500" }}>{formatDate(invoice.invoiceDate)}</div></div>
             <div><div style={{ fontSize: "11px", color: "#6b7280" }}>Supplier</div><div style={{ fontSize: "14px", fontWeight: "500", color: "#065f46" }}>{invoice.supplierName || "Cash Purchase"}</div></div>
-            <div><div style={{ fontSize: "11px", color: "#6b7280" }}>Phone</div><div style={{ fontSize: "14px" }}>{invoice.supplierPhone || "—"}</div></div>
+            <div><div style={{ fontSize: "11px", color: "#6b7280" }}>Phone</div><div style={{ fontSize: "14px" }}>{invoice.supplierPhone || invoice.supplierCode || "—"}</div></div>
             {invoice.remarks && <div style={{ gridColumn: "span 2" }}><div style={{ fontSize: "11px", color: "#6b7280" }}>Remarks</div><div style={{ fontSize: "13px", padding: "8px", background: "#f0fdf4", borderRadius: "6px" }}>{invoice.remarks}</div></div>}
           </div>
 
@@ -191,7 +223,15 @@ function PurchaseDetailModal({ invoice, onClose, onPrint, onDelete, printType })
             <div style={{ overflowX: "auto", maxHeight: "400px" }}>
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
                 <thead style={{ position: "sticky", top: 0, background: "#10b981", color: "white" }}>
-                  <tr><th style={{ padding: "10px", textAlign: "center", width: 50 }}>#</th><th style={{ padding: "10px", textAlign: "left", width: 100 }}>Code</th><th style={{ padding: "10px", textAlign: "left" }}>Product Name</th><th style={{ padding: "10px", textAlign: "center", width: 70 }}>UOM</th><th style={{ padding: "10px", textAlign: "right", width: 70 }}>Qty</th><th style={{ padding: "10px", textAlign: "right", width: 100 }}>Rate</th><th style={{ padding: "10px", textAlign: "right", width: 110 }}>Amount</th></tr>
+                  <tr>
+                    <th style={{ padding: "10px", textAlign: "center", width: 50 }}>#</th>
+                    <th style={{ padding: "10px", textAlign: "left", width: 100 }}>Code</th>
+                    <th style={{ padding: "10px", textAlign: "left" }}>Product Name</th>
+                    <th style={{ padding: "10px", textAlign: "center", width: 70 }}>UOM</th>
+                    <th style={{ padding: "10px", textAlign: "right", width: 70 }}>Qty</th>
+                    <th style={{ padding: "10px", textAlign: "right", width: 100 }}>Rate</th>
+                    <th style={{ padding: "10px", textAlign: "right", width: 110 }}>Amount</th>
+                  </tr>
                 </thead>
                 <tbody>
                   {(invoice.items || []).map((it, i) => (
@@ -207,7 +247,12 @@ function PurchaseDetailModal({ invoice, onClose, onPrint, onDelete, printType })
                   ))}
                 </tbody>
                 <tfoot style={{ background: "#f0fdf4", fontWeight: "bold" }}>
-                  <tr><td colSpan="4" style={{ padding: "10px", textAlign: "right" }}>Totals:</td><td style={{ padding: "10px", textAlign: "right" }}>{totalQty.toLocaleString()}</td><td style={{ padding: "10px", textAlign: "right" }}></td><td style={{ padding: "10px", textAlign: "right", color: "#065f46", fontSize: "15px" }}>PKR {totalAmount.toLocaleString()}</td></tr>
+                  <tr>
+                    <td colSpan="4" style={{ padding: "10px", textAlign: "right" }}>Totals:</td>
+                    <td style={{ padding: "10px", textAlign: "right" }}>{totalQty.toLocaleString()}</td>
+                    <td style={{ padding: "10px", textAlign: "right" }}></td>
+                    <td style={{ padding: "10px", textAlign: "right", color: "#065f46", fontSize: "15px" }}>PKR {totalAmount.toLocaleString()}</td>
+                  </tr>
                 </tfoot>
               </table>
             </div>
@@ -266,7 +311,7 @@ export default function PurchaseListPage() {
       );
     }
     
-    // Apply date range filter (from - to)
+    // Apply date range filter
     if (fromDate) {
       filtered = filtered.filter(purchase => purchase.invoiceDate >= fromDate);
     }
@@ -300,9 +345,16 @@ export default function PurchaseListPage() {
     setLoading(true);
     try {
       const response = await api.get(EP.PURCHASES.GET_ALL);
-      if (response.data.success) {
+      console.log("Purchase API Response:", response.data);
+      
+      if (response.data.success && response.data.data) {
         setPurchases(response.data.data);
         setFilteredPurchases(response.data.data);
+        console.log("Loaded purchases:", response.data.data.length);
+        // Log first purchase to check supplier name
+        if (response.data.data.length > 0) {
+          console.log("First purchase supplier:", response.data.data[0].supplierName);
+        }
       } else {
         showMsg("Failed to load purchases", "error");
       }
@@ -358,28 +410,21 @@ export default function PurchaseListPage() {
   const stats = getSummaryStats();
 
   return (
-    <div className="sl-page purchase-list-page" style={{ background: "#f3f4f6" }}>
+    <div className="sl-page purchase-list-page" style={{ background: "#f3f4f6", minHeight: "100vh" }}>
       {/* Title Bar */}
-      <div className="xp-titlebar" style={{ background: "#10b981", borderRadius: "8px 8px 0 0" }}>
-        <svg width="15" height="15" viewBox="0 0 16 16" fill="rgba(255,255,255,0.85)">
-          <path d="M0 4a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2zm2-1a1 1 0 0 0-1 1v1h14V4a1 1 0 0 0-1-1zm13 4H1v5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1zM2 10h2a1 1 0 0 1 0 2H2a1 1 0 0 1 0-2m4 0h6a1 1 0 0 1 0 2H6a1 1 0 0 1 0-2" />
-        </svg>
-        <span className="xp-tb-title" style={{ color: "white", fontWeight: "bold" }}>Purchase Invoices List — Asim Electric & Electronic Store</span>
+      <div className="xp-titlebar" style={{ background: "#10b981", borderRadius: "8px 8px 0 0", padding: "12px 20px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+          <button onClick={() => window.history.back()} style={{ background: "none", border: "none", color: "white", cursor: "pointer", fontSize: "18px" }}>←</button>
+          <span className="xp-tb-title" style={{ color: "white", fontWeight: "bold", fontSize: "16px" }}>Purchase Invoices List — Asim Electric Store</span>
+        </div>
         <div className="xp-tb-actions">
-          <div className="sl-shortcut-hints" style={{ color: "white" }}>
-            <span>🔍 Search</span>
-            <span>📅 Date Range</span>
-            <span>🖨️ Print</span>
-          </div>
-          <button className="xp-cap-btn" style={{ color: "white" }}>─</button>
-          <button className="xp-cap-btn" style={{ color: "white" }}>□</button>
-          <button className="xp-cap-btn xp-cap-close" style={{ color: "white" }}>✕</button>
+          <button onClick={loadPurchases} style={{ background: "rgba(255,255,255,0.2)", border: "none", color: "white", padding: "4px 12px", borderRadius: "4px", cursor: "pointer" }}>⟳ Refresh</button>
         </div>
       </div>
 
       {/* Message Alert */}
       {msg.text && (
-        <div className={`xp-alert ${msg.type === "success" ? "xp-alert-success" : "xp-alert-error"}`} style={{ margin: "12px", flexShrink: 0, borderRadius: "8px" }}>
+        <div className={`xp-alert ${msg.type === "success" ? "xp-alert-success" : "xp-alert-error"}`} style={{ margin: "12px", flexShrink: 0, borderRadius: "8px", padding: "10px 16px" }}>
           {msg.text}
         </div>
       )}
@@ -388,22 +433,22 @@ export default function PurchaseListPage() {
       <div style={{ padding: "20px" }}>
         
         {/* Stats Cards */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "16px", marginBottom: "24px" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "16px", marginBottom: "24px" }}>
           <div style={{ background: "white", padding: "20px", borderRadius: "12px", boxShadow: "0 1px 3px rgba(0,0,0,0.1)", borderLeft: "4px solid #10b981" }}>
             <div style={{ fontSize: "13px", color: "#6b7280" }}>Total Invoices</div>
-            <div style={{ fontSize: "32px", fontWeight: "bold", color: "#065f46" }}>{stats.totalInvoices}</div>
+            <div style={{ fontSize: "28px", fontWeight: "bold", color: "#065f46" }}>{stats.totalInvoices}</div>
           </div>
           <div style={{ background: "white", padding: "20px", borderRadius: "12px", boxShadow: "0 1px 3px rgba(0,0,0,0.1)", borderLeft: "4px solid #f59e0b" }}>
             <div style={{ fontSize: "13px", color: "#6b7280" }}>Total Purchase Value</div>
-            <div style={{ fontSize: "24px", fontWeight: "bold", color: "#d97706" }}>PKR {formatCurrency(stats.totalAmount)}</div>
+            <div style={{ fontSize: "22px", fontWeight: "bold", color: "#d97706" }}>PKR {formatCurrency(stats.totalAmount)}</div>
           </div>
           <div style={{ background: "white", padding: "20px", borderRadius: "12px", boxShadow: "0 1px 3px rgba(0,0,0,0.1)", borderLeft: "4px solid #3b82f6" }}>
             <div style={{ fontSize: "13px", color: "#6b7280" }}>Total Items Purchased</div>
-            <div style={{ fontSize: "28px", fontWeight: "bold", color: "#2563eb" }}>{stats.totalItems.toLocaleString()}</div>
+            <div style={{ fontSize: "24px", fontWeight: "bold", color: "#2563eb" }}>{stats.totalItems.toLocaleString()}</div>
           </div>
           <div style={{ background: "white", padding: "20px", borderRadius: "12px", boxShadow: "0 1px 3px rgba(0,0,0,0.1)", borderLeft: "4px solid #8b5cf6" }}>
             <div style={{ fontSize: "13px", color: "#6b7280" }}>Unique Suppliers</div>
-            <div style={{ fontSize: "28px", fontWeight: "bold", color: "#7c3aed" }}>{stats.uniqueSuppliers}</div>
+            <div style={{ fontSize: "24px", fontWeight: "bold", color: "#7c3aed" }}>{stats.uniqueSuppliers}</div>
           </div>
         </div>
 
@@ -515,7 +560,7 @@ export default function PurchaseListPage() {
               </thead>
               <tbody>
                 {loading ? (
-                  <tr><td colSpan="9" style={{ textAlign: "center", padding: "60px" }}>Loading purchase invoices...</td></tr>
+                  <tr><td colSpan="9" style={{ textAlign: "center", padding: "60px", color: "#6b7280" }}>Loading purchase invoices...</td></tr>
                 ) : filteredPurchases.length === 0 ? (
                   <tr><td colSpan="9" style={{ textAlign: "center", padding: "60px", color: "#6b7280" }}>No purchase invoices found</td></tr>
                 ) : (
@@ -523,13 +568,13 @@ export default function PurchaseListPage() {
                     const totalQty = (purchase.items || []).reduce((s, r) => s + (r.pcs || r.qty || 0), 0);
                     const totalAmount = purchase.netTotal || purchase.subTotal || 0;
                     return (
-                      <tr key={purchase._id || purchase.invoiceNo} style={{ borderBottom: "1px solid #f0f0f0", cursor: "pointer", transition: "background 0.2s" }}
+                      <tr key={purchase._id || purchase.invoiceNo} style={{ borderBottom: "1px solid #f0f0f0", cursor: "pointer" }}
                         onDoubleClick={() => handleViewDetails(purchase)} onMouseEnter={(e) => e.currentTarget.style.background = "#f9fafb"} onMouseLeave={(e) => e.currentTarget.style.background = "white"}>
                         <td style={{ padding: "12px", textAlign: "center", color: "#6b7280" }}>{idx + 1}</td>
                         <td style={{ padding: "12px", fontWeight: "bold", color: "#065f46" }}>{purchase.invoiceNo}</td>
                         <td style={{ padding: "12px", color: "#4b5563" }}>{formatDate(purchase.invoiceDate)}</td>
-                        <td style={{ padding: "12px", fontWeight: "500" }}>{purchase.supplierName || "Cash Purchase"}</td>
-                        <td style={{ padding: "12px", color: "#6b7280" }}>{purchase.supplierPhone || "—"}</td>
+                        <td style={{ padding: "12px", fontWeight: "500", color: "#1e3a5f" }}>{purchase.supplierName || "Cash Purchase"}</td>
+                        <td style={{ padding: "12px", color: "#6b7280" }}>{purchase.supplierPhone || purchase.supplierCode || "—"}</td>
                         <td style={{ padding: "12px", textAlign: "center" }}>{(purchase.items || []).length}</td>
                         <td style={{ padding: "12px", textAlign: "center" }}>{totalQty.toLocaleString()}</td>
                         <td style={{ padding: "12px", textAlign: "right", fontWeight: "bold", color: "#065f46" }}>PKR {formatCurrency(totalAmount)}</td>
@@ -562,10 +607,6 @@ export default function PurchaseListPage() {
       )}
 
       <style>{`
-        .purchase-list-page {
-          background: #f3f4f6;
-          min-height: 100vh;
-        }
         .xp-input:focus {
           outline: none;
           border-color: #10b981 !important;
@@ -577,21 +618,6 @@ export default function PurchaseListPage() {
         button:hover {
           transform: translateY(-1px);
           filter: brightness(1.05);
-        }
-        .xp-table-scroll::-webkit-scrollbar {
-          width: 8px;
-          height: 8px;
-        }
-        .xp-table-scroll::-webkit-scrollbar-track {
-          background: #f1f1f1;
-          border-radius: 4px;
-        }
-        .xp-table-scroll::-webkit-scrollbar-thumb {
-          background: #c1c1c1;
-          border-radius: 4px;
-        }
-        .xp-table-scroll::-webkit-scrollbar-thumb:hover {
-          background: #a8a8a8;
         }
       `}</style>
     </div>

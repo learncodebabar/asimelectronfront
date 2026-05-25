@@ -1,578 +1,918 @@
-// pages/CounterSummaryPage.jsx
-import React, { useState, useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+// pages/Reports/CounterSummaryPage.jsx
+import { useState, useEffect, useCallback } from "react";
 import api from "../../api/api.js";
 import EP from "../../api/apiEndpoints.js";
-import "../../styles/theme.css";
+import "../../../styles/theme.css";
+import "../../../styles/CounterSummaryPage.css";
+import { SHOP_INFO } from "../../constants/shopInfo.js";
 
-const fmt = (n) => Number(n || 0).toLocaleString("en-PK");
-const isoD = () => new Date().toISOString().split("T")[0];
+const isoDate = () => new Date().toISOString().split("T")[0];
+const timeNow = () => new Date().toLocaleTimeString("en-US", {
+  hour: "2-digit",
+  minute: "2-digit",
+  second: "2-digit",
+});
 
 export default function CounterSummaryPage() {
-  const navigate = useNavigate();
-  
-  // State
+  const [summaryDate, setSummaryDate] = useState(isoDate());
+  const [currentTime, setCurrentTime] = useState(timeNow());
   const [loading, setLoading] = useState(false);
-  const [fromDate, setFromDate] = useState(isoD());
-  const [toDate, setToDate] = useState(isoD());
-  const [searchTerm, setSearchTerm] = useState("");
+  const [notes, setNotes] = useState("");
   const [summaryData, setSummaryData] = useState({
-    sales: {
-      total: 0,
-      count: 0,
-      items: 0,
-      qty: 0,
-      cash: 0,
-      credit: 0,
-      bank: 0,
-      cheque: 0
+    counters: [],
+    totals: {
+      totalSales: 0,
+      totalReturns: 0,
+      totalPurchases: 0,
+      totalRawSales: 0,
+      totalRawPurchases: 0,
+      netCash: 0,
     },
-    purchases: {
-      total: 0,
-      count: 0,
-      items: 0,
-      qty: 0
-    },
-    receipts: {
-      total: 0,
-      count: 0
-    },
-    payments: {
-      total: 0,
-      count: 0
-    },
-    customers: {
-      new: 0,
-      total: 0
-    },
-    products: {
-      total: 0,
-      lowStock: 0
-    }
   });
-  
-  const [transactions, setTransactions] = useState([]);
-  const [filteredTransactions, setFilteredTransactions] = useState([]);
-  const [selectedType, setSelectedType] = useState("all");
-  
-  const searchRef = useRef(null);
-  
+  const [selectedCounter, setSelectedCounter] = useState("all");
+  const [expandedCounters, setExpandedCounters] = useState({});
+  const [msg, setMsg] = useState({ text: "", type: "" });
+
+  // Update current time every second
   useEffect(() => {
-    fetchSummary();
-    searchRef.current?.focus();
-  }, [fromDate, toDate]);
-  
+    const t = setInterval(() => setCurrentTime(timeNow()), 1000);
+    return () => clearInterval(t);
+  }, []);
+
+  // Fetch summary data
   const fetchSummary = async () => {
     setLoading(true);
     try {
-      // Fetch all required data
-      const [salesRes, purchasesRes, receiptsRes, paymentsRes, customersRes, productsRes] = await Promise.all([
+      const [salesRes, returnsRes, purchasesRes, rawSalesRes, rawPurchasesRes, usersRes] = await Promise.all([
+        api.get(EP.SALES.GET_ALL),
         api.get(EP.SALES.GET_ALL),
         api.get(EP.PURCHASES.GET_ALL),
-        api.get(EP.CASH_RECEIPTS.GET_ALL),
-        api.get(EP.CPV.GET_ALL),
-        api.get(EP.CUSTOMERS.GET_ALL),
-        api.get(EP.PRODUCTS.GET_ALL)
+        api.get(EP.RAW_SALES.GET_ALL),
+        api.get(EP.RAW_PURCHASES.GET_ALL),
+        api.get("/users"),
       ]);
+
+      const dateStr = summaryDate;
       
-      // Filter by date range
-      const sales = (salesRes.data.data || []).filter(s => s.invoiceDate >= fromDate && s.invoiceDate <= toDate);
-      const purchases = (purchasesRes.data.data || []).filter(p => p.invoiceDate >= fromDate && p.invoiceDate <= toDate);
-      const receipts = (receiptsRes.data.data || []).filter(r => (r.receiptDate || r.date) >= fromDate && (r.receiptDate || r.date) <= toDate);
-      const payments = (paymentsRes.data.data || []).filter(p => (p.date || p.createdAt?.split("T")[0]) >= fromDate && (p.date || p.createdAt?.split("T")[0]) <= toDate);
+      const sales = (salesRes.data.data || []).filter(
+        (s) => s.saleType !== "return" && s.invoiceDate?.startsWith(dateStr)
+      );
       
-      // Calculate sales summary
-      const salesTotal = sales.reduce((sum, s) => sum + (s.netTotal || 0), 0);
-      const salesCash = sales.filter(s => s.paymentMode === "Cash").reduce((sum, s) => sum + (s.netTotal || 0), 0);
-      const salesCredit = sales.filter(s => s.paymentMode === "Credit").reduce((sum, s) => sum + (s.netTotal || 0), 0);
-      const salesBank = sales.filter(s => s.paymentMode === "Bank").reduce((sum, s) => sum + (s.netTotal || 0), 0);
-      const salesCheque = sales.filter(s => s.paymentMode === "Cheque").reduce((sum, s) => sum + (s.netTotal || 0), 0);
-      const salesCount = sales.length;
-      const salesItems = sales.reduce((sum, s) => sum + (s.items?.length || 0), 0);
-      const salesQty = sales.reduce((sum, s) => {
-        const itemsQty = (s.items || []).reduce((itemSum, item) => itemSum + (item.pcs || item.qty || 0), 0);
-        return sum + itemsQty;
-      }, 0);
+      const returns = (returnsRes.data.data || []).filter(
+        (r) => (r.saleType === "return" || r.type === "return") && r.invoiceDate?.startsWith(dateStr)
+      );
       
-      // Calculate purchases summary
-      const purchasesTotal = purchases.reduce((sum, p) => sum + (p.netTotal || 0), 0);
-      const purchasesCount = purchases.length;
-      const purchasesItems = purchases.reduce((sum, p) => sum + (p.items?.length || 0), 0);
-      const purchasesQty = purchases.reduce((sum, p) => {
-        const itemsQty = (p.items || []).reduce((itemSum, item) => itemSum + (item.pcs || item.qty || 0), 0);
-        return sum + itemsQty;
-      }, 0);
+      const purchases = (purchasesRes.data.data || []).filter(
+        (p) => p.invoiceDate?.startsWith(dateStr)
+      );
       
-      // Calculate receipts summary
-      const receiptsTotal = receipts.reduce((sum, r) => sum + (r.amount || r.amountReceived || 0), 0);
-      const receiptsCount = receipts.length;
+      const rawSales = (rawSalesRes.data.data || []).filter(
+        (rs) => rs.invoiceDate?.startsWith(dateStr)
+      );
       
-      // Calculate payments summary
-      const paymentsTotal = payments.reduce((sum, p) => sum + (p.amount || 0), 0);
-      const paymentsCount = payments.length;
-      
-      // Calculate customers summary
-      const customers = customersRes.data.data || [];
-      const newCustomers = customers.filter(c => {
-        const createdAt = c.createdAt?.split("T")[0];
-        return createdAt >= fromDate && createdAt <= toDate;
+      const rawPurchases = (rawPurchasesRes.data.data || []).filter(
+        (rp) => rp.invoiceDate?.startsWith(dateStr)
+      );
+
+      let users = [];
+      if (usersRes.data && usersRes.data.data) {
+        users = usersRes.data.data;
+      } else {
+        const uniqueUsers = new Set();
+        sales.forEach(s => { if (s.username) uniqueUsers.add(s.username); });
+        returns.forEach(r => { if (r.username) uniqueUsers.add(r.username); });
+        purchases.forEach(p => { if (p.username) uniqueUsers.add(p.username); });
+        users = Array.from(uniqueUsers).map(name => ({ username: name, name: name }));
+      }
+
+      const counters = users.map(user => {
+        const userSales = sales.filter(s => s.username === user.username || s.userId === user._id);
+        const userReturns = returns.filter(r => r.username === user.username || r.userId === user._id);
+        const userPurchases = purchases.filter(p => p.username === user.username || p.userId === user._id);
+        const userRawSales = rawSales.filter(rs => rs.username === user.username || rs.userId === user._id);
+        const userRawPurchases = rawPurchases.filter(rp => rp.username === user.username || rp.userId === user._id);
+
+        const salesTotal = userSales.reduce((sum, s) => sum + (s.netTotal || 0), 0);
+        const returnsTotal = userReturns.reduce((sum, r) => sum + (r.netTotal || 0), 0);
+        const purchasesTotal = userPurchases.reduce((sum, p) => sum + (p.netTotal || 0), 0);
+        const rawSalesTotal = userRawSales.reduce((sum, rs) => sum + (rs.netTotal || 0), 0);
+        const rawPurchasesTotal = userRawPurchases.reduce((sum, rp) => sum + (rp.netTotal || 0), 0);
+        
+        const cashReceived = userSales.reduce((sum, s) => sum + (s.paidAmount || 0), 0);
+        const cashRefunded = userReturns.reduce((sum, r) => sum + (r.paidAmount || 0), 0);
+        const cashPaid = userPurchases.reduce((sum, p) => sum + (p.paidAmount || 0), 0);
+        
+        const netCash = cashReceived - cashRefunded - cashPaid;
+
+        return {
+          id: user._id || user.username,
+          name: user.name || user.username,
+          username: user.username,
+          sales: userSales,
+          returns: userReturns,
+          purchases: userPurchases,
+          rawSales: userRawSales,
+          rawPurchases: userRawPurchases,
+          totals: {
+            sales: salesTotal,
+            returns: returnsTotal,
+            purchases: purchasesTotal,
+            rawSales: rawSalesTotal,
+            rawPurchases: rawPurchasesTotal,
+            cashReceived,
+            cashRefunded,
+            cashPaid,
+            netCash,
+          },
+          counts: {
+            sales: userSales.length,
+            returns: userReturns.length,
+            purchases: userPurchases.length,
+            rawSales: userRawSales.length,
+            rawPurchases: userRawPurchases.length,
+          },
+        };
       });
-      
-      // Calculate products summary
-      const products = productsRes.data.data || [];
-      const lowStockProducts = products.filter(p => {
-        const pk = p.packingInfo?.[0];
-        return pk && (pk.openingQty || 0) < (pk.minQty || 5);
-      });
-      
-      setSummaryData({
-        sales: {
-          total: salesTotal,
-          count: salesCount,
-          items: salesItems,
-          qty: salesQty,
-          cash: salesCash,
-          credit: salesCredit,
-          bank: salesBank,
-          cheque: salesCheque
-        },
-        purchases: {
-          total: purchasesTotal,
-          count: purchasesCount,
-          items: purchasesItems,
-          qty: purchasesQty
-        },
-        receipts: {
-          total: receiptsTotal,
-          count: receiptsCount
-        },
-        payments: {
-          total: paymentsTotal,
-          count: paymentsCount
-        },
-        customers: {
-          new: newCustomers.length,
-          total: customers.length
-        },
-        products: {
-          total: products.length,
-          lowStock: lowStockProducts.length
+
+      counters.sort((a, b) => a.name.localeCompare(b.name));
+
+      const totals = counters.reduce(
+        (acc, counter) => ({
+          totalSales: acc.totalSales + counter.totals.sales,
+          totalReturns: acc.totalReturns + counter.totals.returns,
+          totalPurchases: acc.totalPurchases + counter.totals.purchases,
+          totalRawSales: acc.totalRawSales + counter.totals.rawSales,
+          totalRawPurchases: acc.totalRawPurchases + counter.totals.rawPurchases,
+          netCash: acc.netCash + counter.totals.netCash,
+        }),
+        {
+          totalSales: 0,
+          totalReturns: 0,
+          totalPurchases: 0,
+          totalRawSales: 0,
+          totalRawPurchases: 0,
+          netCash: 0,
         }
-      });
-      
-      // Build transactions list for table
-      const allTransactions = [
-        ...sales.map(s => ({
-          ...s,
-          type: "sale",
-          displayType: "SALE",
-          date: s.invoiceDate,
-          refNo: s.invoiceNo,
-          customerName: s.customerName || "COUNTER SALE",
-          amount: s.netTotal || 0,
-          paymentMode: s.paymentMode,
-          icon: "🛒"
-        })),
-        ...purchases.map(p => ({
-          ...p,
-          type: "purchase",
-          displayType: "PURCHASE",
-          date: p.invoiceDate,
-          refNo: p.invoiceNo,
-          customerName: p.supplierName || "—",
-          amount: p.netTotal || 0,
-          paymentMode: "Cash",
-          icon: "📦"
-        })),
-        ...receipts.map(r => ({
-          ...r,
-          type: "receipt",
-          displayType: "CASH RECEIPT",
-          date: r.receiptDate || r.date,
-          refNo: r.receiptNo,
-          customerName: r.customerName,
-          amount: r.amount || r.amountReceived || 0,
-          paymentMode: "Received",
-          icon: "💰"
-        })),
-        ...payments.map(p => ({
-          ...p,
-          type: "payment",
-          displayType: "CASH PAYMENT",
-          date: p.date || p.createdAt?.split("T")[0],
-          refNo: p.cpv_number,
-          customerName: p.account_title,
-          amount: p.amount || 0,
-          paymentMode: "Paid",
-          icon: "💵"
-        }))
-      ];
-      
-      allTransactions.sort((a, b) => new Date(b.date) - new Date(a.date));
-      setTransactions(allTransactions);
-      setFilteredTransactions(allTransactions);
-      
-    } catch (err) {
-      console.error("Failed to fetch summary:", err);
+      );
+
+      setSummaryData({ counters, totals });
+      showMsg("Data loaded successfully", "success");
+    } catch (error) {
+      console.error("Failed to fetch summary:", error);
+      showMsg("Failed to load summary data", "error");
     }
     setLoading(false);
   };
-  
-  // Filter transactions based on search term and type
+
   useEffect(() => {
-    let filtered = [...transactions];
-    
-    if (searchTerm.trim()) {
-      const term = searchTerm.toLowerCase().trim();
-      filtered = filtered.filter(t => 
-        t.refNo?.toLowerCase().includes(term) ||
-        t.customerName?.toLowerCase().includes(term) ||
-        t.displayType?.toLowerCase().includes(term)
-      );
-    }
-    
-    if (selectedType !== "all") {
-      filtered = filtered.filter(t => t.type === selectedType);
-    }
-    
-    setFilteredTransactions(filtered);
-  }, [searchTerm, selectedType, transactions]);
-  
-  const clearSearch = () => {
-    setSearchTerm("");
-    setSelectedType("all");
-    searchRef.current?.focus();
+    fetchSummary();
+  }, [summaryDate]);
+
+  const showMsg = (text, type = "success") => {
+    setMsg({ text, type });
+    setTimeout(() => setMsg({ text: "", type: "" }), 3000);
   };
-  
+
+  const toggleCounter = (counterId) => {
+    setExpandedCounters(prev => ({
+      ...prev,
+      [counterId]: !prev[counterId],
+    }));
+  };
+
+  const expandAll = () => {
+    const allExpanded = {};
+    summaryData.counters.forEach(counter => {
+      allExpanded[counter.id] = true;
+    });
+    setExpandedCounters(allExpanded);
+  };
+
+  const collapseAll = () => {
+    setExpandedCounters({});
+  };
+
+  const formatCurrency = (amount) => {
+    return Number(amount || 0).toLocaleString("en-PK");
+  };
+
+  const filteredCounters = selectedCounter === "all" 
+    ? summaryData.counters 
+    : summaryData.counters.filter(c => c.id === selectedCounter);
+
   const handlePrint = () => {
-    const printWindow = window.open("", "_blank");
+    const printWindow = window.open("", "_blank", "width=1200,height=800");
     printWindow.document.write(buildPrintHtml());
     printWindow.document.close();
     setTimeout(() => printWindow.print(), 500);
   };
-  
+
   const buildPrintHtml = () => {
-    const printDateTime = new Date().toLocaleString("en-PK");
-    
+    const urduFont = `'Noto Nastaliq Urdu','Mehr Nastaliq','Jameel Noori Nastaleeq','Urdu Typesetting',serif`;
+    const printDateTime = new Date().toLocaleString("en-PK", {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+
+    const countersHtml = filteredCounters.map(counter => `
+      <div class="print-counter-card">
+        <div class="print-counter-header">
+          <div class="print-counter-name">👤 ${counter.name}</div>
+          <div class="print-counter-net ${counter.totals.netCash >= 0 ? 'positive' : 'negative'}">
+            Net Cash: ${counter.totals.netCash >= 0 ? '+' : '-'}PKR ${formatCurrency(Math.abs(counter.totals.netCash))}
+          </div>
+        </div>
+        <table class="print-table">
+          <thead>
+            <tr>
+              <th>Transaction Type</th>
+              <th>Count</th>
+              <th>Amount (PKR)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>💰 Sales</td><td>${counter.counts.sales}</td><td>${formatCurrency(counter.totals.sales)}</td></tr>
+            <tr><td>↩️ Returns</td><td>${counter.counts.returns}</td><td class="negative">${formatCurrency(counter.totals.returns)}</td></tr>
+            <tr><td>📦 Purchases</td><td>${counter.counts.purchases}</td><td class="negative">${formatCurrency(counter.totals.purchases)}</td></tr>
+            <tr><td>🏭 Raw Sales</td><td>${counter.counts.rawSales}</td><td>${formatCurrency(counter.totals.rawSales)}</td></tr>
+            <tr><td>🏭 Raw Purchases</td><td>${counter.counts.rawPurchases}</td><td class="negative">${formatCurrency(counter.totals.rawPurchases)}</td></tr>
+          </tbody>
+          <tfoot>
+            <tr class="total-row"><td><strong>NET CASH FLOW</strong></td><td></td><td class="${counter.totals.netCash >= 0 ? 'positive' : 'negative'}"><strong>${counter.totals.netCash >= 0 ? '+' : '-'}PKR ${formatCurrency(Math.abs(counter.totals.netCash))}</strong></td></tr>
+          </tfoot>
+        </table>
+      </div>
+    `).join("");
+
     return `<!DOCTYPE html>
     <html>
     <head>
       <meta charset="utf-8">
-      <title>Counter Summary Report</title>
+      <title>Counter Summary Report - ${SHOP_INFO.name}</title>
       <style>
         *{margin:0;padding:0;box-sizing:border-box}
         body{font-family:Arial,sans-serif;padding:20px;font-size:12px}
         .header{text-align:center;margin-bottom:20px;padding-bottom:15px;border-bottom:3px solid #000}
-        .shop-name{font-size:22px;font-weight:bold}
-        .shop-addr{font-size:11px;color:#444}
-        .title{font-size:18px;font-weight:bold;margin:15px 0;background:#1e40af;color:#fff;padding:10px;text-align:center}
-        .date-range{text-align:center;margin:10px 0;padding:8px;background:#f8fafc;border:2px solid #000}
-        .summary-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:15px;margin:20px 0}
-        .summary-card{border:2px solid #000;padding:15px;border-radius:8px}
-        .summary-card h3{margin-bottom:10px;font-size:14px}
-        .row{display:flex;justify-content:space-between;padding:5px 0}
-        .total{font-weight:bold;border-top:2px solid #000;margin-top:5px;padding-top:5px}
-        table{width:100%;border-collapse:collapse;margin:15px 0}
-        th{background:#000;color:#fff;padding:10px;border:1px solid #000}
-        td{padding:8px;border:1px solid #000}
-        .text-right{text-align:right}
-        .footer{text-align:center;margin-top:30px;padding-top:10px;border-top:1px solid #ddd;font-size:10px}
+        .bismillah{font-family:${urduFont};font-size:28px;font-weight:bold;margin-bottom:10px;direction:rtl}
+        .shop-name-urdu{font-family:${urduFont};font-size:22px;font-weight:bold;margin:5px 0;direction:rtl}
+        .shop-name-en{font-size:16px;font-weight:bold;margin:5px 0}
+        .shop-addr{font-size:11px;color:#444;margin:3px 0}
+        .title{font-size:18px;font-weight:bold;margin:15px 0;padding:10px;background:#1e40af;color:#fff;text-align:center}
+        .date-time{display:flex;justify-content:space-between;margin:10px 0;padding:8px;background:#f8fafc;border:1px solid #000}
+        .print-counter-card{border:2px solid #000;margin-bottom:20px;border-radius:8px;overflow:hidden}
+        .print-counter-header{display:flex;justify-content:space-between;padding:10px 15px;background:#f0f0f0;border-bottom:1px solid #000}
+        .print-counter-name{font-weight:bold;font-size:14px}
+        .print-counter-net{font-weight:bold;font-size:13px}
+        .positive{color:#059669}
+        .negative{color:#dc2626}
+        .print-table{width:100%;border-collapse:collapse}
+        .print-table th,.print-table td{padding:8px;border:1px solid #000;text-align:left}
+        .print-table th{background:#333;color:#fff}
+        .print-table td{text-align:right}
+        .print-table td:first-child{text-align:left}
+        .print-table td:nth-child(2){text-align:center}
+        .total-row{background:#f0f0f0;font-weight:bold}
+        .overall-totals{margin-top:20px;padding:15px;background:#f8fafc;border:2px solid #000;border-radius:8px}
+        .overall-title{font-size:16px;font-weight:bold;margin-bottom:10px;text-align:center}
+        .overall-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+        .overall-item{text-align:center;padding:10px}
+        .overall-label{font-size:11px;color:#666}
+        .overall-value{font-size:18px;font-weight:bold}
+        .notes-section{margin-top:20px;padding:15px;border:2px solid #000;border-radius:8px;background:#fffbe6}
+        .notes-title{font-weight:bold;margin-bottom:10px;font-size:14px}
+        .notes-content{font-size:11px;line-height:1.5;min-height:80px;white-space:pre-wrap}
+        .footer{text-align:center;margin-top:30px;padding-top:10px;border-top:1px solid #ddd;font-size:10px;color:#666}
+        @media print{
+          body{padding:10px}
+          .no-print{display:none}
+          .print-counter-card{break-inside:avoid}
+        }
       </style>
     </head>
     <body>
       <div class="header">
-        <div class="shop-name">ASIM ELECTRIC & ELECTRONIC STORE</div>
-        <div class="shop-addr">Main Bazar Nahari Town, Near Bijli Ghar Stop, Gujranwala Road, Faisalabad</div>
+        <div class="bismillah">بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ</div>
+        <div class="shop-name-urdu">${SHOP_INFO.name}</div>
+        <div class="shop-name-en">${SHOP_INFO.name.toUpperCase()}</div>
+        <div class="shop-addr">${SHOP_INFO.address}</div>
+        <div class="shop-addr">Ph: ${SHOP_INFO.phone1} | ${SHOP_INFO.phone2} | ${SHOP_INFO.phone3}</div>
       </div>
       <div class="title">COUNTER SUMMARY REPORT</div>
-      <div class="date-range">Period: ${fromDate} to ${toDate} | Printed: ${printDateTime}</div>
-      
-      <div class="summary-grid">
-        <div class="summary-card">
-          <h3>🛒 SALES</h3>
-          <div class="row"><span>Total Sales:</span><span>PKR ${fmt(summaryData.sales.total)}</span></div>
-          <div class="row"><span>Invoices:</span><span>${summaryData.sales.count}</span></div>
-          <div class="row"><span>Items Sold:</span><span>${summaryData.sales.items}</span></div>
-          <div class="row"><span>Total Qty:</span><span>${summaryData.sales.qty}</span></div>
-          <div class="row"><span>Cash:</span><span>PKR ${fmt(summaryData.sales.cash)}</span></div>
-          <div class="row"><span>Credit:</span><span>PKR ${fmt(summaryData.sales.credit)}</span></div>
-          <div class="row"><span>Bank:</span><span>PKR ${fmt(summaryData.sales.bank)}</span></div>
-          <div class="row total"><span>Net Sales:</span><span>PKR ${fmt(summaryData.sales.total)}</span></div>
-        </div>
-        <div class="summary-card">
-          <h3>📦 PURCHASES</h3>
-          <div class="row"><span>Total Purchases:</span><span>PKR ${fmt(summaryData.purchases.total)}</span></div>
-          <div class="row"><span>Invoices:</span><span>${summaryData.purchases.count}</span></div>
-          <div class="row"><span>Items:</span><span>${summaryData.purchases.items}</span></div>
-          <div class="row"><span>Total Qty:</span><span>${summaryData.purchases.qty}</span></div>
-          <div class="row total"><span>Total Purchases:</span><span>PKR ${fmt(summaryData.purchases.total)}</span></div>
-        </div>
-        <div class="summary-card">
-          <h3>💰 RECEIPTS & PAYMENTS</h3>
-          <div class="row"><span>Cash Receipts:</span><span>PKR ${fmt(summaryData.receipts.total)}</span></div>
-          <div class="row"><span>Receipts Count:</span><span>${summaryData.receipts.count}</span></div>
-          <div class="row"><span>Cash Payments:</span><span>PKR ${fmt(summaryData.payments.total)}</span></div>
-          <div class="row"><span>Payments Count:</span><span>${summaryData.payments.count}</span></div>
-          <div class="row total"><span>Net Cash Flow:</span><span>PKR ${fmt(summaryData.receipts.total - summaryData.payments.total)}</span></div>
-        </div>
-        <div class="summary-card">
-          <h3>👥 CUSTOMERS & PRODUCTS</h3>
-          <div class="row"><span>New Customers:</span><span>${summaryData.customers.new}</span></div>
-          <div class="row"><span>Total Customers:</span><span>${summaryData.customers.total}</span></div>
-          <div class="row"><span>Total Products:</span><span>${summaryData.products.total}</span></div>
-          <div class="row"><span>Low Stock:</span><span style="color:#dc2626">${summaryData.products.lowStock}</span></div>
+      <div class="date-time">
+        <span>📅 Date: ${summaryDate}</span>
+        <span>🕐 Printed: ${printDateTime}</span>
+      </div>
+      ${countersHtml}
+      <div class="overall-totals">
+        <div class="overall-title">📊 OVERALL TOTALS</div>
+        <div class="overall-grid">
+          <div class="overall-item"><div class="overall-label">Total Sales</div><div class="overall-value">PKR ${formatCurrency(summaryData.totals.totalSales)}</div></div>
+          <div class="overall-item"><div class="overall-label">Total Returns</div><div class="overall-value negative">PKR ${formatCurrency(summaryData.totals.totalReturns)}</div></div>
+          <div class="overall-item"><div class="overall-label">Total Purchases</div><div class="overall-value negative">PKR ${formatCurrency(summaryData.totals.totalPurchases)}</div></div>
+          <div class="overall-item"><div class="overall-label">Raw Sales</div><div class="overall-value">PKR ${formatCurrency(summaryData.totals.totalRawSales)}</div></div>
+          <div class="overall-item"><div class="overall-label">Raw Purchases</div><div class="overall-value negative">PKR ${formatCurrency(summaryData.totals.totalRawPurchases)}</div></div>
+          <div class="overall-item"><div class="overall-label">Net Cash Flow</div><div class="overall-value ${summaryData.totals.netCash >= 0 ? 'positive' : 'negative'}">${summaryData.totals.netCash >= 0 ? '+' : '-'}PKR ${formatCurrency(Math.abs(summaryData.totals.netCash))}</div></div>
         </div>
       </div>
-      
-      <table>
-        <thead><tr><th>#</th><th>Date</th><th>Ref #</th><th>Type</th><th>Customer/Account</th><th class="text-right">Amount</th><th>Payment</th></tr></thead>
-        <tbody>
-          ${filteredTransactions.slice(0, 50).map((t, i) => `
-            <tr>
-              <td>${i + 1}</td>
-              <td>${t.date}</td>
-              <td>${t.refNo}</td>
-              <td>${t.displayType}</td>
-              <td>${t.customerName}</td>
-              <td class="text-right">PKR ${fmt(t.amount)}</td>
-              <td>${t.paymentMode || "—"}</td>
-            </tr>
-          `).join("")}
-        </tbody>
-      </table>
-      <div class="footer">Developed by: Creative Babar / 03098325271</div>
+      <div class="notes-section">
+        <div class="notes-title">📝 Notes / Remarks</div>
+        <div class="notes-content">${notes || "No notes added."}</div>
+      </div>
+      <div class="footer">© ${new Date().getFullYear()} ${SHOP_INFO.name} | Developed by: Creative Babar / 03098325271</div>
     </body>
     </html>`;
   };
-  
-  const totalAmount = filteredTransactions.reduce((sum, t) => sum + (t.amount || 0), 0);
-  
+
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%", background: "#ffffff" }}>
-      {/* Titlebar */}
-      <div className="xp-titlebar" style={{ background: "#1e40af", padding: "8px 16px" }}>
-        <button className="xp-cap-btn" onClick={() => navigate("/")} style={{ color: "white", fontSize: "16px" }}>←</button>
-        <span className="xp-tb-title" style={{ color: "white", fontSize: "16px", fontWeight: "bold" }}>Counter Summary — Asim Electric Store</span>
-        <div className="xp-tb-actions">
-          <button className="xp-btn xp-btn-sm" onClick={fetchSummary} disabled={loading} style={{ fontSize: "11px", padding: "4px 10px", fontWeight: "bold" }}>⟳ Refresh</button>
-          <button className="xp-btn xp-btn-sm" onClick={handlePrint} style={{ fontSize: "11px", padding: "4px 10px", fontWeight: "bold" }}>🖨 Print</button>
-          <button className="xp-cap-btn xp-cap-close" onClick={() => navigate("/")}>✕</button>
-        </div>
-      </div>
-      
-      <div className="sl-page-body" style={{ padding: "12px 16px", background: "#ffffff", flex: 1, overflow: "auto" }}>
-        
-        {/* Date Range Row */}
-        <div style={{
-          display: "flex",
-          gap: "12px",
-          alignItems: "flex-end",
-          marginBottom: "16px",
-          padding: "10px 12px",
-          background: "#f8fafc",
-          borderRadius: "8px",
-          border: "2px solid #000000",
-          flexWrap: "wrap"
-        }}>
-          <div>
-            <label style={{ fontSize: "10px", fontWeight: "bold", color: "#000000", display: "block", marginBottom: "3px" }}>FROM DATE</label>
-            <input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} style={{ height: "32px", padding: "0 10px", fontSize: "12px", border: "1px solid #000000", borderRadius: "4px" }} />
+    <div className="cs-page">
+      <div className="cs-header" style={{ background: "linear-gradient(135deg, #1e40af 0%, #1e3a8a 100%)" }}>
+        {/* Bismillah and Shop Name in Urdu */}
+        <div style={{ textAlign: "center", marginBottom: "10px" }}>
+          <div style={{ 
+            fontSize: "24px", 
+            fontWeight: "bold", 
+            fontFamily: "'Noto Nastaliq Urdu', 'Mehr Nastaliq', 'Jameel Noori Nastaleeq', serif",
+            direction: "rtl",
+            color: "#fff",
+            marginBottom: "8px"
+          }}>
+            بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ
           </div>
-          <div>
-            <label style={{ fontSize: "10px", fontWeight: "bold", color: "#000000", display: "block", marginBottom: "3px" }}>TO DATE</label>
-            <input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} style={{ height: "32px", padding: "0 10px", fontSize: "12px", border: "1px solid #000000", borderRadius: "4px" }} />
+          <div style={{ 
+            fontSize: "18px", 
+            fontWeight: "bold", 
+            fontFamily: "'Noto Nastaliq Urdu', 'Mehr Nastaliq', 'Jameel Noori Nastaleeq', serif",
+            direction: "rtl",
+            color: "#fff"
+          }}>
+            {SHOP_INFO.name}
           </div>
-          <div>
-            <button onClick={() => { setFromDate(isoD()); setToDate(isoD()); }} style={{ height: "32px", padding: "0 16px", fontSize: "11px", fontWeight: "bold", border: "1px solid #000000", borderRadius: "4px", background: "#ffffff", cursor: "pointer" }}>Today</button>
-          </div>
-          <div>
-            <button onClick={() => {
-              const today = new Date();
-              const weekAgo = new Date();
-              weekAgo.setDate(today.getDate() - 7);
-              setFromDate(weekAgo.toISOString().split("T")[0]);
-              setToDate(isoD());
-            }} style={{ height: "32px", padding: "0 16px", fontSize: "11px", fontWeight: "bold", border: "1px solid #000000", borderRadius: "4px", background: "#ffffff", cursor: "pointer" }}>Last 7 Days</button>
-          </div>
-          <div>
-            <button onClick={() => {
-              const today = new Date();
-              const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
-              setFromDate(firstDay.toISOString().split("T")[0]);
-              setToDate(isoD());
-            }} style={{ height: "32px", padding: "0 16px", fontSize: "11px", fontWeight: "bold", border: "1px solid #000000", borderRadius: "4px", background: "#ffffff", cursor: "pointer" }}>This Month</button>
+          <div style={{ fontSize: "12px", color: "rgba(255,255,255,0.8)", marginTop: "4px" }}>
+            {SHOP_INFO.address}
           </div>
         </div>
         
-        {/* Summary Cards - 4x2 Grid */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "12px", marginBottom: "20px" }}>
-          {/* Sales Card */}
-          <div style={{ background: "#ffffff", border: "2px solid #000000", borderRadius: "8px", padding: "12px" }}>
-            <div style={{ fontWeight: "bold", fontSize: "12px", marginBottom: "8px", color: "#1e40af" }}>🛒 SALES</div>
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", marginBottom: "4px" }}>
-              <span>Total:</span><span style={{ fontWeight: "bold" }}>PKR {fmt(summaryData.sales.total)}</span>
-            </div>
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", marginBottom: "4px" }}>
-              <span>Invoices:</span><span>{summaryData.sales.count}</span>
-            </div>
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", marginBottom: "4px" }}>
-              <span>Items:</span><span>{summaryData.sales.items}</span>
-            </div>
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px" }}>
-              <span>Cash/ Credit/ Bank:</span>
-              <span>{fmt(summaryData.sales.cash)} / {fmt(summaryData.sales.credit)} / {fmt(summaryData.sales.bank)}</span>
-            </div>
-          </div>
-          
-          {/* Purchases Card */}
-          <div style={{ background: "#ffffff", border: "2px solid #000000", borderRadius: "8px", padding: "12px" }}>
-            <div style={{ fontWeight: "bold", fontSize: "12px", marginBottom: "8px", color: "#d97706" }}>📦 PURCHASES</div>
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", marginBottom: "4px" }}>
-              <span>Total:</span><span style={{ fontWeight: "bold" }}>PKR {fmt(summaryData.purchases.total)}</span>
-            </div>
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", marginBottom: "4px" }}>
-              <span>Invoices:</span><span>{summaryData.purchases.count}</span>
-            </div>
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", marginBottom: "4px" }}>
-              <span>Items:</span><span>{summaryData.purchases.items}</span>
-            </div>
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px" }}>
-              <span>Total Qty:</span><span>{summaryData.purchases.qty}</span>
-            </div>
-          </div>
-          
-          {/* Receipts Card */}
-          <div style={{ background: "#ffffff", border: "2px solid #000000", borderRadius: "8px", padding: "12px" }}>
-            <div style={{ fontWeight: "bold", fontSize: "12px", marginBottom: "8px", color: "#059669" }}>💰 RECEIPTS</div>
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", marginBottom: "4px" }}>
-              <span>Total:</span><span style={{ fontWeight: "bold", color: "#059669" }}>PKR {fmt(summaryData.receipts.total)}</span>
-            </div>
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", marginBottom: "4px" }}>
-              <span>Count:</span><span>{summaryData.receipts.count}</span>
-            </div>
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px" }}>
-              <span>Payments:</span><span style={{ color: "#dc2626" }}>PKR {fmt(summaryData.payments.total)}</span>
-            </div>
-          </div>
-          
-          {/* Customers & Products Card */}
-          <div style={{ background: "#ffffff", border: "2px solid #000000", borderRadius: "8px", padding: "12px" }}>
-            <div style={{ fontWeight: "bold", fontSize: "12px", marginBottom: "8px", color: "#8b5cf6" }}>👥 CUSTOMERS</div>
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", marginBottom: "4px" }}>
-              <span>New:</span><span>{summaryData.customers.new}</span>
-            </div>
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", marginBottom: "4px" }}>
-              <span>Total:</span><span>{summaryData.customers.total}</span>
-            </div>
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px" }}>
-              <span>Low Stock:</span><span style={{ color: "#dc2626" }}>{summaryData.products.lowStock}</span>
-            </div>
-          </div>
+        <div className="cs-title-section">
+          <h1 className="cs-title">📊 Counter Summary Report</h1>
         </div>
         
-        {/* Search & Filter Bar */}
-        <div style={{
-          display: "flex",
-          gap: "12px",
-          alignItems: "center",
-          marginBottom: "16px",
-          padding: "10px 12px",
-          background: "#f8fafc",
-          borderRadius: "8px",
-          border: "1px solid #000000",
-          flexWrap: "wrap"
-        }}>
-          <div style={{ flex: 2, minWidth: "200px", position: "relative" }}>
-            <svg style={{ position: "absolute", left: "10px", top: "50%", transform: "translateY(-50%)", width: "14px", height: "14px", color: "#666" }} viewBox="0 0 16 16" fill="currentColor">
-              <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.044.06.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1 1 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0"/>
-            </svg>
+        <div className="cs-controls">
+          <div className="cs-date-picker">
+            <label>Select Date:</label>
             <input
-              ref={searchRef}
-              type="text"
-              placeholder="Search by Ref #, Customer, Type..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              style={{ width: "100%", padding: "8px 12px 8px 32px", border: "1px solid #000000", borderRadius: "4px", fontSize: "12px" }}
+              type="date"
+              value={summaryDate}
+              onChange={(e) => setSummaryDate(e.target.value)}
+              className="cs-date-input"
             />
           </div>
-          <select value={selectedType} onChange={(e) => setSelectedType(e.target.value)} style={{ padding: "8px 12px", border: "1px solid #000000", borderRadius: "4px", fontSize: "12px", background: "#ffffff" }}>
-            <option value="all">All Types</option>
-            <option value="sale">Sales Only</option>
-            <option value="purchase">Purchases Only</option>
-            <option value="receipt">Receipts Only</option>
-            <option value="payment">Payments Only</option>
-          </select>
-          {(searchTerm || selectedType !== "all") && (
-            <button onClick={clearSearch} style={{ padding: "8px 16px", background: "#ef4444", color: "white", border: "none", borderRadius: "4px", fontSize: "11px", fontWeight: "bold", cursor: "pointer" }}>✕ Clear</button>
-          )}
-          <span style={{ marginLeft: "auto", fontSize: "12px", fontWeight: "bold" }}>Total: PKR {fmt(totalAmount)}</span>
-        </div>
-        
-        {/* Transactions Table */}
-        <div style={{ background: "#ffffff", borderRadius: "8px", border: "2px solid #000000", overflow: "auto", maxHeight: "calc(100vh - 480px)" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px" }}>
-            <thead style={{ position: "sticky", top: 0, background: "#f1f5f9", zIndex: 10 }}>
-              <tr>
-                <th style={{ padding: "8px 6px", textAlign: "center", width: "40px", border: "1px solid #000000", fontWeight: "bold" }}>#</th>
-                <th style={{ padding: "8px 6px", textAlign: "left", border: "1px solid #000000", fontWeight: "bold" }}>Date</th>
-                <th style={{ padding: "8px 6px", textAlign: "left", border: "1px solid #000000", fontWeight: "bold" }}>Ref #</th>
-                <th style={{ padding: "8px 6px", textAlign: "center", border: "1px solid #000000", fontWeight: "bold", width: "100px" }}>Type</th>
-                <th style={{ padding: "8px 6px", textAlign: "left", border: "1px solid #000000", fontWeight: "bold" }}>Customer / Account</th>
-                <th style={{ padding: "8px 6px", textAlign: "right", border: "1px solid #000000", fontWeight: "bold", width: "120px" }}>Amount (PKR)</th>
-                <th style={{ padding: "8px 6px", textAlign: "center", border: "1px solid #000000", fontWeight: "bold", width: "80px" }}>Payment</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading && (
-                <tr><td colSpan="7" style={{ padding: "40px", textAlign: "center" }}>Loading...</td></tr>
-              )}
-              {!loading && filteredTransactions.length === 0 && (
-                <tr><td colSpan="7" style={{ padding: "40px", textAlign: "center", color: "#94a3b8" }}>No transactions found</td></tr>
-              )}
-              {!loading && filteredTransactions.map((t, i) => (
-                <tr key={t._id || i} style={{ borderBottom: "1px solid #000000" }}>
-                  <td style={{ padding: "6px", textAlign: "center", border: "1px solid #000000", fontWeight: "600" }}>{i + 1}</td>
-                  <td style={{ padding: "6px", border: "1px solid #000000" }}>{t.date}</td>
-                  <td style={{ padding: "6px", border: "1px solid #000000", fontWeight: "bold", fontFamily: "monospace" }}>{t.refNo}</td>
-                  <td style={{ padding: "6px", textAlign: "center", border: "1px solid #000000" }}>
-                    <span style={{ 
-                      padding: "2px 8px", 
-                      borderRadius: "3px", 
-                      fontSize: "10px", 
-                      fontWeight: "bold", 
-                      background: t.type === "sale" ? "#dbeafe" : t.type === "purchase" ? "#fef3c7" : t.type === "receipt" ? "#dcfce7" : "#fef2f2",
-                      border: "1px solid #000000",
-                      whiteSpace: "nowrap"
-                    }}>
-                      {t.icon} {t.displayType}
-                    </span>
-                  </td>
-                  <td style={{ padding: "6px", border: "1px solid #000000", fontWeight: "bold" }}>{t.customerName}</td>
-                  <td style={{ padding: "6px", textAlign: "right", border: "1px solid #000000", fontWeight: "bold", color: t.type === "receipt" ? "#059669" : t.type === "payment" ? "#dc2626" : "#1e40af" }}>
-                    PKR {fmt(t.amount)}
-                  </td>
-                  <td style={{ padding: "6px", textAlign: "center", border: "1px solid #000000" }}>{t.paymentMode || "—"}</td>
-                </tr>
+          
+          <div className="cs-counter-filter">
+            <label>Filter by Counter:</label>
+            <select
+              value={selectedCounter}
+              onChange={(e) => setSelectedCounter(e.target.value)}
+              className="cs-filter-select"
+            >
+              <option value="all">All Counters</option>
+              {summaryData.counters.map(counter => (
+                <option key={counter.id} value={counter.id}>
+                  {counter.name}
+                </option>
               ))}
-            </tbody>
-            {filteredTransactions.length > 0 && (
-              <tfoot style={{ background: "#f8fafc", position: "sticky", bottom: 0 }}>
-                <tr>
-                  <td colSpan="5" style={{ padding: "8px", textAlign: "right", fontWeight: "bold", border: "1px solid #000000" }}>Total:</td>
-                  <td style={{ padding: "8px", textAlign: "right", fontWeight: "bold", fontSize: "14px", border: "1px solid #000000" }}>PKR {fmt(totalAmount)}</td>
-                  <td style={{ border: "1px solid #000000" }}></td>
-                </tr>
-              </tfoot>
-            )}
-          </table>
+            </select>
+          </div>
+          
+          <div className="cs-actions">
+            <button onClick={expandAll} className="cs-btn cs-btn-secondary">📂 Expand All</button>
+            <button onClick={collapseAll} className="cs-btn cs-btn-secondary">📁 Collapse All</button>
+            <button onClick={fetchSummary} disabled={loading} className="cs-btn cs-btn-primary">
+              {loading ? "Loading..." : "🔄 Refresh"}
+            </button>
+            <button onClick={handlePrint} disabled={loading || filteredCounters.length === 0} className="cs-btn cs-btn-print">
+              🖨 Print
+            </button>
+          </div>
         </div>
       </div>
-      
-      {/* Status Bar */}
-      <div className="xp-statusbar" style={{ background: "#f8fafc", borderTop: "2px solid #000000", padding: "6px 16px" }}>
-        <div className="xp-status-pane" style={{ fontSize: "11px", fontWeight: "500" }}>📊 Counter Summary</div>
-        <div className="xp-status-pane" style={{ fontSize: "11px", fontWeight: "500" }}>Period: {fromDate} to {toDate}</div>
-        <div className="xp-status-pane" style={{ fontSize: "11px", fontWeight: "500" }}>Total Transactions: {filteredTransactions.length}</div>
+
+      {msg.text && (
+        <div className={`cs-alert cs-alert-${msg.type}`}>
+          {msg.text}
+        </div>
+      )}
+
+      {/* Main Content Area - Two Columns */}
+      <div style={{ display: "flex", gap: "20px", padding: "20px", flex: 1, minHeight: 0 }}>
+        
+        {/* Left Column - Counter Details */}
+        <div style={{ flex: 2, overflow: "auto", minWidth: 0 }}>
+          {/* Overall Summary Cards */}
+          <div className="cs-summary-cards">
+            <div className="cs-card cs-card-sales">
+              <div className="cs-card-icon">💰</div>
+              <div className="cs-card-content">
+                <div className="cs-card-label">Total Sales</div>
+                <div className="cs-card-value">PKR {formatCurrency(summaryData.totals.totalSales)}</div>
+              </div>
+            </div>
+            
+            <div className="cs-card cs-card-returns">
+              <div className="cs-card-icon">↩️</div>
+              <div className="cs-card-content">
+                <div className="cs-card-label">Total Returns</div>
+                <div className="cs-card-value">PKR {formatCurrency(summaryData.totals.totalReturns)}</div>
+              </div>
+            </div>
+            
+            <div className="cs-card cs-card-purchases">
+              <div className="cs-card-icon">📦</div>
+              <div className="cs-card-content">
+                <div className="cs-card-label">Total Purchases</div>
+                <div className="cs-card-value">PKR {formatCurrency(summaryData.totals.totalPurchases)}</div>
+              </div>
+            </div>
+            
+            <div className="cs-card cs-card-raw-sales">
+              <div className="cs-card-icon">🏭</div>
+              <div className="cs-card-content">
+                <div className="cs-card-label">Raw Sales</div>
+                <div className="cs-card-value">PKR {formatCurrency(summaryData.totals.totalRawSales)}</div>
+              </div>
+            </div>
+            
+            <div className="cs-card cs-card-raw-purchases">
+              <div className="cs-card-icon">🏭</div>
+              <div className="cs-card-content">
+                <div className="cs-card-label">Raw Purchases</div>
+                <div className="cs-card-value">PKR {formatCurrency(summaryData.totals.totalRawPurchases)}</div>
+              </div>
+            </div>
+            
+            <div className="cs-card cs-card-net">
+              <div className="cs-card-icon">💵</div>
+              <div className="cs-card-content">
+                <div className="cs-card-label">Net Cash Flow</div>
+                <div className="cs-card-value" style={{ color: summaryData.totals.netCash >= 0 ? "#10b981" : "#dc2626" }}>
+                  PKR {formatCurrency(Math.abs(summaryData.totals.netCash))}
+                  {summaryData.totals.netCash >= 0 ? " (Income)" : " (Expense)"}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Counter Details */}
+          <div className="cs-counters-container">
+            {loading && (
+              <div className="cs-loading">
+                <div className="cs-spinner"></div>
+                <p>Loading summary data...</p>
+              </div>
+            )}
+
+            {!loading && filteredCounters.length === 0 && (
+              <div className="cs-empty-state">
+                <div className="cs-empty-icon">📭</div>
+                <p>No data found for {summaryDate}</p>
+                <p className="cs-empty-sub">Try selecting a different date</p>
+              </div>
+            )}
+
+            {filteredCounters.map((counter) => (
+              <div key={counter.id} className="cs-counter-card">
+                <div 
+                  className="cs-counter-header"
+                  onClick={() => toggleCounter(counter.id)}
+                  style={{ cursor: "pointer" }}
+                >
+                  <div className="cs-counter-info">
+                    <div className="cs-counter-icon">👤</div>
+                    <div className="cs-counter-details">
+                      <h3 className="cs-counter-name">{counter.name}</h3>
+                      <div className="cs-counter-stats">
+                        <span className="cs-stat-badge cs-stat-sales">
+                          📊 Sales: {counter.counts.sales} ({formatCurrency(counter.totals.sales)})
+                        </span>
+                        <span className="cs-stat-badge cs-stat-returns">
+                          ↩️ Returns: {counter.counts.returns} ({formatCurrency(counter.totals.returns)})
+                        </span>
+                        <span className="cs-stat-badge cs-stat-purchases">
+                          📦 Purchases: {counter.counts.purchases} ({formatCurrency(counter.totals.purchases)})
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="cs-counter-net">
+                    <span className="cs-net-label">Net Cash:</span>
+                    <span className={`cs-net-value ${counter.totals.netCash >= 0 ? "positive" : "negative"}`}>
+                      {counter.totals.netCash >= 0 ? "+" : "-"}PKR {formatCurrency(Math.abs(counter.totals.netCash))}
+                    </span>
+                    <div className="cs-expand-icon">
+                      {expandedCounters[counter.id] ? "▲" : "▼"}
+                    </div>
+                  </div>
+                </div>
+
+                {expandedCounters[counter.id] && (
+                  <div className="cs-counter-body">
+                    {/* Sales Section */}
+                    {counter.sales.length > 0 && (
+                      <div className="cs-section">
+                        <div className="cs-section-title">
+                          <span className="cs-section-icon">💰</span>
+                          <h4>Sales Transactions ({counter.sales.length})</h4>
+                          <span className="cs-section-total">
+                            Total: PKR {formatCurrency(counter.totals.sales)}
+                          </span>
+                        </div>
+                        <div className="cs-table-wrapper">
+                          <table className="cs-table">
+                            <thead>
+                              <tr>
+                                <th>Invoice #</th>
+                                <th>Time</th>
+                                <th>Customer</th>
+                                <th>Items</th>
+                                <th>Total</th>
+                                <th>Received</th>
+                                <th>Payment</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {counter.sales.map((sale, idx) => (
+                                <tr key={sale._id || idx}>
+                                  <td className="cs-invoice-no">{sale.invoiceNo}</td>
+                                  <td>{sale.createdAt ? new Date(sale.createdAt).toLocaleTimeString() : "-"}</td>
+                                  <td>{sale.customerName || "COUNTER SALE"}</td>
+                                  <td>{sale.items?.length || 0}</td>
+                                  <td className="cs-amount">PKR {formatCurrency(sale.netTotal)}</td>
+                                  <td className="cs-amount">PKR {formatCurrency(sale.paidAmount)}</td>
+                                  <td>
+                                    <span className={`cs-payment-badge cs-payment-${sale.paymentMode?.toLowerCase() || "cash"}`}>
+                                      {sale.paymentMode || "Cash"}
+                                    </span>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                            <tfoot>
+                              <tr className="cs-table-footer">
+                                <td colSpan="4"><strong>Total</strong></td>
+                                <td className="cs-amount"><strong>PKR {formatCurrency(counter.totals.sales)}</strong></td>
+                                <td className="cs-amount"><strong>PKR {formatCurrency(counter.totals.cashReceived)}</strong></td>
+                                <td></td>
+                              </tr>
+                            </tfoot>
+                          </table>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Returns Section */}
+                    {counter.returns.length > 0 && (
+                      <div className="cs-section">
+                        <div className="cs-section-title cs-section-returns">
+                          <span className="cs-section-icon">↩️</span>
+                          <h4>Return Transactions ({counter.returns.length})</h4>
+                          <span className="cs-section-total">
+                            Total: PKR {formatCurrency(counter.totals.returns)}
+                          </span>
+                        </div>
+                        <div className="cs-table-wrapper">
+                          <table className="cs-table">
+                            <thead>
+                              <tr>
+                                <th>Return #</th>
+                                <th>Ref Invoice</th>
+                                <th>Time</th>
+                                <th>Customer</th>
+                                <th>Items</th>
+                                <th>Total</th>
+                                <th>Refunded</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {counter.returns.map((ret, idx) => (
+                                <tr key={ret._id || idx}>
+                                  <td className="cs-invoice-no">{ret.returnNo || ret.invoiceNo}</td>
+                                  <td>{ret.saleInvNo || "-"}</td>
+                                  <td>{ret.createdAt ? new Date(ret.createdAt).toLocaleTimeString() : "-"}</td>
+                                  <td>{ret.customerName || "COUNTER SALE"}</td>
+                                  <td>{ret.items?.length || 0}</td>
+                                  <td className="cs-amount cs-negative">PKR {formatCurrency(ret.netTotal)}</td>
+                                  <td className="cs-amount">PKR {formatCurrency(ret.paidAmount)}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                            <tfoot>
+                              <tr className="cs-table-footer">
+                                <td colSpan="5"><strong>Total Returns</strong></td>
+                                <td className="cs-amount cs-negative"><strong>PKR {formatCurrency(counter.totals.returns)}</strong></td>
+                                <td className="cs-amount"><strong>PKR {formatCurrency(counter.totals.cashRefunded)}</strong></td>
+                              </tr>
+                            </tfoot>
+                          </table>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Purchases Section */}
+                    {counter.purchases.length > 0 && (
+                      <div className="cs-section">
+                        <div className="cs-section-title cs-section-purchases">
+                          <span className="cs-section-icon">📦</span>
+                          <h4>Purchase Transactions ({counter.purchases.length})</h4>
+                          <span className="cs-section-total">
+                            Total: PKR {formatCurrency(counter.totals.purchases)}
+                          </span>
+                        </div>
+                        <div className="cs-table-wrapper">
+                          <table className="cs-table">
+                            <thead>
+                              <tr>
+                                <th>Purchase #</th>
+                                <th>Time</th>
+                                <th>Supplier</th>
+                                <th>Items</th>
+                                <th>Total</th>
+                                <th>Paid</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {counter.purchases.map((purchase, idx) => (
+                                <tr key={purchase._id || idx}>
+                                  <td className="cs-invoice-no">{purchase.invoiceNo}</td>
+                                  <td>{purchase.createdAt ? new Date(purchase.createdAt).toLocaleTimeString() : "-"}</td>
+                                  <td>{purchase.supplierName || "-"}</td>
+                                  <td>{purchase.items?.length || 0}</td>
+                                  <td className="cs-amount cs-negative">PKR {formatCurrency(purchase.netTotal)}</td>
+                                  <td className="cs-amount">PKR {formatCurrency(purchase.paidAmount)}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                            <tfoot>
+                              <tr className="cs-table-footer">
+                                <td colSpan="4"><strong>Total Purchases</strong></td>
+                                <td className="cs-amount cs-negative"><strong>PKR {formatCurrency(counter.totals.purchases)}</strong></td>
+                                <td className="cs-amount"><strong>PKR {formatCurrency(counter.totals.cashPaid)}</strong></td>
+                              </tr>
+                            </tfoot>
+                          </table>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Raw Sales Section */}
+                    {counter.rawSales.length > 0 && (
+                      <div className="cs-section">
+                        <div className="cs-section-title cs-section-raw">
+                          <span className="cs-section-icon">🏭</span>
+                          <h4>Raw Material Sales ({counter.rawSales.length})</h4>
+                          <span className="cs-section-total">
+                            Total: PKR {formatCurrency(counter.totals.rawSales)}
+                          </span>
+                        </div>
+                        <div className="cs-table-wrapper">
+                          <table className="cs-table">
+                            <thead>
+                              <tr>
+                                <th>Invoice #</th>
+                                <th>Time</th>
+                                <th>Customer</th>
+                                <th>Items</th>
+                                <th>Total</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {counter.rawSales.map((sale, idx) => (
+                                <tr key={sale._id || idx}>
+                                  <td className="cs-invoice-no">{sale.invoiceNo}</td>
+                                  <td>{sale.createdAt ? new Date(sale.createdAt).toLocaleTimeString() : "-"}</td>
+                                  <td>{sale.customerName || "-"}</td>
+                                  <td>{sale.items?.length || 0}</td>
+                                  <td className="cs-amount">PKR {formatCurrency(sale.netTotal)}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                            <tfoot>
+                              <tr className="cs-table-footer">
+                                <td colSpan="4"><strong>Total Raw Sales</strong></td>
+                                <td className="cs-amount"><strong>PKR {formatCurrency(counter.totals.rawSales)}</strong></td>
+                              </tr>
+                            </tfoot>
+                          </table>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Raw Purchases Section */}
+                    {counter.rawPurchases.length > 0 && (
+                      <div className="cs-section">
+                        <div className="cs-section-title cs-section-raw">
+                          <span className="cs-section-icon">🏭</span>
+                          <h4>Raw Material Purchases ({counter.rawPurchases.length})</h4>
+                          <span className="cs-section-total">
+                            Total: PKR {formatCurrency(counter.totals.rawPurchases)}
+                          </span>
+                        </div>
+                        <div className="cs-table-wrapper">
+                          <table className="cs-table">
+                            <thead>
+                              <tr>
+                                <th>Invoice #</th>
+                                <th>Time</th>
+                                <th>Supplier</th>
+                                <th>Items</th>
+                                <th>Total</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {counter.rawPurchases.map((purchase, idx) => (
+                                <tr key={purchase._id || idx}>
+                                  <td className="cs-invoice-no">{purchase.invoiceNo}</td>
+                                  <td>{purchase.createdAt ? new Date(purchase.createdAt).toLocaleTimeString() : "-"}</td>
+                                  <td>{purchase.supplierName || "-"}</td>
+                                  <td>{purchase.items?.length || 0}</td>
+                                  <td className="cs-amount cs-negative">PKR {formatCurrency(purchase.netTotal)}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                            <tfoot>
+                              <tr className="cs-table-footer">
+                                <td colSpan="4"><strong>Total Raw Purchases</strong></td>
+                                <td className="cs-amount cs-negative"><strong>PKR {formatCurrency(counter.totals.rawPurchases)}</strong></td>
+                              </tr>
+                            </tfoot>
+                          </table>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Counter Summary */}
+                    <div className="cs-counter-summary">
+                      <div className="cs-summary-grid">
+                        <div className="cs-summary-item">
+                          <div className="cs-summary-label">Total Sales Revenue</div>
+                          <div className="cs-summary-value positive">+PKR {formatCurrency(counter.totals.sales)}</div>
+                        </div>
+                        <div className="cs-summary-item">
+                          <div className="cs-summary-label">Total Returns</div>
+                          <div className="cs-summary-value negative">-PKR {formatCurrency(counter.totals.returns)}</div>
+                        </div>
+                        <div className="cs-summary-item">
+                          <div className="cs-summary-label">Total Purchases</div>
+                          <div className="cs-summary-value negative">-PKR {formatCurrency(counter.totals.purchases)}</div>
+                        </div>
+                        <div className="cs-summary-item">
+                          <div className="cs-summary-label">Raw Sales</div>
+                          <div className="cs-summary-value positive">+PKR {formatCurrency(counter.totals.rawSales)}</div>
+                        </div>
+                        <div className="cs-summary-item">
+                          <div className="cs-summary-label">Raw Purchases</div>
+                          <div className="cs-summary-value negative">-PKR {formatCurrency(counter.totals.rawPurchases)}</div>
+                        </div>
+                        <div className="cs-summary-item cs-summary-total">
+                          <div className="cs-summary-label">Net Cash Flow</div>
+                          <div className={`cs-summary-value ${counter.totals.netCash >= 0 ? "positive" : "negative"}`}>
+                            {counter.totals.netCash >= 0 ? "+" : "-"}PKR {formatCurrency(Math.abs(counter.totals.netCash))}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Right Column - Notes Section */}
+        <div style={{ flex: 1, minWidth: "280px", maxWidth: "350px" }}>
+          <div className="cs-notes-panel" style={{ 
+            background: "#fffbe6", 
+            border: "2px solid #f59e0b", 
+            borderRadius: "12px", 
+            overflow: "hidden",
+            position: "sticky",
+            top: "20px"
+          }}>
+            <div className="cs-notes-header" style={{ 
+              background: "#f59e0b", 
+              padding: "12px 16px", 
+              color: "#fff",
+              fontWeight: "bold",
+              fontSize: "14px",
+              display: "flex",
+              alignItems: "center",
+              gap: "8px"
+            }}>
+              <span>📝</span>
+              <span>Notes / Remarks</span>
+            </div>
+            <div style={{ padding: "16px" }}>
+              <textarea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Add your notes here...&#10;&#10;Examples:&#10;• Daily summary remarks&#10;• Important observations&#10;• Cash count notes&#10;• Any issues or comments"
+                style={{
+                  width: "100%",
+                  minHeight: "300px",
+                  padding: "12px",
+                  border: "1px solid #f59e0b",
+                  borderRadius: "8px",
+                  fontSize: "12px",
+                  fontFamily: "inherit",
+                  resize: "vertical",
+                  background: "#ffffff"
+                }}
+              />
+              <div style={{ 
+                marginTop: "12px", 
+                fontSize: "11px", 
+                color: "#92400e",
+                background: "#fef3c7",
+                padding: "8px",
+                borderRadius: "6px",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center"
+              }}>
+                <span>✏️ {notes.length} characters</span>
+                <button 
+                  onClick={() => setNotes("")}
+                  style={{
+                    background: "transparent",
+                    border: "none",
+                    color: "#92400e",
+                    cursor: "pointer",
+                    fontSize: "11px",
+                    fontWeight: "bold"
+                  }}
+                >
+                  Clear
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Quick Stats Card */}
+          <div className="cs-quick-stats" style={{ 
+            marginTop: "20px", 
+            background: "#f0fdf4", 
+            border: "2px solid #10b981", 
+            borderRadius: "12px",
+            overflow: "hidden"
+          }}>
+            <div className="cs-stats-header" style={{ 
+              background: "#10b981", 
+              padding: "10px 16px", 
+              color: "#fff",
+              fontWeight: "bold",
+              fontSize: "13px"
+            }}>
+              📈 Quick Stats
+            </div>
+            <div style={{ padding: "12px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
+                <span>📅 Date:</span>
+                <span style={{ fontWeight: "bold" }}>{summaryDate}</span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
+                <span>🕐 Time:</span>
+                <span style={{ fontWeight: "bold" }}>{currentTime}</span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
+                <span>👥 Active Counters:</span>
+                <span style={{ fontWeight: "bold" }}>{summaryData.counters.length}</span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
+                <span>📊 Total Invoices:</span>
+                <span style={{ fontWeight: "bold" }}>
+                  {summaryData.counters.reduce((sum, c) => sum + c.counts.sales + c.counts.returns + c.counts.purchases, 0)}
+                </span>
+              </div>
+              <div style={{ borderTop: "1px solid #d1fae5", marginTop: "8px", paddingTop: "8px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span>💵 Net Cash:</span>
+                  <span style={{ fontWeight: "bold", color: summaryData.totals.netCash >= 0 ? "#059669" : "#dc2626" }}>
+                    {summaryData.totals.netCash >= 0 ? "+" : "-"}PKR {formatCurrency(Math.abs(summaryData.totals.netCash))}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Footer */}
+      <div className="cs-footer">
+        <div className="cs-footer-content">
+          <p>Report generated on {new Date().toLocaleString()}</p>
+          <p>© {new Date().getFullYear()} {SHOP_INFO.name} - All Rights Reserved</p>
+        </div>
       </div>
     </div>
   );

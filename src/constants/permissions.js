@@ -9,6 +9,7 @@ export const PERMISSIONS = {
   SUPPLIERS_EDIT: 'suppliers_edit',
   CHART_OF_PRODUCTS_VIEW: 'chart_of_products_view',
   BARCODE_PRINT: 'barcode_print',  // ← ADD THIS
+    COUNTER_SUMMARY: "counter_summary",
   
   // Vouchers
   CASH_SALE: 'cash_sale',

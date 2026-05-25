@@ -1,4 +1,4 @@
-// pages/SalePage.jsx - COMPLETE FILE with Stock Display After Product Selection (No INV- prefix)
+// pages/SalePage.jsx - COMPLETE FILE with Delete Options Modal
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useAuth } from "../context/AuthContext";
 import api from "../api/api.js";
@@ -73,11 +73,9 @@ const getCurrentYearMonthCode = () => {
 
 const generateInvoiceNumber = async (apiInstance, endpoints, setInvoiceNo) => {
   try {
-    // Try to get from server first
     const response = await apiInstance.get(endpoints.SALES.NEXT_INVOICE);
     if (response.data.success && response.data.data?.invoiceNo) {
       let newInvoiceNo = response.data.data.invoiceNo;
-      // Remove any INV- prefix if present (for backward compatibility)
       newInvoiceNo = newInvoiceNo.replace(/^INV-/i, '');
       setInvoiceNo(newInvoiceNo);
       localStorage.setItem('lastInvoiceNumber', newInvoiceNo);
@@ -88,7 +86,6 @@ const generateInvoiceNumber = async (apiInstance, endpoints, setInvoiceNo) => {
   } catch (error) {
     console.error("Failed to generate invoice number from server, using fallback:", error);
     
-    // Fallback: Generate locally
     const currentYearMonth = getCurrentYearMonthCode();
     let maxSeqForMonth = 0;
     
@@ -99,7 +96,6 @@ const generateInvoiceNumber = async (apiInstance, endpoints, setInvoiceNo) => {
         salesRes.data.data.forEach(sale => {
           let saleInvoiceNo = sale.invoiceNo;
           if (saleInvoiceNo && typeof saleInvoiceNo === 'string') {
-            // Remove any INV- prefix if present
             saleInvoiceNo = saleInvoiceNo.replace(/^INV-/i, '');
             if (saleInvoiceNo.length === 8 && /^\d+$/.test(saleInvoiceNo)) {
               const yearMonth = saleInvoiceNo.substring(0, 4);
@@ -266,7 +262,7 @@ const buildPrintHtml = (sale, type, overrides = {}) => {
       <div class="cust-row"><b>Customer:</b> <span class="urdu" style="font-size:11px;font-weight:bold">${customerName}</span></div>
       ${customerPhone ? `<div class="cust-row" style="font-size:8px;color:#555">${customerPhone}</div>` : ""}
       <hr class="divider-solid">
-      </table><thead><tr><th style="width:22px">#</th><th>Product</th><th class="r" style="width:35px">Qty</th><th class="r" style="width:45px">Rate</th><th class="r" style="width:50px">Amount</th></tr></thead><tbody>${itemRows}</tbody></tr>
+      <table><thead><tr><th style="width:22px">#</th><th>Product</th><th class="r" style="width:35px">Qty</th><th class="r" style="width:45px">Rate</th><th class="r" style="width:50px">Amount</th></tr></thead><tbody>${itemRows}</tbody></table>
       <hr class="divider-dash">
       <div class="summary-row"><span>T.Qty: <b>${totalQty}</b></span><span>T.Items: <b>${rows.length}</b></span></div>
       ${sale.extraDisc > 0 ? `<div class="summary-row" style="color:#c00"><span>Discount:</span><span>-${Number(sale.extraDisc).toLocaleString()}</span></div>` : ""}
@@ -371,6 +367,185 @@ const doPrint = (sale, type, overrides = {}) => {
   if (w) { w.document.write(buildPrintHtml(printData, type, overrides)); w.document.close(); w.onload = () => { setTimeout(() => { w.print(); }, 300); }; setTimeout(() => { if (w && !w.closed) w.print(); }, 500); } 
   else { alert("Please allow popups for this site to print invoices."); }
 };
+
+/* ══════════════════════════════════════════════════════════
+   DELETE OPTIONS MODAL
+══════════════════════════════════════════════════════════ */
+function DeleteOptionsModal({ sale, onDeleteWithStock, onDeleteWithoutStock, onClose }) {
+  const [loading, setLoading] = useState(false);
+  
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        onClose();
+      }
+      if (e.key === "1") {
+        e.preventDefault();
+        handleDeleteWithStock();
+      }
+      if (e.key === "2") {
+        e.preventDefault();
+        handleDeleteWithoutStock();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+  
+  const handleDeleteWithStock = async () => {
+    if (loading) return;
+    setLoading(true);
+    await onDeleteWithStock();
+    setLoading(false);
+  };
+  
+  const handleDeleteWithoutStock = async () => {
+    if (loading) return;
+    setLoading(true);
+    await onDeleteWithoutStock();
+    setLoading(false);
+  };
+  
+  const totalItems = sale?.items?.length || 0;
+  const totalQty = sale?.items?.reduce((sum, item) => sum + (item.pcs || item.qty || 0), 0) || 0;
+  
+  return (
+    <div className="scm-overlay">
+      <div className="scm-window" style={{ maxWidth: 500 }}>
+        <div className="scm-tb" style={{ background: "#dc2626" }}>
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="rgba(255,255,255,0.9)">
+            <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5Zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5Zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6Z"/>
+            <path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1ZM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118ZM2.5 3h11V2h-11v1Z"/>
+          </svg>
+          <span className="scm-tb-title">Delete Sale — {sale?.invoiceNo}</span>
+          <button className="xp-cap-btn xp-cap-close" onClick={onClose}>✕</button>
+        </div>
+        
+        <div style={{ padding: "20px" }}>
+          <div style={{ 
+            background: "#fef2f2", 
+            border: "1px solid #fecaca", 
+            borderRadius: "8px", 
+            padding: "12px", 
+            marginBottom: "20px" 
+          }}>
+            <div style={{ display: "flex", gap: "12px", alignItems: "center", marginBottom: "8px" }}>
+              <span style={{ fontSize: "24px" }}>⚠️</span>
+              <div>
+                <div style={{ fontWeight: "bold", color: "#991b1b" }}>Warning: This action cannot be undone!</div>
+                <div style={{ fontSize: "12px", color: "#7f1d1d", marginTop: "4px" }}>
+                  Invoice: <strong>{sale?.invoiceNo}</strong> | Date: {sale?.invoiceDate}
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div style={{ 
+            display: "grid", 
+            gridTemplateColumns: "1fr 1fr", 
+            gap: "16px", 
+            marginBottom: "20px" 
+          }}>
+            <div style={{ 
+              background: "#f0fdf4", 
+              border: "1px solid #bbf7d0", 
+              borderRadius: "8px", 
+              padding: "12px",
+              textAlign: "center"
+            }}>
+              <div style={{ fontSize: "24px", marginBottom: "4px" }}>📦</div>
+              <div style={{ fontWeight: "bold", fontSize: "20px", color: "#166534" }}>{totalItems}</div>
+              <div style={{ fontSize: "11px", color: "#14532d" }}>Total Items</div>
+            </div>
+            <div style={{ 
+              background: "#eff6ff", 
+              border: "1px solid #bfdbfe", 
+              borderRadius: "8px", 
+              padding: "12px",
+              textAlign: "center"
+            }}>
+              <div style={{ fontSize: "24px", marginBottom: "4px" }}>🔢</div>
+              <div style={{ fontWeight: "bold", fontSize: "20px", color: "#1e40af" }}>{totalQty}</div>
+              <div style={{ fontSize: "11px", color: "#1e3a8a" }}>Total Quantity</div>
+            </div>
+          </div>
+          
+          <div style={{ marginBottom: "16px" }}>
+            <div style={{ fontSize: "13px", fontWeight: "bold", marginBottom: "12px", color: "#374151" }}>
+              Choose delete option:
+            </div>
+            
+            <button 
+              className="xp-btn" 
+              onClick={handleDeleteWithStock}
+              disabled={loading}
+              style={{
+                width: "100%",
+                marginBottom: "12px",
+                padding: "14px",
+                background: "#dc2626",
+                color: "white",
+                border: "none",
+                borderRadius: "8px",
+                fontSize: "14px",
+                fontWeight: "bold",
+                cursor: loading ? "not-allowed" : "pointer",
+                opacity: loading ? 0.6 : 1,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between"
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.background = "#b91c1c"}
+              onMouseLeave={(e) => e.currentTarget.style.background = "#dc2626"}
+            >
+              <span>🗑️ Delete & Restore Stock</span>
+              <span style={{ fontSize: "11px", opacity: 0.8 }}>Press 1</span>
+            </button>
+            
+            <button 
+              className="xp-btn" 
+              onClick={handleDeleteWithoutStock}
+              disabled={loading}
+              style={{
+                width: "100%",
+                padding: "14px",
+                background: "#6b7280",
+                color: "white",
+                border: "none",
+                borderRadius: "8px",
+                fontSize: "14px",
+                fontWeight: "bold",
+                cursor: loading ? "not-allowed" : "pointer",
+                opacity: loading ? 0.6 : 1,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between"
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.background = "#4b5563"}
+              onMouseLeave={(e) => e.currentTarget.style.background = "#6b7280"}
+            >
+              <span>⚠️ Force Delete (No Stock Restore)</span>
+              <span style={{ fontSize: "11px", opacity: 0.8 }}>Press 2</span>
+            </button>
+          </div>
+          
+          <div style={{ 
+            fontSize: "11px", 
+            color: "#6b7280", 
+            textAlign: "center",
+            paddingTop: "12px",
+            borderTop: "1px solid #e5e7eb"
+          }}>
+            <kbd style={{ background: "#f3f4f6", padding: "2px 6px", borderRadius: "4px", margin: "0 2px" }}>1</kbd> Delete & Restore Stock |
+            <kbd style={{ background: "#f3f4f6", padding: "2px 6px", borderRadius: "4px", margin: "0 2px" }}>2</kbd> Force Delete |
+            <kbd style={{ background: "#f3f4f6", padding: "2px 6px", borderRadius: "4px", margin: "0 2px" }}>ESC</kbd> Cancel
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 /* ══════════════════════════════════════════════════════════
    PRINT OPTIONS MODAL
@@ -906,26 +1081,71 @@ function CustomerDropdown({ allCustomers, value, displayName, customerType, onSe
    STOCK UPDATE HELPER
 ══════════════════════════════════════════════════════════ */
 const updateProductStock = async (productId, uom, qtySold, allProducts, setAllProducts, isRestore = false) => {
-  try {
-    const productRes = await api.get(EP.PRODUCTS.GET_ONE(productId));
-    if (productRes.data.success && productRes.data.data) {
-      const product = productRes.data.data;
-      if (product.packingInfo && product.packingInfo.length > 0) {
-        const packingIndex = product.packingInfo.findIndex(pk => pk.measurement === uom);
-        if (packingIndex !== -1) {
-          const currentStock = product.packingInfo[packingIndex].openingQty || 0;
-          const newStock = isRestore ? currentStock + qtySold : Math.max(0, currentStock - qtySold);
-          product.packingInfo[packingIndex].openingQty = newStock;
-          await api.put(EP.PRODUCTS.UPDATE(productId), { packingInfo: product.packingInfo });
-          setAllProducts(prev => prev.map(p => p._id === productId ? { ...p, packingInfo: product.packingInfo } : p));
-          return newStock;
-        }
-      }
-    }
-  } catch (error) { 
-    console.error("Failed to update stock:", error); 
+  if (!productId || !uom || !qtySold) {
+    console.error("Missing required parameters for stock update:", { productId, uom, qtySold });
+    return null;
   }
-  return null;
+  
+  try {
+    console.log(`Updating stock: ${isRestore ? 'RESTORING' : 'DEDUCTING'} ${qtySold} ${uom} for product ${productId}`);
+    
+    const productRes = await api.get(EP.PRODUCTS.GET_ONE(productId));
+    
+    if (!productRes.data.success || !productRes.data.data) {
+      console.error("Product not found:", productId);
+      return null;
+    }
+    
+    const product = productRes.data.data;
+    
+    if (!product.packingInfo || product.packingInfo.length === 0) {
+      console.error("No packing info for product:", productId);
+      return null;
+    }
+    
+    const packingIndex = product.packingInfo.findIndex(pk => pk.measurement === uom);
+    
+    if (packingIndex === -1) {
+      console.error(`UOM ${uom} not found for product:`, productId);
+      return null;
+    }
+    
+    const currentStock = product.packingInfo[packingIndex].openingQty || 0;
+    
+    let newStock;
+    if (isRestore) {
+      newStock = currentStock + qtySold;
+      console.log(`Restoring stock: ${currentStock} + ${qtySold} = ${newStock}`);
+    } else {
+      newStock = Math.max(0, currentStock - qtySold);
+      console.log(`Deducting stock: ${currentStock} - ${qtySold} = ${newStock}`);
+    }
+    
+    product.packingInfo[packingIndex].openingQty = newStock;
+    
+    const updateRes = await api.put(EP.PRODUCTS.UPDATE(productId), { 
+      packingInfo: product.packingInfo 
+    });
+    
+    if (!updateRes.data.success) {
+      console.error("Failed to update product on server:", updateRes.data.message);
+      return null;
+    }
+    
+    setAllProducts(prev => prev.map(p => 
+      p._id === productId 
+        ? { ...p, packingInfo: product.packingInfo } 
+        : p
+    ));
+    
+    console.log(`Stock updated successfully! New stock: ${newStock} ${uom}`);
+    return newStock;
+    
+  } catch (error) { 
+    console.error("Failed to update stock:", error);
+    console.error("Error details:", error.response?.data || error.message);
+    return null; 
+  }
 };
 
 /* ══════════════════════════════════════════════════════════
@@ -938,6 +1158,8 @@ export default function SalePage() {
   const [allCustomers, setAllCustomers] = useState([]);
   const [showProductModal, setShowProductModal] = useState(false);
   const [showHoldPreview, setShowHoldPreview] = useState(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [saleToDelete, setSaleToDelete] = useState(null);
   const [searchText, setSearchText] = useState("");
   const [curRow, setCurRow] = useState({ ...EMPTY_ROW });
   const [items, setItems] = useState([]);
@@ -1213,7 +1435,6 @@ export default function SalePage() {
 
   const loadSaleForEdit = (sale) => { 
     setEditId(sale._id); 
-    // Direct assignment - NO CONCATENATION, and remove any INV- prefix
     let cleanInvoiceNo = sale.invoiceNo;
     if (cleanInvoiceNo && cleanInvoiceNo.startsWith('INV-')) {
       cleanInvoiceNo = cleanInvoiceNo.replace(/^INV-/i, '');
@@ -1344,7 +1565,6 @@ export default function SalePage() {
     try { 
       const finalPayload = { ...payload, extraDisc: overrides.extraDisc, netTotal: overrides.netTotal, paidAmount: overrides.paidAmount, balance: overrides.balance, printType: overrides.printType }; 
       
-      // For EDIT: Restore original stock first
       if (editId) {
         try {
           const originalSaleRes = await api.get(EP.SALES.GET_ONE(editId));
@@ -1366,7 +1586,6 @@ export default function SalePage() {
         : await api.post(EP.SALES.CREATE, finalPayload); 
         
       if (data.success) { 
-        // Deduct new stock quantities
         for (const item of payload.items) { 
           await updateProductStock(item.productId, item.uom, item.pcs, allProducts, setAllProducts, false); 
         } 
@@ -1429,30 +1648,117 @@ export default function SalePage() {
     confirmSaveWithPayload(pendingPayload, overrides); 
   };
 
-  const handleDeleteSale = async () => { 
-    if (!editId || !window.confirm("Delete this sale? Stock will be restored.")) return; 
+  // Delete with stock restore
+  const handleDeleteWithStockRestore = async () => {
+    if (!editId && !saleToDelete) return;
+    
+    const saleId = saleToDelete?._id || editId;
+    const saleData = saleToDelete;
+    
+    setLoading(true);
+    showMsg("Deleting sale and restoring stock...", "info");
+    
+    try {
+      let sale = saleData;
+      if (!sale) {
+        const saleRes = await api.get(EP.SALES.GET_ONE(saleId));
+        if (saleRes.data.success && saleRes.data.data) {
+          sale = saleRes.data.data;
+        } else {
+          showMsg("Failed to fetch sale details", "error");
+          setLoading(false);
+          setShowDeleteModal(false);
+          return;
+        }
+      }
+      
+      console.log("Deleting with stock restore:", sale.invoiceNo);
+      
+      if (sale.items && sale.items.length > 0) {
+        let stockRestored = 0;
+        
+        for (const item of sale.items) {
+          const productId = item.productId || item.product;
+          const uom = item.uom || item.measurement;
+          const qty = item.pcs || item.qty;
+          
+          if (productId && uom && qty) {
+            const result = await updateProductStock(productId, uom, qty, allProducts, setAllProducts, true);
+            if (result !== null) stockRestored++;
+          }
+        }
+        
+        console.log(`Stock restored for ${stockRestored} items`);
+      }
+      
+      await api.delete(EP.SALES.DELETE(saleId));
+      
+      const productsRes = await api.get(EP.PRODUCTS.GET_ALL);
+      if (productsRes.data.success) setAllProducts(productsRes.data.data);
+      
+      showMsg(`✅ Sale ${sale.invoiceNo} deleted and stock restored!`, "success");
+      fullReset();
+      await generateInvoiceNumber(api, EP, setInvoiceNo);
+      
+    } catch (error) {
+      console.error("Delete with stock restore failed:", error);
+      showMsg("Delete failed: " + (error.response?.data?.message || error.message), "error");
+    } finally {
+      setLoading(false);
+      setShowDeleteModal(false);
+      setSaleToDelete(null);
+    }
+  };
+
+  // Force delete without stock restore
+  const handleForceDelete = async () => {
+    if (!editId && !saleToDelete) return;
+    
+    const saleId = saleToDelete?._id || editId;
+    const saleData = saleToDelete;
+    
+    setLoading(true);
+    showMsg("Force deleting sale without stock restore...", "info");
+    
+    try {
+      await api.delete(EP.SALES.DELETE(saleId));
+      
+      showMsg(`⚠️ Sale ${saleData?.invoiceNo || saleId} force deleted (stock NOT restored)!`, "warning");
+      fullReset();
+      await generateInvoiceNumber(api, EP, setInvoiceNo);
+      
+    } catch (error) {
+      console.error("Force delete failed:", error);
+      showMsg("Delete failed: " + (error.response?.data?.message || error.message), "error");
+    } finally {
+      setLoading(false);
+      setShowDeleteModal(false);
+      setSaleToDelete(null);
+    }
+  };
+
+  // Open delete confirmation modal
+  const openDeleteModal = async () => {
+    if (!editId) {
+      showMsg("No sale selected to delete", "error");
+      return;
+    }
+    
     setLoading(true);
     try {
       const saleRes = await api.get(EP.SALES.GET_ONE(editId));
       if (saleRes.data.success && saleRes.data.data) {
-        const sale = saleRes.data.data;
-        if (sale.items && sale.items.length > 0) {
-          for (const item of sale.items) {
-            await updateProductStock(item.productId, item.uom, item.pcs, allProducts, setAllProducts, true);
-          }
-        }
-        await api.delete(EP.SALES.DELETE(editId));
-        showMsg("Sale deleted and stock restored", "success");
-        fullReset();
-        generateInvoiceNumber(api, EP, setInvoiceNo);
+        setSaleToDelete(saleRes.data.data);
+        setShowDeleteModal(true);
       } else {
         showMsg("Failed to fetch sale details", "error");
       }
-    } catch (error) { 
-      console.error("Delete failed:", error);
-      showMsg("Delete failed", "error"); 
+    } catch (error) {
+      console.error("Failed to fetch sale:", error);
+      showMsg("Failed to fetch sale details", "error");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   useEffect(() => { 
@@ -1479,7 +1785,7 @@ export default function SalePage() {
 
   useEffect(() => { 
     const handler = (e) => { 
-      if (showProductModal || showHoldPreview || showSaveModal || showPrintModal) return; 
+      if (showProductModal || showHoldPreview || showSaveModal || showPrintModal || showDeleteModal) return; 
       if (e.key === "F2") { 
         e.preventDefault(); 
         setShowProductModal(true); 
@@ -1496,7 +1802,7 @@ export default function SalePage() {
     }; 
     window.addEventListener("keydown", handler); 
     return () => window.removeEventListener("keydown", handler); 
-  }, [showProductModal, showHoldPreview, showSaveModal, showPrintModal]);
+  }, [showProductModal, showHoldPreview, showSaveModal, showPrintModal, showDeleteModal]);
 
   const handleProductSelect = () => {
     if (selectedProductSuggestionIdx >= 0 && productSuggestions[selectedProductSuggestionIdx]) {
@@ -1538,6 +1844,17 @@ export default function SalePage() {
         {showHoldPreview && <HoldPreviewModal bill={showHoldPreview} onResume={resumeHold} onClose={() => setShowHoldPreview(null)} />}
         {showSaveModal && pendingPayload && <SaveConfirmModal salePayload={pendingPayload} printType={printType} onConfirm={confirmSave} onClose={() => { setShowSaveModal(false); setPendingPayload(null); }} />}
         {showPrintModal && pendingPrintSale && <PrintOptionsModal sale={pendingPrintSale} allCustomers={allCustomers} defaultPrintType={printType} onPrint={(type, overrides) => { doPrint(pendingPrintSale, type, overrides); setShowPrintModal(false); setPendingPrintSale(null); }} onClose={() => { setShowPrintModal(false); setPendingPrintSale(null); }} />}
+        {showDeleteModal && saleToDelete && (
+          <DeleteOptionsModal 
+            sale={saleToDelete}
+            onDeleteWithStock={handleDeleteWithStockRestore}
+            onDeleteWithoutStock={handleForceDelete}
+            onClose={() => {
+              setShowDeleteModal(false);
+              setSaleToDelete(null);
+            }}
+          />
+        )}
 
         {msg.text && (<div className={`xp-alert ${msg.type === "success" ? "xp-alert-success" : "xp-alert-error"}`} style={{ margin: "4px 10px 0", flexShrink: 0 }}>{msg.text}</div>)}
 
@@ -1895,7 +2212,7 @@ export default function SalePage() {
           <button className="xp-btn xp-btn-sm" onClick={fullReset} disabled={loading}>Refresh</button>
           <button ref={saveRef} className="xp-btn xp-btn-primary xp-btn-lg" onClick={openSaleConfirm} disabled={loading}>{loading ? "Saving…" : "Save *"}</button>
           <button className="xp-btn xp-btn-sm" onClick={() => {}}>Edit Record</button>
-          <button className="xp-btn xp-btn-danger xp-btn-sm" disabled={!editId} onClick={handleDeleteSale}>Delete Record</button>
+          <button className="xp-btn xp-btn-danger xp-btn-sm" disabled={!editId} onClick={openDeleteModal}>Delete Record</button>
           <div className="xp-toolbar-divider" />
           <div className="sl-cmd-checks">
             <label className="sl-check-label"><input type="checkbox" /> Print P.Bal</label>

@@ -1,4 +1,4 @@
-// pages/PurchasePage.jsx
+// pages/PurchasePage.jsx - COMPLETE FIXED FILE
 import { useState, useEffect, useRef, useCallback } from "react";
 import api from "../api/api.js";
 import EP from "../api/apiEndpoints.js";
@@ -49,62 +49,49 @@ const savePurchaseHolds = (holds) => {
    Format: YYMMXXXX (e.g., 26050001 for May 2026)
 ══════════════════════════════════════════════════════════ */
 
-// Get current year and month without dashes (e.g., 2605 for May 2026)
 const getCurrentYearMonthCode = () => {
   const now = new Date();
-  const year = now.getFullYear().toString().slice(-2); // Last 2 digits (2026 -> 26)
-  const month = (now.getMonth() + 1).toString().padStart(2, '0'); // 05 for May
-  return `${year}${month}`; // e.g., "2605"
+  const year = now.getFullYear().toString().slice(-2);
+  const month = (now.getMonth() + 1).toString().padStart(2, '0');
+  return `${year}${month}`;
 };
 
-// Generate invoice number with monthly reset (Format: YYMMXXXX)
 const generateInvoiceNumber = async (apiInstance, endpoints, setInvoiceNo, currentDate = null) => {
   try {
     const date = currentDate ? new Date(currentDate) : new Date();
     const currentYear = date.getFullYear().toString().slice(-2);
     const currentMonth = (date.getMonth() + 1).toString().padStart(2, '0');
-    const currentYearMonth = `${currentYear}${currentMonth}`; // "2605"
+    const currentYearMonth = `${currentYear}${currentMonth}`;
     
     let maxSeqForMonth = 0;
     
     try {
-      // Fetch all purchases
       const purchasesRes = await apiInstance.get(endpoints.PURCHASES.GET_ALL);
       
-      console.log('📊 Fetched purchases for invoice generation:', purchasesRes.data.data?.length || 0, 'records');
-      
       if (purchasesRes.data.success && purchasesRes.data.data && purchasesRes.data.data.length > 0) {
-        // Filter purchases for current year-month and find max sequence number
         purchasesRes.data.data.forEach(purchase => {
           const purchaseInvoiceNo = purchase.invoiceNo;
           if (purchaseInvoiceNo && typeof purchaseInvoiceNo === 'string') {
             let seqNum = null;
             
-            // Check for OLD format: "PUR-00001" - extract the number
             if (purchaseInvoiceNo.startsWith('PUR-')) {
               const parts = purchaseInvoiceNo.split('-');
               if (parts.length === 2) {
                 seqNum = parseInt(parts[1], 10);
-                console.log(`Found OLD format invoice: ${purchaseInvoiceNo} -> sequence: ${seqNum}`);
               }
             }
-            // Check for NEW format without dash: "26050001"
             else if (purchaseInvoiceNo.startsWith(currentYearMonth)) {
               seqNum = parseInt(purchaseInvoiceNo.slice(-4), 10);
-              console.log(`Found NEW format invoice: ${purchaseInvoiceNo} -> sequence: ${seqNum}`);
             }
-            // Check for format with dash: "26-05-0001"
             else if (purchaseInvoiceNo.startsWith(`${currentYear}-${currentMonth}`)) {
               const parts = purchaseInvoiceNo.split('-');
               if (parts.length === 3) {
                 seqNum = parseInt(parts[2], 10);
-                console.log(`Found dash format invoice: ${purchaseInvoiceNo} -> sequence: ${seqNum}`);
               }
             }
             
             if (seqNum && !isNaN(seqNum) && seqNum > maxSeqForMonth) {
               maxSeqForMonth = seqNum;
-              console.log(`Current max sequence: ${maxSeqForMonth}`);
             }
           }
         });
@@ -113,12 +100,9 @@ const generateInvoiceNumber = async (apiInstance, endpoints, setInvoiceNo, curre
       console.error("Failed to fetch purchases for invoice generation:", salesError);
     }
     
-    // Calculate next sequence number
     const nextSeq = maxSeqForMonth + 1;
-    const formattedSeq = nextSeq.toString().padStart(4, '0'); // 0001, 0002, etc.
-    const newInvoiceNo = `${currentYearMonth}${formattedSeq}`; // e.g., "26050001"
-    
-    console.log(`📄 Generated purchase invoice number: ${newInvoiceNo} (Previous max: ${maxSeqForMonth}, Next: ${nextSeq})`);
+    const formattedSeq = nextSeq.toString().padStart(4, '0');
+    const newInvoiceNo = `${currentYearMonth}${formattedSeq}`;
     
     setInvoiceNo(newInvoiceNo);
     localStorage.setItem('lastPurchaseInvoiceNumber', newInvoiceNo);
@@ -128,7 +112,6 @@ const generateInvoiceNumber = async (apiInstance, endpoints, setInvoiceNo, curre
     
   } catch (error) {
     console.error("Failed to generate invoice number:", error);
-    // Fallback: generate based on localStorage
     const currentYear = new Date().getFullYear().toString().slice(-2);
     const currentMonth = (new Date().getMonth() + 1).toString().padStart(2, '0');
     const currentYearMonth = `${currentYear}${currentMonth}`;
@@ -150,21 +133,6 @@ const generateInvoiceNumber = async (apiInstance, endpoints, setInvoiceNo, curre
   }
 };
 
-// Clean invoice number function - removes PUR- prefix
-const cleanInvoiceNo = (invNo) => {
-  if (!invNo) return "1";
-  let cleaned = String(invNo);
-  // If it's in YYMMXXXX format (8 digits), keep as is
-  if (cleaned.length === 8 && !isNaN(parseInt(cleaned, 10))) {
-    return cleaned;
-  }
-  cleaned = cleaned.replace(/^PUR-/i, '');
-  cleaned = cleaned.replace(/^0+/, '');
-  const num = parseInt(cleaned, 10);
-  if (isNaN(num)) return "1";
-  return String(num);
-};
-
 /* ══════════════════════════════════════════════════════════
    STOCK UPDATE HELPER FOR PURCHASE (ADD STOCK)
 ══════════════════════════════════════════════════════════ */
@@ -178,7 +146,7 @@ const updateProductStockForPurchase = async (productId, uom, qtyPurchased, allPr
         const packingIndex = product.packingInfo.findIndex(pk => pk.measurement === uom);
         if (packingIndex !== -1) {
           const currentStock = product.packingInfo[packingIndex].openingQty || 0;
-          const newStock = currentStock + qtyPurchased; // ADD to stock for purchase
+          const newStock = currentStock + qtyPurchased;
           
           product.packingInfo[packingIndex].openingQty = newStock;
           await api.put(EP.PRODUCTS.UPDATE(productId), {
@@ -222,7 +190,7 @@ const buildPrintHtml = (purchase, type, overrides = {}) => {
           <td style="font-size:9.5px;vertical-align:top;word-break:break-word;max-width:100px">${it.name}</td>
           <td style="font-size:9px;vertical-align:top;text-align:right">${it.pcs} ${it.uom || ""}</td>
           <td style="font-size:9px;vertical-align:top;text-align:right">${Number(it.rate).toLocaleString()}</td>
-          <td style="font-size:9px;vertical-align:top;text-align:right"><b>${Number(it.amount).toLocaleString()}</b></td>
+          <td style="font-size:9px;vertical-align:top;text-align:right"><b>${Number(it.amount).toLocaleString()}</b></td
         </tr>`
       )
       .join("");
@@ -273,7 +241,7 @@ const buildPrintHtml = (purchase, type, overrides = {}) => {
       ${buyerPhone ? `<div style="font-size:9px;color:#555">${buyerPhone}</div>` : ""}
       ${remarks ? `<div class="remarks-box"><b>Remarks:</b> ${remarks}</div>` : ""}
       <hr class="divider-solid">
-      </table>
+      <tr>
         <thead><tr><th style="width:20px">#</th><th>Product</th><th class="r">Qty.</th><th class="r">Rate</th><th class="r">Amount</th></tr></thead>
         <tbody>${itemRows}</tbody>
       </table>
@@ -410,26 +378,21 @@ const buildPrintHtml = (purchase, type, overrides = {}) => {
   </style></head><body>${allPagesHtml}</body></html>`;
 };
 
-// Print function with better error handling
 const doPrint = (purchase, type, overrides = {}) => {
   try {
     const printWindow = window.open("", "_blank", type === "Thermal" ? "width=420,height=640" : "width=900,height=700");
-    
     if (!printWindow) {
       alert("Popup blocked! Please allow popups for this website to print invoices.");
       return false;
     }
-    
     printWindow.document.write(buildPrintHtml(purchase, type, overrides));
     printWindow.document.close();
-    
     printWindow.onload = () => {
       setTimeout(() => {
         printWindow.focus();
         printWindow.print();
       }, 300);
     };
-    
     return true;
   } catch (error) {
     console.error("Print error:", error);
@@ -439,193 +402,58 @@ const doPrint = (purchase, type, overrides = {}) => {
 };
 
 /* ══════════════════════════════════════════════════════════
-   CONFIRMATION MODAL - White background, black text
+   CONFIRMATION MODAL
 ══════════════════════════════════════════════════════════ */
 function ConfirmModal({ invoiceNo, supplierName, totalAmount, totalQty, itemsCount, onConfirm, onClose }) {
   const modalRef = useRef(null);
 
   useEffect(() => {
     modalRef.current?.focus();
-    
     const handleKeyDown = (e) => {
-      if (e.key === "Enter") {
-        e.preventDefault();
-        onConfirm(true);
-      } else if (e.key === " " || e.key === "Space") {
-        e.preventDefault();
-        onConfirm(false);
-      } else if (e.key === "Escape") {
-        e.preventDefault();
-        onClose();
-      }
+      if (e.key === "Enter") { e.preventDefault(); onConfirm(true); }
+      else if (e.key === " " || e.key === "Space") { e.preventDefault(); onConfirm(false); }
+      else if (e.key === "Escape") { e.preventDefault(); onClose(); }
     };
-    
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [onConfirm, onClose]);
 
   return (
-    <div
-      className="scm-overlay"
-      style={{ zIndex: 3000, background: "rgba(0,0,0,0.5)" }}
-      onClick={(e) => e.target === e.currentTarget && onClose()}
-    >
-      <div
-        ref={modalRef}
-        className="scm-window"
-        style={{
-          maxWidth: 480,
-          textAlign: "center",
-          background: "#ffffff",
-          border: "2px solid #000000",
-          boxShadow: "0 10px 40px rgba(0,0,0,0.2)",
-          borderRadius: "12px",
-          padding: "0"
-        }}
-        tabIndex={-1}
-      >
-        <div className="scm-tb" style={{ 
-          background: "#1e40af", 
-          borderBottom: "2px solid #000000",
-          borderRadius: "10px 10px 0 0",
-          padding: "12px 20px"
-        }}>
+    <div className="scm-overlay" style={{ zIndex: 3000, background: "rgba(0,0,0,0.5)" }} onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div ref={modalRef} className="scm-window" style={{ maxWidth: 480, textAlign: "center", background: "#ffffff", border: "2px solid #000000", borderRadius: "12px", padding: "0" }} tabIndex={-1}>
+        <div className="scm-tb" style={{ background: "#1e40af", borderRadius: "10px 10px 0 0", padding: "12px 20px" }}>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z" fill="#ffffff"/>
           </svg>
           <span className="scm-tb-title" style={{ color: "#ffffff", fontWeight: "bold", fontSize: "16px" }}>Confirm Purchase Invoice</span>
           <button className="xp-cap-btn xp-cap-close" onClick={onClose} style={{ color: "#ffffff" }}>✕</button>
         </div>
-        
         <div style={{ padding: "20px 24px" }}>
-          <div style={{ 
-            background: "#f8fafc", 
-            borderRadius: "8px", 
-            padding: "16px", 
-            marginBottom: "20px",
-            border: "1px solid #000000"
-          }}>
+          <div style={{ background: "#f8fafc", borderRadius: "8px", padding: "16px", marginBottom: "20px", border: "1px solid #000000" }}>
             <div style={{ fontSize: "12px", color: "#666", marginBottom: "4px" }}>Invoice Number</div>
             <div style={{ fontSize: "24px", fontWeight: "bold", color: "#000000", fontFamily: "monospace" }}>{invoiceNo}</div>
             <div style={{ marginTop: "12px", display: "flex", justifyContent: "space-between", borderTop: "1px solid #e5e7eb", paddingTop: "12px" }}>
-              <div>
-                <div style={{ fontSize: "10px", color: "#666" }}>Supplier</div>
-                <div style={{ fontSize: "13px", fontWeight: "bold", color: "#000000" }}>{supplierName}</div>
-              </div>
-              <div>
-                <div style={{ fontSize: "10px", color: "#666" }}>Total Amount</div>
-                <div style={{ fontSize: "16px", fontWeight: "bold", color: "#10b981" }}>PKR {fmt(totalAmount)}</div>
-              </div>
+              <div><div style={{ fontSize: "10px", color: "#666" }}>Supplier</div><div style={{ fontSize: "13px", fontWeight: "bold", color: "#000000" }}>{supplierName}</div></div>
+              <div><div style={{ fontSize: "10px", color: "#666" }}>Total Amount</div><div style={{ fontSize: "16px", fontWeight: "bold", color: "#10b981" }}>PKR {fmt(totalAmount)}</div></div>
             </div>
             <div style={{ marginTop: "8px", display: "flex", justifyContent: "space-between" }}>
-              <div>
-                <div style={{ fontSize: "10px", color: "#666" }}>Items</div>
-                <div style={{ fontSize: "13px", fontWeight: "bold", color: "#000000" }}>{itemsCount}</div>
-              </div>
-              <div>
-                <div style={{ fontSize: "10px", color: "#666" }}>Total Qty</div>
-                <div style={{ fontSize: "13px", fontWeight: "bold", color: "#000000" }}>{totalQty}</div>
-              </div>
+              <div><div style={{ fontSize: "10px", color: "#666" }}>Items</div><div style={{ fontSize: "13px", fontWeight: "bold", color: "#000000" }}>{itemsCount}</div></div>
+              <div><div style={{ fontSize: "10px", color: "#666" }}>Total Qty</div><div style={{ fontSize: "13px", fontWeight: "bold", color: "#000000" }}>{totalQty}</div></div>
             </div>
           </div>
-          
           <div style={{ marginBottom: "20px" }}>
-            <div style={{ 
-              background: "#f0fdf4", 
-              border: "1px solid #10b981", 
-              borderRadius: "8px", 
-              padding: "12px",
-              marginBottom: "12px"
-            }}>
-              <div style={{ fontSize: "13px", fontWeight: "bold", color: "#065f46", marginBottom: "8px" }}>
-                ✅ This will SAVE the invoice to database and UPDATE STOCK
-              </div>
+            <div style={{ background: "#f0fdf4", border: "1px solid #10b981", borderRadius: "8px", padding: "12px", marginBottom: "12px" }}>
+              <div style={{ fontSize: "13px", fontWeight: "bold", color: "#065f46", marginBottom: "8px" }}>✅ This will SAVE the invoice to database and UPDATE STOCK</div>
             </div>
-            
-            <div style={{ 
-              display: "flex", 
-              gap: "12px", 
-              justifyContent: "center",
-              marginTop: "8px"
-            }}>
-              <div style={{ 
-                background: "#dbeafe", 
-                border: "1px solid #1e40af", 
-                borderRadius: "8px", 
-                padding: "8px 12px",
-                flex: 1
-              }}>
-                <div style={{ fontSize: "20px", fontWeight: "bold", color: "#1e40af" }}>↵ ENTER</div>
-                <div style={{ fontSize: "10px", color: "#1e40af" }}>Save & Print</div>
-              </div>
-              <div style={{ 
-                background: "#fef3c7", 
-                border: "1px solid #d97706", 
-                borderRadius: "8px", 
-                padding: "8px 12px",
-                flex: 1
-              }}>
-                <div style={{ fontSize: "20px", fontWeight: "bold", color: "#d97706" }}>␣ SPACE</div>
-                <div style={{ fontSize: "10px", color: "#d97706" }}>Save Only</div>
-              </div>
+            <div style={{ display: "flex", gap: "12px", justifyContent: "center", marginTop: "8px" }}>
+              <div style={{ background: "#dbeafe", border: "1px solid #1e40af", borderRadius: "8px", padding: "8px 12px", flex: 1 }}><div style={{ fontSize: "20px", fontWeight: "bold", color: "#1e40af" }}>↵ ENTER</div><div style={{ fontSize: "10px", color: "#1e40af" }}>Save & Print</div></div>
+              <div style={{ background: "#fef3c7", border: "1px solid #d97706", borderRadius: "8px", padding: "8px 12px", flex: 1 }}><div style={{ fontSize: "20px", fontWeight: "bold", color: "#d97706" }}>␣ SPACE</div><div style={{ fontSize: "10px", color: "#d97706" }}>Save Only</div></div>
             </div>
           </div>
-          
           <div style={{ display: "flex", gap: "10px", justifyContent: "center" }}>
-            <button
-              onClick={() => onConfirm(true)}
-              style={{
-                background: "#1e40af",
-                color: "white",
-                border: "1px solid #000000",
-                padding: "10px 20px",
-                borderRadius: "6px",
-                fontSize: "13px",
-                fontWeight: "bold",
-                cursor: "pointer",
-                transition: "all 0.2s ease"
-              }}
-              onMouseEnter={(e) => e.target.style.background = "#1e3a8a"}
-              onMouseLeave={(e) => e.target.style.background = "#1e40af"}
-            >
-              🖨 Save & Print (Enter)
-            </button>
-            <button
-              onClick={() => onConfirm(false)}
-              style={{
-                background: "#10b981",
-                color: "white",
-                border: "1px solid #000000",
-                padding: "10px 20px",
-                borderRadius: "6px",
-                fontSize: "13px",
-                fontWeight: "bold",
-                cursor: "pointer",
-                transition: "all 0.2s ease"
-              }}
-              onMouseEnter={(e) => e.target.style.background = "#059669"}
-              onMouseLeave={(e) => e.target.style.background = "#10b981"}
-            >
-              💾 Save Only (Space)
-            </button>
-            <button
-              onClick={onClose}
-              style={{
-                background: "#ef4444",
-                color: "white",
-                border: "1px solid #000000",
-                padding: "10px 20px",
-                borderRadius: "6px",
-                fontSize: "13px",
-                fontWeight: "bold",
-                cursor: "pointer",
-                transition: "all 0.2s ease"
-              }}
-              onMouseEnter={(e) => e.target.style.background = "#dc2626"}
-              onMouseLeave={(e) => e.target.style.background = "#ef4444"}
-            >
-              Cancel (Esc)
-            </button>
+            <button onClick={() => onConfirm(true)} style={{ background: "#1e40af", color: "white", border: "1px solid #000000", padding: "10px 20px", borderRadius: "6px", fontSize: "13px", fontWeight: "bold", cursor: "pointer" }}>🖨 Save & Print (Enter)</button>
+            <button onClick={() => onConfirm(false)} style={{ background: "#10b981", color: "white", border: "1px solid #000000", padding: "10px 20px", borderRadius: "6px", fontSize: "13px", fontWeight: "bold", cursor: "pointer" }}>💾 Save Only (Space)</button>
+            <button onClick={onClose} style={{ background: "#ef4444", color: "white", border: "1px solid #000000", padding: "10px 20px", borderRadius: "6px", fontSize: "13px", fontWeight: "bold", cursor: "pointer" }}>Cancel (Esc)</button>
           </div>
         </div>
       </div>
@@ -640,53 +468,22 @@ function HoldPreviewModal({ bill, onResume, onClose }) {
   if (!bill) return null;
   const total = bill.items.reduce((s, r) => s + Number(r.amount || 0), 0);
   return (
-    <div
-      className="xp-overlay"
-      onClick={(e) => e.target === e.currentTarget && onClose()}
-    >
+    <div className="xp-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="xp-modal" style={{ width: 560 }}>
         <div className="xp-modal-tb" style={{ background: "#10b981" }}>
           <span className="xp-modal-title">Held Purchase — {bill.invoiceNo}</span>
-          <button className="xp-cap-btn xp-cap-close" onClick={onClose}>
-            ✕
-          </button>
+          <button className="xp-cap-btn xp-cap-close" onClick={onClose}>✕</button>
         </div>
         <div className="xp-modal-body" style={{ padding: 8 }}>
-          <div
-            style={{
-              marginBottom: 6,
-              display: "flex",
-              gap: 16,
-              fontSize: "var(--xp-fs-xs)",
-            }}
-          >
-            <span>
-              <b>Supplier:</b> {bill.supplierName || "Cash Purchase"}
-            </span>
-            <span>
-              <b>Items:</b> {bill.items.length}
-            </span>
-            <span>
-              <b>Amount:</b>{" "}
-              <span style={{ color: "#10b981", fontWeight: 700 }}>
-                {fmt(total)}
-              </span>
-            </span>
+          <div style={{ marginBottom: 6, display: "flex", gap: 16, fontSize: "var(--xp-fs-xs)" }}>
+            <span><b>Supplier:</b> {bill.supplierName || "Cash Purchase"}</span>
+            <span><b>Items:</b> {bill.items.length}</span>
+            <span><b>Amount:</b> <span style={{ color: "#10b981", fontWeight: 700 }}>{fmt(total)}</span></span>
           </div>
           <div className="xp-table-panel" style={{ border: "none" }}>
             <div className="xp-table-scroll" style={{ maxHeight: 300 }}>
               <table className="xp-table">
-                <thead>
-                  <tr>
-                    <th>#</th>
-                    <th>Code</th>
-                    <th>Name</th>
-                    <th>UOM</th>
-                    <th className="r">Pcs</th>
-                    <th className="r">Rate</th>
-                    <th className="r">Amount</th>
-                  </tr>
-                </thead>
+                <thead><tr><th>#</th><th>Code</th><th>Name</th><th>UOM</th><th className="r">Pcs</th><th className="r">Rate</th><th className="r">Amount</th></tr></thead>
                 <tbody>
                   {bill.items.map((r, i) => (
                     <tr key={i}>
@@ -696,9 +493,7 @@ function HoldPreviewModal({ bill, onResume, onClose }) {
                       <td className="text-muted">{r.uom}</td>
                       <td className="r">{r.pcs}</td>
                       <td className="r">{fmt(r.rate)}</td>
-                      <td className="r" style={{ color: "#10b981", fontWeight: 700 }}>
-                        {fmt(r.amount)}
-                      </td>
+                      <td className="r" style={{ color: "#10b981", fontWeight: 700 }}>{fmt(r.amount)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -706,25 +501,9 @@ function HoldPreviewModal({ bill, onResume, onClose }) {
             </div>
           </div>
         </div>
-        <div
-          style={{
-            display: "flex",
-            gap: 6,
-            padding: "6px 10px",
-            borderTop: "1px solid var(--xp-silver-5)",
-            justifyContent: "flex-end",
-          }}
-        >
-          <button className="xp-btn xp-btn-sm" onClick={onClose}>
-            Cancel
-          </button>
-          <button
-            className="xp-btn xp-btn-primary xp-btn-sm"
-            style={{ background: "#10b981", borderColor: "#059669" }}
-            onClick={() => onResume(bill.id)}
-          >
-            Resume This Purchase
-          </button>
+        <div style={{ display: "flex", gap: 6, padding: "6px 10px", borderTop: "1px solid var(--xp-silver-5)", justifyContent: "flex-end" }}>
+          <button className="xp-btn xp-btn-sm" onClick={onClose}>Cancel</button>
+          <button className="xp-btn xp-btn-primary xp-btn-sm" style={{ background: "#10b981", borderColor: "#059669" }} onClick={() => onResume(bill.id)}>Resume This Purchase</button>
         </div>
       </div>
     </div>
@@ -732,9 +511,9 @@ function HoldPreviewModal({ bill, onResume, onClose }) {
 }
 
 /* ══════════════════════════════════════════════════════════
-   SUPPLIER SEARCH DROPDOWN
+   SUPPLIER SEARCH DROPDOWN - FIXED
 ══════════════════════════════════════════════════════════ */
-function SupplierDropdown({ allSuppliers, value, onSelect, onClear, onAddNew }) {
+function SupplierDropdown({ allSuppliers, value, displayName, onSelect, onClear, onAddNew }) {
   const [query, setQuery] = useState("");
   const [originalQuery, setOriginalQuery] = useState("");
   const [ghost, setGhost] = useState("");
@@ -880,9 +659,9 @@ function SupplierDropdown({ allSuppliers, value, onSelect, onClear, onAddNew }) 
     const newValue = e.target.value;
     setQuery(newValue);
     setOriginalQuery(newValue);
-    if (value && newValue !== value) onClear();
+    if (value && newValue !== displayName) onClear();
     setSelectedSuggestionIndex(-1);
-    setShowDropdown(false);
+    setShowDropdown(true);
     setIsNavigating(false);
   };
 
@@ -929,7 +708,7 @@ function SupplierDropdown({ allSuppliers, value, onSelect, onClear, onAddNew }) 
               fontSize: "13px",
               transition: "all 0.15s ease",
             }}
-            value={value ? query || value : query}
+            value={value ? (query || displayName) : query}
             placeholder="Cash Purchase (Press ↓ to search)"
             onChange={handleChange}
             onKeyDown={handleKeyDown}
@@ -951,7 +730,7 @@ function SupplierDropdown({ allSuppliers, value, onSelect, onClear, onAddNew }) 
           />
         </div>
 
-        {value && value !== "Cash Purchase" && (
+        {value && displayName !== "Cash Purchase" && (
           <button
             className="xp-btn xp-btn-sm xp-btn-danger"
             style={{ height: 22, padding: "0 5px", fontSize: 10, flexShrink: 0 }}
@@ -1039,28 +818,13 @@ function SearchModal({ allProducts, onSelect, onClose }) {
 
   const buildFlat = useCallback((products, d, c, co) => {
     const res = [];
-    const ld = d.trim().toLowerCase(),
-      lc = c.trim().toLowerCase(),
-      lo = co.trim().toLowerCase();
+    const ld = d.trim().toLowerCase(), lc = c.trim().toLowerCase(), lo = co.trim().toLowerCase();
     products.forEach((p) => {
-      const ok =
-        (!ld || p.description?.toLowerCase().includes(ld) || p.code?.toLowerCase().includes(ld)) &&
-        (!lc || p.category?.toLowerCase().includes(lc)) &&
-        (!lo || p.company?.toLowerCase().includes(lo));
+      const ok = (!ld || p.description?.toLowerCase().includes(ld) || p.code?.toLowerCase().includes(ld)) && (!lc || p.category?.toLowerCase().includes(lc)) && (!lo || p.company?.toLowerCase().includes(lo));
       if (!ok) return;
       const _name = [p.category, p.description, p.company].filter(Boolean).join(" ");
       if (p.packingInfo?.length > 0) {
-        p.packingInfo.forEach((pk, i) =>
-          res.push({
-            ...p,
-            _pi: i,
-            _meas: pk.measurement,
-            _rate: pk.purchaseRate || pk.costRate || 0,
-            _pack: pk.packing,
-            _stock: pk.openingQty || 0,
-            _name,
-          })
-        );
+        p.packingInfo.forEach((pk, i) => res.push({ ...p, _pi: i, _meas: pk.measurement, _rate: pk.purchaseRate || pk.costRate || 0, _pack: pk.packing, _stock: pk.openingQty || 0, _name }));
       } else {
         res.push({ ...p, _pi: 0, _meas: "", _rate: 0, _pack: 1, _stock: 0, _name });
       }
@@ -1068,36 +832,12 @@ function SearchModal({ allProducts, onSelect, onClose }) {
     return res;
   }, []);
 
-  useEffect(() => {
-    rDesc.current?.focus();
-    setRows(buildFlat(allProducts, "", "", ""));
-  }, [allProducts, buildFlat]);
+  useEffect(() => { rDesc.current?.focus(); setRows(buildFlat(allProducts, "", "", "")); }, [allProducts, buildFlat]);
+  useEffect(() => { const f = buildFlat(allProducts, desc, cat, company); setRows(f); setHiIdx(f.length > 0 ? 0 : -1); }, [desc, cat, company, allProducts, buildFlat]);
+  useEffect(() => { if (tbodyRef.current && hiIdx >= 0) tbodyRef.current.children[hiIdx]?.scrollIntoView({ block: "nearest" }); }, [hiIdx]);
 
-  useEffect(() => {
-    const f = buildFlat(allProducts, desc, cat, company);
-    setRows(f);
-    setHiIdx(f.length > 0 ? 0 : -1);
-  }, [desc, cat, company, allProducts, buildFlat]);
-
-  useEffect(() => {
-    if (tbodyRef.current && hiIdx >= 0)
-      tbodyRef.current.children[hiIdx]?.scrollIntoView({ block: "nearest" });
-  }, [hiIdx]);
-
-  const fk = (e, nr) => {
-    if (e.key === "Escape") { onClose(); return; }
-    if (e.key === "Enter" || e.key === "ArrowDown") {
-      e.preventDefault();
-      nr ? nr.current?.focus() : (tbodyRef.current?.focus(), setHiIdx((h) => Math.max(0, h)));
-    }
-  };
-  const tk = (e) => {
-    if (e.key === "ArrowDown") { e.preventDefault(); setHiIdx((i) => Math.min(i + 1, rows.length - 1)); }
-    if (e.key === "ArrowUp") { e.preventDefault(); setHiIdx((i) => Math.max(i - 1, 0)); }
-    if (e.key === "Enter") { e.preventDefault(); if (hiIdx >= 0 && rows[hiIdx]) onSelect(rows[hiIdx]); }
-    if (e.key === "Escape") onClose();
-    if (e.key === "Tab") { e.preventDefault(); rDesc.current?.focus(); }
-  };
+  const fk = (e, nr) => { if (e.key === "Escape") { onClose(); return; } if (e.key === "Enter" || e.key === "ArrowDown") { e.preventDefault(); nr ? nr.current?.focus() : (tbodyRef.current?.focus(), setHiIdx((h) => Math.max(0, h))); } };
+  const tk = (e) => { if (e.key === "ArrowDown") { e.preventDefault(); setHiIdx((i) => Math.min(i + 1, rows.length - 1)); } if (e.key === "ArrowUp") { e.preventDefault(); setHiIdx((i) => Math.max(i - 1, 0)); } if (e.key === "Enter") { e.preventDefault(); if (hiIdx >= 0 && rows[hiIdx]) onSelect(rows[hiIdx]); } if (e.key === "Escape") onClose(); if (e.key === "Tab") { e.preventDefault(); rDesc.current?.focus(); } };
 
   return (
     <div className="xp-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
@@ -1109,62 +849,24 @@ function SearchModal({ allProducts, onSelect, onClose }) {
           <span className="xp-modal-title" style={{ color: "#fff", fontWeight: "bold" }}>SEARCH PRODUCTS (PURCHASE RATE)</span>
           <button className="xp-cap-btn xp-cap-close" onClick={onClose}>✕</button>
         </div>
-        
-        <div className="cs-modal-filters" style={{ 
-          padding: "8px 12px", 
-          gap: "10px", 
-          background: "#f8fafc",
-          borderBottom: "1px solid #e5e7eb",
-          flexWrap: "wrap"
-        }}>
+        <div className="cs-modal-filters" style={{ padding: "8px 12px", gap: "10px", background: "#f8fafc", borderBottom: "1px solid #e5e7eb", flexWrap: "wrap" }}>
           <div className="cs-modal-filter-grp" style={{ flex: 2, minWidth: "200px" }}>
             <label className="xp-label" style={{ fontSize: "11px", fontWeight: "bold", color: "#000000", marginBottom: "3px", display: "block" }}>DESCRIPTION / CODE</label>
-            <input
-              ref={rDesc}
-              type="text"
-              className="xp-input"
-              value={desc}
-              onChange={(e) => setDesc(e.target.value)}
-              onKeyDown={(e) => fk(e, rCat)}
-              placeholder="Name / code…"
-              autoComplete="off"
-              style={{ height: "32px", fontSize: "12px", border: "1px solid #d1d5db", borderRadius: "4px", width: "100%", padding: "0 8px" }}
-            />
+            <input ref={rDesc} type="text" className="xp-input" value={desc} onChange={(e) => setDesc(e.target.value)} onKeyDown={(e) => fk(e, rCat)} placeholder="Name / code…" autoComplete="off" style={{ height: "32px", fontSize: "12px", border: "1px solid #d1d5db", borderRadius: "4px", width: "100%", padding: "0 8px" }} />
           </div>
           <div className="cs-modal-filter-grp" style={{ flex: 1, minWidth: "140px" }}>
             <label className="xp-label" style={{ fontSize: "11px", fontWeight: "bold", color: "#000000", marginBottom: "3px", display: "block" }}>CATEGORY</label>
-            <input
-              ref={rCat}
-              type="text"
-              className="xp-input"
-              value={cat}
-              onChange={(e) => setCat(e.target.value)}
-              onKeyDown={(e) => fk(e, rCompany)}
-              placeholder="e.g. SMALL"
-              autoComplete="off"
-              style={{ height: "32px", fontSize: "12px", border: "1px solid #d1d5db", borderRadius: "4px", width: "100%", padding: "0 8px" }}
-            />
+            <input ref={rCat} type="text" className="xp-input" value={cat} onChange={(e) => setCat(e.target.value)} onKeyDown={(e) => fk(e, rCompany)} placeholder="e.g. SMALL" autoComplete="off" style={{ height: "32px", fontSize: "12px", border: "1px solid #d1d5db", borderRadius: "4px", width: "100%", padding: "0 8px" }} />
           </div>
           <div className="cs-modal-filter-grp" style={{ flex: 1, minWidth: "140px" }}>
             <label className="xp-label" style={{ fontSize: "11px", fontWeight: "bold", color: "#000000", marginBottom: "3px", display: "block" }}>COMPANY</label>
-            <input
-              ref={rCompany}
-              type="text"
-              className="xp-input"
-              value={company}
-              onChange={(e) => setCompany(e.target.value)}
-              onKeyDown={(e) => fk(e, null)}
-              placeholder="e.g. LUX"
-              autoComplete="off"
-              style={{ height: "32px", fontSize: "12px", border: "1px solid #d1d5db", borderRadius: "4px", width: "100%", padding: "0 8px" }}
-            />
+            <input ref={rCompany} type="text" className="xp-input" value={company} onChange={(e) => setCompany(e.target.value)} onKeyDown={(e) => fk(e, null)} placeholder="e.g. LUX" autoComplete="off" style={{ height: "32px", fontSize: "12px", border: "1px solid #d1d5db", borderRadius: "4px", width: "100%", padding: "0 8px" }} />
           </div>
           <div style={{ display: "flex", alignItems: "flex-end", gap: "6px", paddingBottom: "2px" }}>
             <span style={{ fontSize: "11px", color: "#000000", fontWeight: "bold" }}>{rows.length} RESULT(S)</span>
             <button className="xp-btn xp-btn-sm" onClick={onClose} style={{ fontSize: "11px", padding: "4px 12px" }}>CLOSE</button>
           </div>
         </div>
-        
         <div className="xp-modal-body" style={{ padding: 0 }}>
           <div className="xp-table-panel" style={{ border: "none" }}>
             <div className="xp-table-scroll" style={{ maxHeight: "60vh", overflow: "auto" }}>
@@ -1180,62 +882,24 @@ function SearchModal({ allProducts, onSelect, onClose }) {
                   </tr>
                 </thead>
                 <tbody ref={tbodyRef} tabIndex={0} onKeyDown={tk}>
-                  {rows.length === 0 && (
-                    <tr>
-                      <td colSpan={6} className="xp-empty" style={{ padding: "30px", textAlign: "center", color: "#000000", fontSize: "12px" }}>
-                        NO PRODUCTS FOUND
-                      </td>
-                    </tr>
-                  )}
+                  {rows.length === 0 && (<td><td colSpan={6} className="xp-empty" style={{ padding: "30px", textAlign: "center", color: "#000000", fontSize: "12px" }}>NO PRODUCTS FOUND</td></td>)}
                   {rows.map((r, i) => (
-                    <tr
-                      key={`${r._id}-${r._pi}`}
-                      style={{
-                        background: i === hiIdx ? "#51bb85" : "white",
-                        color: i === hiIdx ? "#fff" : "black",
-                        cursor: "pointer"
-                      }}
-                      onClick={() => setHiIdx(i)}
-                      onDoubleClick={() => onSelect(r)}
-                    >
+                    <tr key={`${r._id}-${r._pi}`} style={{ background: i === hiIdx ? "#51bb85" : "white", color: i === hiIdx ? "#fff" : "black", cursor: "pointer" }} onClick={() => setHiIdx(i)} onDoubleClick={() => onSelect(r)}>
                       <td style={{ padding: "6px 6px", textAlign: "center", border: "1px solid #000000", fontSize: "11px", fontWeight: "normal" }}>{i + 1}</td>
-                      <td style={{ padding: "6px 6px", border: "1px solid #000000", fontSize: "11px", fontWeight: "normal", color:"black" }}>
-                        <span className="xp-code">{r.code}</span>
-                      </td>
-                      <td style={{ padding: "6px 6px", border: "1px solid #000000", fontSize: "15px", fontWeight: "bold" }}>
-                        <button className="xp-link-btn" style={{ 
-                          textDecoration: "none", 
-                          fontWeight: "bold", 
-                          fontSize: "15px",
-                          background: "none", 
-                          border: "none", 
-                          cursor: "pointer", 
-                          width: "100%", 
-                          textAlign: "left",
-                          padding: "0"
-                        }}>{r._name}</button>
-                      </td>
+                      <td style={{ padding: "6px 6px", border: "1px solid #000000", fontSize: "11px", fontWeight: "normal", color:"black" }}><span className="xp-code">{r.code}</span></td>
+                      <td style={{ padding: "6px 6px", border: "1px solid #000000", fontSize: "15px", fontWeight: "bold" }}>{r._name}</td>
                       <td style={{ padding: "6px 6px", textAlign: "center", border: "1px solid #000000", fontSize: "15px", fontWeight: "bold" }}>{r._meas || "—"}</td>
-                      <td style={{ padding: "6px 6px", textAlign: "right", border: "1px solid #000000", fontSize: "15px", fontWeight: "bold" }}>
-                        {Number(r._rate).toLocaleString("en-PK")}
-                      </td>
+                      <td style={{ padding: "6px 6px", textAlign: "right", border: "1px solid #000000", fontSize: "15px", fontWeight: "bold" }}>{Number(r._rate).toLocaleString("en-PK")}</td>
                       <td style={{ padding: "6px 6px", textAlign: "center", border: "1px solid #000000", fontSize: "15px", fontWeight: "bold" }}>{r.rackNo || "—"}</td>
-                    </tr>
+                     </tr>
                   ))}
                 </tbody>
-              </table>
+               </table>
             </div>
           </div>
         </div>
-        <div className="cs-modal-hint" style={{ 
-          padding: "6px 12px", 
-          fontSize: "10px", 
-          color: "#000000", 
-          fontWeight: "bold",
-          borderTop: "1px solid #e5e7eb", 
-          background: "#f8fafc" 
-        }}>
-          ↑↓ NAVIGATE &nbsp;|&nbsp; ENTER / DOUBLE-CLICK = SELECT &nbsp;|&nbsp; ESC = CLOSE &nbsp;|&nbsp; TAB = FILTERS
+        <div className="cs-modal-hint" style={{ padding: "6px 12px", fontSize: "10px", color: "#000000", fontWeight: "bold", borderTop: "1px solid #e5e7eb", background: "#f8fafc" }}>
+          ↑↓ NAVIGATE | ENTER / DOUBLE-CLICK = SELECT | ESC = CLOSE | TAB = FILTERS
         </div>
       </div>
     </div>
@@ -1283,13 +947,10 @@ export default function PurchasePage() {
   const codeSearchRef = useRef(null);
   const remarksRef = useRef(null);
 
-  // Check if month has changed
   const checkMonthChange = () => {
     const currentYearMonth = getCurrentYearMonthCode();
     const lastYearMonth = localStorage.getItem('lastPurchaseInvoiceYearMonth');
-    
     if (lastYearMonth && lastYearMonth !== currentYearMonth) {
-      console.log(`📅 Month changed from ${lastYearMonth} to ${currentYearMonth}. Resetting sequence.`);
       localStorage.removeItem('lastPurchaseInvoiceNumber');
       localStorage.setItem('lastPurchaseInvoiceYearMonth', currentYearMonth);
       generateInvoiceNumber(api, EP, setInvoiceNo);
@@ -1298,28 +959,10 @@ export default function PurchasePage() {
     return false;
   };
 
-  useEffect(() => {
-    const t = setInterval(() => setTime(timeNow()), 1000);
-    return () => clearInterval(t);
-  }, []);
-
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  // Check month change on mount and periodically
-  useEffect(() => {
-    checkMonthChange();
-    const interval = setInterval(() => {
-      checkMonthChange();
-    }, 60000); // Check every minute
-    
-    return () => clearInterval(interval);
-  }, []);
-
-  useEffect(() => {
-    savePurchaseHolds(holdBills);
-  }, [holdBills]);
+  useEffect(() => { const t = setInterval(() => setTime(timeNow()), 1000); return () => clearInterval(t); }, []);
+  useEffect(() => { fetchData(); }, []);
+  useEffect(() => { checkMonthChange(); const interval = setInterval(() => { checkMonthChange(); }, 60000); return () => clearInterval(interval); }, []);
+  useEffect(() => { savePurchaseHolds(holdBills); }, [holdBills]);
 
   const subTotal = items.reduce((s, r) => s + (parseFloat(r.amount) || 0), 0);
   const totalQty = items.reduce((s, r) => s + (parseFloat(r.pcs) || 0), 0);
@@ -1327,89 +970,42 @@ export default function PurchasePage() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [pRes] = await Promise.all([
-        api.get(EP.PRODUCTS.GET_ALL),
-      ]);
-      
+      const [pRes] = await Promise.all([api.get(EP.PRODUCTS.GET_ALL)]);
       if (pRes.data.success) setAllProducts(pRes.data.data);
-      
-      // Generate invoice number with monthly reset
       await generateInvoiceNumber(api, EP, setInvoiceNo);
-      
       try {
         const sRes = await api.get("/customers/suppliers/all");
-        if (sRes.data && sRes.data.success) {
-          setAllSuppliers(sRes.data.data);
-        } else {
+        if (sRes.data && sRes.data.success) { setAllSuppliers(sRes.data.data); }
+        else {
           const allRes = await api.get(EP.CUSTOMERS.GET_ALL);
-          if (allRes.data && allRes.data.success) {
-            const suppliers = allRes.data.data.filter(c => 
-              c.type === "supplier" || c.customerType === "supplier"
-            );
-            setAllSuppliers(suppliers);
-          }
+          if (allRes.data && allRes.data.success) { setAllSuppliers(allRes.data.data.filter(c => c.type === "supplier" || c.customerType === "supplier")); }
         }
-      } catch (err) {
-        setAllSuppliers([]);
-      }
-      
-    } catch (error) {
-      console.error("Failed to load data", error);
-      showMsg("Failed to load data", "error");
-    }
+      } catch (err) { setAllSuppliers([]); }
+    } catch (error) { console.error("Failed to load data", error); showMsg("Failed to load data", "error"); }
     setLoading(false);
   };
 
-  const refreshInvoiceNo = async () => {
-    await generateInvoiceNumber(api, EP, setInvoiceNo);
-  };
-
-  const showMsg = (text, type = "success") => {
-    setMsg({ text, type });
-    setTimeout(() => setMsg({ text: "", type: "" }), 3000);
-  };
+  const showMsg = (text, type = "success") => { setMsg({ text, type }); setTimeout(() => setMsg({ text: "", type: "" }), 3000); };
 
   const resetToNewInvoice = async () => {
-    setItems([]);
-    setCurRow({ ...EMPTY_ROW });
-    setSearchText("");
-    setSupplierName("Cash Purchase");
-    setSupplierId("");
-    setSupplierCode("");
-    setRemarks("");
-    setShowRemarksInput(false);
-    setEditId(null);
-    setMsg({ text: "", type: "" });
+    setItems([]); setCurRow({ ...EMPTY_ROW }); setSearchText(""); setSupplierName("Cash Purchase"); setSupplierId(""); setSupplierCode(""); setRemarks(""); setShowRemarksInput(false); setEditId(null); setMsg({ text: "", type: "" });
     if (codeSearchRef.current) codeSearchRef.current.value = "";
     await generateInvoiceNumber(api, EP, setInvoiceNo);
     setTimeout(() => searchRef.current?.focus(), 100);
   };
 
   const pickProduct = (product) => {
-    if (!product._id) {
-      showMsg("Product ID missing", "error");
-      return;
-    }
-    
+    if (!product._id) { showMsg("Product ID missing", "error"); return; }
     const currentStock = product._stock || product.packingInfo?.[0]?.openingQty || 0;
-    
     setPackingOptions(product.packingInfo?.map((pk) => pk.measurement) || []);
     setCurRow({
-      productId: product._id,
-      code: product.code || "",
-      name: product._name || product.description || "",
-      uom: product._meas || "",
-      rack: product.rack || "",
-      pcs: product._pack || 1,
-      rate: product._rate || 0,
-      amount: (product._pack || 1) * (product._rate || 0),
+      productId: product._id, code: product.code || "", name: product._name || product.description || "",
+      uom: product._meas || "", rack: product.rack || "", pcs: product._pack || 1,
+      rate: product._rate || 0, amount: (product._pack || 1) * (product._rate || 0),
     });
     setSearchText(product.code || "");
     setShowProductModal(false);
-    
-    // Show stock info for purchase
     showMsg(`✓ ${product.description || product.name} - Current Stock: ${currentStock} ${product._meas || ''} | Purchase Rate: ${product._rate}`, "success");
-    
     setTimeout(() => searchRef.current?.focus(), 30);
   };
 
@@ -1422,111 +1018,49 @@ export default function PurchasePage() {
   };
 
   const addRow = () => {
-    if (!curRow.name) {
-      setShowProductModal(true);
-      return;
-    }
-    if (!curRow.productId) {
-      showMsg("Please select a valid product", "error");
-      return;
-    }
-    if (parseFloat(curRow.pcs) <= 0) {
-      showMsg("Qty must be > 0", "error");
-      return;
-    }
+    if (!curRow.name) { setShowProductModal(true); return; }
+    if (!curRow.productId) { showMsg("Please select a valid product", "error"); return; }
+    if (parseFloat(curRow.pcs) <= 0) { showMsg("Qty must be > 0", "error"); return; }
     setItems((p) => [...p, { ...curRow }]);
     resetCurRow();
   };
 
-  const resetCurRow = () => {
-    setCurRow({ ...EMPTY_ROW });
-    setSearchText("");
-    setPackingOptions([]);
-    setTimeout(() => searchRef.current?.focus(), 30);
-  };
+  const resetCurRow = () => { setCurRow({ ...EMPTY_ROW }); setSearchText(""); setPackingOptions([]); setTimeout(() => searchRef.current?.focus(), 30); };
 
-  const removeRow = (index) => {
-    setItems((p) => p.filter((_, i) => i !== index));
-  };
+  const removeRow = (index) => { setItems((p) => p.filter((_, i) => i !== index)); };
 
   const handleSupplierSelect = (supplier) => {
     setSupplierId(supplier._id);
     setSupplierName(supplier.name);
     setSupplierCode(supplier.code || "");
     setShowRemarksInput(true);
-    setTimeout(() => {
-      if (remarksRef.current) {
-        remarksRef.current.focus();
-      }
-    }, 100);
+    setTimeout(() => { if (remarksRef.current) remarksRef.current.focus(); }, 100);
   };
 
-  const handleSupplierClear = () => {
-    setSupplierId("");
-    setSupplierName("Cash Purchase");
-    setSupplierCode("");
-    setRemarks("");
-    setShowRemarksInput(false);
-  };
+  const handleSupplierClear = () => { setSupplierId(""); setSupplierName("Cash Purchase"); setSupplierCode(""); setRemarks(""); setShowRemarksInput(false); };
 
   const handleAddNewSupplier = async (name) => {
     try {
-      const { data } = await api.post(EP.CUSTOMERS.CREATE, {
-        name: name.trim(),
-        type: "supplier",
-        phone: "",
-      });
+      const { data } = await api.post(EP.CUSTOMERS.CREATE, { name: name.trim(), type: "supplier", phone: "" });
       if (data.success) {
-        await fetchData();
-        setSupplierId(data.data._id);
-        setSupplierName(data.data.name);
-        setSupplierCode(data.data.code || "");
-        setShowRemarksInput(true);
-        setTimeout(() => {
-          if (remarksRef.current) {
-            remarksRef.current.focus();
-          }
-        }, 100);
+        await fetchData(); setSupplierId(data.data._id); setSupplierName(data.data.name); setSupplierCode(data.data.code || ""); setShowRemarksInput(true);
+        setTimeout(() => { if (remarksRef.current) remarksRef.current.focus(); }, 100);
         showMsg(`"${name}" saved as new supplier`, "success");
       }
-    } catch {
-      showMsg("Supplier save failed", "error");
-    }
+    } catch { showMsg("Supplier save failed", "error"); }
   };
 
   const handleCodeSearch = async () => {
     const code = codeSearchRef.current?.value.trim();
     if (!code) return;
-    
     const found = allSuppliers.find(s => s.code?.toLowerCase() === code.toLowerCase());
-    if (found) {
-      handleSupplierSelect(found);
-      codeSearchRef.current.value = "";
-      showMsg(`Supplier found: ${found.name}`, "success");
-    } else {
-      showMsg(`No supplier found with code: ${code}`, "error");
-    }
+    if (found) { handleSupplierSelect(found); codeSearchRef.current.value = ""; showMsg(`Supplier found: ${found.name}`, "success"); }
+    else { showMsg(`No supplier found with code: ${code}`, "error"); }
   };
 
   const holdPurchase = () => {
-    if (!items.length) {
-      showMsg("No items to hold", "error");
-      return;
-    }
-    setHoldBills((prev) => [
-      ...prev,
-      {
-        id: Date.now(),
-        invoiceNo,
-        invoiceDate,
-        supplierName,
-        supplierId,
-        supplierCode,
-        amount: subTotal,
-        items: [...items],
-        remarks,
-      },
-    ]);
+    if (!items.length) { showMsg("No items to hold", "error"); return; }
+    setHoldBills((prev) => [...prev, { id: Date.now(), invoiceNo, invoiceDate, supplierName, supplierId, supplierCode, amount: subTotal, items: [...items], remarks }]);
     showMsg(`Purchase held: ${invoiceNo}`, "success");
     resetToNewInvoice();
   };
@@ -1534,194 +1068,79 @@ export default function PurchasePage() {
   const resumeHold = (holdId) => {
     const bill = holdBills.find((b) => b.id === holdId);
     if (!bill) return;
-    setItems(bill.items);
-    setInvoiceNo(bill.invoiceNo);
-    setInvoiceDate(bill.invoiceDate || isoDate());
-    setSupplierName(bill.supplierName || "Cash Purchase");
-    setSupplierId(bill.supplierId || "");
-    setSupplierCode(bill.supplierCode || "");
-    setRemarks(bill.remarks || "");
-    setShowRemarksInput(!!(bill.supplierName && bill.supplierName !== "Cash Purchase"));
-    setHoldBills((prev) => prev.filter((b) => b.id !== holdId));
-    setShowHoldPreview(null);
-    resetCurRow();
+    setItems(bill.items); setInvoiceNo(bill.invoiceNo); setInvoiceDate(bill.invoiceDate || isoDate());
+    setSupplierName(bill.supplierName || "Cash Purchase"); setSupplierId(bill.supplierId || ""); setSupplierCode(bill.supplierCode || "");
+    setRemarks(bill.remarks || ""); setShowRemarksInput(!!(bill.supplierName && bill.supplierName !== "Cash Purchase"));
+    setHoldBills((prev) => prev.filter((b) => b.id !== holdId)); setShowHoldPreview(null); resetCurRow();
     showMsg(`Resumed purchase: ${bill.invoiceNo}`, "success");
   };
 
-  const deleteHold = (holdId, e) => {
-    e.stopPropagation();
-    if (window.confirm("Delete this held purchase?"))
-      setHoldBills((prev) => prev.filter((b) => b.id !== holdId));
-  };
+  const deleteHold = (holdId, e) => { e.stopPropagation(); if (window.confirm("Delete this held purchase?")) setHoldBills((prev) => prev.filter((b) => b.id !== holdId)); };
 
-  // Main function to save and update stock
   const savePurchase = async (shouldPrint) => {
     if (isProcessing) return;
-    if (items.length === 0) {
-      showMsg("No items to save", "error");
-      return;
-    }
-    
+    if (items.length === 0) { showMsg("No items to save", "error"); return; }
     setIsProcessing(true);
-    
-    const purchaseObj = {
-      invoiceNo: invoiceNo,
-      invoiceDate,
-      supplierName: supplierName,
-      items: items,
-      subTotal,
-      extraDisc: 0,
-      netTotal: subTotal,
-      prevBalance: 0,
-      paidAmount: subTotal,
-      balance: 0,
-      remarks: remarks,
-    };
-    
+    const purchaseObj = { invoiceNo, invoiceDate, supplierName, items, subTotal, extraDisc: 0, netTotal: subTotal, prevBalance: 0, paidAmount: subTotal, balance: 0, remarks };
     try {
-      // Get current user from localStorage
       const currentUser = JSON.parse(localStorage.getItem("user") || "{}");
-      
-      // Prepare payload with username and userId
       const payload = {
-        invoiceNo: invoiceNo,
-        invoiceDate,
-        supplierId: supplierId || null,
-        supplierName: supplierName,
-        supplierCode: supplierCode,
-        supplierPhone: "",
-        remarks: remarks,
-        username: currentUser.username || currentUser.name || "admin",
-        userId: currentUser._id || currentUser.id || "admin",
-        items: items.map((r, idx) => ({
-          productId: r.productId || undefined,
-          code: r.code,
-          name: r.name,
-          description: r.name,
-          uom: r.uom,
-          measurement: r.uom,
-          rack: r.rack,
-          pcs: parseFloat(r.pcs) || 1,
-          qty: parseFloat(r.pcs) || 1,
-          rate: parseFloat(r.rate) || 0,
-          disc: 0,
-          amount: parseFloat(r.amount) || 0,
-          srNo: idx + 1,
-        })),
-        subTotal,
-        extraDisc: 0,
-        discAmount: 0,
-        netTotal: subTotal,
-        prevBalance: 0,
-        paidAmount: subTotal,
-        balance: 0,
-        printType,
-        saleType: "purchase",
+        invoiceNo, invoiceDate, supplierId: supplierId || null, supplierName, supplierCode, supplierPhone: "", remarks,
+        username: currentUser.username || currentUser.name || "admin", userId: currentUser._id || currentUser.id || "admin",
+        items: items.map((r, idx) => ({ productId: r.productId || undefined, code: r.code, name: r.name, description: r.name, uom: r.uom, measurement: r.uom, rack: r.rack, pcs: parseFloat(r.pcs) || 1, qty: parseFloat(r.pcs) || 1, rate: parseFloat(r.rate) || 0, disc: 0, amount: parseFloat(r.amount) || 0, srNo: idx + 1 })),
+        subTotal, extraDisc: 0, discAmount: 0, netTotal: subTotal, prevBalance: 0, paidAmount: subTotal, balance: 0, printType, saleType: "purchase"
       };
-      
-      // STEP 1: SAVE to database
       let response;
-      if (editId) {
-        response = await api.put(EP.PURCHASES.UPDATE(editId), payload);
-      } else {
-        response = await api.post(EP.PURCHASES.CREATE, payload);
-      }
-      
-      if (!response.data.success) {
-        showMsg(response.data.message || "Save failed", "error");
-        setIsProcessing(false);
-        return;
-      }
-      
-      // STEP 2: UPDATE STOCK - ADD quantities for each product
+      if (editId) { response = await api.put(EP.PURCHASES.UPDATE(editId), payload); }
+      else { response = await api.post(EP.PURCHASES.CREATE, payload); }
+      if (!response.data.success) { showMsg(response.data.message || "Save failed", "error"); setIsProcessing(false); return; }
       for (const item of items) {
         if (item.productId && item.uom && item.pcs > 0) {
           await updateProductStockForPurchase(item.productId, item.uom, parseFloat(item.pcs), allProducts, setAllProducts);
         }
       }
-      
-      // Refresh products to update local state
       const productsRes = await api.get(EP.PRODUCTS.GET_ALL);
-      if (productsRes.data.success) {
-        setAllProducts(productsRes.data.data);
-      }
-      
-      // STEP 3: Show success message
+      if (productsRes.data.success) setAllProducts(productsRes.data.data);
       showMsg(editId ? `✓ Invoice ${invoiceNo} updated successfully + Stock updated` : `✓ Invoice ${invoiceNo} saved successfully + Stock increased`);
-      
-      // STEP 4: PRINT if requested
       if (shouldPrint) {
         setTimeout(() => {
           try {
             const printWindow = window.open("", "_blank", printType === "Thermal" ? "width=420,height=640" : "width=900,height=700");
-            
-            if (!printWindow) {
-              alert("Popup blocked! Please allow popups for this website to print invoices.\nThe invoice has been saved and stock updated.");
-              return;
-            }
-            
-            printWindow.document.write(buildPrintHtml(purchaseObj, printType, { buyerName: supplierName, remarks: remarks }));
+            if (!printWindow) { alert("Popup blocked! The invoice has been saved and stock updated."); return; }
+            printWindow.document.write(buildPrintHtml(purchaseObj, printType, { buyerName: supplierName, remarks }));
             printWindow.document.close();
-            
-            printWindow.onload = () => {
-              setTimeout(() => {
-                printWindow.focus();
-                printWindow.print();
-              }, 300);
-            };
-          } catch (printError) {
-            console.error("Print failed:", printError);
-            showMsg("Save & stock update successful but print failed", "error");
-          }
+            printWindow.onload = () => { setTimeout(() => { printWindow.focus(); printWindow.print(); }, 300); };
+          } catch (printError) { console.error("Print failed:", printError); showMsg("Save & stock update successful but print failed", "error"); }
         }, 300);
       }
-      
-      // STEP 5: Reset for next invoice
       if (!editId) await generateInvoiceNumber(api, EP, setInvoiceNo);
       await resetToNewInvoice();
-      
-    } catch (error) {
-      console.error("Save failed:", error);
-      showMsg("Save failed: " + (error.response?.data?.message || error.message), "error");
-    } finally {
-      setIsProcessing(false);
-      setShowConfirmModal(false);
-    }
+    } catch (error) { console.error("Save failed:", error); showMsg("Save failed: " + (error.response?.data?.message || error.message), "error"); }
+    finally { setIsProcessing(false); setShowConfirmModal(false); }
   };
 
   const openConfirmModal = () => {
-    if (items.length === 0) {
-      showMsg("No items to save", "error");
-      return;
-    }
+    if (items.length === 0) { showMsg("No items to save", "error"); return; }
     setShowConfirmModal(true);
   };
 
   const loadPurchaseForEdit = (purchase) => {
     setEditId(purchase._id);
-    let invNo = purchase.invoiceNo;
-    setInvoiceNo(invNo);
+    setInvoiceNo(purchase.invoiceNo);
     setInvoiceDate(purchase.invoiceDate || isoDate());
     setSupplierName(purchase.supplierName || "Cash Purchase");
     setSupplierId(purchase.supplierId || "");
     setSupplierCode(purchase.supplierCode || "");
     setRemarks(purchase.remarks || "");
     setShowRemarksInput(!!(purchase.supplierName && purchase.supplierName !== "Cash Purchase"));
-    
     const loadedItems = (purchase.items || []).map((it) => ({
-      productId: it.productId || it.product || "",
-      code: it.code || "",
-      name: it.name || it.description || "",
-      uom: it.uom || it.measurement || "",
-      rack: it.rack || "",
-      pcs: it.pcs || it.qty || 1,
-      rate: it.rate || 0,
-      amount: it.amount || 0,
+      productId: it.productId || it.product || "", code: it.code || "", name: it.name || it.description || "",
+      uom: it.uom || it.measurement || "", rack: it.rack || "", pcs: it.pcs || it.qty || 1,
+      rate: it.rate || 0, amount: it.amount || 0,
     }));
     setItems(loadedItems);
-    
     resetCurRow();
-    showMsg(`✏ Editing Purchase Invoice ${invNo}`, "success");
+    showMsg(`✏ Editing Purchase Invoice ${purchase.invoiceNo}`, "success");
     setTimeout(() => searchRef.current?.focus(), 50);
   };
 
@@ -1730,46 +1149,21 @@ export default function PurchasePage() {
       const { data } = await api.get(EP.PURCHASES.GET_ALL);
       if (!data.success || !data.data?.length) return;
       const allPurchases = data.data;
-      const currentCleanNo = invoiceNo;
-      const curIdx = allPurchases.findIndex((s) => {
-        return s.invoiceNo === currentCleanNo || s.invoiceNo === `PUR-${currentCleanNo}`;
-      });
+      const curIdx = allPurchases.findIndex((s) => s.invoiceNo === invoiceNo);
       let nextIdx = dir === "prev" ? curIdx - 1 : curIdx + 1;
       nextIdx = Math.max(0, Math.min(nextIdx, allPurchases.length - 1));
       if (nextIdx === curIdx) return;
       loadPurchaseForEdit(allPurchases[nextIdx]);
-    } catch {
-      showMsg("Navigation failed", "error");
-    }
+    } catch { showMsg("Navigation failed", "error"); }
   };
 
   useEffect(() => {
     const handler = (e) => {
       if (showProductModal || showHoldPreview || showConfirmModal) return;
-      
-      if (e.key === "*") {
-        e.preventDefault();
-        if (items.length > 0) {
-          openConfirmModal();
-        }
-        return;
-      }
-      
-      if (e.key === "F4") {
-        e.preventDefault();
-        holdPurchase();
-        return;
-      }
-      
-      if (e.key === "Enter" && document.activeElement === remarksRef.current) {
-        e.preventDefault();
-        if (items.length > 0) {
-          openConfirmModal();
-        }
-        return;
-      }
+      if (e.key === "*") { e.preventDefault(); if (items.length > 0) openConfirmModal(); return; }
+      if (e.key === "F4") { e.preventDefault(); holdPurchase(); return; }
+      if (e.key === "Enter" && document.activeElement === remarksRef.current) { e.preventDefault(); if (items.length > 0) openConfirmModal(); return; }
     };
-    
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, [items, showProductModal, showHoldPreview, showConfirmModal, remarks]);
@@ -1777,23 +1171,9 @@ export default function PurchasePage() {
   return (
     <>
       <div className="sl-page">
-        {showProductModal && (
-          <SearchModal allProducts={allProducts} onSelect={pickProduct} onClose={() => { setShowProductModal(false); setTimeout(() => searchRef.current?.focus(), 30); }} />
-        )}
-        {showHoldPreview && (
-          <HoldPreviewModal bill={showHoldPreview} onResume={resumeHold} onClose={() => setShowHoldPreview(null)} />
-        )}
-        {showConfirmModal && (
-          <ConfirmModal
-            invoiceNo={invoiceNo}
-            supplierName={supplierName}
-            totalAmount={subTotal}
-            totalQty={totalQty}
-            itemsCount={items.length}
-            onConfirm={(shouldPrint) => savePurchase(shouldPrint)}
-            onClose={() => setShowConfirmModal(false)}
-          />
-        )}
+        {showProductModal && <SearchModal allProducts={allProducts} onSelect={pickProduct} onClose={() => { setShowProductModal(false); setTimeout(() => searchRef.current?.focus(), 30); }} />}
+        {showHoldPreview && <HoldPreviewModal bill={showHoldPreview} onResume={resumeHold} onClose={() => setShowHoldPreview(null)} />}
+        {showConfirmModal && <ConfirmModal invoiceNo={invoiceNo} supplierName={supplierName} totalAmount={subTotal} totalQty={totalQty} itemsCount={items.length} onConfirm={(shouldPrint) => savePurchase(shouldPrint)} onClose={() => setShowConfirmModal(false)} />}
 
         {msg.text && <div className={`xp-alert ${msg.type === "success" ? "xp-alert-success" : "xp-alert-error"}`} style={{ margin: "4px 10px 0", flexShrink: 0 }}>{msg.text}</div>}
 
@@ -1801,255 +1181,30 @@ export default function PurchasePage() {
           <div className="sl-left">
             <div className="sl-top-bar">
               <div className="sl-sale-title-box" style={{ background: "green", border: "1px solid green" }}>Purchase</div>
-              
               <div className="sl-inv-field-grp">
                 <label>Invoice #</label>
                 <div className="sl-inv-nav-container">
-                  <button
-                    className="sl-inv-nav-btn sl-inv-nav-prev"
-                    onClick={() => navInvoice("prev")}
-                    title="Previous Invoice (↑)"
-                    type="button"
-                  >
-                    ◀
-                  </button>
-                  
-                  <input 
-                    className="xp-input xp-input-sm sl-inv-input-large" 
-                    value={invoiceNo} 
-                    onChange={(e) => setInvoiceNo(e.target.value)}
-                    onKeyDown={async (e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        const val = invoiceNo;
-                        if (!val) return;
-                        try {
-                          const { data } = await api.get(EP.PURCHASES.GET_ALL);
-                          const purchases = data.data;
-                          if (!purchases || purchases.length === 0) {
-                            showMsg(`Invoice "${val}" not found`, "error");
-                            await generateInvoiceNumber(api, EP, setInvoiceNo);
-                            return;
-                          }
-                          const exact = purchases.find((s) => {
-                            return s.invoiceNo === val || s.invoiceNo === `PUR-${val}`;
-                          });
-                          if (!exact) {
-                            showMsg(`Invoice "${val}" not found`, "error");
-                            await generateInvoiceNumber(api, EP, setInvoiceNo);
-                            return;
-                          }
-                          setItems([]);
-                          setEditId(null);
-                          loadPurchaseForEdit(exact);
-                        } catch {
-                          showMsg("Search failed", "error");
-                        }
-                      }
-                      if (e.key === "ArrowUp" || e.key === "ArrowDown") {
-                        e.preventDefault();
-                        await navInvoice(e.key === "ArrowUp" ? "prev" : "next");
-                      }
-                    }}
-                    onFocus={(e) => e.target.select()}
-                    style={{ 
-                      background: editId ? "#fffbe6" : "#fffde7",
-                      fontSize: "18px",
-                      fontWeight: "bold",
-                      width: "180px",
-                      textAlign: "center",
-                      paddingLeft: "32px",
-                      paddingRight: "32px"
-                    }}
-                    placeholder="e.g., 26050001"
-                  />
-                  
-                  <button
-                    className="sl-inv-nav-btn sl-inv-nav-next"
-                    onClick={() => navInvoice("next")}
-                    title="Next Invoice (↓)"
-                    type="button"
-                  >
-                    ▶
-                  </button>
+                  <button className="sl-inv-nav-btn sl-inv-nav-prev" onClick={() => navInvoice("prev")} title="Previous Invoice (↑)">◀</button>
+                  <input className="xp-input xp-input-sm sl-inv-input-large" value={invoiceNo} onChange={(e) => setInvoiceNo(e.target.value)} onKeyDown={async (e) => { if (e.key === "Enter") { e.preventDefault(); const val = invoiceNo; if (!val) return; try { const { data } = await api.get(EP.PURCHASES.GET_ALL); const purchases = data.data; if (!purchases || purchases.length === 0) { showMsg(`Invoice "${val}" not found`, "error"); await generateInvoiceNumber(api, EP, setInvoiceNo); return; } const exact = purchases.find((s) => s.invoiceNo === val); if (!exact) { showMsg(`Invoice "${val}" not found`, "error"); await generateInvoiceNumber(api, EP, setInvoiceNo); return; } setItems([]); setEditId(null); loadPurchaseForEdit(exact); } catch { showMsg("Search failed", "error"); } } if (e.key === "ArrowUp" || e.key === "ArrowDown") { e.preventDefault(); await navInvoice(e.key === "ArrowUp" ? "prev" : "next"); } }} onFocus={(e) => e.target.select()} style={{ background: editId ? "#fffbe6" : "#fffde7", fontSize: "18px", fontWeight: "bold", width: "180px", textAlign: "center", paddingLeft: "32px", paddingRight: "32px" }} placeholder="e.g., 26050001" />
+                  <button className="sl-inv-nav-btn sl-inv-nav-next" onClick={() => navInvoice("next")} title="Next Invoice (↓)">▶</button>
                 </div>
-                {/* <span style={{ fontSize: "9px", color: "#666", marginLeft: "4px" }}>
-                  Format: YYMMXXXX (Resets monthly, e.g., 26050001)
-                </span> */}
               </div>
-              
-              <div className="sl-inv-field-grp">
-                <label>Date</label>
-                <input 
-                  type="date" 
-                  className="xp-input xp-input-sm sl-date-input" 
-                  value={invoiceDate} 
-                  readOnly 
-                  style={{ 
-                    background: "#f5f5f5", 
-                    cursor: "not-allowed", 
-                    color: "#888" 
-                  }} 
-                />
-              </div>
-              
-              <div className="sl-inv-field-grp">
-                <label>Time</label>
-                <div className="sl-time-box">{time}</div>
-              </div>
+              <div className="sl-inv-field-grp"><label>Date</label><input type="date" className="xp-input xp-input-sm sl-date-input" value={invoiceDate} readOnly style={{ background: "#f5f5f5", cursor: "not-allowed", color: "#888" }} /></div>
+              <div className="sl-inv-field-grp"><label>Time</label><div className="sl-time-box">{time}</div></div>
             </div>
 
             <div className="sl-entry-strip">
               <div className="sl-entry-cell sl-entry-product">
                 <label>Select Product <kbd>F2</kbd></label>
-                <input 
-                  ref={searchRef} 
-                  type="text" 
-                  className="sl-product-input" 
-                  style={{ background: "#fffde7" }} 
-                  value={searchText} 
-                  onKeyDown={(e) => {
-                    if (e.key === "ArrowDown") { 
-                      e.preventDefault(); 
-                      setShowProductModal(true); 
-                    }
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      if (!searchText.trim()) { 
-                        setShowProductModal(true); 
-                        return; 
-                      }
-                      const q = searchText.trim().toLowerCase();
-                      const found = allProducts.find((p) => p.code?.toLowerCase() === q || p.description?.toLowerCase().includes(q));
-                      if (found) {
-                        const pk = found.packingInfo?.[0];
-                        pickProduct({ 
-                          ...found, 
-                          _pi: 0, 
-                          _meas: pk?.measurement || "", 
-                          _rate: pk?.purchaseRate || pk?.costRate || 0, 
-                          _pack: pk?.packing || 1, 
-                          _stock: pk?.openingQty || 0, 
-                          _name: [found.category, found.description, found.company].filter(Boolean).join(" ") 
-                        });
-                        setTimeout(() => packingRef.current?.focus(), 50);
-                      } else { 
-                        alert(`"${searchText}" — Product not found`); 
-                        searchRef.current?.select(); 
-                      }
-                    }
-                  }} 
-                  onChange={(e) => { 
-                    setSearchText(e.target.value); 
-                    if (curRow.name) { 
-                      setCurRow({ ...EMPTY_ROW }); 
-                      setPackingOptions([]);
-                    } 
-                  }} 
-                  autoFocus 
-                />
+                <input ref={searchRef} type="text" className="sl-product-input" style={{ background: "#fffde7" }} value={searchText} onKeyDown={(e) => { if (e.key === "ArrowDown") { e.preventDefault(); setShowProductModal(true); } if (e.key === "Enter") { e.preventDefault(); if (!searchText.trim()) { setShowProductModal(true); return; } const q = searchText.trim().toLowerCase(); const found = allProducts.find((p) => p.code?.toLowerCase() === q || p.description?.toLowerCase().includes(q)); if (found) { const pk = found.packingInfo?.[0]; pickProduct({ ...found, _pi: 0, _meas: pk?.measurement || "", _rate: pk?.purchaseRate || pk?.costRate || 0, _pack: pk?.packing || 1, _stock: pk?.openingQty || 0, _name: [found.category, found.description, found.company].filter(Boolean).join(" ") }); setTimeout(() => packingRef.current?.focus(), 50); } else { alert(`"${searchText}" — Product not found`); searchRef.current?.select(); } } }} onChange={(e) => { setSearchText(e.target.value); if (curRow.name) { setCurRow({ ...EMPTY_ROW }); setPackingOptions([]); } }} autoFocus />
               </div>
-              
               <div className="sl-entry-cell" style={{ position: "relative" }}>
                 <label>Packing</label>
-                <input
-                  ref={packingRef}
-                  type="text"
-                  className="xp-input sl-num-input"
-                  style={{ width: 65, background: "#fffde7" }}
-                  value={curRow.uom}
-                  onChange={(e) =>
-                    setCurRow((p) => ({ ...p, uom: e.target.value }))
-                  }
-                  onFocus={() => {
-                    setPackingHiIdx(
-                      Math.max(0, packingOptions.indexOf(curRow.uom)),
-                    );
-                  }}
-                  onBlur={() => setTimeout(() => setPackingOpen(false), 150)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      pcsRef.current?.focus();
-                      return;
-                    }
-                    if (packingOptions.length === 0) return;
-                    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
-                      e.preventDefault();
-                      const idx = packingOptions.indexOf(curRow.uom);
-                      const next =
-                        e.key === "ArrowDown"
-                          ? (idx + 1) % packingOptions.length
-                          : (idx - 1 + packingOptions.length) %
-                            packingOptions.length;
-                      const newUom = packingOptions[next];
-
-                      const product = allProducts.find(
-                        (p) => p._id === curRow.productId,
-                      );
-                      if (product?.packingInfo) {
-                        const pk = product.packingInfo.find(
-                          (pk) => pk.measurement === newUom,
-                        );
-                        if (pk) {
-                          setCurRow((p) => ({
-                            ...p,
-                            uom: newUom,
-                            rate: pk.purchaseRate || pk.costRate || 0,
-                            pcs: pk.packing || 1,
-                            amount: (pk.packing || 1) * (pk.purchaseRate || pk.costRate || 0),
-                          }));
-                          return;
-                        }
-                      }
-                      setCurRow((p) => ({ ...p, uom: newUom }));
-                    }
-                  }}
-                  autoComplete="off"
-                />
+                <input ref={packingRef} type="text" className="xp-input sl-num-input" style={{ width: 65, background: "#fffde7" }} value={curRow.uom} onChange={(e) => setCurRow((p) => ({ ...p, uom: e.target.value }))} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); pcsRef.current?.focus(); return; } if (packingOptions.length === 0) return; if (e.key === "ArrowDown" || e.key === "ArrowUp") { e.preventDefault(); const idx = packingOptions.indexOf(curRow.uom); const next = e.key === "ArrowDown" ? (idx + 1) % packingOptions.length : (idx - 1 + packingOptions.length) % packingOptions.length; const newUom = packingOptions[next]; const product = allProducts.find((p) => p._id === curRow.productId); if (product?.packingInfo) { const pk = product.packingInfo.find((pk) => pk.measurement === newUom); if (pk) { setCurRow((p) => ({ ...p, uom: newUom, rate: pk.purchaseRate || pk.costRate || 0, pcs: pk.packing || 1, amount: (pk.packing || 1) * (pk.purchaseRate || pk.costRate || 0) })); return; } } setCurRow((p) => ({ ...p, uom: newUom })); } }} autoComplete="off" />
               </div>
-              
-              <div className="sl-entry-cell">
-                <label>Qty</label>
-                <input 
-                  ref={pcsRef} 
-                  type="text" 
-                  className="sl-num-input" 
-                  style={{ width: 60, background: "#fffde7" }} 
-                  value={curRow.pcs} 
-                  min={1} 
-                  onChange={(e) => updateCurRow("pcs", e.target.value)} 
-                  onKeyDown={(e) => e.key === "Enter" && rateRef.current?.focus()} 
-                  onFocus={(e) => e.target.select()} 
-                />
-              </div>
-              <div className="sl-entry-cell">
-                <label>Purchase Rate</label>
-                <input 
-                  ref={rateRef} 
-                  type="text" 
-                  className="sl-num-input" 
-                  style={{ width: 75, background: "#fffde7" }} 
-                  value={curRow.rate} 
-                  min={0} 
-                  onChange={(e) => updateCurRow("rate", e.target.value)} 
-                  onKeyDown={(e) => e.key === "Enter" && amountRef.current?.focus()} 
-                  onFocus={(e) => e.target.select()} 
-                />
-              </div>
-              <div className="sl-entry-cell">
-                <label>Amount</label>
-                <input 
-                  ref={amountRef} 
-                  type="text" 
-                  className="sl-num-input" 
-                  style={{ width: 80, background: "#fffde7" }} 
-                  value={curRow.amount || 0} 
-                  onChange={(e) => setCurRow((p) => ({ ...p, amount: parseFloat(e.target.value) || 0 }))} 
-                  onFocus={(e) => e.target.select()} 
-                  onKeyDown={(e) => e.key === "Enter" && addRef.current?.click()} 
-                />
-              </div>
+              <div className="sl-entry-cell"><label>Qty</label><input ref={pcsRef} type="text" className="sl-num-input" style={{ width: 60, background: "#fffde7" }} value={curRow.pcs} min={1} onChange={(e) => updateCurRow("pcs", e.target.value)} onKeyDown={(e) => e.key === "Enter" && rateRef.current?.focus()} onFocus={(e) => e.target.select()} /></div>
+              <div className="sl-entry-cell"><label>Purchase Rate</label><input ref={rateRef} type="text" className="sl-num-input" style={{ width: 75, background: "#fffde7" }} value={curRow.rate} min={0} onChange={(e) => updateCurRow("rate", e.target.value)} onKeyDown={(e) => e.key === "Enter" && amountRef.current?.focus()} onFocus={(e) => e.target.select()} /></div>
+              <div className="sl-entry-cell"><label>Amount</label><input ref={amountRef} type="text" className="sl-num-input" style={{ width: 80, background: "#fffde7" }} value={curRow.amount || 0} onChange={(e) => setCurRow((p) => ({ ...p, amount: parseFloat(e.target.value) || 0 }))} onFocus={(e) => e.target.select()} onKeyDown={(e) => e.key === "Enter" && addRef.current?.click()} /></div>
               <div className="sl-entry-cell sl-entry-btns-cell">
                 <label>&nbsp;</label>
                 <div className="sl-entry-btns">
@@ -2068,22 +1223,14 @@ export default function PurchasePage() {
               <table className="sl-items-table">
                 <thead>
                   <tr>
-                    <th style={{ width: 32 }}>Sr.#</th>
-                    <th style={{ width: 72 }}>Code</th>
-                    <th>Product Name</th>
-                    <th style={{ width: 65 }}>UOM</th>
-                    <th style={{ width: 55 }} className="r">Qty</th>
-                    <th style={{ width: 80 }} className="r">Rate</th>
-                    <th style={{ width: 90 }} className="r">Amount</th>
+                    <th style={{ width: 32 }}>Sr.#</th><th style={{ width: 72 }}>Code</th><th>Product Name</th>
+                    <th style={{ width: 65 }}>UOM</th><th style={{ width: 55 }} className="r">Qty</th>
+                    <th style={{ width: 80 }} className="r">Rate</th><th style={{ width: 90 }} className="r">Amount</th>
                     <th style={{ width: 40 }}></th>
                   </tr>
                 </thead>
                 <tbody>
-                  {items.length === 0 && (
-                    <tr>
-                      <td colSpan={8} className="xp-empty" style={{ padding: 14 }}>Add products to create purchase invoice</td>
-                    </tr>
-                  )}
+                  {items.length === 0 && (<tr className="sl-empty-row"><td colSpan={8} className="xp-empty" style={{ padding: 14 }}>Add products to create purchase invoice</td></tr>)}
                   {items.map((r, i) => (
                     <tr key={i}>
                       <td className="muted" style={{ textAlign: "center" }}>{i + 1}</td>
@@ -2106,27 +1253,14 @@ export default function PurchasePage() {
               
               <div className="sl-cust-cell" style={{ width: 120 }}>
                 <label>Supplier Code</label>
-                <input
-                  ref={codeSearchRef}
-                  type="text"
-                  className="sl-cust-input"
-                  style={{ width: 100, background: "#fffde7" }}
-                  placeholder="Enter code"
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      handleCodeSearch();
-                    }
-                  }}
-                  autoComplete="off"
-                />
+                <input ref={codeSearchRef} type="text" className="sl-cust-input" style={{ width: 100, background: "#fffde7" }} placeholder="Enter code" onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleCodeSearch(); } }} autoComplete="off" />
               </div>
               
               <div className="sl-cust-cell" style={{ flex: 2 }}>
                 <label>Supplier Name</label>
                 <SupplierDropdown
                   allSuppliers={allSuppliers}
-                  value={supplierName === "Cash Purchase" ? "" : supplierName}
+                  value={supplierId}
                   displayName={supplierName}
                   onSelect={handleSupplierSelect}
                   onClear={handleSupplierClear}
@@ -2142,53 +1276,14 @@ export default function PurchasePage() {
               )}
               
               <div className="sl-sum-cell">
-                <button 
-                  className="xp-btn xp-btn-primary" 
-                  onClick={openConfirmModal} 
-                  disabled={isProcessing || items.length === 0}
-                  style={{ padding: "6px 20px", fontSize: 14, background: "#10b981", borderColor: "#059669" }}
-                >
-                  {isProcessing ? "Processing..." : "💾 Save (*)"}
-                </button>
+                <button className="xp-btn xp-btn-primary" onClick={openConfirmModal} disabled={isProcessing || items.length === 0} style={{ padding: "6px 20px", fontSize: 14, background: "#10b981", borderColor: "#059669" }}>{isProcessing ? "Processing..." : "💾 Save (*)"}</button>
               </div>
             </div>
 
             {showRemarksInput && (
-              <div className="sl-remarks-section" style={{
-                marginTop: "10px",
-                padding: "8px 12px",
-                background: "#f0fdf4",
-                borderRadius: "6px",
-                border: "1px solid #10b981",
-                display: "flex",
-                alignItems: "center",
-                gap: "10px"
-              }}>
+              <div className="sl-remarks-section" style={{ marginTop: "10px", padding: "8px 12px", background: "#f0fdf4", borderRadius: "6px", border: "1px solid #10b981", display: "flex", alignItems: "center", gap: "10px" }}>
                 <label style={{ fontWeight: "bold", color: "#065f46", minWidth: "70px" }}>Remarks:</label>
-                <input
-                  ref={remarksRef}
-                  type="text"
-                  className="sl-remarks-input"
-                  value={remarks}
-                  onChange={(e) => setRemarks(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && items.length > 0) {
-                      e.preventDefault();
-                      openConfirmModal();
-                    }
-                  }}
-                  placeholder="Enter remarks and press Enter to save..."
-                  style={{
-                    flex: 1,
-                    padding: "8px 12px",
-                    border: "1px solid #10b981",
-                    borderRadius: "4px",
-                    fontSize: "13px",
-                    outline: "none",
-                    background: "white"
-                  }}
-                  autoComplete="off"
-                />
+                <input ref={remarksRef} type="text" className="sl-remarks-input" value={remarks} onChange={(e) => setRemarks(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && items.length > 0) { e.preventDefault(); openConfirmModal(); } }} placeholder="Enter remarks and press Enter to save..." style={{ flex: 1, padding: "8px 12px", border: "1px solid #10b981", borderRadius: "4px", fontSize: "13px", outline: "none", background: "white" }} autoComplete="off" />
                 <span style={{ fontSize: "11px", color: "#065f46" }}>Press Enter → Save</span>
               </div>
             )}
@@ -2202,43 +1297,17 @@ export default function PurchasePage() {
               </div>
               <div className="sl-hold-table-wrap">
                 <table className="sl-hold-table">
-                  <thead>
-                    <tr>
-                      <th style={{ width: 24 }}>#</th>
-                      <th>Invoice #</th>
-                      <th className="r">Amount</th>
-                      <th>Supplier</th>
-                      <th style={{ width: 22 }}></th>
-                    </tr>
-                  </thead>
+                  <thead><tr><th style={{ width: 24 }}>#</th><th>Invoice #</th><th className="r">Amount</th><th>Supplier</th><th style={{ width: 22 }}></th></tr></thead>
                   <tbody>
-                    {holdBills.length === 0 ? (
-                      Array.from({ length: 8 }).map((_, i) => (
-                        <tr key={i}>
-                          <td colSpan={5} style={{ height: 22 }} />
-                        </tr>
-                      ))
-                    ) : (
+                    {holdBills.length === 0 ? (Array.from({ length: 8 }).map((_, i) => (<tr key={i}><td colSpan={5} style={{ height: 22 }} /></tr>))) : (
                       holdBills.map((b, i) => (
-                        <tr
-                          key={b.id}
-                          onClick={() => setShowHoldPreview(b)}
-                          onDoubleClick={() => resumeHold(b.id)}
-                          title="Click = preview · Double-click = resume"
-                          style={{ cursor: "pointer" }}
-                        >
+                        <tr key={b.id} onClick={() => setShowHoldPreview(b)} onDoubleClick={() => resumeHold(b.id)} style={{ cursor: "pointer" }}>
                           <td className="muted" style={{ textAlign: "center", fontSize: "var(--xp-fs-xs)" }}>{i + 1}</td>
                           <td style={{ fontFamily: "var(--xp-mono)", fontSize: "var(--xp-fs-xs)" }}>{b.invoiceNo}</td>
                           <td className="r" style={{ color: "#10b981" }}>{fmt(b.amount)}</td>
                           <td className="muted" style={{ fontSize: "var(--xp-fs-xs)" }}>{b.supplierName || "Cash Purchase"}</td>
                           <td style={{ textAlign: "center" }}>
-                            <button
-                              className="xp-btn xp-btn-sm xp-btn-ico"
-                              style={{ width: 18, height: 18, fontSize: 9, color: "var(--xp-red)" }}
-                              onClick={(e) => deleteHold(b.id, e)}
-                            >
-                              ✕
-                            </button>
+                            <button className="xp-btn xp-btn-sm xp-btn-ico" style={{ width: 18, height: 18, fontSize: 9, color: "var(--xp-red)" }} onClick={(e) => deleteHold(b.id, e)}>✕</button>
                           </td>
                         </tr>
                       ))
@@ -2247,190 +1316,42 @@ export default function PurchasePage() {
                 </table>
               </div>
               <div style={{ padding: "4px 8px", flexShrink: 0 }}>
-                <button
-                  className="xp-btn xp-btn-sm"
-                  style={{ width: "100%", background: "#10b981", color: "white", borderColor: "#059669" }}
-                  onClick={holdPurchase}
-                  disabled={!items.length}
-                >
-                  Hold Bill (F4)
-                </button>
+                <button className="xp-btn xp-btn-sm" style={{ width: "100%", background: "#10b981", color: "white", borderColor: "#059669" }} onClick={holdPurchase} disabled={!items.length}>Hold Bill (F4)</button>
               </div>
-              <div className="sl-hold-hint" style={{ padding: "4px 8px", fontSize: 10, color: "#666", textAlign: "center", borderTop: "1px solid #e5e7eb" }}>
-                Click = preview · Double-click = resume · ✕ = delete
-              </div>
+              <div className="sl-hold-hint" style={{ padding: "4px 8px", fontSize: 10, color: "#666", textAlign: "center", borderTop: "1px solid #e5e7eb" }}>Click = preview · Double-click = resume · ✕ = delete</div>
             </div>
           </div>
         </div>
-
-      
       </div>
 
       <style>{`
-        .sl-page {
-          background: #ffffff;
-        }
-        
-        input, .xp-input, .sl-product-input, .sl-num-input, .sl-sum-input, 
-        .sl-cust-input, .sl-inv-input-large, .sl-date-input, .sl-sum-val {
-          border-color: #000000 !important;
-          border-width: 1px !important;
-          border-style: solid !important;
-          background: #ffffff !important;
-        }
-        
-        .sl-items-table th,
-        .sl-items-table td {
-          border-color: #000000 !important;
-          border-width: 1px !important;
-        }
-       
-        .xp-btn, .sl-pay-btn, .sl-entry-btns .xp-btn {
-          border-color: #000000 !important;
-          border-width: 1px !important;
-          border-style: solid !important;
-        }
-        
-        .sl-items-table tbody tr.sl-empty-row {
-          display: none;
-        }
-        
-        .sl-cust-input {
-          border: 1px solid #000000 !important;
-          border-radius: 4px !important;
-          padding: 6px 8px !important;
-          font-size: 13px !important;
-          transition: all 0.15s ease !important;
-          background-color: #ffffff !important;
-        }
-        
-        .sl-cust-input:focus {
-          border-color: #10b981 !important;
-          box-shadow: 0 0 0 2px rgba(16,185,129,0.1) !important;
-          outline: none !important;
-        }
-        
-        .sl-cust-input:hover {
-          border-color: #000000 !important;
-        }
-        
-        .sl-inv-input-large {
-          font-size: 18px !important;
-          font-weight: bold !important;
-          width: 160px !important;
-          text-align: center !important;
-          background: #ffffff !important;
-        }
-        
-        .sl-nav-btn {
-          font-size: 14px !important;
-          padding: 4px 12px !important;
-          font-weight: 600 !important;
-        }
-        
-        input, .xp-input, .sl-product-input, .sl-num-input, .sl-sum-input, .sl-cust-input {
-          background-color: #ffffff !important;
-        }
-        
-        .xp-btn-success {
-          background-color: #10b981 !important;
-          border-color: #10b981 !important;
-          color: white !important;
-        }
-        
-        .xp-btn-success:hover {
-          background-color: #059669 !important;
-          border-color: #059669 !important;
-        }
-
-        .sl-product-input {
-          background-color: #fffde7 !important;
-          border-color: #000000 !important;
-        }
-
-        .sl-num-input, .sl-sum-input, .sl-cust-input {
-          background-color: #fffde7 !important;
-        }
-
-        .sl-sum-val, .sl-date-input[readonly] {
-          background-color: #f5f5f5 !important;
-        }
-
-        .sl-inv-nav-container {
-          position: relative;
-          display: inline-block;
-        }
-
-        .sl-inv-nav-btn {
-          position: absolute;
-          top: 50%;
-          transform: translateY(-50%);
-          background: #f3f4f6;
-          border: 1px solid #d1d5db;
-          cursor: pointer;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          padding: 0;
-          width: 26px;
-          height: 26px;
-          border-radius: 4px;
-          color: #4b5563;
-          font-size: 12px;
-          font-weight: bold;
-          transition: all 0.2s ease;
-          z-index: 2;
-        }
-
-        .sl-inv-nav-btn:hover {
-          background: #10b981;
-          border-color: #059669;
-          color: white;
-          transform: translateY(-50%) scale(1.05);
-        }
-
-        .sl-inv-nav-btn:active {
-          transform: translateY(-50%) scale(0.95);
-        }
-
-        .sl-inv-nav-prev {
-          left: 4px;
-        }
-
-        .sl-inv-nav-next {
-          right: 4px;
-        }
-
-        .sl-inv-input-large {
-          width: 180px !important;
-          text-align: center !important;
-          padding: 6px 32px !important;
-          font-size: 18px !important;
-          font-weight: bold !important;
-          background: #ffffff !important;
-          border: 1px solid #d1d5db !important;
-          border-radius: 6px !important;
-          transition: all 0.2s ease;
-        }
-
-        .sl-inv-input-large:hover {
-          border-color: #10b981 !important;
-        }
-
-        .sl-inv-input-large:focus {
-          border-color: #10b981 !important;
-          outline: none;
-          box-shadow: 0 0 0 3px rgba(16,185,129,0.1);
-        }
-
-        .sl-nav-btn {
-          display: none;
-        }
-
-        .sl-remarks-input:focus {
-          border-color: #059669 !important;
-          box-shadow: 0 0 0 2px rgba(5,150,105,0.2) !important;
-        }
+        .sl-page { background: #ffffff; }
+        input, .xp-input, .sl-product-input, .sl-num-input, .sl-sum-input, .sl-cust-input, .sl-inv-input-large, .sl-date-input, .sl-sum-val { border-color: #000000 !important; border-width: 1px !important; border-style: solid !important; background: #ffffff !important; }
+        .sl-items-table th, .sl-items-table td { border-color: #000000 !important; border-width: 1px !important; }
+        .xp-btn, .sl-pay-btn, .sl-entry-btns .xp-btn { border-color: #000000 !important; border-width: 1px !important; border-style: solid !important; }
+        .sl-items-table tbody tr.sl-empty-row { display: none; }
+        .sl-cust-input { border: 1px solid #000000 !important; border-radius: 4px !important; padding: 6px 8px !important; font-size: 13px !important; transition: all 0.15s ease !important; background-color: #ffffff !important; }
+        .sl-cust-input:focus { border-color: #10b981 !important; box-shadow: 0 0 0 2px rgba(16,185,129,0.1) !important; outline: none !important; }
+        .sl-cust-input:hover { border-color: #000000 !important; }
+        .sl-inv-input-large { font-size: 18px !important; font-weight: bold !important; width: 160px !important; text-align: center !important; background: #ffffff !important; }
+        .sl-nav-btn { font-size: 14px !important; padding: 4px 12px !important; font-weight: 600 !important; }
+        input, .xp-input, .sl-product-input, .sl-num-input, .sl-sum-input, .sl-cust-input { background-color: #ffffff !important; }
+        .xp-btn-success { background-color: #10b981 !important; border-color: #10b981 !important; color: white !important; }
+        .xp-btn-success:hover { background-color: #059669 !important; border-color: #059669 !important; }
+        .sl-product-input { background-color: #fffde7 !important; border-color: #000000 !important; }
+        .sl-num-input, .sl-sum-input, .sl-cust-input { background-color: #fffde7 !important; }
+        .sl-sum-val, .sl-date-input[readonly] { background-color: #f5f5f5 !important; }
+        .sl-inv-nav-container { position: relative; display: inline-block; }
+        .sl-inv-nav-btn { position: absolute; top: 50%; transform: translateY(-50%); background: #f3f4f6; border: 1px solid #d1d5db; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0; width: 26px; height: 26px; border-radius: 4px; color: #4b5563; font-size: 12px; font-weight: bold; transition: all 0.2s ease; z-index: 2; }
+        .sl-inv-nav-btn:hover { background: #10b981; border-color: #059669; color: white; transform: translateY(-50%) scale(1.05); }
+        .sl-inv-nav-btn:active { transform: translateY(-50%) scale(0.95); }
+        .sl-inv-nav-prev { left: 4px; }
+        .sl-inv-nav-next { right: 4px; }
+        .sl-inv-input-large { width: 180px !important; text-align: center !important; padding: 6px 32px !important; font-size: 18px !important; font-weight: bold !important; background: #ffffff !important; border: 1px solid #d1d5db !important; border-radius: 6px !important; transition: all 0.2s ease; }
+        .sl-inv-input-large:hover { border-color: #10b981 !important; }
+        .sl-inv-input-large:focus { border-color: #10b981 !important; outline: none; box-shadow: 0 0 0 3px rgba(16,185,129,0.1); }
+        .sl-nav-btn { display: none; }
+        .sl-remarks-input:focus { border-color: #059669 !important; box-shadow: 0 0 0 2px rgba(5,150,105,0.2) !important; }
       `}</style>
     </>
   );
