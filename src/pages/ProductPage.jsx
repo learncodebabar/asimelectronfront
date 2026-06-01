@@ -554,8 +554,7 @@ export default function ProductPage() {
   const nextId = String(nextNum);
   
   // Auto-generate code as productId with leading zeros to 5 digits
-  const generatedCode = form.productId ? String(form.productId).padStart(5, '0') : String(nextNum).padStart(5, '0');
-  
+const generatedCode = form.productId ? String(form.productId) : String(nextNum);
   return (
     <div className="pp-page">
    

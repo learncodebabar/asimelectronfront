@@ -171,7 +171,7 @@ export default function TopSalesPage() {
     </head>
     <body>
       <div class="header">
-        <div class="shop-name">ASIM ELECTRIC & ELECTRONIC STORE</div>
+        <div class="shop-name">DGS & ELECTRONIC STORE</div>
         <div class="shop-addr">Main Bazar Nahari Town, Near Bijli Ghar Stop, Gujranwala Road, Faisalabad</div>
         <div class="shop-addr">Ph: 0300 7262129, 041 8711575, 0315 7262129</div>
       </div>
@@ -238,7 +238,7 @@ export default function TopSalesPage() {
     </head>
     <body>
       <div class="header">
-        <div class="shop-name">ASIM ELECTRIC & ELECTRONIC STORE</div>
+        <div class="shop-name">DGS & ELECTRONIC STORE</div>
         <div class="shop-addr">Main Bazar Nahari Town, Near Bijli Ghar Stop, Gujranwala Road, Faisalabad</div>
       </div>
       <div class="title">CUSTOMER SALES DETAILS</div>
@@ -289,7 +289,7 @@ export default function TopSalesPage() {
       <div className="xp-titlebar" style={{ background: "#1a1a1a", borderBottom: "2px solid #000", padding: "6px 12px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
           <button onClick={() => navigate("/")} style={{ background: "transparent", border: "1px solid #fff", color: "#fff", padding: "4px 10px", cursor: "pointer", borderRadius: "3px", fontSize: "12px" }}>← Back</button>
-          <span style={{ color: "#fff", fontSize: "14px", fontWeight: "bold" }}>Top Sales Report — Asim Electric Store</span>
+          <span style={{ color: "#fff", fontSize: "14px", fontWeight: "bold" }}>Top Sales Report — DGS Store</span>
         </div>
         <div style={{ display: "flex", gap: "8px" }}>
           <button onClick={handleRefresh} style={{ padding: "4px 12px", background: "#fff", border: "1px solid #000", cursor: "pointer", fontSize: "11px", fontWeight: "bold" }}>⟳ Refresh</button>

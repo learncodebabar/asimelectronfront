@@ -517,7 +517,7 @@ export default function GeneralLedgerPage() {
         <div class="print-header">
           <div class="shop-section">
             <div class="shop-name">عاصم الیکٹرک اینڈ الیکٹرونکس سٹور</div>
-            <div class="shop-name-en">ASIM ELECTRIC & ELECTRONIC STORE</div>
+            <div class="shop-name-en">DGS & ELECTRONIC STORE</div>
             <div class="shop-addr">Main Bazar Nahari Town, Near Bijli Ghar Stop, Gujranwala Road, Faisalabad</div>
             <div class="shop-addr">Ph: 0300 7262129, 041 8711575, 0315 7262129</div>
             <div class="print-time">Printed on: ${printDateTime}</div>
@@ -615,7 +615,7 @@ export default function GeneralLedgerPage() {
         <div class="print-header">
           <div class="shop-section">
             <div class="shop-name">عاصم الیکٹرک اینڈ الیکٹرونکس سٹور</div>
-            <div class="shop-name-en">ASIM ELECTRIC & ELECTRONIC STORE</div>
+            <div class="shop-name-en">DGS & ELECTRONIC STORE</div>
             <div class="shop-addr">Main Bazar Nahari Town, Near Bijli Ghar Stop, Gujranwala Road, Faisalabad</div>
             <div class="shop-addr">Ph: 0300 7262129, 041 8711575, 0315 7262129</div>
             <div class="print-time">Printed on: ${printDateTime}</div>

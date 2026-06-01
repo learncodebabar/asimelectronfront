@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import api from "../../api/api.js";
 import EP from "../../api/apiEndpoints.js";
 import "../../styles/theme.css";
+import { SHOP_INFO } from "../../constants/shopInfo.js";
 
 const fmt = (n) => Number(n || 0).toLocaleString("en-PK");
 
@@ -46,40 +47,40 @@ export default function StockReportPage() {
     try {
       const { data } = await api.get(EP.PRODUCTS.GET_ALL);
       if (data.success) {
-        // Process products to calculate stock quantities
+        // Process products to calculate stock quantities - IGNORE stockEnabled flag
         const processedProducts = data.data.map(product => {
           let totalStock = 0;
           let packingInfo = [];
           
-          if (product.packingInfo && product.packingInfo.length > 0) {
-            packingInfo = product.packingInfo.map(pk => ({
-              measurement: pk.measurement || "—",
-              packing: pk.packing || 1,
-              openingQty: pk.openingQty || 0,
-              purchaseRate: pk.purchaseRate || 0,
-              saleRate: pk.saleRate || 0,
-              stockEnabled: pk.stockEnabled || false,
-              stockValue: (pk.stockEnabled ? (parseFloat(pk.openingQty) || 0) : 0)
-            }));
+         // In StockReportPage.jsx
+        packingInfo = product.packingInfo.map(pk => ({
+          measurement: pk.measurement || "—",
+          openingQty: pk.openingQty || 0,  // ← Reads stock from here
+          purchaseRate: pk.purchaseRate || 0,
+          saleRate: pk.saleRate || 0,
+          stockValue: (parseFloat(pk.openingQty) || 0) * (parseFloat(pk.purchaseRate) || 0)
+        }));
+
+        // Calculate total stock
+        totalStock = packingInfo.reduce((sum, pk) => {
+          return sum + (parseFloat(pk.openingQty) || 0);
+        }, 0);
             
-            // Calculate total stock quantity
-            totalStock = packingInfo.reduce((sum, pk) => {
-              if (pk.stockEnabled) {
-                return sum + (parseFloat(pk.openingQty) || 0);
-              }
-              return sum;
-            }, 0);
-          }
+            // Calculate total stock quantity - ALWAYS count openingQty regardless of stockEnabled
+          
+          
           
           return {
             ...product,
             totalStock,
             packingInfo,
-            stockValue: packingInfo.reduce((sum, pk) => sum + (pk.stockValue * (pk.purchaseRate || 0)), 0)
+            stockValue: packingInfo.reduce((sum, pk) => sum + pk.stockValue, 0)
           };
         });
         
         setProducts(processedProducts);
+        console.log("Products loaded:", processedProducts.length);
+        console.log("Sample product stock:", processedProducts[0]?.totalStock);
       }
     } catch (error) {
       console.error("Failed to fetch products:", error);
@@ -155,7 +156,7 @@ export default function StockReportPage() {
       );
     }
     
-    // Filter by Low Stock (stock <= 10)
+    // Filter by Low Stock (stock <= 10 and > 0)
     if (lowStockOnly) {
       filtered = filtered.filter(p => p.totalStock <= 10 && p.totalStock > 0);
     }
@@ -292,12 +293,15 @@ export default function StockReportPage() {
   const totalStockValue = filteredProducts.reduce((sum, p) => sum + (p.stockValue || 0), 0);
   const hasActiveFilters = codeSearch || nameSearch || companySearch || categorySearch || lowStockOnly || outOfStockOnly;
   
+  const lowStockCount = products.filter(p => p.totalStock <= 10 && p.totalStock > 0).length;
+  const outOfStockCount = products.filter(p => p.totalStock === 0).length;
+  
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100vh", background: "#ffffff" }}>
       {/* Titlebar */}
       <div className="xp-titlebar" style={{ background: "#1e40af", padding: "8px 16px", flexShrink: 0 }}>
         <button className="xp-cap-btn" onClick={() => navigate("/")} style={{ color: "white", fontSize: "16px", background: "none", border: "none", cursor: "pointer" }}>←</button>
-        <span className="xp-tb-title" style={{ color: "white", fontSize: "16px", fontWeight: "bold" }}>Stock Report — Asim Electric Store</span>
+        <span className="xp-tb-title" style={{ color: "white", fontSize: "16px", fontWeight: "bold" }}>Stock Reportde</span>
         <div className="xp-tb-actions">
           <button className="xp-btn xp-btn-primary xp-btn-sm" onClick={fetchProducts} style={{ background: "#ffffff", color: "#1e40af", border: "1px solid #1e40af", fontWeight: "bold", padding: "6px 12px" }}>⟳ Refresh</button>
           <button className="xp-btn xp-btn-sm" onClick={() => {
@@ -541,7 +545,7 @@ export default function StockReportPage() {
         <div style={{ background: "#ffffff", border: "2px solid #1e40af", borderRadius: "10px", padding: "14px 16px" }}>
           <div style={{ fontSize: "11px", fontWeight: "bold", color: "#1e40af", textTransform: "uppercase", marginBottom: "6px" }}>Low/Out Stock</div>
           <div style={{ fontSize: "24px", fontWeight: "bold", fontFamily: "monospace", color: "#d97706" }}>
-            {products.filter(p => p.totalStock <= 10 && p.totalStock > 0).length} / {products.filter(p => p.totalStock === 0).length}
+            {lowStockCount} / {outOfStockCount}
           </div>
         </div>
       </div>
@@ -678,7 +682,8 @@ const buildPrintHtml = (products, totalStock, totalStockValue) => {
   <body>
     <div class="header">
       <div class="title">STOCK REPORT</div>
-      <div>Asim Electric & Electronic Store</div>
+      <div>${SHOP_INFO.name}</div>
+      <div>${SHOP_INFO.address}</div>
     </div>
     <div class="meta-row">
       <span>Generated: ${new Date().toLocaleString()}</span>
@@ -702,13 +707,13 @@ const buildPrintHtml = (products, totalStock, totalStockValue) => {
       <tfoot>
         <tr>
           <td colspan="6" style="text-align:right;font-weight:bold">TOTALS:</td>
-          <td style="text-align:right;font-weight:bold">${totalStock.toLocaleString()}汝
-          <td style="text-align:right;font-weight:bold">PKR ${fmt(totalStockValue)}汝
-          <td style="text-align:right">汝
+          <td style="text-align:right;font-weight:bold">${totalStock.toLocaleString()}</td>
+          <td style="text-align:right;font-weight:bold">PKR ${fmt(totalStockValue)}</td>
+          <td style="text-align:right"></td>
         </tr>
       </tfoot>
     </table>
-    <div class="footer">Developed by: Creative Babar / 03098325271</div>
+    <div class="footer">${SHOP_INFO.devBy}</div>
   </body>
   </html>`;
 };

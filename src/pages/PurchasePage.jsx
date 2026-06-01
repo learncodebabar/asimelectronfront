@@ -922,6 +922,7 @@ export default function PurchasePage() {
   const [invoiceDate, setInvoiceDate] = useState(isoDate());
   const [invoiceNo, setInvoiceNo] = useState("");
   const amountRef = useRef(null);
+const [editItemIndex, setEditItemIndex] = useState(null);
 
   const [supplierName, setSupplierName] = useState("Cash Purchase");
   const [supplierId, setSupplierId] = useState("");
@@ -1017,17 +1018,72 @@ export default function PurchasePage() {
     });
   };
 
-  const addRow = () => {
-    if (!curRow.name) { setShowProductModal(true); return; }
-    if (!curRow.productId) { showMsg("Please select a valid product", "error"); return; }
-    if (parseFloat(curRow.pcs) <= 0) { showMsg("Qty must be > 0", "error"); return; }
+const addRow = () => {
+  if (!curRow.name) { 
+    setShowProductModal(true); 
+    return; 
+  }
+  if (!curRow.productId) { 
+    showMsg("Please select a valid product", "error"); 
+    return; 
+  }
+  if (parseFloat(curRow.pcs) <= 0) { 
+    showMsg("Qty must be > 0", "error"); 
+    return; 
+  }
+  
+  // If we're editing an existing item
+  if (editItemIndex !== null) {
+    const updatedItems = [...items];
+    updatedItems[editItemIndex] = { ...curRow };
+    setItems(updatedItems);
+    setEditItemIndex(null);
+    showMsg("Item updated successfully", "success");
+  } else {
+    // Add new item
     setItems((p) => [...p, { ...curRow }]);
-    resetCurRow();
-  };
+    showMsg("Item added successfully", "success");
+  }
+  
+  resetCurRow();
+};
 
   const resetCurRow = () => { setCurRow({ ...EMPTY_ROW }); setSearchText(""); setPackingOptions([]); setTimeout(() => searchRef.current?.focus(), 30); };
 
   const removeRow = (index) => { setItems((p) => p.filter((_, i) => i !== index)); };
+
+const loadItemForEdit = (index) => {
+  const item = items[index];
+  if (!item) return;
+  
+  // Set the current row with the item data for editing
+  setCurRow({
+    productId: item.productId,
+    code: item.code,
+    name: item.name,
+    uom: item.uom,
+    rack: item.rack,
+    pcs: item.pcs,
+    rate: item.rate,
+    amount: item.amount,
+  });
+  
+  setSearchText(item.code || item.name);
+  setEditItemIndex(index);
+  
+  // Set packing options if available
+  const product = allProducts.find(p => p._id === item.productId);
+  if (product?.packingInfo) {
+    setPackingOptions(product.packingInfo.map(pk => pk.measurement));
+  }
+  
+  // Focus on the pcs field after loading
+  setTimeout(() => pcsRef.current?.focus(), 100);
+  
+  showMsg(`Editing item: ${item.name}`, "success");
+};
+
+
 
   const handleSupplierSelect = (supplier) => {
     setSupplierId(supplier._id);
@@ -1077,85 +1133,395 @@ export default function PurchasePage() {
 
   const deleteHold = (holdId, e) => { e.stopPropagation(); if (window.confirm("Delete this held purchase?")) setHoldBills((prev) => prev.filter((b) => b.id !== holdId)); };
 
-  const savePurchase = async (shouldPrint) => {
-    if (isProcessing) return;
-    if (items.length === 0) { showMsg("No items to save", "error"); return; }
-    setIsProcessing(true);
-    const purchaseObj = { invoiceNo, invoiceDate, supplierName, items, subTotal, extraDisc: 0, netTotal: subTotal, prevBalance: 0, paidAmount: subTotal, balance: 0, remarks };
-    try {
-      const currentUser = JSON.parse(localStorage.getItem("user") || "{}");
-      const payload = {
-        invoiceNo, invoiceDate, supplierId: supplierId || null, supplierName, supplierCode, supplierPhone: "", remarks,
-        username: currentUser.username || currentUser.name || "admin", userId: currentUser._id || currentUser.id || "admin",
-        items: items.map((r, idx) => ({ productId: r.productId || undefined, code: r.code, name: r.name, description: r.name, uom: r.uom, measurement: r.uom, rack: r.rack, pcs: parseFloat(r.pcs) || 1, qty: parseFloat(r.pcs) || 1, rate: parseFloat(r.rate) || 0, disc: 0, amount: parseFloat(r.amount) || 0, srNo: idx + 1 })),
-        subTotal, extraDisc: 0, discAmount: 0, netTotal: subTotal, prevBalance: 0, paidAmount: subTotal, balance: 0, printType, saleType: "purchase"
-      };
-      let response;
-      if (editId) { response = await api.put(EP.PURCHASES.UPDATE(editId), payload); }
-      else { response = await api.post(EP.PURCHASES.CREATE, payload); }
-      if (!response.data.success) { showMsg(response.data.message || "Save failed", "error"); setIsProcessing(false); return; }
-      for (const item of items) {
-        if (item.productId && item.uom && item.pcs > 0) {
-          await updateProductStockForPurchase(item.productId, item.uom, parseFloat(item.pcs), allProducts, setAllProducts);
+const savePurchase = async (shouldPrint) => {
+  if (isProcessing) return;
+  if (items.length === 0) { showMsg("No items to save", "error"); return; }
+  setIsProcessing(true);
+  
+  try {
+    const currentUser = JSON.parse(localStorage.getItem("user") || "{}");
+    
+    // If editing an existing purchase, FIRST restore the old stock
+    if (editId) {
+      console.log("🔄 Editing purchase - restoring old stock first...");
+      
+      // Fetch the original purchase
+      const originalRes = await api.get(EP.PURCHASES.GET_ONE(editId));
+      if (originalRes.data.success && originalRes.data.data) {
+        const originalPurchase = originalRes.data.data;
+        
+        // Restore old stock (subtract what was added)
+        for (const item of originalPurchase.items) {
+          const productId = item.productId?._id || item.productId;
+          const uom = item.uom || item.measurement;
+          const qty = item.quantity || item.qty || item.pcs;
+          
+          if (productId && uom && qty > 0) {
+            try {
+              const productRes = await api.get(EP.PRODUCTS.GET_ONE(productId));
+              if (productRes.data.success && productRes.data.data) {
+                const product = productRes.data.data;
+                const packingIndex = product.packingInfo?.findIndex(pk => pk.measurement === uom);
+                
+                if (packingIndex !== undefined && packingIndex !== -1) {
+                  const currentStock = product.packingInfo[packingIndex].openingQty || 0;
+                  const newStock = Math.max(0, currentStock - qty); // Remove old stock
+                  product.packingInfo[packingIndex].openingQty = newStock;
+                  
+                  await api.put(EP.PRODUCTS.UPDATE(productId), {
+                    packingInfo: product.packingInfo
+                  });
+                  
+                  console.log(`📦 Old stock removed: ${product.code} - ${uom}: ${currentStock} → ${newStock} (-${qty})`);
+                }
+              }
+            } catch (stockErr) {
+              console.error("Failed to restore old stock:", stockErr);
+            }
+          }
         }
       }
-      const productsRes = await api.get(EP.PRODUCTS.GET_ALL);
-      if (productsRes.data.success) setAllProducts(productsRes.data.data);
-      showMsg(editId ? `✓ Invoice ${invoiceNo} updated successfully + Stock updated` : `✓ Invoice ${invoiceNo} saved successfully + Stock increased`);
-      if (shouldPrint) {
-        setTimeout(() => {
-          try {
-            const printWindow = window.open("", "_blank", printType === "Thermal" ? "width=420,height=640" : "width=900,height=700");
-            if (!printWindow) { alert("Popup blocked! The invoice has been saved and stock updated."); return; }
-            printWindow.document.write(buildPrintHtml(purchaseObj, printType, { buyerName: supplierName, remarks }));
-            printWindow.document.close();
-            printWindow.onload = () => { setTimeout(() => { printWindow.focus(); printWindow.print(); }, 300); };
-          } catch (printError) { console.error("Print failed:", printError); showMsg("Save & stock update successful but print failed", "error"); }
-        }, 300);
+    }
+    
+    // Prepare payload
+    const payload = {
+      invoiceNo: invoiceNo,
+      invoiceDate: invoiceDate,
+      supplierName: supplierName || "Cash Purchase",
+      supplierCode: supplierCode || "",
+      supplierPhone: "",
+      remarks: remarks,
+      username: currentUser.username || currentUser.name || "admin",
+      userId: currentUser._id || currentUser.id || "admin",
+      items: items.map((r, idx) => ({ 
+        productId: r.productId || undefined, 
+        productName: r.name,
+        code: r.code, 
+        name: r.name, 
+        description: r.name, 
+        uom: r.uom, 
+        measurement: r.uom, 
+        rack: r.rack, 
+        pcs: parseFloat(r.pcs) || 1, 
+        qty: parseFloat(r.pcs) || 1, 
+        quantity: parseFloat(r.pcs) || 1,
+        rate: parseFloat(r.rate) || 0, 
+        unitPrice: parseFloat(r.rate) || 0,
+        disc: 0, 
+        amount: parseFloat(r.amount) || 0,
+        total: parseFloat(r.amount) || 0,
+        srNo: idx + 1 
+      })),
+      subtotal: subTotal,
+      subTotal: subTotal,
+      discount: 0,
+      extraDisc: 0,
+      tax: 0,
+      totalAmount: subTotal,
+      netTotal: subTotal,
+      prevBalance: 0,
+      paidAmount: subTotal,
+      balance: 0,
+      paymentStatus: "Paid",
+      purchaseDate: invoiceDate,
+      printType: printType
+    };
+    
+    // Only add supplierId if it exists
+    if (supplierId && supplierId !== '') {
+      payload.supplierId = supplierId;
+    }
+    
+    // Save the purchase (create or update)
+    let response;
+    if (editId) { 
+      response = await api.put(EP.PURCHASES.UPDATE(editId), payload); 
+    } else { 
+      response = await api.post(EP.PURCHASES.CREATE, payload); 
+    }
+    
+    if (!response.data.success) { 
+      showMsg(response.data.message || "Save failed", "error"); 
+      setIsProcessing(false); 
+      return; 
+    }
+    
+    // NOW add the NEW stock for all items
+    console.log("📦 Adding new stock for purchase items...");
+    for (const item of items) {
+      if (item.productId && item.uom && item.pcs > 0) {
+        await updateProductStockForPurchase(item.productId, item.uom, parseFloat(item.pcs), allProducts, setAllProducts);
       }
-      if (!editId) await generateInvoiceNumber(api, EP, setInvoiceNo);
-      await resetToNewInvoice();
-    } catch (error) { console.error("Save failed:", error); showMsg("Save failed: " + (error.response?.data?.message || error.message), "error"); }
-    finally { setIsProcessing(false); setShowConfirmModal(false); }
-  };
+    }
+    
+    // Refresh products to show updated stock
+    const productsRes = await api.get(EP.PRODUCTS.GET_ALL);
+    if (productsRes.data.success) setAllProducts(productsRes.data.data);
+    
+    showMsg(editId ? `✓ Purchase ${invoiceNo} updated successfully + Stock adjusted` : `✓ Purchase ${invoiceNo} saved successfully + Stock increased`);
+    
+    // Print if requested
+    if (shouldPrint) {
+      setTimeout(() => {
+        try {
+          const purchaseObj = { 
+            invoiceNo, 
+            invoiceDate, 
+            supplierName, 
+            items: items, 
+            subTotal, 
+            netTotal: subTotal,
+            paidAmount: subTotal,
+            remarks
+          };
+          const printWindow = window.open("", "_blank", printType === "Thermal" ? "width=420,height=640" : "width=900,height=700");
+          if (!printWindow) { 
+            alert("Popup blocked! The purchase has been saved and stock updated."); 
+            return; 
+          }
+          printWindow.document.write(buildPrintHtml(purchaseObj, printType, { buyerName: supplierName, remarks }));
+          printWindow.document.close();
+          printWindow.onload = () => { 
+            setTimeout(() => { 
+              printWindow.focus(); 
+              printWindow.print(); 
+            }, 300); 
+          };
+        } catch (printError) { 
+          console.error("Print failed:", printError); 
+          showMsg("Save & stock update successful but print failed", "error"); 
+        }
+      }, 300);
+    }
+    
+    if (!editId) await generateInvoiceNumber(api, EP, setInvoiceNo);
+    await resetToNewInvoice();
+    
+  } catch (error) { 
+    console.error("Save failed:", error); 
+    showMsg("Save failed: " + (error.response?.data?.message || error.message), "error"); 
+  } finally { 
+    setIsProcessing(false); 
+    setShowConfirmModal(false); 
+  }
+};
 
+
+// Delete purchase with stock revert
+const deletePurchase = async () => {
+  if (!editId) {
+    showMsg("No purchase selected to delete", "error");
+    return;
+  }
+  
+  const confirmed = window.confirm(`⚠️ ARE YOU SURE?\n\nDelete Purchase Invoice ${invoiceNo}?\n\nThis will REMOVE the stock that was added!\nItems: ${items.length}\nTotal Qty: ${totalQty}\nAmount: PKR ${subTotal.toLocaleString()}\n\nThis action cannot be undone!`);
+  if (!confirmed) return;
+  
+  setLoading(true);
+  try {
+    console.log("🗑️ Deleting purchase and reverting stock...");
+    
+    // Get the purchase details before deleting
+    const purchaseRes = await api.get(EP.PURCHASES.GET_ONE(editId));
+    if (!purchaseRes.data.success) {
+      showMsg("Failed to fetch purchase details", "error");
+      setLoading(false);
+      return;
+    }
+    
+    const purchase = purchaseRes.data.data;
+    console.log("Purchase to delete:", purchase.invoiceNo);
+    console.log("Items to revert:", purchase.items.length);
+    
+    // Revert stock for each item (subtract what was added)
+    let revertedCount = 0;
+    for (const item of purchase.items) {
+      const productId = item.productId?._id || item.productId;
+      const uom = item.uom || item.measurement;
+      const qty = item.quantity || item.qty || item.pcs;
+      
+      if (productId && uom && qty > 0) {
+        try {
+          const productRes = await api.get(EP.PRODUCTS.GET_ONE(productId));
+          if (productRes.data.success && productRes.data.data) {
+            const product = productRes.data.data;
+            const packingIndex = product.packingInfo?.findIndex(pk => pk.measurement === uom);
+            
+            if (packingIndex !== undefined && packingIndex !== -1) {
+              const currentStock = product.packingInfo[packingIndex].openingQty || 0;
+              const newStock = Math.max(0, currentStock - qty); // Remove the added stock
+              product.packingInfo[packingIndex].openingQty = newStock;
+              
+              await api.put(EP.PRODUCTS.UPDATE(productId), {
+                packingInfo: product.packingInfo
+              });
+              
+              console.log(`📦 Stock reverted: ${product.code || productId} - ${uom}: ${currentStock} → ${newStock} (-${qty})`);
+              revertedCount++;
+            } else {
+              console.warn(`⚠️ Packing not found for ${uom} in product: ${productId}`);
+            }
+          } else {
+            console.warn(`⚠️ Product not found: ${productId}`);
+          }
+        } catch (stockErr) {
+          console.error(`Failed to revert stock for item:`, stockErr);
+        }
+      }
+    }
+    
+    console.log(`✅ Stock reverted for ${revertedCount} items`);
+    
+    // Delete the purchase
+    await api.delete(EP.PURCHASES.DELETE(editId));
+    
+    // Refresh products to show updated stock
+    const productsRes = await api.get(EP.PRODUCTS.GET_ALL);
+    if (productsRes.data.success) setAllProducts(productsRes.data.data);
+    
+    showMsg(`✅ Purchase ${invoiceNo} DELETED! Stock reverted for ${revertedCount} items.`, "success");
+    
+    // Reset to new invoice
+    await resetToNewInvoice();
+    await generateInvoiceNumber(api, EP, setInvoiceNo);
+    
+  } catch (error) {
+    console.error("Delete failed:", error);
+    showMsg("Delete failed: " + (error.response?.data?.message || error.message), "error");
+  } finally {
+    setLoading(false);
+  }
+};
   const openConfirmModal = () => {
     if (items.length === 0) { showMsg("No items to save", "error"); return; }
     setShowConfirmModal(true);
   };
 
-  const loadPurchaseForEdit = (purchase) => {
-    setEditId(purchase._id);
-    setInvoiceNo(purchase.invoiceNo);
-    setInvoiceDate(purchase.invoiceDate || isoDate());
-    setSupplierName(purchase.supplierName || "Cash Purchase");
-    setSupplierId(purchase.supplierId || "");
-    setSupplierCode(purchase.supplierCode || "");
-    setRemarks(purchase.remarks || "");
-    setShowRemarksInput(!!(purchase.supplierName && purchase.supplierName !== "Cash Purchase"));
-    const loadedItems = (purchase.items || []).map((it) => ({
-      productId: it.productId || it.product || "", code: it.code || "", name: it.name || it.description || "",
-      uom: it.uom || it.measurement || "", rack: it.rack || "", pcs: it.pcs || it.qty || 1,
-      rate: it.rate || 0, amount: it.amount || 0,
+// Helper function to revert stock for a purchase
+const revertPurchaseStock = async (purchaseId) => {
+  try {
+    const purchaseRes = await api.get(EP.PURCHASES.GET_ONE(purchaseId));
+    if (!purchaseRes.data.success) return false;
+    
+    const purchase = purchaseRes.data.data;
+    let revertedCount = 0;
+    
+    for (const item of purchase.items) {
+      const productId = item.productId?._id || item.productId;
+      const uom = item.uom || item.measurement;
+      const qty = item.quantity || item.qty || item.pcs;
+      
+      if (productId && uom && qty > 0) {
+        const productRes = await api.get(EP.PRODUCTS.GET_ONE(productId));
+        if (productRes.data.success && productRes.data.data) {
+          const product = productRes.data.data;
+          const packingIndex = product.packingInfo?.findIndex(pk => pk.measurement === uom);
+          
+          if (packingIndex !== undefined && packingIndex !== -1) {
+            const currentStock = product.packingInfo[packingIndex].openingQty || 0;
+            const newStock = Math.max(0, currentStock - qty);
+            product.packingInfo[packingIndex].openingQty = newStock;
+            
+            await api.put(EP.PRODUCTS.UPDATE(productId), {
+              packingInfo: product.packingInfo
+            });
+            
+            revertedCount++;
+          }
+        }
+      }
+    }
+    
+    console.log(`✅ Stock reverted for ${revertedCount} items from purchase ${purchase.invoiceNo}`);
+    return true;
+    
+  } catch (error) {
+    console.error("Failed to revert stock:", error);
+    return false;
+  }
+};
+
+
+const loadPurchaseForEdit = async (purchase) => {
+  setLoading(true);
+  try {
+    // If only ID is provided, fetch full purchase data
+    let purchaseData = purchase;
+    if (typeof purchase === 'string') {
+      const res = await api.get(EP.PURCHASES.GET_ONE(purchase));
+      if (res.data.success) {
+        purchaseData = res.data.data;
+      } else {
+        showMsg("Failed to load purchase", "error");
+        setLoading(false);
+        return;
+      }
+    }
+    
+    setEditId(purchaseData._id);
+    setInvoiceNo(purchaseData.invoiceNo);
+    setInvoiceDate(purchaseData.purchaseDate || purchaseData.invoiceDate || isoDate());
+    setSupplierName(purchaseData.supplierName || "Cash Purchase");
+    setSupplierId(purchaseData.supplierId || "");
+    setSupplierCode(purchaseData.supplierCode || "");
+    setRemarks(purchaseData.notes || purchaseData.remarks || "");
+    setShowRemarksInput(!!(purchaseData.supplierName && purchaseData.supplierName !== "Cash Purchase"));
+    
+    // Map items correctly - CHECK BOTH MODEL FIELDS
+    const loadedItems = (purchaseData.items || []).map((it) => ({
+      productId: it.productId?._id || it.productId || "",
+      code: it.code || "",
+      name: it.productName || it.name || it.description || "",
+      uom: it.uom || it.measurement || "",
+      rack: it.rack || "",
+      pcs: it.quantity || it.qty || it.pcs || 1,
+      rate: it.unitPrice || it.rate || 0,
+      amount: it.total || it.amount || 0,
     }));
+    
     setItems(loadedItems);
     resetCurRow();
-    showMsg(`✏ Editing Purchase Invoice ${purchase.invoiceNo}`, "success");
+    
+    showMsg(`✏️ Editing Purchase Invoice ${purchaseData.invoiceNo} (${loadedItems.length} items)`, "success");
     setTimeout(() => searchRef.current?.focus(), 50);
-  };
+    
+  } catch (error) {
+    console.error("Failed to load purchase:", error);
+    showMsg("Failed to load purchase details", "error");
+  } finally {
+    setLoading(false);
+  }
+};
 
-  const navInvoice = async (dir) => {
-    try {
-      const { data } = await api.get(EP.PURCHASES.GET_ALL);
-      if (!data.success || !data.data?.length) return;
-      const allPurchases = data.data;
-      const curIdx = allPurchases.findIndex((s) => s.invoiceNo === invoiceNo);
-      let nextIdx = dir === "prev" ? curIdx - 1 : curIdx + 1;
-      nextIdx = Math.max(0, Math.min(nextIdx, allPurchases.length - 1));
-      if (nextIdx === curIdx) return;
-      loadPurchaseForEdit(allPurchases[nextIdx]);
-    } catch { showMsg("Navigation failed", "error"); }
-  };
+const navInvoice = async (dir) => {
+  try {
+    const { data } = await api.get(EP.PURCHASES.GET_ALL);
+    if (!data.success || !data.data?.length) return;
+    
+    const allPurchases = data.data;
+    // Find by _id instead of invoiceNo for more reliable navigation
+    let curIdx = -1;
+    if (editId) {
+      curIdx = allPurchases.findIndex((s) => s._id === editId);
+    } else {
+      curIdx = allPurchases.findIndex((s) => s.invoiceNo === invoiceNo);
+    }
+    
+    let nextIdx = dir === "prev" ? curIdx - 1 : curIdx + 1;
+    nextIdx = Math.max(0, Math.min(nextIdx, allPurchases.length - 1));
+    
+    if (nextIdx === curIdx) return;
+    
+    // Clear current items before loading new one
+    setItems([]);
+    setEditId(null);
+    loadPurchaseForEdit(allPurchases[nextIdx]);
+    
+  } catch (error) { 
+    console.error("Navigation failed:", error);
+    showMsg("Navigation failed", "error"); 
+  }
+};
 
   useEffect(() => {
     const handler = (e) => {
@@ -1229,21 +1595,49 @@ export default function PurchasePage() {
                     <th style={{ width: 40 }}></th>
                   </tr>
                 </thead>
-                <tbody>
-                  {items.length === 0 && (<tr className="sl-empty-row"><td colSpan={8} className="xp-empty" style={{ padding: 14 }}>Add products to create purchase invoice</td></tr>)}
-                  {items.map((r, i) => (
-                    <tr key={i}>
-                      <td className="muted" style={{ textAlign: "center" }}>{i + 1}</td>
-                      <td className="muted">{r.code}</td>
-                      <td style={{ fontWeight: 500 }}>{r.name}</td>
-                      <td className="muted">{r.uom}</td>
-                      <td className="r">{r.pcs}</td>
-                      <td className="r">{Number(r.rate).toLocaleString("en-PK")}</td>
-                      <td className="r" style={{ color: "#10b981" }}>{Number(r.amount).toLocaleString("en-PK")}</td>
-                      <td><button className="xp-btn xp-btn-sm xp-btn-danger" style={{ padding: "2px 6px" }} onClick={() => removeRow(i)}>✕</button></td>
-                    </tr>
-                  ))}
-                </tbody>
+
+
+              <tbody>
+  {items.length === 0 && (<tr className="sl-empty-row"><td colSpan={8} className="xp-empty" style={{ padding: 14 }}>Add products to create purchase invoice</td></tr>)}
+  {items.map((r, i) => (
+    <tr 
+      key={i} 
+      onClick={() => loadItemForEdit(i)}
+      onDoubleClick={() => loadItemForEdit(i)}
+      style={{ 
+        cursor: "pointer",
+        backgroundColor: editItemIndex === i ? "#d1fae5" : "transparent"
+      }}
+    >
+      <td className="muted" style={{ textAlign: "center" }}>{i + 1}</td>
+      <td className="muted">{r.code}</td>
+      <td style={{ fontWeight: 500 }}>{r.name}</td>
+      <td className="muted">{r.uom}</td>
+      <td className="r">{r.pcs}</td>
+      <td className="r">{Number(r.rate).toLocaleString("en-PK")}</td>
+      <td className="r" style={{ color: "#10b981" }}>{Number(r.amount).toLocaleString("en-PK")}</td>
+      <td>
+        <button 
+          className="xp-btn xp-btn-sm xp-btn-warning" 
+          style={{ padding: "2px 6px", marginRight: "4px", background: "#f59e0b", color: "white" }}
+          onClick={(e) => { e.stopPropagation(); loadItemForEdit(i); }}
+        >
+          ✏️
+        </button>
+        <button 
+          className="xp-btn xp-btn-sm xp-btn-danger" 
+          style={{ padding: "2px 6px" }}
+          onClick={(e) => { e.stopPropagation(); removeRow(i); }}
+        >
+          ✕
+        </button>
+      </td>
+    </tr>
+  ))}
+</tbody>
+
+
+
               </table>
             </div>
 
@@ -1275,9 +1669,27 @@ export default function PurchasePage() {
                 </div>
               )}
               
-              <div className="sl-sum-cell">
-                <button className="xp-btn xp-btn-primary" onClick={openConfirmModal} disabled={isProcessing || items.length === 0} style={{ padding: "6px 20px", fontSize: 14, background: "#10b981", borderColor: "#059669" }}>{isProcessing ? "Processing..." : "💾 Save (*)"}</button>
-              </div>
+            <div className="sl-sum-cell" style={{ display: "flex", gap: "8px" }}>
+  {editId && (
+    <button 
+      className="xp-btn xp-btn-danger" 
+      onClick={deletePurchase} 
+      disabled={isProcessing || loading}
+      style={{ padding: "6px 16px", fontSize: 14 }}
+    >
+      🗑️ Delete
+    </button>
+  )}
+  <button 
+    className="xp-btn xp-btn-primary" 
+    onClick={openConfirmModal} 
+    disabled={isProcessing || items.length === 0}
+    style={{ padding: "6px 20px", fontSize: 14, background: "#10b981", borderColor: "#059669" }}
+  >
+    {isProcessing ? "Processing..." : (editId ? "✏️ Update" : "💾 Save (*)")}
+  </button>
+</div>
+
             </div>
 
             {showRemarksInput && (
@@ -1352,6 +1764,25 @@ export default function PurchasePage() {
         .sl-inv-input-large:focus { border-color: #10b981 !important; outline: none; box-shadow: 0 0 0 3px rgba(16,185,129,0.1); }
         .sl-nav-btn { display: none; }
         .sl-remarks-input:focus { border-color: #059669 !important; box-shadow: 0 0 0 2px rgba(5,150,105,0.2) !important; }
+.sl-items-table tr.selected-item {
+    background-color: #d1fae5 !important;
+    border-left: 3px solid #10b981;
+  }
+  .sl-items-table tr:hover {
+    background-color: #f3f4f6;
+    cursor: pointer;
+  }
+  .xp-btn-warning {
+    background-color: #f59e0b;
+    border-color: #d97706;
+    color: white;
+  }
+  .xp-btn-warning:hover {
+    background-color: #d97706;
+  }
+
+
+
       `}</style>
     </>
   );

@@ -852,7 +852,7 @@ const buildPrintHtml = (products, totalStock, totalStockValue) => {
   <body>
     <div class="header">
       <div class="title">STOCK REPORT</div>
-      <div>Asim Electric & Electronic Store</div>
+      <div>DGS & Electronic Store</div>
     </div>
     <div class="meta-row">
       <span>Generated: ${new Date().toLocaleString()}</span>

@@ -1,4 +1,4 @@
-// pages/SalePage.jsx - COMPLETE FILE with Delete Options Modal
+// pages/SalePage.jsx - COMPLETE FILE with Delete Options Modal & Credit Customer Direct Print
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useAuth } from "../context/AuthContext";
 import api from "../api/api.js";
@@ -302,7 +302,7 @@ const buildPrintHtml = (sale, type, overrides = {}) => {
     th{font-size:10px;font-weight:bold;padding:4px 2px;text-align:left}
     td{padding:3px 2px;font-size:10px;border-bottom:0.5px solid #ddd}
     .terms{font-family:${urduFont};font-size:10px;font-weight:500;border:0.5px dashed #999;padding:4px;margin:6px 0;text-align:right;direction:rtl}
-    .devby{text-align:center;font-size:8px;margin-top:6px;padding-top:3px;border-top:0.5px solid #ccc}
+    .devby{text-align:center;font-size:8px;margin-top:6px;padding-top:4px;border-top:0.5px solid #ccc}
     @media print{@page{size:A4;margin:5mm}body{padding:4mm 3mm 3mm 3mm}}
   </style></head><body>
     <div class="shop-name-line">${SHOP_INFO.name}</div>
@@ -1300,8 +1300,18 @@ export default function SalePage() {
       setCreditWarning(type === "credit" && limit > 0 && custBal >= limit);
       setCreditStatement(""); 
       setShowCustomerPanel(true);
-      if (type === "credit") setTimeout(() => statementRef.current?.focus(), 80); 
-      else setTimeout(() => searchRef.current?.focus(), 30);
+      
+      // FOCUS ON REMARKS INPUT for credit customers
+      if (type === "credit") {
+        setTimeout(() => {
+          if (statementRef.current) {
+            statementRef.current.focus();
+            statementRef.current.select();
+          }
+        }, 100);
+      } else {
+        setTimeout(() => searchRef.current?.focus(), 30);
+      }
     } catch (error) { 
       console.error("Failed to process customer selection:", error); 
       showMsg("Failed to load customer data", "error"); 
@@ -1551,7 +1561,15 @@ export default function SalePage() {
       } 
       const payload = buildPayload(); 
       setPendingPayload(payload); 
-      confirmSaveWithPayload(payload, { extraDisc: payload.extraDisc, netTotal: payload.netTotal, paidAmount: 0, balance: payload.netTotal + (parseFloat(prevBalance) || 0), printType, withPrint: true }); 
+      // For credit customers, directly save and print without showing print popup
+      confirmSaveWithPayload(payload, { 
+        extraDisc: payload.extraDisc, 
+        netTotal: payload.netTotal, 
+        paidAmount: 0, 
+        balance: payload.netTotal + (parseFloat(prevBalance) || 0), 
+        printType, 
+        withPrint: true 
+      }); 
       return; 
     } 
     const payload = buildPayload(); 
@@ -1565,6 +1583,7 @@ export default function SalePage() {
     try { 
       const finalPayload = { ...payload, extraDisc: overrides.extraDisc, netTotal: overrides.netTotal, paidAmount: overrides.paidAmount, balance: overrides.balance, printType: overrides.printType }; 
       
+      // For EDIT: Restore old stock first
       if (editId) {
         try {
           const originalSaleRes = await api.get(EP.SALES.GET_ONE(editId));
@@ -1581,17 +1600,16 @@ export default function SalePage() {
         }
       }
       
+      // Save to database (backend will handle stock deduction for new sales)
       const { data } = editId 
         ? await api.put(EP.SALES.UPDATE(editId), finalPayload) 
         : await api.post(EP.SALES.CREATE, finalPayload); 
         
       if (data.success) { 
-        for (const item of payload.items) { 
-          await updateProductStock(item.productId, item.uom, item.pcs, allProducts, setAllProducts, false); 
-        } 
-        
+        // Refresh products to get latest stock info
         const productsRes = await api.get(EP.PRODUCTS.GET_ALL); 
         if (productsRes.data.success) setAllProducts(productsRes.data.data); 
+        
         showMsg(editId ? "Sale updated!" : `Saved: ${data.data.invoiceNo}`); 
         
         if (customerId) { 
@@ -1625,10 +1643,21 @@ export default function SalePage() {
           setGatepassPrint(false); 
         } 
         
-        if (overrides.withPrint) { 
+        // For credit customers, print directly without showing the modal
+        if (overrides.withPrint && customerType === "credit") {
+          // Print directly with Thermal format for credit customers
+          const creditCustomer = allCustomers.find(c => c._id === customerId);
+          doPrint(saleObj, printType, { 
+            customerName: finalPayload.customerName, 
+            customerPhone: creditCustomer?.phone || "",
+            hidePrices: false, 
+            username: currentUsername 
+          });
+        } else if (overrides.withPrint) {
+          // For cash customers, show the print modal
           setPendingPrintSale(saleObj); 
           setShowPrintModal(true); 
-        } 
+        }
         
         setShowSaveModal(false); 
         setPendingPayload(null); 
@@ -2144,7 +2173,22 @@ export default function SalePage() {
                   })()}
                   <div></div>
                 </div>
-                <input type="text" className="sl-credit-statement-input" style={{ fontSize: "10px", height: "28px", padding: "2px 6px", flex: 1 }} placeholder={creditWarning ? "Enter reason / authorization statement to allow sale…" : "Notes (optional)…"} value={creditStatement} onChange={(e) => setCreditStatement(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); e.stopPropagation(); openSaleConfirm(); } }} />
+                <input 
+                  ref={statementRef}
+                  type="text" 
+                  className="sl-credit-statement-input" 
+                  style={{ fontSize: "10px", height: "28px", padding: "2px 6px", flex: 1 }} 
+                  placeholder={creditWarning ? "Enter reason / authorization statement to allow sale…" : "Notes (optional)…"} 
+                  value={creditStatement} 
+                  onChange={(e) => setCreditStatement(e.target.value)} 
+                  onKeyDown={(e) => { 
+                    if (e.key === "Enter") { 
+                      e.preventDefault(); 
+                      e.stopPropagation(); 
+                      openSaleConfirm(); 
+                    } 
+                  }} 
+                />
               </div>
             )}
           </div>

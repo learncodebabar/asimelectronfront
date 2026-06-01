@@ -4,6 +4,7 @@ import api from "../../api/api.js";
 import EP from "../../api/apiEndpoints.js";
 import "../../styles/theme.css";
 import "../../styles/SalePage.css";
+import { SHOP_INFO } from "../../constants/shopInfo.js";
 
 // Helper function to format date
 const formatDate = (dateStr) => {
@@ -20,27 +21,16 @@ const formatCurrency = (amount) => {
   return Number(amount || 0).toLocaleString("en-PK");
 };
 
-const SHOP_INFO = {
-  name: "عاصم الیکٹرک اینڈ الیکٹرونکس سٹور",
-  nameEn: "Asim Electric & Electronic Store",
-  address: "مین بازار نہاری ٹاؤن نزد بجلی گھر سٹاپ گوجرانوالہ روڈ فیصل آباد",
-  phone1: "Faqir Hussain 0300 7262129",
-  phone2: "PTCL 041 8711575",
-  phone3: "Shop 0315 7262129",
-  urduBanner: "یہاں پر چانک فراڈ کی وارپس، جانچ فلک، وارنگ سیلز اور ریکارڈ کے تمام اخیری ہول سیل ریٹ پر دستیاب ہے۔",
-  urduTerms: "الیکٹرانک اور چانٹا کے سپیئر پارٹس کی واپسی یا تبدیلی ہر صورت ممکن نہیں ہوگی۔\nبلی ہوئی آئٹم، پکلاہوا اکا ول واپس قابل واپسی نہیں ہے۔\nبارک کے سامان کی واپس کی صورت میں (7) دن کے اند پہلی ہوگی۔\nکل پیلی کلائی کی تمام واپسی قابل قبول نہیں ہوگی۔",
-  devBy: "Software developed by: Creative Babar / 03098325271",
-};
-
 /* ══════════════════════════════════════════════════════════
    PRINT HTML BUILDER — Purchase Invoice
 ══════════════════════════════════════════════════════════ */
 const buildPrintHtml = (purchase, type, overrides = {}) => {
-  const buyerName = overrides.buyerName ?? purchase.supplierName;
+  const buyerName = overrides.buyerName ?? purchase.supplierName ?? purchase.customerName;
   const buyerPhone = overrides.buyerPhone ?? "";
   const remarks = overrides.remarks || purchase.remarks || "";
-  const rows = purchase.items.map((it, i) => ({ ...it, sr: i + 1 }));
-  const totalQty = rows.reduce((s, r) => s + (r.pcs || 0), 0);
+  const rows = (purchase.items || []).map((it, i) => ({ ...it, sr: i + 1 }));
+  const totalQty = rows.reduce((s, r) => s + (r.pcs || r.qty || 0), 0);
+  const totalAmount = purchase.netTotal || purchase.subTotal || purchase.totalAmount || 0;
 
   const URDU_FONT = `'Noto Nastaliq Urdu','Mehr Nastaliq','Jameel Noori Nastaleeq','Urdu Typesetting',serif`;
   const GOOGLE_FONT_LINK = `<link href="https://fonts.googleapis.com/css2?family=Noto+Nastaliq+Urdu:wght@400;700&display=swap" rel="stylesheet">`;
@@ -51,10 +41,10 @@ const buildPrintHtml = (purchase, type, overrides = {}) => {
         (it) => `
         <tr>
           <td style="font-size:9px;vertical-align:top">${it.sr}</td>
-          <td style="font-size:9.5px;vertical-align:top;word-break:break-word;max-width:100px">${it.name}</td>
-          <td style="font-size:9px;vertical-align:top;text-align:right">${it.pcs} ${it.uom || ""}</td>
-          <td style="font-size:9px;vertical-align:top;text-align:right">${Number(it.rate).toLocaleString()}</td>
-          <td style="font-size:9px;vertical-align:top;text-align:right"><b>${Number(it.amount).toLocaleString()}</b></td>
+          <td style="font-size:9.5px;vertical-align:top;word-break:break-word;max-width:100px">${it.name || it.description || it.productName}</td>
+          <td style="font-size:9px;vertical-align:top;text-align:right">${it.pcs || it.qty || it.quantity || 0} ${it.uom || it.measurement || ""}</td>
+          <td style="font-size:9px;vertical-align:top;text-align:right">${Number(it.rate || it.unitPrice || 0).toLocaleString()}</td>
+          <td style="font-size:9px;vertical-align:top;text-align:right"><b>${Number(it.amount || it.total || 0).toLocaleString()}</b></td>
         </tr>`
       )
       .join("");
@@ -98,14 +88,14 @@ const buildPrintHtml = (purchase, type, overrides = {}) => {
       <hr class="divider-dash">
       <div class="meta-row">
         <span class="meta-bold">${purchase.invoiceNo}</span>
-        <span>${purchase.invoiceDate}</span>
+        <span>${purchase.invoiceDate || purchase.purchaseDate}</span>
       </div>
       <div class="meta-row"><span>Supplier:</span></div>
       <div style="font-size:10px;font-weight:bold;margin-bottom:1px">${buyerName}</div>
       ${buyerPhone ? `<div style="font-size:9px;color:#555">${buyerPhone}</div>` : ""}
       ${remarks ? `<div class="remarks-box"><b>Remarks:</b> ${remarks}</div>` : ""}
       <hr class="divider-solid">
-      <tr>
+      <table>
         <thead><tr><th style="width:20px">#</th><th>Product</th><th class="r">Qty.</th><th class="r">Rate</th><th class="r">Amount</th></tr></thead>
         <tbody>${itemRows}</tbody>
       </table>
@@ -115,9 +105,9 @@ const buildPrintHtml = (purchase, type, overrides = {}) => {
           <span>T.Qty: <b>${totalQty}</b></span>
           <span>T.Items: <b>${rows.length}</b></span>
         </div>
-        <div class="sum-row bold sep"><span>Total Amount:</span><span>${Number(purchase.netTotal).toLocaleString()}</span></div>
-        <div class="sum-row green"><span>Paid:</span><span>PKR ${Number(purchase.paidAmount).toLocaleString()}</span></div>
-        <div class="sum-row bold sep green"><span>Balance Payable:</span><span>PKR 0</span></div>
+        <div class="sum-row bold sep"><span>Total Amount:</span><span>${Number(totalAmount).toLocaleString()}</span></div>
+        <div class="sum-row green"><span>Paid:</span><span>PKR ${Number(purchase.paidAmount || 0).toLocaleString()}</span></div>
+        <div class="sum-row bold sep green"><span>Balance Payable:</span><span>PKR ${Number(purchase.balance || 0).toLocaleString()}</span></div>
       </div>
       <div class="terms">${SHOP_INFO.urduTerms.replace(/\n/g, "<br>")}</div>
       <div class="devby">${SHOP_INFO.devBy}</div>
@@ -128,11 +118,11 @@ const buildPrintHtml = (purchase, type, overrides = {}) => {
   const itemRows = rows.map((it) => `
     <tr>
       <td style="padding:6px;border:1px solid #000">${it.sr}</td>
-      <td style="padding:6px;border:1px solid #000">${it.name}</td>
-      <td style="padding:6px;border:1px solid #000;text-align:center">${it.uom || "—"}</td>
-      <td style="padding:6px;border:1px solid #000;text-align:right">${it.pcs}</td>
-      <td style="padding:6px;border:1px solid #000;text-align:right">${Number(it.rate).toLocaleString()}</td>
-      <td style="padding:6px;border:1px solid #000;text-align:right;font-weight:bold">${Number(it.amount).toLocaleString()}</td>
+      <td style="padding:6px;border:1px solid #000">${it.name || it.description || it.productName}</td>
+      <td style="padding:6px;border:1px solid #000;text-align:center">${it.uom || it.measurement || "—"}</td>
+      <td style="padding:6px;border:1px solid #000;text-align:right">${it.pcs || it.qty || it.quantity || 0}</td>
+      <td style="padding:6px;border:1px solid #000;text-align:right">${Number(it.rate || it.unitPrice || 0).toLocaleString()}</td>
+      <td style="padding:6px;border:1px solid #000;text-align:right;font-weight:bold">${Number(it.amount || it.total || 0).toLocaleString()}</td>
     </tr>
   `).join("");
 
@@ -156,14 +146,14 @@ const buildPrintHtml = (purchase, type, overrides = {}) => {
     <div class="title">PURCHASE INVOICE</div>
     <div class="meta-box">
       <div><strong>Purchase #:</strong> ${purchase.invoiceNo}</div>
-      <div><strong>Date:</strong> ${purchase.invoiceDate}</div>
+      <div><strong>Date:</strong> ${purchase.invoiceDate || purchase.purchaseDate}</div>
       <div><strong>Supplier:</strong> ${buyerName}</div>
       ${remarks ? `<div><strong>Remarks:</strong> ${remarks}</div>` : ""}
     </div>
     <table>
       <thead><tr><th>#</th><th>Product</th><th>Unit</th><th>Qty</th><th>Rate</th><th>Amount</th></tr></thead>
       <tbody>${itemRows}</tbody>
-      <tfoot><tr><td colspan="5" style="text-align:right"><strong>Total:</strong></td><td><strong>PKR ${Number(purchase.netTotal).toLocaleString()}</strong></td></tr></tfoot>
+      <tfoot><tr><td colspan="5" style="text-align:right"><strong>Total:</strong></td><td style="text-align:right"><strong>PKR ${Number(totalAmount).toLocaleString()}</strong></td></tr></tfoot>
     </table>
     <div class="footer">${SHOP_INFO.devBy}</div>
   </body></html>`;
@@ -176,7 +166,7 @@ const doPrint = (purchase, type) => {
       alert("Popup blocked! Please allow popups for this website.");
       return false;
     }
-    printWindow.document.write(buildPrintHtml(purchase, type, { buyerName: purchase.supplierName, remarks: purchase.remarks }));
+    printWindow.document.write(buildPrintHtml(purchase, type, { buyerName: purchase.supplierName || purchase.customerName, remarks: purchase.remarks }));
     printWindow.document.close();
     printWindow.onload = () => {
       setTimeout(() => {
@@ -198,9 +188,9 @@ const doPrint = (purchase, type) => {
 function PurchaseDetailModal({ invoice, onClose, onPrint, onDelete, printType }) {
   if (!invoice) return null;
 
-  const totalQty = (invoice.items || []).reduce((s, r) => s + (r.pcs || r.qty || 0), 0);
-  const totalAmount = invoice.netTotal || invoice.subTotal || 
-    (invoice.items || []).reduce((s, r) => s + (r.amount || 0), 0);
+  const totalQty = (invoice.items || []).reduce((s, r) => s + (r.pcs || r.qty || r.quantity || 0), 0);
+  const totalAmount = invoice.netTotal || invoice.subTotal || invoice.totalAmount || 
+    (invoice.items || []).reduce((s, r) => s + (r.amount || r.total || 0), 0);
 
   return (
     <div className="xp-overlay" onClick={(e) => e.target === e.currentTarget && onClose()} style={{ zIndex: 2000 }}>
@@ -211,14 +201,16 @@ function PurchaseDetailModal({ invoice, onClose, onPrint, onDelete, printType })
         </div>
         
         <div className="xp-modal-body" style={{ padding: "16px", overflow: "auto", flex: 1, background: "#f9fafb" }}>
+          {/* Summary Cards */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "12px", marginBottom: "20px", padding: "16px", background: "white", borderRadius: "10px", boxShadow: "0 1px 3px rgba(0,0,0,0.1)" }}>
             <div><div style={{ fontSize: "11px", color: "#6b7280" }}>Invoice Number</div><div style={{ fontSize: "18px", fontWeight: "bold", color: "#065f46" }}>{invoice.invoiceNo}</div></div>
-            <div><div style={{ fontSize: "11px", color: "#6b7280" }}>Date</div><div style={{ fontSize: "14px", fontWeight: "500" }}>{formatDate(invoice.invoiceDate)}</div></div>
-            <div><div style={{ fontSize: "11px", color: "#6b7280" }}>Supplier</div><div style={{ fontSize: "14px", fontWeight: "500", color: "#065f46" }}>{invoice.supplierName || "Cash Purchase"}</div></div>
-            <div><div style={{ fontSize: "11px", color: "#6b7280" }}>Phone</div><div style={{ fontSize: "14px" }}>{invoice.supplierPhone || invoice.supplierCode || "—"}</div></div>
+            <div><div style={{ fontSize: "11px", color: "#6b7280" }}>Date</div><div style={{ fontSize: "14px", fontWeight: "500" }}>{formatDate(invoice.invoiceDate || invoice.purchaseDate)}</div></div>
+            <div><div style={{ fontSize: "11px", color: "#6b7280" }}>Supplier</div><div style={{ fontSize: "14px", fontWeight: "500", color: "#065f46" }}>{invoice.supplierName || invoice.customerName || "Cash Purchase"}</div></div>
+            <div><div style={{ fontSize: "11px", color: "#6b7280" }}>Total Amount</div><div style={{ fontSize: "16px", fontWeight: "bold", color: "#dc2626" }}>PKR {formatCurrency(totalAmount)}</div></div>
             {invoice.remarks && <div style={{ gridColumn: "span 2" }}><div style={{ fontSize: "11px", color: "#6b7280" }}>Remarks</div><div style={{ fontSize: "13px", padding: "8px", background: "#f0fdf4", borderRadius: "6px" }}>{invoice.remarks}</div></div>}
           </div>
 
+          {/* Items Table */}
           <div style={{ background: "white", borderRadius: "10px", overflow: "hidden", boxShadow: "0 1px 3px rgba(0,0,0,0.1)" }}>
             <div style={{ overflowX: "auto", maxHeight: "400px" }}>
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
@@ -238,11 +230,11 @@ function PurchaseDetailModal({ invoice, onClose, onPrint, onDelete, printType })
                     <tr key={i} style={{ borderBottom: "1px solid #e5e7eb" }}>
                       <td style={{ padding: "8px", textAlign: "center" }}>{i + 1}</td>
                       <td style={{ padding: "8px" }}>{it.code || "—"}</td>
-                      <td style={{ padding: "8px", fontWeight: "500" }}>{it.name || it.description || "—"}</td>
-                      <td style={{ padding: "8px", textAlign: "center" }}>{it.uom || "—"}</td>
-                      <td style={{ padding: "8px", textAlign: "right" }}>{it.pcs || it.qty || 0}</td>
-                      <td style={{ padding: "8px", textAlign: "right" }}>{formatCurrency(it.rate)}</td>
-                      <td style={{ padding: "8px", textAlign: "right", fontWeight: "bold", color: "#10b981" }}>{formatCurrency(it.amount)}</td>
+                      <td style={{ padding: "8px", fontWeight: "500" }}>{it.name || it.description || it.productName || "—"}</td>
+                      <td style={{ padding: "8px", textAlign: "center" }}>{it.uom || it.measurement || "—"}</td>
+                      <td style={{ padding: "8px", textAlign: "right" }}>{it.pcs || it.qty || it.quantity || 0}</td>
+                      <td style={{ padding: "8px", textAlign: "right" }}>{formatCurrency(it.rate || it.unitPrice || 0)}</td>
+                      <td style={{ padding: "8px", textAlign: "right", fontWeight: "bold", color: "#10b981" }}>{formatCurrency(it.amount || it.total || 0)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -251,7 +243,7 @@ function PurchaseDetailModal({ invoice, onClose, onPrint, onDelete, printType })
                     <td colSpan="4" style={{ padding: "10px", textAlign: "right" }}>Totals:</td>
                     <td style={{ padding: "10px", textAlign: "right" }}>{totalQty.toLocaleString()}</td>
                     <td style={{ padding: "10px", textAlign: "right" }}></td>
-                    <td style={{ padding: "10px", textAlign: "right", color: "#065f46", fontSize: "15px" }}>PKR {totalAmount.toLocaleString()}</td>
+                    <td style={{ padding: "10px", textAlign: "right", color: "#065f46", fontSize: "15px" }}>PKR {formatCurrency(totalAmount)}</td>
                   </tr>
                 </tfoot>
               </table>
@@ -302,10 +294,12 @@ export default function PurchaseListPage() {
       filtered = filtered.filter(purchase => 
         purchase.invoiceNo?.toLowerCase().includes(term) ||
         purchase.supplierName?.toLowerCase().includes(term) ||
+        purchase.customerName?.toLowerCase().includes(term) ||
         purchase.supplierPhone?.toLowerCase().includes(term) ||
         purchase.remarks?.toLowerCase().includes(term) ||
         (purchase.items || []).some(item => 
           item.name?.toLowerCase().includes(term) ||
+          item.description?.toLowerCase().includes(term) ||
           item.code?.toLowerCase().includes(term)
         )
       );
@@ -313,10 +307,16 @@ export default function PurchaseListPage() {
     
     // Apply date range filter
     if (fromDate) {
-      filtered = filtered.filter(purchase => purchase.invoiceDate >= fromDate);
+      filtered = filtered.filter(purchase => {
+        const date = purchase.invoiceDate || purchase.purchaseDate;
+        return date >= fromDate;
+      });
     }
     if (toDate) {
-      filtered = filtered.filter(purchase => purchase.invoiceDate <= toDate);
+      filtered = filtered.filter(purchase => {
+        const date = purchase.invoiceDate || purchase.purchaseDate;
+        return date <= toDate;
+      });
     }
     
     // Apply sorting
@@ -327,14 +327,18 @@ export default function PurchaseListPage() {
         return parseInt(numStr, 10) || 0;
       };
       
+      const getAmount = (p) => p.netTotal || p.subTotal || p.totalAmount || 0;
+      const getDate = (p) => p.invoiceDate || p.purchaseDate || "";
+      
       switch(sortBy) {
-        case "date_desc": return new Date(b.invoiceDate) - new Date(a.invoiceDate);
-        case "date_asc": return new Date(a.invoiceDate) - new Date(b.invoiceDate);
+        case "date_desc": return new Date(getDate(b)) - new Date(getDate(a));
+        case "date_asc": return new Date(getDate(a)) - new Date(getDate(b));
         case "inv_desc": return getNum(b.invoiceNo) - getNum(a.invoiceNo);
         case "inv_asc": return getNum(a.invoiceNo) - getNum(b.invoiceNo);
-        case "supplier": return (a.supplierName || "").localeCompare(b.supplierName || "");
-        case "amount_desc": return (b.netTotal || b.subTotal || 0) - (a.netTotal || a.subTotal || 0);
-        default: return new Date(b.invoiceDate) - new Date(a.invoiceDate);
+        case "supplier": return (a.supplierName || a.customerName || "").localeCompare(b.supplierName || b.customerName || "");
+        case "amount_desc": return getAmount(b) - getAmount(a);
+        case "amount_asc": return getAmount(a) - getAmount(b);
+        default: return new Date(getDate(b)) - new Date(getDate(a));
       }
     });
     
@@ -344,19 +348,49 @@ export default function PurchaseListPage() {
   const loadPurchases = async () => {
     setLoading(true);
     try {
-      const response = await api.get(EP.PURCHASES.GET_ALL);
-      console.log("Purchase API Response:", response.data);
+      // Try to fetch from purchases endpoint first
+      let purchasesData = [];
       
-      if (response.data.success && response.data.data) {
-        setPurchases(response.data.data);
-        setFilteredPurchases(response.data.data);
-        console.log("Loaded purchases:", response.data.data.length);
-        // Log first purchase to check supplier name
-        if (response.data.data.length > 0) {
-          console.log("First purchase supplier:", response.data.data[0].supplierName);
+      try {
+        const response = await api.get(EP.PURCHASES.GET_ALL);
+        console.log("Purchase API Response:", response.data);
+        
+        if (response.data.success && response.data.data && response.data.data.length > 0) {
+          purchasesData = response.data.data;
         }
+      } catch (purchaseErr) {
+        console.log("No separate purchases endpoint, checking sales...");
+      }
+      
+      // If no purchases found, try from sales with purchase type
+      if (purchasesData.length === 0) {
+        const salesResponse = await api.get(EP.SALES.GET_ALL);
+        console.log("Sales API Response:", salesResponse.data);
+        
+        if (salesResponse.data.success && salesResponse.data.data) {
+          // Filter only purchase type sales
+          purchasesData = salesResponse.data.data.filter(sale => 
+            sale.saleType === "purchase" || sale.type === "purchase"
+          );
+          console.log("Filtered purchases from sales:", purchasesData.length);
+        }
+      }
+      
+      setPurchases(purchasesData);
+      setFilteredPurchases(purchasesData);
+      
+      if (purchasesData.length === 0) {
+        showMsg("No purchase invoices found", "info");
       } else {
-        showMsg("Failed to load purchases", "error");
+        console.log("Loaded purchases:", purchasesData.length);
+        // Log first purchase to check supplier name and amount
+        if (purchasesData.length > 0) {
+          console.log("First purchase:", {
+            invoiceNo: purchasesData[0].invoiceNo,
+            supplierName: purchasesData[0].supplierName || purchasesData[0].customerName,
+            totalAmount: purchasesData[0].netTotal || purchasesData[0].subTotal || purchasesData[0].totalAmount
+          });
+        }
       }
     } catch (error) {
       console.error("Failed to load purchases:", error);
@@ -373,7 +407,13 @@ export default function PurchaseListPage() {
   const handleDelete = async (id, invoiceNo) => {
     if (window.confirm(`Are you sure you want to delete Purchase Invoice ${invoiceNo}? This action cannot be undone.`)) {
       try {
-        await api.delete(EP.PURCHASES.DELETE(id));
+        // Try to delete from purchases endpoint first
+        try {
+          await api.delete(EP.PURCHASES.DELETE(id));
+        } catch (deleteErr) {
+          // If that fails, try from sales endpoint
+          await api.delete(EP.SALES.DELETE(id));
+        }
         showMsg(`Purchase Invoice ${invoiceNo} deleted successfully`, "success");
         loadPurchases();
         setSelectedInvoice(null);
@@ -399,11 +439,11 @@ export default function PurchaseListPage() {
 
   const getSummaryStats = () => {
     const totalInvoices = filteredPurchases.length;
-    const totalAmount = filteredPurchases.reduce((sum, p) => sum + (p.netTotal || p.subTotal || 0), 0);
+    const totalAmount = filteredPurchases.reduce((sum, p) => sum + (p.netTotal || p.subTotal || p.totalAmount || 0), 0);
     const totalItems = filteredPurchases.reduce((sum, p) => 
-      sum + (p.items || []).reduce((s, item) => s + (item.pcs || item.qty || 0), 0), 0
+      sum + (p.items || []).reduce((s, item) => s + (item.pcs || item.qty || item.quantity || 0), 0), 0
     );
-    const uniqueSuppliers = new Set(filteredPurchases.map(p => p.supplierName)).size;
+    const uniqueSuppliers = new Set(filteredPurchases.map(p => p.supplierName || p.customerName)).size;
     return { totalInvoices, totalAmount, totalItems, uniqueSuppliers };
   };
 
@@ -415,7 +455,7 @@ export default function PurchaseListPage() {
       <div className="xp-titlebar" style={{ background: "#10b981", borderRadius: "8px 8px 0 0", padding: "12px 20px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
           <button onClick={() => window.history.back()} style={{ background: "none", border: "none", color: "white", cursor: "pointer", fontSize: "18px" }}>←</button>
-          <span className="xp-tb-title" style={{ color: "white", fontWeight: "bold", fontSize: "16px" }}>Purchase Invoices List — Asim Electric Store</span>
+          <span className="xp-tb-title" style={{ color: "white", fontWeight: "bold", fontSize: "16px" }}>Purchase Invoices List — DGS Store</span>
         </div>
         <div className="xp-tb-actions">
           <button onClick={loadPurchases} style={{ background: "rgba(255,255,255,0.2)", border: "none", color: "white", padding: "4px 12px", borderRadius: "4px", cursor: "pointer" }}>⟳ Refresh</button>
@@ -424,7 +464,7 @@ export default function PurchaseListPage() {
 
       {/* Message Alert */}
       {msg.text && (
-        <div className={`xp-alert ${msg.type === "success" ? "xp-alert-success" : "xp-alert-error"}`} style={{ margin: "12px", flexShrink: 0, borderRadius: "8px", padding: "10px 16px" }}>
+        <div className={`xp-alert ${msg.type === "success" ? "xp-alert-success" : msg.type === "info" ? "xp-alert-info" : "xp-alert-error"}`} style={{ margin: "12px", flexShrink: 0, borderRadius: "8px", padding: "10px 16px" }}>
           {msg.text}
         </div>
       )}
@@ -507,6 +547,7 @@ export default function PurchaseListPage() {
                 <option value="inv_asc">Invoice # (Low to High)</option>
                 <option value="supplier">Supplier Name</option>
                 <option value="amount_desc">Highest Amount</option>
+                <option value="amount_asc">Lowest Amount</option>
               </select>
             </div>
 
@@ -565,16 +606,17 @@ export default function PurchaseListPage() {
                   <tr><td colSpan="9" style={{ textAlign: "center", padding: "60px", color: "#6b7280" }}>No purchase invoices found</td></tr>
                 ) : (
                   filteredPurchases.map((purchase, idx) => {
-                    const totalQty = (purchase.items || []).reduce((s, r) => s + (r.pcs || r.qty || 0), 0);
-                    const totalAmount = purchase.netTotal || purchase.subTotal || 0;
+                    const totalQty = (purchase.items || []).reduce((s, r) => s + (r.pcs || r.qty || r.quantity || 0), 0);
+                    const totalAmount = purchase.netTotal || purchase.subTotal || purchase.totalAmount || 
+                      (purchase.items || []).reduce((s, r) => s + (r.amount || r.total || 0), 0);
                     return (
                       <tr key={purchase._id || purchase.invoiceNo} style={{ borderBottom: "1px solid #f0f0f0", cursor: "pointer" }}
                         onDoubleClick={() => handleViewDetails(purchase)} onMouseEnter={(e) => e.currentTarget.style.background = "#f9fafb"} onMouseLeave={(e) => e.currentTarget.style.background = "white"}>
                         <td style={{ padding: "12px", textAlign: "center", color: "#6b7280" }}>{idx + 1}</td>
                         <td style={{ padding: "12px", fontWeight: "bold", color: "#065f46" }}>{purchase.invoiceNo}</td>
-                        <td style={{ padding: "12px", color: "#4b5563" }}>{formatDate(purchase.invoiceDate)}</td>
-                        <td style={{ padding: "12px", fontWeight: "500", color: "#1e3a5f" }}>{purchase.supplierName || "Cash Purchase"}</td>
-                        <td style={{ padding: "12px", color: "#6b7280" }}>{purchase.supplierPhone || purchase.supplierCode || "—"}</td>
+                        <td style={{ padding: "12px", color: "#4b5563" }}>{formatDate(purchase.invoiceDate || purchase.purchaseDate)}</td>
+                        <td style={{ padding: "12px", fontWeight: "500", color: "#1e3a5f" }}>{purchase.supplierName || purchase.customerName || "Cash Purchase"}</td>
+                        <td style={{ padding: "12px", color: "#6b7280" }}>{purchase.supplierPhone || purchase.customerPhone || purchase.supplierCode || "—"}</td>
                         <td style={{ padding: "12px", textAlign: "center" }}>{(purchase.items || []).length}</td>
                         <td style={{ padding: "12px", textAlign: "center" }}>{totalQty.toLocaleString()}</td>
                         <td style={{ padding: "12px", textAlign: "right", fontWeight: "bold", color: "#065f46" }}>PKR {formatCurrency(totalAmount)}</td>
@@ -585,7 +627,7 @@ export default function PurchaseListPage() {
                             <button onClick={(e) => { e.stopPropagation(); handleDelete(purchase._id, purchase.invoiceNo); }} style={{ padding: "5px 10px", background: "#ef4444", color: "white", border: "none", borderRadius: "6px", cursor: "pointer", fontSize: "11px" }}>Delete</button>
                           </div>
                         </td>
-                      </tr>
+                       </tr>
                     );
                   })
                 )}
@@ -618,6 +660,11 @@ export default function PurchaseListPage() {
         button:hover {
           transform: translateY(-1px);
           filter: brightness(1.05);
+        }
+        .xp-alert-info {
+          background: #dbeafe;
+          color: #1e40af;
+          border-left: 4px solid #3b82f6;
         }
       `}</style>
     </div>

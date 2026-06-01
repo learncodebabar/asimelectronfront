@@ -195,7 +195,7 @@ function MenuBar() {
           <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
             <path d="M0 4a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2zm2-1a1 1 0 0 0-1 1v1h14V4a1 1 0 0 0-1-1zm13 4H1v5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1z" />
           </svg>
-          <span style={{ fontSize: '12px', fontWeight: 500 }}>Asim Electric Store - Minimized</span>
+          <span style={{ fontSize: '12px', fontWeight: 500 }}>DGS Store - Minimized</span>
         </div>
         <button
           onClick={(e) => { e.stopPropagation(); handleRestore(); }}

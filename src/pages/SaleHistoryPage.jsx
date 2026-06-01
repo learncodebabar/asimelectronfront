@@ -4,7 +4,7 @@ import api from "../api/api.js";
 import EP from "../api/apiEndpoints.js";
 
 const fmt = (n) => Number(n || 0).toLocaleString("en-PK");
-const SHOP = "Asim Electric and Electronic Store";
+const SHOP = "DGS and Electronic Store";
 const today = () => new Date().toISOString().split("T")[0];
 const dAgo = (n) => {
   const d = new Date();

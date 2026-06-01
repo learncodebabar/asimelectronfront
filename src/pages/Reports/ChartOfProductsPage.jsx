@@ -209,7 +209,7 @@ export default function ChartOfProductsPage() {
     return `<!DOCTYPE html>
     <html><head><meta charset="utf-8"><title>Price List</title>
     <style>body{font-family:Arial;padding:20px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #000;padding:8px;text-align:left}th{background:#000;color:#fff}.text-right{text-align:right}</style>
-    </head><body><h2>Price List - Asim Electric Store</h2><p>Generated: ${new Date().toLocaleString()} | Total: ${filteredProducts.length} products</p>
+    </head><body><h2>Price List - DGS Store</h2><p>Generated: ${new Date().toLocaleString()} | Total: ${filteredProducts.length} products</p>
     <table><thead><tr><th>#</th><th>ID</th><th>Company</th><th>Category</th><th>Description</th><th>Unit</th><th class="text-right">Purchase</th><th class="text-right">Sale</th></tr></thead><tbody>${rows}</tbody></table></body></html>`;
   };
   

@@ -108,7 +108,7 @@ export default function SaleReturnWithoutValuesPage() {
     </head>
     <body>
       <div class="header">
-        <div class="shop-name">ASIM ELECTRIC & ELECTRONIC STORE</div>
+        <div class="shop-name">DGS & ELECTRONIC STORE</div>
         <div class="shop-addr">Main Bazar Nahari Town, Near Bijli Ghar Stop, Gujranwala Road, Faisalabad</div>
         <div class="shop-addr">Ph: 0300 7262129, 041 8711575, 0315 7262129</div>
       </div>
@@ -185,7 +185,7 @@ export default function SaleReturnWithoutValuesPage() {
     </head>
     <body>
       <div class="header">
-        <div class="shop-name">ASIM ELECTRIC & ELECTRONIC STORE</div>
+        <div class="shop-name">DGS & ELECTRONIC STORE</div>
         <div class="shop-addr">Main Bazar Nahari Town, Near Bijli Ghar Stop, Gujranwala Road, Faisalabad</div>
       </div>
       <div class="title">SALES RETURN VOUCHER (CONFIDENTIAL)</div>
@@ -227,7 +227,7 @@ export default function SaleReturnWithoutValuesPage() {
     <div className="sl-page">
       <div className="xp-titlebar" style={{ background: "#dc2626" }}>
         <button className="xp-cap-btn" onClick={() => navigate("/")} style={{ color: "white", fontSize: "16px" }}>←</button>
-        <span className="xp-tb-title" style={{ color: "white", fontSize: "16px", fontWeight: "bold" }}>Sales Return Report (Without Values) — Asim Electric Store</span>
+        <span className="xp-tb-title" style={{ color: "white", fontSize: "16px", fontWeight: "bold" }}>Sales Return Report (Without Values) — DGS Store</span>
         <div className="xp-tb-actions">
           <button className="xp-btn xp-btn-sm" onClick={fetchData} style={{ fontSize: "12px", padding: "6px 12px", fontWeight: "bold" }}>⟳ Refresh</button>
           <button className="xp-btn xp-btn-sm" onClick={handlePrint} disabled={!filteredReturns.length} style={{ fontSize: "12px", padding: "6px 12px", fontWeight: "bold", marginLeft: "8px" }}>🖨 Print</button>

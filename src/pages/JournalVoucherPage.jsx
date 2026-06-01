@@ -147,7 +147,7 @@ function AccountField({ value, onChange, onSelect, placeholder, tabIndex }) {
    PRINT HELPER
 ───────────────────────────────────────────────────────────── */
 function printJV(jv) {
-  const SHOP = "Asim Electric and Electronic Store";
+  const SHOP = "DGS and Electronic Store";
   const win = window.open("", "_blank", "width=700,height=500");
   win.document.write(`<!DOCTYPE html><html><head><title>JV ${jv.jvNo}</title>
   <style>body{font-family:Arial,sans-serif;font-size:12px;padding:20px}h2{margin:0}table{width:100%;border-collapse:collapse}th,td{border:1px solid #ccc;padding:5px 8px}.r{text-align:right}</style></head><body>
@@ -369,7 +369,7 @@ export default function JournalVoucherPage() {
           <path d="M14 4.5V14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2h5.5zm-3 0A1.5 1.5 0 0 1 9.5 3V1L14 5.5zM4.5 7a.5.5 0 0 0 0 1h7a.5.5 0 0 0 0-1zm0 2.5a.5.5 0 0 0 0 1h7a.5.5 0 0 0 0-1zm0 2.5a.5.5 0 0 0 0 1h4a.5.5 0 0 0 0-1z" />
         </svg>
         <span className="xp-tb-title">
-          Journal Voucher — Asim Electric &amp; Electronic Store
+          Journal Voucher — DGS &amp; Electronic Store
         </span>
         <div className="xp-tb-actions">
           <div className="xp-tb-divider" />

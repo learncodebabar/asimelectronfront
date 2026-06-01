@@ -171,7 +171,7 @@ const buildPurchaseOrderPrintHtml = (purchaseOrder) => {
 
     <div class="header">
       <div class="title">PURCHASE ORDER</div>
-      <div class="shop-name">Asim Electric & Electronic Store</div>
+      <div class="shop-name">DGS & Electronic Store</div>
     </div>
 
     <div class="meta-row">

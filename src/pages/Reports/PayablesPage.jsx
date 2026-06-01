@@ -253,7 +253,7 @@ export default function PayablesPage() {
     </head>
     <body>
       <div class="header">
-        <div class="shop-name">ASIM ELECTRIC & ELECTRONIC STORE</div>
+        <div class="shop-name">DGS & ELECTRONIC STORE</div>
         <div class="shop-addr">Main Bazar Nahari Town, Near Bijli Ghar Stop, Gujranwala Road, Faisalabad</div>
       </div>
       <div class="title">SUPPLIER PAYABLE STATEMENT</div>

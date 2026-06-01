@@ -128,7 +128,7 @@ export default function AccountsPayableReceivablePage() {
       {/* Titlebar */}
       <div className="xp-titlebar" style={{ background: "#1e40af", padding: "8px 16px" }}>
         <button className="xp-cap-btn" onClick={() => navigate("/")} style={{ color: "white", fontSize: "16px" }}>←</button>
-        <span className="xp-tb-title" style={{ color: "white", fontSize: "16px", fontWeight: "bold" }}>Accounts Payable / Receivable — Asim Electric Store</span>
+        <span className="xp-tb-title" style={{ color: "white", fontSize: "16px", fontWeight: "bold" }}>Accounts Payable / Receivable — DGS Store</span>
         <div className="xp-tb-actions">
           <button className="xp-btn xp-btn-sm" onClick={() => { if (activeTab === "payable") loadSuppliers(); else loadCustomers(); }} style={{ fontSize: "11px", padding: "4px 10px", fontWeight: "bold" }}>⟳ Refresh</button>
           <button className="xp-cap-btn xp-cap-close" onClick={() => navigate("/")}>✕</button>

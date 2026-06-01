@@ -1085,7 +1085,7 @@ export default function CreditCustomersPage() {
     <div style={{ display: "flex", flexDirection: "column", height: "100%", background: "#ffffff" }}>
       <div className="xp-titlebar" style={{ background: "#1e40af", padding: "8px 16px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <button className="xp-cap-btn" onClick={() => navigate("/")} style={{ background: "none", border: "none", color: "#ffffff", fontSize: "16px", cursor: "pointer" }}>←</button>
-        <span className="xp-tb-title" style={{ color: "#ffffff", fontSize: "16px", fontWeight: "bold" }}>Credit Customers — Asim Electric Store</span>
+        <span className="xp-tb-title" style={{ color: "#ffffff", fontSize: "16px", fontWeight: "bold" }}>Credit Customers — DGS Store</span>
         <div className="xp-tb-actions">
           <button className="xp-btn xp-btn-primary xp-btn-sm" onClick={() => navigate("/customers")} style={{ background: "#ffffff", color: "#1e40af", border: "2px solid #000000", fontWeight: "bold", padding: "6px 12px" }}>+ Add Customer</button>
         </div>

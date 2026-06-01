@@ -8,7 +8,7 @@ const isoDate = () => new Date().toISOString().split("T")[0];
 const fmt = (n) => Number(n || 0).toLocaleString("en-PK");
 
 // SHOP INFORMATION
-const SHOP = "Asim Electric and Electronic Store";
+const SHOP = "DGS and Electronic Store";
 const SHOP_ADDR = "Main Bazar Nahari Town, Near Bijli Ghar Stop, Gujranwala Road, Faisalabad";
 const SHOP_PHONE = "0300 7262129, 041 8711575, 0315 7262129";
 const URDU_FONT = `'Noto Nastaliq Urdu','Mehr Nastaliq','Jameel Noori Nastaleeq','Urdu Typesetting',serif`;

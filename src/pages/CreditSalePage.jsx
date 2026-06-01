@@ -1078,7 +1078,7 @@ function HistoryPanel({
           `${i + 1}. ${s.invoiceNo} | ${s.invoiceDate}\n Amount: PKR ${Number(s.netTotal || 0).toLocaleString()} | Paid: ${Number(s.paidAmount || 0).toLocaleString()} | *Bal: ${Number(s.balance || 0).toLocaleString()}*`,
       )
       .join("\n");
-    const text = `*ASIM ELECTRIC & ELECTRONIC STORE*\n${sep}\nCustomer: *${customer.name}*${customer.phone ? "\nPhone: " + customer.phone : ""}\nStatement Date: ${isoDate()}\n${sep}\n*TRANSACTION HISTORY*\n(Showing last ${Math.min(sales.length, 20)} of ${sales.length} records)\n${invoiceLines}\n${sep}\nTotal Purchases: PKR ${Number(totalSales).toLocaleString()}\nTotal Paid: PKR ${Number(totalPaid).toLocaleString()}\n*Outstanding Due: PKR ${Number(customer.currentBalance || 0).toLocaleString()}*\n${sep}\n_Thank you for your business!_`;
+    const text = `*DGS & ELECTRONIC STORE*\n${sep}\nCustomer: *${customer.name}*${customer.phone ? "\nPhone: " + customer.phone : ""}\nStatement Date: ${isoDate()}\n${sep}\n*TRANSACTION HISTORY*\n(Showing last ${Math.min(sales.length, 20)} of ${sales.length} records)\n${invoiceLines}\n${sep}\nTotal Purchases: PKR ${Number(totalSales).toLocaleString()}\nTotal Paid: PKR ${Number(totalPaid).toLocaleString()}\n*Outstanding Due: PKR ${Number(customer.currentBalance || 0).toLocaleString()}*\n${sep}\n_Thank you for your business!_`;
     window.open(
       `https://wa.me/${(customer.phone || "").replace(/\D/g, "")}?text=${encodeURIComponent(text)}`,
       "_blank",
@@ -1253,7 +1253,7 @@ function HistoryPanel({
    MAIN PAGE
 ───────────────────────────────────────────────────────────── */
 export default function CreditSalePage() {
-  const SHOP_NAME = "Asim Electric and Electronic Store";
+  const SHOP_NAME = "DGS and Electronic Store";
   const navigate = useNavigate();
 
   const [invoiceNo, setInvoiceNo] = useState("");

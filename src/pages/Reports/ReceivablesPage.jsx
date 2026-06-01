@@ -73,7 +73,7 @@ export default function ReceivablesPage() {
       {/* Titlebar */}
       <div className="xp-titlebar" style={{ background: "#1e40af", padding: "8px 16px" }}>
         <button className="xp-cap-btn" onClick={() => navigate("/")} style={{ color: "white", fontSize: "16px", background: "none", border: "none", cursor: "pointer" }}>←</button>
-        <span className="xp-tb-title" style={{ color: "white", fontSize: "16px", fontWeight: "bold" }}>Receivables Report — Asim Electric Store</span>
+        <span className="xp-tb-title" style={{ color: "white", fontSize: "16px", fontWeight: "bold" }}>Receivables Report — DGS Store</span>
       </div>
 
       <div className="xp-page-body" style={{ padding: "16px", background: "#ffffff", flex: 1, overflow: "auto" }}>

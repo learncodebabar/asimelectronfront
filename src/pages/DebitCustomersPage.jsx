@@ -95,7 +95,7 @@ function CustomerDetailModal({ customer, onClose, onPaymentDone }) {
           `${i + 1}. ${s.invoiceNo} | ${s.invoiceDate}\n    Net: PKR ${Number(s.netTotal || 0).toLocaleString()} | Paid: ${Number(s.paidAmount || 0).toLocaleString()} | *Bal: ${Number(s.balance || 0).toLocaleString()}*`,
       )
       .join("\n");
-    const text = `ASIM ELECTRIC & ELECTRONIC STORE\n${sep}\n${customer.name}${customer.phone ? "\n" + customer.phone : ""}\nDate: ${isoD()}\n${sep}\nTRANSACTIONS (Last ${Math.min(sales.length, 15)})\n\n${invLines}\n${sep}\nSUMMARY\nTotal Purchases: PKR ${fmt(totalS)}\nPaid at Sale: PKR ${fmt(totalP)}\nLater Payments: PKR ${fmt(payTotal)}\nOutstanding: PKR ${fmt(customer.currentBalance || 0)}\n${sep}\nPlease clear your dues. Thank you!`;
+    const text = `DGS & ELECTRONIC STORE\n${sep}\n${customer.name}${customer.phone ? "\n" + customer.phone : ""}\nDate: ${isoD()}\n${sep}\nTRANSACTIONS (Last ${Math.min(sales.length, 15)})\n\n${invLines}\n${sep}\nSUMMARY\nTotal Purchases: PKR ${fmt(totalS)}\nPaid at Sale: PKR ${fmt(totalP)}\nLater Payments: PKR ${fmt(payTotal)}\nOutstanding: PKR ${fmt(customer.currentBalance || 0)}\n${sep}\nPlease clear your dues. Thank you!`;
     window.open(
       `https://wa.me/${(customer.phone || "").replace(/\D/g, "")}?text=${encodeURIComponent(text)}`,
       "_blank",
@@ -647,7 +647,7 @@ export default function DebitCustomersPage() {
           `${i + 1}. ${c.name}${c.phone ? " (" + c.phone + ")" : ""} — *PKR ${fmt(c.currentBalance)}*`,
       )
       .join("\n");
-    const text = `ASIM ELECTRIC & ELECTRONIC STORE\n${"━".repeat(28)}\nOUTSTANDING DUE — DEBIT CUSTOMERS\n${isoD()}\n${"─".repeat(28)}\n${lines}\n${"─".repeat(28)}\nTotal Due: PKR ${fmt(dueList.reduce((s, c) => s + (c.currentBalance || 0), 0))}\nCustomers with Due: ${dueList.length}`;
+    const text = `DGS & ELECTRONIC STORE\n${"━".repeat(28)}\nOUTSTANDING DUE — DEBIT CUSTOMERS\n${isoD()}\n${"─".repeat(28)}\n${lines}\n${"─".repeat(28)}\nTotal Due: PKR ${fmt(dueList.reduce((s, c) => s + (c.currentBalance || 0), 0))}\nCustomers with Due: ${dueList.length}`;
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
   };
 
@@ -873,7 +873,7 @@ export default function DebitCustomersPage() {
                               className="xp-btn xp-btn-sm xp-btn-ico cc-btn-wa-sm"
                               title="WhatsApp"
                               onClick={() => {
-                                const text = `Assalam o Alaikum *${c.name}*!\n\nAap ka outstanding amount hai:\n*PKR ${fmt(c.currentBalance)}*\n\nKindly clear karein.\n\n_Asim Electric and Electronic Store_`;
+                                const text = `Assalam o Alaikum *${c.name}*!\n\nAap ka outstanding amount hai:\n*PKR ${fmt(c.currentBalance)}*\n\nKindly clear karein.\n\n_DGS and Electronic Store_`;
                                 window.open(
                                   `https://wa.me/${c.phone.replace(/\D/g, "")}?text=${encodeURIComponent(text)}`,
                                   "_blank",

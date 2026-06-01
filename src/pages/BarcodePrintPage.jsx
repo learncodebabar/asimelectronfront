@@ -316,7 +316,7 @@ const BarcodePrint = ({ product, quantity, showPrice, showTitle, fontSize, onClo
           <div ref={printRef} className="barcode-print-area" style={{ display: "flex", flexWrap: "wrap", gap: "8px", justifyContent: "flex-start", background: "white", padding: "12px" }}>
             {barcodes.map((code, idx) => (
               <div key={idx} className="barcode-card" style={{ width: "160px", background: "white", border: "1px solid #ddd", padding: "6px", borderRadius: "4px", pageBreakInside: "avoid" }}>
-                {showTitle && <div className="barcode-title" style={{ fontSize: `${titleFontSize}px`, fontWeight: "bold", textAlign: "center", marginBottom: "4px", color: "#1a1a2e" }}>ASIM ELECTRIC</div>}
+                {showTitle && <div className="barcode-title" style={{ fontSize: `${titleFontSize}px`, fontWeight: "bold", textAlign: "center", marginBottom: "4px", color: "#1a1a2e" }}>DGS</div>}
                 
                 <div className="barcode-content" style={{ display: "flex", alignItems: "stretch", gap: "4px" }}>
                   <div className="barcode-left" style={{ flex: 1 }}>
@@ -455,7 +455,7 @@ export default function BarcodePrintPage() {
     return (
       <div className="sl-page" style={{ background: "#fff", minHeight: "100vh" }}>
         <div className="xp-titlebar" style={{ background: "#1a1a1a", borderBottom: "2px solid #000" }}>
-          <span className="xp-tb-title" style={{ color: "white", fontWeight: "bold" }}>Barcode Print System — Asim Electric Store</span>
+          <span className="xp-tb-title" style={{ color: "white", fontWeight: "bold" }}>Barcode Print System — DGS Store</span>
         </div>
         <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "80vh" }}>
           <div style={{ textAlign: "center" }}>
@@ -473,7 +473,7 @@ export default function BarcodePrintPage() {
         <svg width="15" height="15" viewBox="0 0 16 16" fill="rgba(255,255,255,0.85)">
           <path d="M0 1.5A.5.5 0 0 1 .5 1H2a.5.5 0 0 1 .485.379L2.89 3H14.5a.5.5 0 0 1 .491.592l-1.5 8A.5.5 0 0 1 13 12H4a.5.5 0 0 1-.491-.408L2.01 3.607 1.61 2H.5a.5.5 0 0 1-.5-.5M5 12a2 2 0 1 0 0 4 2 2 0 0 0 0-4m7 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4" />
         </svg>
-        <span className="xp-tb-title" style={{ color: "white", fontWeight: "bold" }}>Barcode Print System — Asim Electric Store</span>
+        <span className="xp-tb-title" style={{ color: "white", fontWeight: "bold" }}>Barcode Print System — DGS Store</span>
         <div className="xp-tb-actions">
           <div className="sl-shortcut-hints" style={{ color: "white" }}>
             <span>Enter/F2 Browse</span>
@@ -550,7 +550,7 @@ export default function BarcodePrintPage() {
             </label>
             <label style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "12px", cursor: "pointer" }}>
               <input type="checkbox" checked={showTitleOnBarcode} onChange={(e) => setShowTitleOnBarcode(e.target.checked)} />
-              <span>Show Store Title (ASIM ELECTRIC)</span>
+              <span>Show Store Title (DGS)</span>
             </label>
           </div>
           

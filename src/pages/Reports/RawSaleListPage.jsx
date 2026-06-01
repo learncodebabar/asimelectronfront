@@ -328,7 +328,7 @@ export default function RawSaleListPage() {
       {/* Titlebar */}
       <div className="xp-titlebar" style={{ background: "#1e40af", padding: "8px 16px", flexShrink: 0 }}>
         <button className="xp-cap-btn" onClick={() => navigate("/")} style={{ color: "white", fontSize: "16px", background: "none", border: "none", cursor: "pointer" }}>←</button>
-        <span className="xp-tb-title" style={{ color: "white", fontSize: "16px", fontWeight: "bold" }}>Raw Sale/Purchase Records — Asim Electric Store</span>
+        <span className="xp-tb-title" style={{ color: "white", fontSize: "16px", fontWeight: "bold" }}>Raw Sale/Purchase Records — DGS Store</span>
         <div className="xp-tb-actions">
           <button className="xp-btn xp-btn-primary xp-btn-sm" onClick={fetchRecords} style={{ background: "#ffffff", color: "#1e40af", border: "1px solid #1e40af", fontWeight: "bold", padding: "6px 12px" }}>⟳ Refresh</button>
         </div>

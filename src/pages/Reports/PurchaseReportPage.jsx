@@ -102,7 +102,7 @@ export default function PurchaseReportPage() {
     </head>
     <body>
       <div class="header">
-        <div class="shop-name">ASIM ELECTRIC & ELECTRONIC STORE</div>
+        <div class="shop-name">DGS & ELECTRONIC STORE</div>
         <div class="shop-addr">Main Bazar Nahari Town, Near Bijli Ghar Stop, Gujranwala Road, Faisalabad</div>
         <div class="shop-addr">Ph: 0300 7262129, 041 8711575, 0315 7262129</div>
       </div>
@@ -136,7 +136,7 @@ export default function PurchaseReportPage() {
     <div className="sl-page">
       <div className="xp-titlebar" style={{ background: "#1e40af" }}>
         <button className="xp-cap-btn" onClick={() => navigate("/")} style={{ color: "white", fontSize: "16px" }}>←</button>
-        <span className="xp-tb-title" style={{ color: "white", fontSize: "16px", fontWeight: "bold" }}>Purchase Report — Asim Electric Store</span>
+        <span className="xp-tb-title" style={{ color: "white", fontSize: "16px", fontWeight: "bold" }}>Purchase Report — DGS </span>
         <div className="xp-tb-actions">
           <button className="xp-btn xp-btn-sm" onClick={fetchPurchases} style={{ fontSize: "12px", padding: "6px 12px", fontWeight: "bold" }}>⟳ Refresh</button>
           <button className="xp-btn xp-btn-sm" onClick={handlePrint} disabled={filteredPurchases.length === 0} style={{ fontSize: "12px", padding: "6px 12px", fontWeight: "bold", marginLeft: "8px" }}>🖨 Print</button>
@@ -284,7 +284,7 @@ const buildSinglePrintHtml = (purchase) => {
   </head>
   <body>
     <div class="header">
-      <div class="shop-name">ASIM ELECTRIC & ELECTRONIC STORE</div>
+      <div class="shop-name">DGSNIC STORE</div>
       <div class="shop-addr">Main Bazar Nahari Town, Near Bijli Ghar Stop, Gujranwala Road, Faisalabad</div>
     </div>
     <div class="title">PURCHASE INVOICE</div>

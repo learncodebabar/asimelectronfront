@@ -12,6 +12,9 @@ const EP = {
   },
 
   // ── Sales ─────────────────────────────────────────────────────────────────
+// api/apiEndpoints.js
+
+
   SALES: {
     GET_ALL: "/sales",
     SUMMARY: "/sales/summary",
@@ -20,30 +23,49 @@ const EP = {
     NEXT_INVOICE: "/sales/next-invoice",
     NEXT_RETURN_NO: "/sales/next-return-no",
     CREATE: "/sales",
+    RETURN_CREATE: "/sales/return",  // ← MAKE SURE THIS EXISTS
     UPDATE: (id) => `/sales/${id}`,
     DELETE: (id) => `/sales/${id}`,
-    RETURN_CREATE: "/sales/return",
   },
-  
-  // ── Purchases ─────────────────────────────────────────────────────────────
-  PURCHASES: {
+
+  SALE_RETURNS: {
+  GET_ALL: "/sale-returns",
+  GET_ONE: (id) => `/sale-returns/${id}`,
+  CREATE: "/sale-returns",
+  UPDATE: (id) => `/sale-returns/${id}`,
+  DELETE: (id) => `/sale-returns/${id}`,
+},
+
+// ── Purchases ─────────────────────────────────────────────────────────────
+// api/apiEndpoints.js
+PURCHASES: {
     GET_ALL: "/purchases",
     GET_ONE: (id) => `/purchases/${id}`,
     NEXT_INVOICE: "/purchases/next-invoice",
     CREATE: "/purchases",
     UPDATE: (id) => `/purchases/${id}`,
     DELETE: (id) => `/purchases/${id}`,
-  },
+},
+
+// api/apiEndpoints.js
+PURCHASE_RETURNS: {
+  GET_ALL: "/purchase-returns",
+  GET_ONE: (id) => `/purchase-returns/${id}`,
+  CREATE: "/purchase-returns",
+  UPDATE: (id) => `/purchase-returns/${id}`,
+  DELETE: (id) => `/purchase-returns/${id}`,
+},
   
   // ── Raw Purchases ─────────────────────────────────────────────────────────
-  RAW_PURCHASES: {
-    NEXT_INVOICE: "/raw-purchases/next-invoice",
-    CREATE: "/raw-purchases",
-    GET_ALL: "/raw-purchases",
-    GET_ONE: (id) => `/raw-purchases/${id}`,
-    UPDATE: (id) => `/raw-purchases/${id}`,
-    DELETE: (id) => `/raw-purchases/${id}`,
-  },
+// Add to your existing EP object
+RAW_PURCHASES: {
+  NEXT_INVOICE: "/raw-purchases/next-invoice",
+  CREATE: "/raw-purchases",
+  GET_ALL: "/raw-purchases",
+  GET_ONE: (id) => `/raw-purchases/${id}`,
+  UPDATE: (id) => `/raw-purchases/${id}`,
+  DELETE: (id) => `/raw-purchases/${id}`,
+},
   
   // ── Raw Sales ─────────────────────────────────────────────────────────────
   RAW_SALES: {
@@ -119,15 +141,17 @@ DAMAGE: {
   },
 
   // ── Cash Receipts ─────────────────────────────────────────────────────────
-  CASH_RECEIPTS: {
-    GET_TODAY: "/cash-receipts/today",
-    GET_BY_DATE: "/cash-receipts/by-date",
-    GET_BY_CUSTOMER: (id) => `/cash-receipts/customer/${id}`,
-    GET_ONE: (id) => `/cash-receipts/${id}`,
-    CREATE: "/cash-receipts",
-    DELETE: (id) => `/cash-receipts/${id}`,
-    GET_SUMMARY: (date) => `/cash-receipts/summary/${date}`,
-  },
+ // ── Cash Receipts ─────────────────────────────────────────────────────────
+CASH_RECEIPTS: {
+  GET_ALL: "/cash-receipts",
+  GET_TODAY: "/cash-receipts/today",
+  GET_BY_DATE: "/cash-receipts/by-date",
+  GET_BY_CUSTOMER: (id) => `/cash-receipts/customer/${id}`,
+  GET_ONE: (id) => `/cash-receipts/${id}`,
+  CREATE: "/cash-receipts",
+  DELETE: (id) => `/cash-receipts/${id}`,
+  GET_SUMMARY: (date) => `/cash-receipts/summary/${date}`,
+},
 };
 
 export default EP;

@@ -98,7 +98,7 @@ export default function PurchaseWithoutValuesPage() {
     </head>
     <body>
       <div class="header">
-        <div class="shop-name">ASIM ELECTRIC & ELECTRONIC STORE</div>
+        <div class="shop-name">DGSNIC STORE</div>
         <div class="shop-addr">Main Bazar Nahari Town, Near Bijli Ghar Stop, Gujranwala Road, Faisalabad</div>
       </div>
       <div class="title">PURCHASE REPORT (WITHOUT VALUES)</div>
@@ -123,7 +123,7 @@ export default function PurchaseWithoutValuesPage() {
     <div className="sl-page">
       <div className="xp-titlebar" style={{ background: "#d97706" }}>
         <button className="xp-cap-btn" onClick={() => navigate("/")} style={{ color: "white", fontSize: "16px" }}>←</button>
-        <span className="xp-tb-title" style={{ color: "white", fontSize: "16px", fontWeight: "bold" }}>Purchase Report (Without Values) — Asim Electric Store</span>
+        <span className="xp-tb-title" style={{ color: "white", fontSize: "16px", fontWeight: "bold" }}>Purchase Report (Without Values) — DGS Store</span>
         <div className="xp-tb-actions">
           <button className="xp-btn xp-btn-sm" onClick={fetchPurchases}>⟳ Refresh</button>
           <button className="xp-btn xp-btn-sm" onClick={handlePrint} disabled={filteredPurchases.length === 0}>🖨 Print</button>

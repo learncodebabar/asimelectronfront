@@ -207,7 +207,7 @@ export default function DailySaleReportPage() {
     </head>
     <body>
       <div class="header">
-        <h2>ASIM ELECTRIC STORE</h2>
+        <h2>DGS STORE</h2>
         <p>Sales Report | ${dateRange.from} to ${dateRange.to} | Generated: ${new Date().toLocaleString()}</p>
       </div>
       

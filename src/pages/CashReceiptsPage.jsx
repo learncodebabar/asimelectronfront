@@ -1,4 +1,4 @@
-// pages/CashReceiptPage.jsx - Fixed transaction history for customer search
+// pages/CashReceiptPage.jsx - Fixed with proper receipt loading
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../api/api.js";
@@ -16,7 +16,266 @@ const generateReceiptNo = () => {
   return `CR-${year}${month}${day}-${random}`;
 };
 
-// Customer Dropdown Component (same as before, keep as is)
+// Helper to get today's receipts for a customer
+const getTodayReceipts = (customerId, receiptsList, customerName) => {
+  const today = isoD();
+  return receiptsList.filter(r => 
+    (r.customerId === customerId || r.customerName === customerName || r.customer?.name === customerName) && 
+    r.receiptDate === today
+  );
+};
+
+// Helper to get total received today for a customer
+const getTodayTotal = (customerId, receiptsList, customerName) => {
+  const todayReceipts = getTodayReceipts(customerId, receiptsList, customerName);
+  return todayReceipts.reduce((sum, r) => sum + (r.amount || 0), 0);
+};
+
+// Direct print function - opens small window and prints immediately like SalePage
+const directPrint = (receipt, customer, remainingBalance) => {
+  const printWindow = window.open("", "_blank", "width=450,height=600");
+  if (!printWindow) {
+    alert("Please allow popups for this site to print receipts.");
+    return;
+  }
+  
+  const urduFont = `'Jameel Noori Nastaleeq', 'Noto Nastaliq Urdu', 'Alvi Nastaleeq', 'Mehr Nastaliq', 'Gulzar', serif`;
+  const englishFont = `'Courier New', 'Segoe UI', monospace`;
+  
+  printWindow.document.write(`
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <title>Receipt - ${receipt.receiptNo}</title>
+        <style>
+          * { margin: 0; padding: 0; box-sizing: border-box; }
+          body { 
+            font-family: ${englishFont}; 
+            font-size: 11px; 
+            width: 72mm; 
+            margin: 0 auto; 
+            padding: 0mm 1mm; 
+            background: #fff; 
+            color: #000;
+          }
+          .receipt {
+            width: 100%;
+            padding: 0;
+          }
+          .header {
+            text-align: center;
+            border-bottom: 1px dashed #000;
+            padding-bottom: 6px;
+            margin-bottom: 8px;
+          }
+          .header h3 {
+            margin: 0;
+            font-size: 14px;
+          }
+          .header p {
+            margin: 2px 0;
+            font-size: 9px;
+          }
+          .row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 4px;
+          }
+          .section {
+            margin-bottom: 4px;
+          }
+          .divider {
+            border-top: 1px dotted #ccc;
+            border-bottom: 1px dotted #ccc;
+            padding: 6px 0;
+          }
+          .amount-large {
+            font-size: 18px;
+            font-weight: bold;
+            text-align: center;
+            margin: 6px 0;
+          }
+          .amount-words {
+            font-size: 8px;
+            font-style: italic;
+            text-align: center;
+          }
+          .balance-box {
+            background: #f8fafc;
+            padding: 6px;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+            margin: 8px 0;
+            text-align: center;
+          }
+          .balance-amount {
+            font-size: 14px;
+            font-weight: bold;
+          }
+          .signature {
+            margin-top: 12px;
+            border-top: 1px dashed #000;
+            padding-top: 8px;
+            text-align: center;
+          }
+          .footer {
+            font-size: 8px;
+            text-align: center;
+            margin-top: 8px;
+            color: #666;
+          }
+          @media print {
+            body { margin: 0; padding: 2mm; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="receipt">
+          <div class="header">
+            <h3>CASH RECEIPT</h3>
+            <p>Tax Invoice / Cash Memo</p>
+          </div>
+          
+          <div class="section">
+            <div class="row">
+              <span>Receipt No:</span>
+              <span style="font-weight:bold;">${receipt.receiptNo}</span>
+            </div>
+            <div class="row">
+              <span>Date:</span>
+              <span>${receipt.receiptDate}</span>
+            </div>
+          </div>
+          
+          <div class="section divider">
+            <div><strong>Received From:</strong></div>
+            <div style="font-weight:bold; margin-top:3px;">${customer?.name || receipt.customerName || receipt.customer?.name}</div>
+            ${customer?.code ? `<div style="font-size:9px;">Code: ${customer.code}</div>` : ''}
+            ${customer?.phone ? `<div style="font-size:9px;">Phone: ${customer.phone}</div>` : ''}
+          </div>
+          
+          <div class="section">
+            <div><strong>Amount Received:</strong></div>
+            <div class="amount-large">
+              PKR ${fmt(receipt.amount)}
+            </div>
+            <div class="amount-words">
+              ${(() => {
+                const amount = receipt.amount;
+                const words = ['Zero', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
+                const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+                const convertToWords = (num) => {
+                  if (num === 0) return '';
+                  if (num < 20) return words[num];
+                  if (num < 100) return tens[Math.floor(num / 10)] + (num % 10 !== 0 ? ' ' + words[num % 10] : '');
+                  if (num < 1000) return words[Math.floor(num / 100)] + ' Hundred' + (num % 100 !== 0 ? ' ' + convertToWords(num % 100) : '');
+                  if (num < 100000) return convertToWords(Math.floor(num / 1000)) + ' Thousand' + (num % 1000 !== 0 ? ' ' + convertToWords(num % 1000) : '');
+                  if (num < 10000000) return convertToWords(Math.floor(num / 100000)) + ' Lakh' + (num % 100000 !== 0 ? ' ' + convertToWords(num % 100000) : '');
+                  return convertToWords(Math.floor(num / 10000000)) + ' Crore' + (num % 10000000 !== 0 ? ' ' + convertToWords(num % 10000000) : '');
+                };
+                return convertToWords(Math.floor(amount)) + ' Rupees Only';
+              })()}
+            </div>
+          </div>
+          
+          <div class="balance-box">
+            <div><strong>Remaining Balance:</strong></div>
+            <div class="balance-amount" style="color: ${remainingBalance > 0 ? '#dc2626' : '#059669'}">
+              PKR ${fmt(Math.abs(remainingBalance))} ${remainingBalance > 0 ? '(Receivable)' : '(Credit)'}
+            </div>
+          </div>
+          
+          ${receipt.remarks ? `
+            <div class="section" style="border-top:1px dotted #ccc; padding-top:5px;">
+              <div><strong>Remarks:</strong></div>
+              <div style="font-size:9px;">${receipt.remarks}</div>
+            </div>
+          ` : ''}
+          
+          <div class="signature">
+            <div style="font-size:9px;">Authorized Signature</div>
+            <div style="border-top:1px dotted #999; width:100px; margin:10px auto 0;"></div>
+          </div>
+          <div class="footer">
+            Thank you for your business!
+          </div>
+        </div>
+        
+        <script>
+          window.onload = function() {
+            setTimeout(function() {
+              window.print();
+            }, 300);
+          };
+        </script>
+      </body>
+    </html>
+  `);
+  printWindow.document.close();
+};
+
+// Component to show today's receipts summary
+const TodayReceiptsSummary = ({ customer, receiptsList }) => {
+  if (!customer) return null;
+  
+  const todayReceipts = receiptsList.filter(r => 
+    (r.customerId === customer._id || r.customerName === customer.name || r.customer?.name === customer.name) && 
+    r.receiptDate === isoD()
+  );
+  
+  const todayTotal = todayReceipts.reduce((sum, r) => sum + (r.amount || 0), 0);
+  
+  if (todayReceipts.length === 0) return null;
+  
+  return (
+    <div style={{
+      marginTop: "12px",
+      padding: "10px",
+      background: "#fef3c7",
+      borderRadius: "6px",
+      border: "2px solid #f59e0b"
+    }}>
+      <div style={{
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        marginBottom: "8px",
+        paddingBottom: "6px",
+        borderBottom: "1px solid #f59e0b"
+      }}>
+        <span style={{ fontSize: "11px", fontWeight: "bold", color: "#92400e" }}>
+          📅 Today's Receipts ({isoD()})
+        </span>
+        <span style={{ fontSize: "13px", fontWeight: "bold", color: "#059669" }}>
+          Total: PKR {fmt(todayTotal)}
+        </span>
+      </div>
+      
+      <div style={{ maxHeight: "150px", overflowY: "auto" }}>
+        {todayReceipts.map((receipt, idx) => (
+          <div key={receipt._id || idx} style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            padding: "5px 0",
+            borderBottom: "1px solid #fef08a",
+            fontSize: "10px"
+          }}>
+            <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+              <span style={{ fontWeight: "bold", fontFamily: "monospace" }}>{receipt.receiptNo}</span>
+              <span style={{ color: "#64748b" }}>{receipt.remarks || "—"}</span>
+            </div>
+            <div style={{ fontWeight: "bold", color: "#059669" }}>
+              PKR {fmt(receipt.amount)}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+// Customer Dropdown Component
 function CustomerDropdown({
   allCustomers,
   value,
@@ -325,7 +584,6 @@ function CustomerDropdown({
 
 export default function CashReceiptPage() {
   const navigate = useNavigate();
-  const printRef = useRef();
   
   const [receiptId, setReceiptId] = useState(generateReceiptNo());
   const [receiptDate, setReceiptDate] = useState(isoD());
@@ -351,12 +609,6 @@ export default function CashReceiptPage() {
   const [searchReceiptNo, setSearchReceiptNo] = useState("");
   const [showReceiptSearch, setShowReceiptSearch] = useState(false);
   const [searchReceiptResult, setSearchReceiptResult] = useState(null);
-  const [showPrintDialog, setShowPrintDialog] = useState(false);
-  const [lastReceipt, setLastReceipt] = useState(null);
-  const [lastCustomerData, setLastCustomerData] = useState(null);
-  const [lastRemainingBalance, setLastRemainingBalance] = useState(0);
-  const [waitingForPrint, setWaitingForPrint] = useState(false);
-  const [receiptToPrint, setReceiptToPrint] = useState(null);
   
   const codeInputRef = useRef(null);
   const remarksRef = useRef(null);
@@ -364,7 +616,6 @@ export default function CashReceiptPage() {
   const confirmAmountRef = useRef(null);
   const submitRef = useRef(null);
   const searchRef = useRef(null);
-  const printConfirmRef = useRef(null);
   
   useEffect(() => {
     loadCustomers();
@@ -372,22 +623,29 @@ export default function CashReceiptPage() {
     codeInputRef.current?.focus();
   }, []);
   
-  // ✅ FIXED: Update filtered receipts when receipts, searchReceiptResult, or selectedCustomer changes
+  // Show all receipts when customer is selected
   useEffect(() => {
     if (searchReceiptResult) {
-      // Show only the searched receipt
       setFilteredReceipts([searchReceiptResult]);
     } else if (selectedCustomer) {
-      // Show receipts for selected customer (by ID AND by name)
-      const customerReceipts = receipts.filter(r => 
-        r.customerId === selectedCustomer._id || 
-        r.customerName === selectedCustomer.name
-      );
+      // Show ALL receipts for selected customer - check multiple possible field names
+      const customerReceipts = receipts.filter(r => {
+        const matchById = r.customerId === selectedCustomer._id;
+        const matchByName = r.customerName === selectedCustomer.name;
+        const matchByCustomerObj = r.customer?._id === selectedCustomer._id || r.customer?.name === selectedCustomer.name;
+        const matched = matchById || matchByName || matchByCustomerObj;
+        if (matched) {
+          console.log("Found receipt:", r.receiptNo, "for customer:", selectedCustomer.name);
+        }
+        return matched;
+      });
+      customerReceipts.sort((a, b) => (b.receiptDate || '').localeCompare(a.receiptDate || ''));
       console.log(`Found ${customerReceipts.length} receipts for customer: ${selectedCustomer.name}`);
       setFilteredReceipts(customerReceipts);
     } else {
-      // Show all receipts
-      setFilteredReceipts(receipts);
+      const allReceipts = [...receipts];
+      allReceipts.sort((a, b) => (b.receiptDate || '').localeCompare(a.receiptDate || ''));
+      setFilteredReceipts(allReceipts);
     }
   }, [receipts, searchReceiptResult, selectedCustomer]);
   
@@ -408,9 +666,17 @@ export default function CashReceiptPage() {
       const response = await api.get(EP.CASH_RECEIPTS.GET_ALL);
       if (response.data && response.data.success) {
         const receiptsData = response.data.data || [];
+        console.log(`Loaded ${receiptsData.length} receipts total`);
+        // Log first receipt to see structure
+        if (receiptsData.length > 0) {
+          console.log("Sample receipt structure:", receiptsData[0]);
+        }
         setReceipts(receiptsData);
         setFilteredReceipts(receiptsData);
-        console.log(`Loaded ${receiptsData.length} receipts`);
+      } else {
+        console.error("API response not successful:", response.data);
+        setReceipts([]);
+        setFilteredReceipts([]);
       }
     } catch (err) {
       console.error("Failed to load receipts:", err);
@@ -425,121 +691,15 @@ export default function CashReceiptPage() {
     setTimeout(() => setMsg({ text: "", type: "" }), 3000);
   };
   
-  const handlePrint = () => {
-    const receiptToPrintData = receiptToPrint || lastReceipt;
-    if (!receiptToPrintData) return;
-    
-    let customer = lastCustomerData || allCustomers.find(c => c._id === receiptToPrintData.customerId);
-    if (!customer && receiptToPrintData.customerName) {
-      customer = allCustomers.find(c => c.name === receiptToPrintData.customerName);
-    }
-    
-    const remainingBal = lastRemainingBalance || (customer?.currentBalance || 0);
-    
-    const printWindow = window.open('', '_blank');
-    printWindow.document.write(`
-      <html>
-        <head>
-          <title>Receipt - ${receiptToPrintData.receiptNo}</title>
-          <style>
-            body { margin: 0; padding: 20px; display: flex; justify-content: center; align-items: center; min-height: 100vh; background: #f0f0f0; }
-            @media print { body { background: white; padding: 0; } button { display: none; } }
-          </style>
-        </head>
-        <body>
-          <div id="print-content">
-            <div style="width:280px; padding:12px; font-family:'Courier New', monospace; font-size:11px; background:white; color:black; border:1px solid #000; border-radius:4px;">
-              <div style="text-align:center; border-bottom:1px dashed #000; padding-bottom:6px; margin-bottom:8px;">
-                <h3 style="margin:0; font-size:14px;">CASH RECEIPT</h3>
-                <p style="margin:2px 0; font-size:9px;">Tax Invoice / Cash Memo</p>
-              </div>
-              
-              <div style="margin-bottom:8px;">
-                <div style="display:flex; justify-content:space-between; margin-bottom:3px;">
-                  <span>Receipt No:</span>
-                  <span style="font-weight:bold;">${receiptToPrintData.receiptNo}</span>
-                </div>
-                <div style="display:flex; justify-content:space-between; margin-bottom:3px;">
-                  <span>Date:</span>
-                  <span>${receiptToPrintData.receiptDate}</span>
-                </div>
-              </div>
-              
-              <div style="margin-bottom:8px; border-top:1px dotted #ccc; border-bottom:1px dotted #ccc; padding:6px 0;">
-                <div><strong>Received From:</strong></div>
-                <div style="font-weight:bold; margin-top:2px;">${customer?.name || receiptToPrintData.customerName}</div>
-                ${customer?.code ? `<div style="font-size:9px;">Code: ${customer.code}</div>` : ''}
-                ${customer?.phone ? `<div style="font-size:9px;">Phone: ${customer.phone}</div>` : ''}
-              </div>
-              
-              <div style="margin-bottom:8px;">
-                <div><strong>Amount Received:</strong></div>
-                <div style="font-size:18px; font-weight:bold; text-align:center; margin:4px 0;">
-                  PKR ${fmt(receiptToPrintData.amount)}
-                </div>
-                <div style="font-size:9px; font-style:italic; text-align:center;">
-                  ${(() => {
-                    const amount = receiptToPrintData.amount;
-                    const words = ['Zero', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
-                    const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
-                    const convertToWords = (num) => {
-                      if (num === 0) return '';
-                      if (num < 20) return words[num];
-                      if (num < 100) return tens[Math.floor(num / 10)] + (num % 10 !== 0 ? ' ' + words[num % 10] : '');
-                      if (num < 1000) return words[Math.floor(num / 100)] + ' Hundred' + (num % 100 !== 0 ? ' ' + convertToWords(num % 100) : '');
-                      if (num < 100000) return convertToWords(Math.floor(num / 1000)) + ' Thousand' + (num % 1000 !== 0 ? ' ' + convertToWords(num % 1000) : '');
-                      if (num < 10000000) return convertToWords(Math.floor(num / 100000)) + ' Lakh' + (num % 100000 !== 0 ? ' ' + convertToWords(num % 100000) : '');
-                      return convertToWords(Math.floor(num / 10000000)) + ' Crore' + (num % 10000000 !== 0 ? ' ' + convertToWords(num % 10000000) : '');
-                    };
-                    return convertToWords(Math.floor(amount)) + ' Rupees Only';
-                  })()}
-                </div>
-              </div>
-              
-              <div style="margin-bottom:8px; background:#f8fafc; padding:6px; border-radius:4px; border:1px solid #ccc;">
-                <div><strong>Remaining Balance:</strong></div>
-                <div style="font-size:14px; font-weight:bold; text-align:center; color:${remainingBal > 0 ? '#dc2626' : '#059669'}">
-                  PKR ${fmt(Math.abs(remainingBal))} ${remainingBal > 0 ? '(Receivable)' : '(Credit)'}
-                </div>
-              </div>
-              
-              ${receiptToPrintData.remarks ? `
-                <div style="margin-bottom:8px; border-top:1px dotted #ccc; padding-top:4px;">
-                  <div><strong>Remarks:</strong></div>
-                  <div style="font-size:9px;">${receiptToPrintData.remarks}</div>
-                </div>
-              ` : ''}
-              
-              <div style="margin-top:10px; border-top:1px dashed #000; padding-top:6px; text-align:center;">
-                <div style="font-size:9px;">Authorized Signature</div>
-                <div style="margin-top:15px;">
-                  <div style="border-top:1px dotted #999; width:120px; margin:0 auto;"></div>
-                </div>
-                <div style="font-size:8px; margin-top:6px; color:#666;">
-                  Thank you for your business!
-                </div>
-              </div>
-            </div>
-          </div>
-          <button onclick="window.print();setTimeout(function(){window.close();}, 1000);" style="position:fixed; bottom:20px; right:20px; padding:10px 20px; background:#22c55e; color:white; border:none; border-radius:4px; cursor:pointer;">🖨️ Print</button>
-          <button onclick="window.close();" style="position:fixed; bottom:20px; left:20px; padding:10px 20px; background:#ef4444; color:white; border:none; border-radius:4px; cursor:pointer;">✕ Close</button>
-        </body>
-      </html>
-    `);
-    printWindow.document.close();
-    setShowPrintDialog(false);
-    setWaitingForPrint(false);
-    setReceiptToPrint(null);
-    setTimeout(() => codeInputRef.current?.focus(), 100);
+  const handlePrintReceipt = (receipt, customer, remainingBalance) => {
+    directPrint(receipt, customer, remainingBalance);
   };
   
   const handlePrintPrevious = (receipt) => {
-    setReceiptToPrint(receipt);
-    const customer = allCustomers.find(c => c._id === receipt.customerId);
-    setLastCustomerData(customer);
-    setLastRemainingBalance(receipt.newBalance || customer?.currentBalance || 0);
-    setShowPrintDialog(true);
-    setWaitingForPrint(true);
+    const customer = allCustomers.find(c => c._id === receipt.customerId) || 
+                    (receipt.customerName ? { name: receipt.customerName } : null);
+    const remainingBalance = receipt.newBalance || customer?.currentBalance || 0;
+    handlePrintReceipt(receipt, customer, remainingBalance);
   };
   
   const handleCodeSearch = () => {
@@ -570,7 +730,6 @@ export default function CashReceiptPage() {
     setSearchReceiptResult(null);
     setSearchReceiptNo("");
     
-    // The filtered receipts will update via useEffect
     showMsg(`Selected: ${customer.name} - Balance: PKR ${fmt(customer.currentBalance || 0)}`, "success");
     
     setTimeout(() => remarksRef.current?.focus(), 100);
@@ -582,7 +741,7 @@ export default function CashReceiptPage() {
     setBuyerName("");
     setCustomerType("");
     setSelectedCustomer(null);
-    setFilteredReceipts(receipts); // Show all receipts
+    setFilteredReceipts(receipts);
     setAmountReceived("");
     setConfirmAmount("");
     setErrors({ customer: "", amountReceived: "", confirmAmount: "" });
@@ -595,14 +754,12 @@ export default function CashReceiptPage() {
     codeInputRef.current?.focus();
   };
   
-  // Calculate balance after receipt
   const getBalanceAfterReceipt = () => {
     const currentBalance = selectedCustomer?.currentBalance || 0;
     const received = Number(amountReceived) || 0;
     return currentBalance - received;
   };
   
-  // Check if amounts match
   const doAmountsMatch = () => {
     if (!amountReceived || !confirmAmount) return false;
     return Number(amountReceived) === Number(confirmAmount);
@@ -693,7 +850,7 @@ export default function CashReceiptPage() {
     setEditingReceiptId(null);
     setEditingReceiptData(null);
     setErrors({ customer: "", amountReceived: "", confirmAmount: "" });
-    setFilteredReceipts(receipts); // Reset to show all receipts
+    setFilteredReceipts(receipts);
   };
   
   const editReceipt = async (receipt) => {
@@ -707,7 +864,6 @@ export default function CashReceiptPage() {
     setConfirmAmount(String(receipt.amount));
     setRemarks(receipt.remarks || "");
     
-    // Find the latest customer data
     let customer = allCustomers.find(c => c._id === receipt.customerId);
     if (!customer && receipt.customerName) {
       try {
@@ -798,7 +954,7 @@ export default function CashReceiptPage() {
     try {
       await api.delete(EP.CASH_RECEIPTS.DELETE(id));
       showMsg(`Receipt "${receiptNo}" deleted!`, "success");
-      await loadReceipts(); // Reload all receipts
+      await loadReceipts();
       if (editingReceiptId === id) {
         resetForm();
       }
@@ -851,49 +1007,44 @@ export default function CashReceiptPage() {
         newBalance: newBalance,
       };
       
-      console.log("Saving receipt:", receiptData);
-      
       const receiptResponse = await api.post(EP.CASH_RECEIPTS.CREATE, receiptData);
       
       if (receiptResponse.data.success) {
         const newBalanceFromResponse = receiptResponse.data.balanceUpdate?.newBalance || newBalance;
         
-        // Update the selected customer's balance
         setSelectedCustomer(prev => ({ ...prev, currentBalance: newBalanceFromResponse }));
         
-        // Update the customer in the allCustomers array
         setAllCustomers(prev => prev.map(c => 
           c._id === selectedCustomer._id 
             ? { ...c, currentBalance: newBalanceFromResponse } 
             : c
         ));
         
-        // Update receipts list with new receipt
         const newReceipt = receiptResponse.data.data;
         const updatedReceipts = [newReceipt, ...receipts];
         setReceipts(updatedReceipts);
         
-        // Update filtered receipts to include the new one for this customer
-        setFilteredReceipts(prev => [newReceipt, ...prev]);
-        
-        // Store for printing
-        setLastReceipt(newReceipt);
-        setLastCustomerData({ ...selectedCustomer, currentBalance: newBalanceFromResponse });
-        setLastRemainingBalance(newBalanceFromResponse);
+        // Update filtered receipts for the selected customer
+        if (selectedCustomer) {
+          const customerReceipts = updatedReceipts.filter(r => 
+            r.customerId === selectedCustomer._id || 
+            r.customerName === selectedCustomer.name
+          );
+          customerReceipts.sort((a, b) => (b.receiptDate || '').localeCompare(a.receiptDate || ''));
+          setFilteredReceipts(customerReceipts);
+        } else {
+          setFilteredReceipts(updatedReceipts);
+        }
         
         showMsg(`✓ Receipt ${newReceipt.receiptNo} recorded! Amount: PKR ${fmt(receivedAmount)}`, "success");
         showMsg(`✓ Remaining balance: PKR ${fmt(Math.abs(newBalanceFromResponse))}`, "success");
         
-        // RESET FORM - Clear all fields
+        // Print directly like SalePage
+        handlePrintReceipt(newReceipt, { ...selectedCustomer, currentBalance: newBalanceFromResponse }, newBalanceFromResponse);
+        
         resetForm();
         
-        // Focus back to code input for next entry
         setTimeout(() => codeInputRef.current?.focus(), 100);
-        
-        // Show print dialog
-        setReceiptToPrint(newReceipt);
-        setShowPrintDialog(true);
-        setWaitingForPrint(true);
       } else {
         showMsg(receiptResponse.data.message || "Failed to save receipt", "error");
       }
@@ -922,85 +1073,6 @@ export default function CashReceiptPage() {
   
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%", background: "#ffffff" }}>
-      <div id="print-receipt-content" style={{ display: 'none' }} />
-      
-      {showPrintDialog && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: 'rgba(0,0,0,0.5)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 20000,
-        }}>
-          <div style={{
-            background: 'white',
-            borderRadius: '8px',
-            padding: '20px',
-            width: '350px',
-            textAlign: 'center',
-            border: '2px solid #000000',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
-          }}>
-            <div style={{ fontSize: '48px', marginBottom: '10px' }}>🖨️</div>
-            <h3 style={{ margin: '0 0 10px 0', fontSize: '16px' }}>Print Receipt?</h3>
-            <p style={{ fontSize: '12px', margin: '0 0 10px 0', color: '#666' }}>
-              Receipt #{receiptToPrint?.receiptNo || lastReceipt?.receiptNo}
-            </p>
-            <p style={{ fontSize: '12px', margin: '0 0 20px 0', color: '#666' }}>
-              Amount: <strong>PKR {fmt(receiptToPrint?.amount || lastReceipt?.amount || 0)}</strong>
-              <br />
-              Remaining Balance: <strong style={{ color: lastRemainingBalance > 0 ? '#dc2626' : '#059669' }}>
-                PKR {fmt(Math.abs(lastRemainingBalance))}
-              </strong>
-            </p>
-            <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
-              <button
-                ref={printConfirmRef}
-                onClick={handlePrint}
-                autoFocus
-                style={{
-                  padding: '8px 20px',
-                  background: '#22c55e',
-                  color: 'white',
-                  border: '1px solid #000000',
-                  borderRadius: '4px',
-                  cursor: 'pointer',
-                  fontWeight: 'bold',
-                  fontSize: '12px'
-                }}
-              >
-                🖨️ Print (Enter)
-              </button>
-              <button
-                onClick={() => {
-                  setShowPrintDialog(false);
-                  setWaitingForPrint(false);
-                  setReceiptToPrint(null);
-                  codeInputRef.current?.focus();
-                }}
-                style={{
-                  padding: '8px 20px',
-                  background: '#ef4444',
-                  color: 'white',
-                  border: '1px solid #000000',
-                  borderRadius: '4px',
-                  cursor: 'pointer',
-                  fontWeight: 'bold',
-                  fontSize: '12px'
-                }}
-              >
-                ✕ Close (ESC)
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-      
       <div className="xp-titlebar" style={{ background: "#1e40af", padding: "8px 16px" }}>
         <button className="xp-cap-btn" onClick={() => navigate("/")} style={{ color: "white", fontSize: "16px" }}>←</button>
         <span className="xp-tb-title" style={{ color: "white", fontSize: "16px", fontWeight: "bold" }}>Cash Receipt Voucher</span>
@@ -1268,6 +1340,9 @@ export default function CashReceiptPage() {
               </div>
             )}
             
+            {/* Today's Receipts Summary */}
+            <TodayReceiptsSummary customer={selectedCustomer} receiptsList={receipts} />
+            
             {selectedCustomer && (
               <div style={{
                 marginTop: "10px",
@@ -1371,7 +1446,7 @@ export default function CashReceiptPage() {
                       <td style={{ padding: "4px 4px", textAlign: "center", border: "1px solid #000000", fontWeight: "600" }}>{i + 1}</td>
                       <td style={{ padding: "4px 4px", whiteSpace: "nowrap", border: "1px solid #000000" }}>{r.receiptDate}</td>
                       <td style={{ padding: "4px 4px", fontFamily: "monospace", fontWeight: "bold", border: "1px solid #000000", fontSize: "9px" }}>{r.receiptNo}</td>
-                      <td style={{ padding: "4px 4px", border: "1px solid #000000", fontWeight: "bold" }}>{r.customerName}</td>
+                      <td style={{ padding: "4px 4px", border: "1px solid #000000", fontWeight: "bold" }}>{r.customerName || r.customer?.name}</td>
                       <td style={{ padding: "4px 4px", maxWidth: "150px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", border: "1px solid #000000" }}>{r.remarks || "—"}</td>
                       <td style={{ padding: "4px 4px", textAlign: "right", fontWeight: "bold", color: "#059669", border: "1px solid #000000" }}>PKR {fmt(r.amount)}</td>
                       <td style={{ padding: "4px 4px", textAlign: "center", border: "1px solid #000000" }}>
@@ -1425,8 +1500,8 @@ export default function CashReceiptPage() {
                             🗑 Del
                           </button>
                         </div>
-                      </td>
-                    </tr>
+                       </td>
+                     </tr>
                   ))}
                 </tbody>
                 <tfoot style={{ background: "#f1f5f9" }}>
@@ -1444,7 +1519,11 @@ export default function CashReceiptPage() {
       
       <div className="xp-statusbar" style={{ background: "#f8fafc", borderTop: "2px solid #000000", padding: "4px 12px" }}>
         <div className="xp-status-pane" style={{ fontSize: "10px", fontWeight: "500" }}>💰 Cash Receipt</div>
-        <div className="xp-status-pane" style={{ fontSize: "10px", fontWeight: "500" }}>{selectedCustomer ? selectedCustomer.name : `${filteredReceipts.length} receipts total`}</div>
+        <div className="xp-status-pane" style={{ fontSize: "10px", fontWeight: "500" }}>
+          {selectedCustomer 
+            ? `${selectedCustomer.name} - Today: PKR ${fmt(getTodayTotal(selectedCustomer._id, receipts, selectedCustomer.name))}`
+            : `${filteredReceipts.length} receipts total`}
+        </div>
         <div className="xp-status-pane" style={{ fontSize: "10px", fontWeight: "500" }}>
           {isEditing ? "✏ Editing Mode" : (amountsMatch ? `✓ Confirmed: PKR ${fmt(amountReceived)}` : "Enter and confirm amount")}
         </div>

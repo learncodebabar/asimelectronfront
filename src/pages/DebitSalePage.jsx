@@ -9,7 +9,7 @@ import "../styles/DebitSalePage.css";
 
 const isoDate = () => new Date().toISOString().split("T")[0];
 const fmt = (n) => Number(n || 0).toLocaleString("en-PK");
-const SHOP_NAME = "Asim Electric and Electronic Store";
+const SHOP_NAME = "DGS and Electronic Store";
 
 const EMPTY_ROW = {
   productId: "",

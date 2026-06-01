@@ -184,7 +184,7 @@ const getNextAvailablePONumber = (records) => {
 
 const SHOP_INFO = {
   name: "عاصم الیکٹرک اینڈ الیکٹرونکس سٹور",
-  nameEn: "Asim Electric & Electronic Store",
+  nameEn: "DGS & Electronic Store",
   address: "مین بازار نہاری ٹاؤن نزد بجلی گھر سٹاپ گوجرانوالہ روڈ فیصل آباد",
   phone1: "Faqir Hussain 0300 7262129",
   phone2: "PTCL 041 8711575",
