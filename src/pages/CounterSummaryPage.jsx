@@ -341,7 +341,7 @@ export default function CounterSummaryPage() {
             color: "white",
             textShadow: "2px 2px 5px rgba(0,0,0,0.3)",
             lineHeight: "1.4",
-            width: windowWidth <= 768 ? "100%" : "55%",
+            width: windowWidth <= 768 ? "100%" : "50%",
             textAlign: "left",
             fontSize: shopNameFontSize
           }}>
