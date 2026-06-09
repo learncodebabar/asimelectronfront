@@ -598,7 +598,7 @@ function SaveConfirmModal({ salePayload, printType: defaultPrintType, onConfirm,
 }
 
 /* ══════════════════════════════════════════════════════════
-   PRODUCT SEARCH MODAL - WITH ARROW NAVIGATION
+   PRODUCT SEARCH MODAL - WITH STICKY BLUE HEADER (VISIBLE TEXT)
 ══════════════════════════════════════════════════════════ */
 function SearchModal({ allProducts, onSelect, onClose }) {
   const [desc, setDesc] = useState("");
@@ -685,40 +685,92 @@ function SearchModal({ allProducts, onSelect, onClose }) {
 
   return (
     <div className="xp-overlay" onClick={(e) => e.target === e.currentTarget && onClose()} style={{ zIndex: 2000 }}>
-      <div className="xp-modal" style={{ width: "95%", maxWidth: "1200px", height: "80vh", display: "flex", flexDirection: "column" }}>
-        <div className="xp-modal-tb"><span className="xp-modal-title">Search Products (↑↓ Navigate, Enter Select, F2/Esc Close)</span><button className="xp-cap-btn xp-cap-close" onClick={onClose}>✕</button></div>
-        <div className="cs-modal-filters" style={{ padding: "8px", display: "flex", gap: "8px", flexWrap: "wrap" }}>
-          <input ref={rDesc} type="text" placeholder="Description / Code" value={desc} onChange={(e) => setDesc(e.target.value)} onKeyDown={(e) => fk(e, rCat)} style={{ flex: 2, padding: "6px" }} />
-          <input ref={rCat} type="text" placeholder="Category" value={cat} onChange={(e) => setCat(e.target.value)} onKeyDown={(e) => fk(e, rCompany)} style={{ flex: 1, padding: "6px" }} />
-          <input ref={rCompany} type="text" placeholder="Company" value={company} onChange={(e) => setCompany(e.target.value)} onKeyDown={(e) => fk(e, null)} style={{ flex: 1, padding: "6px" }} />
-          <button className="xp-btn xp-btn-sm" onClick={onClose}>Close (Esc)</button>
+      <div className="xp-modal" style={{ width: "95%", maxWidth: "1400px", height: "85vh", maxHeight: "85vh", display: "flex", flexDirection: "column", borderRadius: "12px", background: "#ffffff", border: "2px solid #000000" }}>
+        <div className="xp-modal-tb" style={{ background: "#1e40af", padding: "10px 16px", borderRadius: "10px 10px 0 0" }}>
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="rgba(255,255,255,0.9)"><path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.044.06.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1 1 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0"/></svg>
+          <span className="xp-modal-title" style={{ fontSize: "15px", fontWeight: "bold", color: "#ffffff" }}>Search Products (Press F2 or ESC to close)</span>
+          <button className="xp-cap-btn xp-cap-close" onClick={onClose} style={{ color: "#ffffff", fontSize: "18px" }}>✕</button>
         </div>
-        <div className="xp-modal-body" style={{ flex: 1, overflow: "auto" }}>
-          <table className="xp-table" style={{ width: "100%", borderCollapse: "collapse" }}>
-            <thead><tr><th>#</th><th>Code</th><th>Product Name</th><th>Unit</th><th>Rate</th><th>Stock</th><th>Pack</th></tr></thead>
-            <tbody ref={tbodyRef} tabIndex={0} onKeyDown={tk}>
-              {rows.map((r, i) => {
-                const stockStatus = getStockStatusForModal(r._stock);
-                return (
-                  <tr key={`${r._id}-${r._pi}`} style={{ background: i === hiIdx ? "#0a4aa4" : "white", color: i === hiIdx ? "white" : "black", cursor: "pointer" }} onClick={() => setHiIdx(i)} onDoubleClick={() => onSelect(r)}>
-                    <td style={{ textAlign: "center" }}>{i + 1}</td>
-                    <td>{r.code}</td>
-                    <td>{r._name}</td>
-                    <td style={{ textAlign: "center" }}>{r._meas}</td>
-                    <td className="r">{Number(r._rate).toLocaleString()}</td>
-                    <td style={{ backgroundColor: stockStatus.bg, color: stockStatus.color, textAlign: "center" }}><span>{stockStatus.icon} {r._stock} {r._meas}</span></td>
-                    <td className="r">{r._pack}</td>
+        <div className="cs-modal-filters" style={{ padding: "8px 12px", gap: "10px", background: "#f8fafc", borderBottom: "1px solid #000000", flexWrap: "wrap" }}>
+          <div className="cs-modal-filter-grp" style={{ flex: 2, minWidth: "200px" }}>
+            <label className="xp-label" style={{ fontSize: "11px", fontWeight: "bold", color: "#000000" }}>Description / Code</label>
+            <input ref={rDesc} type="text" className="xp-input" value={desc} onChange={(e) => setDesc(e.target.value)} onKeyDown={(e) => fk(e, rCat)} autoComplete="off" style={{ height: "32px", fontSize: "12px", border: "1px solid #000000", borderRadius: "4px", width: "100%", padding: "0 8px" }}/>
+          </div>
+          <div className="cs-modal-filter-grp" style={{ flex: 1, minWidth: "140px" }}>
+            <label className="xp-label" style={{ fontSize: "11px", fontWeight: "bold", color: "#000000" }}>Category</label>
+            <input ref={rCat} type="text" className="xp-input" value={cat} onChange={(e) => setCat(e.target.value)} onKeyDown={(e) => fk(e, rCompany)} autoComplete="off" style={{ height: "32px", fontSize: "12px", border: "1px solid #000000", borderRadius: "4px", width: "100%", padding: "0 8px" }}/>
+          </div>
+          <div className="cs-modal-filter-grp" style={{ flex: 1, minWidth: "140px" }}>
+            <label className="xp-label" style={{ fontSize: "11px", fontWeight: "bold", color: "#000000" }}>Company</label>
+            <input ref={rCompany} type="text" className="xp-input" value={company} onChange={(e) => setCompany(e.target.value)} onKeyDown={(e) => fk(e, null)} autoComplete="off" style={{ height: "32px", fontSize: "12px", border: "1px solid #000000", borderRadius: "4px", width: "100%", padding: "0 8px" }}/>
+          </div>
+          <div style={{ display: "flex", alignItems: "flex-end", gap: "6px", paddingBottom: "2px" }}>
+            <span style={{ fontSize: "11px", color: "#000000", fontWeight: "bold" }}>{rows.length} result(s)</span>
+            <button className="xp-btn xp-btn-sm" onClick={onClose} style={{ fontSize: "11px", padding: "4px 12px", border: "1px solid #000000", borderRadius: "4px", fontWeight: "bold" }}>Close</button>
+          </div>
+        </div>
+        <div className="xp-modal-body" style={{ padding: 0, flex: 1, overflow: "hidden" }}>
+          <div className="xp-table-panel" style={{ border: "none", height: "100%" }}>
+            <div className="xp-table-scroll" style={{ height: "100%", overflow: "auto", maxHeight: "calc(85vh - 110px)" }}>
+              <table className="xp-table" style={{ fontSize: "12px", borderCollapse: "collapse", width: "100%", border: "1px solid #000000" }}>
+                <thead>
+                  <tr style={{ background: "#1e40af", position: "sticky", top: 0, zIndex: 10 }}>
+                    <th style={{ width: 40, padding: "10px 6px", textAlign: "center", border: "1px solid #000000", fontSize: "12px", fontWeight: "bold", color: "#ffffff", backgroundColor: "#1e40af" }}>#</th>
+                    <th style={{ width: 90, padding: "10px 6px", textAlign: "left", border: "1px solid #000000", fontSize: "12px", fontWeight: "bold", color: "#ffffff", backgroundColor: "#1e40af" }}>Code</th>
+                    <th style={{ padding: "10px 6px", textAlign: "left", border: "1px solid #000000", fontSize: "13px", fontWeight: "bold", color: "#ffffff", backgroundColor: "#1e40af" }}>Product Name</th>
+                    <th style={{ width: 60, padding: "10px 6px", textAlign: "center", border: "1px solid #000000", fontSize: "12px", fontWeight: "bold", color: "#ffffff", backgroundColor: "#1e40af" }}>Unit</th>
+                    <th style={{ width: 85, padding: "10px 6px", textAlign: "right", border: "1px solid #000000", fontSize: "12px", fontWeight: "bold", color: "#ffffff", backgroundColor: "#1e40af" }}>Rate</th>
+                    <th style={{ width: 110, padding: "10px 6px", textAlign: "center", border: "1px solid #000000", fontSize: "12px", fontWeight: "bold", color: "#ffffff", backgroundColor: "#1e40af" }}>Stock</th>
+                    <th style={{ width: 55, padding: "10px 6px", textAlign: "right", border: "1px solid #000000", fontSize: "12px", fontWeight: "bold", color: "#ffffff", backgroundColor: "#1e40af" }}>Pack</th>
+                    <th style={{ width: 65, padding: "10px 6px", textAlign: "center", border: "1px solid #000000", fontSize: "12px", fontWeight: "bold", color: "#ffffff", backgroundColor: "#1e40af" }}>Rack</th>
                   </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                </thead>
+                <tbody ref={tbodyRef} tabIndex={0} onKeyDown={tk}>
+                  {rows.length === 0 && (
+                    <tr><td colSpan={8} className="xp-empty" style={{ padding: "30px", textAlign: "center" }}>No products found</td></tr>
+                  )}
+                  {rows.map((r, i) => {
+                    const stockStatus = getStockStatusForModal(r._stock);
+                    return (
+                      <tr 
+                        key={`${r._id}-${r._pi}`} 
+                        style={{ background: i === hiIdx ? "#0a4aa4" : "white", color: i === hiIdx ? "white" : "black", cursor: "pointer" }} 
+                        onClick={() => setHiIdx(i)} 
+                        onDoubleClick={() => onSelect(r)}
+                      >
+                        <td style={{ padding: "8px 6px", textAlign: "center", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold" }}>{i + 1}</td>
+                        <td style={{ padding: "8px 6px", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", fontFamily: "monospace" }}>{r.code}</td>
+                        <td style={{ padding: "8px 6px", border: "1px solid #000000", fontSize: "13px", fontWeight: "bold" }}>
+                          <button className="xp-link-btn" style={{ textDecoration: "none", fontWeight: "bold", fontSize: "13px", background: "none", border: "none", cursor: "pointer", width: "100%", textAlign: "left", padding: "0", color: i === hiIdx ? "white" : "black" }}>
+                            {r._name}
+                          </button>
+                        </td>
+                        <td style={{ padding: "8px 6px", textAlign: "center", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold" }}>{r._meas}</td>
+                        <td style={{ padding: "8px 6px", textAlign: "right", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", color: "#059669" }}>{Number(r._rate).toLocaleString("en-PK")}</td>
+                        <td style={{ padding: "8px 6px", textAlign: "center", border: "1px solid #000000", fontSize: "12px", fontWeight: "bold", backgroundColor: i === hiIdx ? (stockStatus.color + "40") : stockStatus.bg, color: stockStatus.color }}>
+                          <span style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "6px", whiteSpace: "nowrap" }}>
+                            <span style={{ fontSize: "14px" }}>{stockStatus.icon}</span>
+                            <span>{r._stock}</span>
+                            <span style={{ fontSize: "10px", fontWeight: "normal" }}>{r._meas}</span>
+                          </span>
+                        </td>
+                        <td style={{ padding: "8px 6px", textAlign: "right", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold" }}>{r._pack}</td>
+                        <td style={{ padding: "8px 6px", textAlign: "center", border: "1px solid #000000", fontSize: "11px", fontWeight: "bold", fontFamily: "monospace" }}>{r.rackNo || "—"}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        <div className="cs-modal-hint" style={{ padding: "6px 12px", fontSize: "10px", color: "#000000", fontWeight: "bold", borderTop: "1px solid #000000", background: "#f8fafc", borderRadius: "0 0 10px 10px" }}>
+          ↑↓ navigate | Enter/Double-click = select | F2/Esc = close | Tab = filters
         </div>
       </div>
     </div>
   );
 }
-
 /* ══════════════════════════════════════════════════════════
    HOLD PREVIEW MODAL
 ══════════════════════════════════════════════════════════ */
