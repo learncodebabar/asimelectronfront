@@ -1,4 +1,4 @@
-// pages/SalePage.jsx - COMPLETE FILE with Correct Stock Management (Backend Handles Stock)
+// pages/SalePage.jsx - COMPLETE FILE with All Navigation Features
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useAuth } from "../context/AuthContext";
 import api from "../api/api.js";
@@ -367,7 +367,7 @@ const shareViaWhatsApp = async (sale, overrides = {}) => {
 
 const doPrint = (sale, type, overrides = {}) => {
   const printData = { ...sale, customerName: overrides.customerName || sale.customerName || "COUNTER SALE", username: overrides.username || sale.username || 'ADMIN' };
-  const w = window.open("", "_blank", type === "Thermal" || type === "Gatepass" ? "width=420,height=640" : "width=900,height=700");
+  const w = window.open("", "_blank", "width=420,height=640");
   if (w) { w.document.write(buildPrintHtml(printData, type, overrides)); w.document.close(); w.onload = () => { setTimeout(() => { w.print(); }, 300); }; setTimeout(() => { if (w && !w.closed) w.print(); }, 500); } 
   else { alert("Please allow popups for this site to print invoices."); }
 };
@@ -517,7 +517,7 @@ function PrintOptionsModal({ sale, allCustomers, defaultPrintType, onPrint, onCl
     setCustPhone(val);
     if (val.trim().length >= 7) {
       const clean = val.replace(/\D/g, "");
-      const found = cashCustomers.find(c => c.phone?.replace(/\D/g, "").includes(clean) || c.cell?.replace(/\D/g, "").includes(clean) || c.otherPhone?.replace(/\D/g, "").includes(clean));
+      const found = cashCustomers.find(c => c.phone?.replace(/\D/g, "").includes(clean) || c.cell?.replace(/\D/g, "").includes(clean));
       if (found) setCustName(found.name);
       else setCustName("");
     } else setCustName("");
@@ -547,8 +547,8 @@ function PrintOptionsModal({ sale, allCustomers, defaultPrintType, onPrint, onCl
         <div style={{ padding: "16px 20px", display: "flex", flexDirection: "column", gap: 14 }}>
           <div><label>📞 Phone Number</label><input ref={phoneRef} className="xp-input" type="text" placeholder="Enter customer phone number" value={custPhone} onChange={(e) => handlePhoneChange(e.target.value)} style={{ width: "100%", padding: "8px" }} /></div>
           <div><label>👤 Customer Name</label><input ref={nameRef} className="xp-input" type="text" placeholder="Enter customer name" value={custName} onChange={(e) => setCustName(e.target.value)} style={{ width: "100%", padding: "8px" }} /></div>
-          <div><label>🖨 Print Format</label><div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}> {["Thermal", "A5", "A4", "Gatepass"].map((pt) => (<label key={pt}><input type="radio" name="po-pt" checked={selPrintType === pt} onChange={() => setSelPrintType(pt)} /> {pt}</label>))}</div></div>
-          <div><label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}><input type="checkbox" checked={isDuplicate} onChange={(e) => setIsDuplicate(e.target.checked)} style={{ width: 16, height: 16 }} /> <span>🖨 Duplicate Print (shows "DUPLICATE COPY" on print)</span></label></div>
+          <div><label>🖨 Print Format</label><div style={{ display: "flex", gap: 10 }}> {["Thermal", "A5", "A4", "Gatepass"].map((pt) => (<label key={pt}><input type="radio" name="po-pt" checked={selPrintType === pt} onChange={() => setSelPrintType(pt)} /> {pt}</label>))}</div></div>
+          <div><label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}><input type="checkbox" checked={isDuplicate} onChange={(e) => setIsDuplicate(e.target.checked)} /> 🖨 Duplicate Print</label></div>
         </div>
         <div className="scm-actions"><button className="xp-btn xp-btn-primary" onClick={handlePrint} disabled={saving}>🖨 Print Now</button><button className="xp-btn" onClick={onClose}>Cancel</button></div>
       </div>
@@ -598,7 +598,7 @@ function SaveConfirmModal({ salePayload, printType: defaultPrintType, onConfirm,
 }
 
 /* ══════════════════════════════════════════════════════════
-   PRODUCT SEARCH MODAL
+   PRODUCT SEARCH MODAL - WITH ARROW NAVIGATION
 ══════════════════════════════════════════════════════════ */
 function SearchModal({ allProducts, onSelect, onClose }) {
   const [desc, setDesc] = useState("");
@@ -641,6 +641,39 @@ function SearchModal({ allProducts, onSelect, onClose }) {
 
   useEffect(() => { rDesc.current?.focus(); setRows(buildFlat(allProducts, "", "", "")); }, [allProducts, buildFlat]);
   useEffect(() => { const f = buildFlat(allProducts, desc, cat, company); setRows(f); setHiIdx(f.length > 0 ? 0 : -1); }, [desc, cat, company, allProducts, buildFlat]);
+  useEffect(() => { if (tbodyRef.current && hiIdx >= 0) tbodyRef.current.children[hiIdx]?.scrollIntoView({ block: "nearest" }); }, [hiIdx]);
+
+  const fk = (e, nr) => { 
+    if (e.key === "Escape") { onClose(); return; } 
+    if (e.key === "Enter" || e.key === "ArrowDown") { 
+      e.preventDefault(); 
+      nr ? nr.current?.focus() : (tbodyRef.current?.focus(), setHiIdx((h) => Math.max(0, h))); 
+    } 
+  };
+  
+  const tk = (e) => { 
+    if (e.key === "ArrowDown") { 
+      e.preventDefault(); 
+      setHiIdx((i) => Math.min(i + 1, rows.length - 1)); 
+    } 
+    if (e.key === "ArrowUp") { 
+      e.preventDefault(); 
+      setHiIdx((i) => Math.max(i - 1, 0)); 
+    } 
+    if (e.key === "Enter") { 
+      e.preventDefault(); 
+      if (hiIdx >= 0 && rows[hiIdx]) onSelect(rows[hiIdx]); 
+    } 
+    if (e.key === "Escape") onClose(); 
+    if (e.key === "F2") { 
+      e.preventDefault(); 
+      onClose(); 
+    } 
+    if (e.key === "Tab") { 
+      e.preventDefault(); 
+      rDesc.current?.focus(); 
+    } 
+  };
 
   const getStockStatusForModal = (stock) => {
     if (stock === 0) return { color: "#dc2626", text: "OUT OF STOCK", icon: "❌", bg: "#fee2e2" };
@@ -653,16 +686,17 @@ function SearchModal({ allProducts, onSelect, onClose }) {
   return (
     <div className="xp-overlay" onClick={(e) => e.target === e.currentTarget && onClose()} style={{ zIndex: 2000 }}>
       <div className="xp-modal" style={{ width: "95%", maxWidth: "1200px", height: "80vh", display: "flex", flexDirection: "column" }}>
-        <div className="xp-modal-tb"><span className="xp-modal-title">Search Products (F2/Esc to close)</span><button className="xp-cap-btn xp-cap-close" onClick={onClose}>✕</button></div>
+        <div className="xp-modal-tb"><span className="xp-modal-title">Search Products (↑↓ Navigate, Enter Select, F2/Esc Close)</span><button className="xp-cap-btn xp-cap-close" onClick={onClose}>✕</button></div>
         <div className="cs-modal-filters" style={{ padding: "8px", display: "flex", gap: "8px", flexWrap: "wrap" }}>
-          <input ref={rDesc} type="text" placeholder="Description / Code" value={desc} onChange={(e) => setDesc(e.target.value)} style={{ flex: 2, padding: "6px" }} />
-          <input ref={rCat} type="text" placeholder="Category" value={cat} onChange={(e) => setCat(e.target.value)} style={{ flex: 1, padding: "6px" }} />
-          <input ref={rCompany} type="text" placeholder="Company" value={company} onChange={(e) => setCompany(e.target.value)} style={{ flex: 1, padding: "6px" }} />
+          <input ref={rDesc} type="text" placeholder="Description / Code" value={desc} onChange={(e) => setDesc(e.target.value)} onKeyDown={(e) => fk(e, rCat)} style={{ flex: 2, padding: "6px" }} />
+          <input ref={rCat} type="text" placeholder="Category" value={cat} onChange={(e) => setCat(e.target.value)} onKeyDown={(e) => fk(e, rCompany)} style={{ flex: 1, padding: "6px" }} />
+          <input ref={rCompany} type="text" placeholder="Company" value={company} onChange={(e) => setCompany(e.target.value)} onKeyDown={(e) => fk(e, null)} style={{ flex: 1, padding: "6px" }} />
+          <button className="xp-btn xp-btn-sm" onClick={onClose}>Close (Esc)</button>
         </div>
         <div className="xp-modal-body" style={{ flex: 1, overflow: "auto" }}>
           <table className="xp-table" style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead><tr><th>#</th><th>Code</th><th>Product Name</th><th>Unit</th><th>Rate</th><th>Stock</th><th>Pack</th></tr></thead>
-            <tbody ref={tbodyRef}>
+            <tbody ref={tbodyRef} tabIndex={0} onKeyDown={tk}>
               {rows.map((r, i) => {
                 const stockStatus = getStockStatusForModal(r._stock);
                 return (
@@ -1502,9 +1536,9 @@ export default function SalePage() {
                   )}
                 </div>
               </div>
-              <div className="sl-entry-cell"><label>Packing</label><input ref={packingRef} type="text" className="xp-input sl-num-input" style={{ width: 65, background: "#fffde7" }} value={curRow.uom} onChange={(e) => setCurRow((p) => ({ ...p, uom: e.target.value }))} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); pcsRef.current?.focus(); } }} autoComplete="off" /></div>
+              <div className="sl-entry-cell"><label>Packing</label><input ref={packingRef} type="text" className="xp-input sl-num-input" style={{ width: 65, background: "#fffde7" }} value={curRow.uom} onChange={(e) => setCurRow((p) => ({ ...p, uom: e.target.value }))} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); pcsRef.current?.focus(); } if (packingOptions.length > 0 && (e.key === "ArrowDown" || e.key === "ArrowUp")) { e.preventDefault(); const idx = packingOptions.indexOf(curRow.uom); const next = e.key === "ArrowDown" ? (idx + 1) % packingOptions.length : (idx - 1 + packingOptions.length) % packingOptions.length; const newUom = packingOptions[next]; const product = allProducts.find(p => p._id === curRow.productId); if (product?.packingInfo) { const pk = product.packingInfo.find(pk => pk.measurement === newUom); if (pk) { setCurRow((p) => ({ ...p, uom: newUom, rate: pk.saleRate || 0, pcs: pk.packing || 1, amount: (pk.packing || 1) * (pk.saleRate || 0) })); return; } } setCurRow((p) => ({ ...p, uom: newUom })); } }} autoComplete="off" /></div>
               <div className="sl-entry-cell"><label>Pcs</label><input ref={pcsRef} type="text" className="sl-num-input" style={{ width: 60, background: "#fffde7" }} value={curRow.pcs} min={1} onChange={(e) => updateCurRow("pcs", e.target.value)} onKeyDown={(e) => e.key === "Enter" && rateRef.current?.focus()} onFocus={(e) => e.target.select()} /></div>
-              <div className="sl-entry-cell"><label>Rate</label><input ref={rateRef} type="text" className="sl-num-input" style={{ width: 75, background: "#fffde7" }} value={curRow.rate} min={0} onChange={(e) => updateCurRow("rate", e.target.value)} onKeyDown={(e) => e.key === "Enter" && amountRef.current?.focus()} onFocus={(e) => e.target.select()} /></div>
+              <div className="sl-entry-cell"><label>Rate</label><input ref={rateRef} type="text" className="sl-num-input" style={{ width: 75, background: "#fffde7" }} value={curRow.rate} min={0} onChange={(e) => updateCurRow("rate", e.target.value)} onBlur={(e) => { const product = allProducts.find(p => p._id === curRow.productId); if (product?.packingInfo) { const pk = product.packingInfo.find(p => p.measurement === curRow.uom); if (pk) { const purchaseRate = pk.purchaseRate || pk.costRate || 0; if (purchaseRate > 0 && parseFloat(e.target.value) < purchaseRate) { showMsg(`Rate cannot be less than purchase rate (${purchaseRate})`, "error"); updateCurRow("rate", purchaseRate); } } } }} onKeyDown={(e) => e.key === "Enter" && amountRef.current?.focus()} onFocus={(e) => e.target.select()} /></div>
               <div className="sl-entry-cell"><label>Amount</label><input ref={amountRef} type="text" className="sl-num-input" style={{ width: 80, background: "#fffde7" }} value={curRow.amount || 0} onChange={(e) => setCurRow((p) => ({ ...p, amount: parseFloat(e.target.value) || 0 }))} onKeyDown={(e) => e.key === "Enter" && addRef.current?.click()} /></div>
               <div className="sl-entry-cell sl-entry-btns-cell">
                 <label>&nbsp;</label>
